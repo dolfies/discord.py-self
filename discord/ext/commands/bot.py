@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
 import asyncio
 import collections
 import importlib.util
@@ -31,12 +30,12 @@ import traceback
 import types
 
 import discord
-
 from . import errors
 from .cog import Cog
 from .context import Context
 from .core import GroupMixin
-from .help import DefaultHelpCommand, HelpCommand
+from .help import DefaultHelpCommand
+from .help import HelpCommand
 from .view import StringView
 
 __all__ = (
