@@ -1339,7 +1339,10 @@ class GroupChannel(discord.abc.Messageable, Hashable):
         self.name = data.get('name')
 
         try:
-            self.recipients = [self._state.store_user(u) for u in data['recipients']]
+            if 'recipients' in data:
+                self.recipients = [self._state.store_user(u) for u in data['recipients']]
+            else:
+                self.recipients = [self._state.store_lazy_user(u) for u in data['recipients']]
         except KeyError:
             pass
 
