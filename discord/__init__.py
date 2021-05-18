@@ -11,13 +11,13 @@ A basic wrapper for the Discord API.
 
 """
 
-__title__ = 'discord'
-__author__ = 'Rapptz'
-__license__ = 'MIT'
-__copyright__ = 'Copyright 2015-present Rapptz'
-__version__ = '1.7.7'
+__title__ = "discord"
+__author__ = "Rapptz"
+__license__ = "MIT"
+__copyright__ = "Copyright 2015-present Rapptz"
+__version__ = "1.7.7"
 
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
 from collections import namedtuple
 import logging
@@ -60,10 +60,8 @@ from .raw_models import *
 from .team import *
 from .sticker import Sticker
 
-VersionInfo = namedtuple(
-    'VersionInfo', 'major minor micro releaselevel serial')
+VersionInfo = namedtuple("VersionInfo", "major minor micro releaselevel serial")
 
-version_info = VersionInfo(major=1, minor=7, micro=7,
-                           releaselevel='final', serial=0)
+version_info = VersionInfo(major=1, minor=7, micro=7, releaselevel="final", serial=0)
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
