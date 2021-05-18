@@ -59,8 +59,13 @@ from .voice_client import VoiceClient, VoiceProtocol
 from .webhook import *
 from .widget import Widget, WidgetChannel, WidgetMember
 
-VersionInfo = namedtuple("VersionInfo", "major minor micro releaselevel serial")
+VersionInfo = namedtuple("VersionInfo",
+                         "major minor micro releaselevel serial")
 
-version_info = VersionInfo(major=1, minor=7, micro=7, releaselevel="final", serial=0)
+version_info = VersionInfo(major=1,
+                           minor=7,
+                           micro=7,
+                           releaselevel="final",
+                           serial=0)
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
