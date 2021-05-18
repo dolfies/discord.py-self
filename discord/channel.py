@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 The MIT License (MIT)
 
@@ -23,16 +22,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
 import asyncio
 import time
 
 import discord.abc
-
 from . import utils
 from .asset import Asset
-from .enums import ChannelType, VoiceRegion, try_enum
-from .errors import ClientException, InvalidArgument, NoMoreItems
+from .enums import ChannelType
+from .enums import try_enum
+from .enums import VoiceRegion
+from .errors import ClientException
+from .errors import InvalidArgument
+from .errors import NoMoreItems
 from .mixins import Hashable
 from .permissions import Permissions
 
