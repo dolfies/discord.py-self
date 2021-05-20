@@ -1101,37 +1101,6 @@ class Messageable(metaclass=abc.ABCMeta):
         """
         return Typing(self)
 
-    async def fetch_message(self, id):
-        """|coro|
-
-        Retrieves a single :class:`~discord.Message` from the destination.
-
-        This can only be used by bot accounts.
-
-        Parameters
-        ------------
-        id: :class:`int`
-            The message ID to look for.
-
-        Raises
-        --------
-        ~discord.NotFound
-            The specified message was not found.
-        ~discord.Forbidden
-            You do not have the permissions required to get a message.
-        ~discord.HTTPException
-            Retrieving the message failed.
-
-        Returns
-        --------
-        :class:`~discord.Message`
-            The message asked for.
-        """
-
-        channel = await self._get_channel()
-        data = await self._state.http.get_message(channel.id, id)
-        return self._state.create_message(channel=channel, data=data)
-
     async def pins(self):
         """|coro|
 

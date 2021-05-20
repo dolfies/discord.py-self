@@ -174,9 +174,8 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
             :class: helpful
 
             For a slightly more reliable method of fetching the
-            last message, consider using either :meth:`history`
-            or :meth:`fetch_message` with the :attr:`last_message_id`
-            attribute.
+            last message, consider using :meth:`history`
+            with the :attr:`last_message_id` attribute.
 
         Returns
         ---------
@@ -248,59 +247,7 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
             'rate_limit_per_user': self.slowmode_delay
         }, name=name, reason=reason)
 
-    async def delete_messages(self, messages):
-        """|coro|
-
-        Deletes a list of messages. This is similar to :meth:`Message.delete`
-        except it bulk deletes multiple messages.
-
-        As a special case, if the number of messages is 0, then nothing
-        is done. If the number of messages is 1 then single message
-        delete is done. If it's more than two, then bulk delete is used.
-
-        You cannot bulk delete more than 100 messages or messages that
-        are older than 14 days old.
-
-        You must have the :attr:`~Permissions.manage_messages` permission to
-        use this.
-
-        Usable only by bot accounts.
-
-        Parameters
-        -----------
-        messages: Iterable[:class:`abc.Snowflake`]
-            An iterable of messages denoting which ones to bulk delete.
-
-        Raises
-        ------
-        ClientException
-            The number of messages to delete was more than 100.
-        Forbidden
-            You do not have proper permissions to delete the messages or
-            you're not using a bot account.
-        NotFound
-            If single delete, then the message was already deleted.
-        HTTPException
-            Deleting the messages failed.
-        """
-        if not isinstance(messages, (list, tuple)):
-            messages = list(messages)
-
-        if len(messages) == 0:
-            return # do nothing
-
-        if len(messages) == 1:
-            message_id = messages[0].id
-            await self._state.http.delete_message(self.id, message_id)
-            return
-
-        if len(messages) > 100:
-            raise ClientException('Can only bulk delete messages up to 100 messages')
-
-        message_ids = [m.id for m in messages]
-        await self._state.http.delete_messages(self.id, message_ids)
-
-    async def purge(self, *, limit=100, check=None, before=None, after=None, around=None, oldest_first=False, bulk=True):
+    async def purge(self, *, limit=100, check=None, before=None, after=None, around=None, oldest_first=False):
         """|coro|
 
         Purges a list of messages that meet the criteria given by the predicate
@@ -311,10 +258,6 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
         delete messages even if they are your own (unless you are a user
         account). The :attr:`~Permissions.read_message_history` permission is
         also needed to retrieve message history.
-
-        Internally, this employs a different number of strategies depending
-        on the conditions met such as if a bulk delete is possible or if
-        the account is a user bot or not.
 
         Examples
         ---------
@@ -343,11 +286,6 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
             Same as ``around`` in :meth:`history`.
         oldest_first: Optional[:class:`bool`]
             Same as ``oldest_first`` in :meth:`history`.
-        bulk: :class:`bool`
-            If ``True``, use bulk delete. Setting this to ``False`` is useful for mass-deleting
-            a bot's own messages without :attr:`Permissions.manage_messages`. When ``True``, will
-            fall back to single delete if current account is a user bot (now deprecated), or if messages are
-            older than two weeks.
 
         Raises
         -------
@@ -370,7 +308,7 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
         count = 0
 
         minimum_time = int((time.time() - 14 * 24 * 60 * 60) * 1000.0 - 1420070400000) << 22
-        strategy = self.delete_messages if self._state.is_bot and bulk else _single_delete_strategy
+        strategy = _single_delete_strategy
 
         while True:
             try:

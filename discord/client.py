@@ -491,11 +491,6 @@ class Client:
         token: :class:`str`
             The authentication token. Do not prefix this token with
             anything as the library will do it for you.
-        bot: :class:`bool`
-            Keyword argument that specifies if the account logging on is a bot
-            token or not.
-
-            .. deprecated:: 1.7
 
         Raises
         ------
@@ -1192,8 +1187,6 @@ class Client:
 
         Creates a :class:`.Guild`.
 
-        Bot accounts in more than 10 guilds are not allowed to create guilds.
-
         Parameters
         ----------
         name: :class:`str`
@@ -1351,49 +1344,10 @@ class Client:
             data['rpc_origins'] = None
         return AppInfo(self._connection, data)
 
-    async def fetch_user(self, user_id):
-        """|coro|
-
-        Retrieves a :class:`~discord.User` based on their ID. This can only
-        be used by bot accounts. You do not have to share any guilds
-        with the user to get this information, however many operations
-        do require that you do.
-
-        .. note::
-
-            This method is an API call. If you have :attr:`Intents.members` and member cache enabled, consider :meth:`get_user` instead.
-
-        Parameters
-        -----------
-        user_id: :class:`int`
-            The user's ID to fetch from.
-
-        Raises
-        -------
-        :exc:`.NotFound`
-            A user with this ID does not exist.
-        :exc:`.HTTPException`
-            Fetching the user failed.
-
-        Returns
-        --------
-        :class:`~discord.User`
-            The user you requested.
-        """
-        data = await self.http.get_user(user_id)
-        return User(state=self._connection, data=data)
-
-    @utils.deprecated()
     async def fetch_user_profile(self, user_id):
         """|coro|
 
         Gets an arbitrary user's profile.
-
-        .. deprecated:: 1.7
-
-        .. note::
-
-            This can only be used by non-bot accounts.
 
         Parameters
         ------------
