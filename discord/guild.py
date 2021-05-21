@@ -25,6 +25,7 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import copy
+import asyncio
 from collections import namedtuple
 
 from . import utils
@@ -189,6 +190,28 @@ class Guild(Hashable):
         self._state = state
         self._from_data(data)
 
+    def _send_payload(self):
+        payload = {
+            "op": 14,
+            "d": {
+                "guild_id": str(self.id),
+                "typing": True,
+                "threads": False,
+                "activities": True,
+                "members": [],
+                "channels": {
+                    str(self.channels[0].id): [
+                        [
+                            0,
+                            99
+                        ]
+                    ]
+                }
+            }
+        }
+
+        asyncio.ensure_future(self._state.send_as_json(payload), loop=self._state.loop)
+
     def _add_channel(self, channel):
         self._channels[channel.id] = channel
 
@@ -280,7 +303,7 @@ class Guild(Hashable):
         self.afk_timeout = guild.get('afk_timeout')
         self.icon = guild.get('icon')
         self.banner = guild.get('banner')
-        self.unavailable = guild.get('unavailable', False)
+        self.unavailable = guild.get('unavailable')#, False)
         self.id = int(guild['id'])
         self._roles = {}
         state = self._state # speed up attribute access
@@ -312,6 +335,11 @@ class Guild(Hashable):
             member = Member(data=mdata, guild=self, state=state)
             if cache_joined or (cache_online_members and member.raw_status != 'offline') or member.id == self_id:
                 self._add_member(member)
+                
+        for mdata in guild.get('my_member', []):
+            member = Member(data=mdata, guild=self, state=state)
+            if cache_joined or (cache_online_members and member.raw_status != 'offline') or member.id == self_id:
+                self._add_member(member)
 
         self._sync(guild)
         self._large = None if member_count is None else self._member_count >= 250
@@ -321,7 +349,7 @@ class Guild(Hashable):
 
         for obj in guild.get('voice_states', []):
             self._update_voice_state(obj, int(obj['channel_id']))
-
+            
     def _sync(self, data):
         try:
             self._large = data['large']

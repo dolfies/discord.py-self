@@ -14,4 +14,7 @@ docs/crowdin.py
 *.jpg
 *.flac
 *.mo
+cogs/
+utils.py
 test.py
+*.kate-swp

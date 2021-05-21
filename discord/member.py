@@ -213,7 +213,10 @@ class Member(discord.abc.Messageable, _BaseUser):
 
     def __init__(self, *, data, guild, state):
         self._state = state
-        self._user = state.store_user(data['user'])
+        if 'user' in data:
+            self._user = state.store_user(data['user'])
+        else:
+            self._user = state.store_lazy_user(data['user_id'])
         self.guild = guild
         self.joined_at = utils.parse_time(data.get('joined_at'))
         self.premium_since = utils.parse_time(data.get('premium_since'))

@@ -151,7 +151,7 @@ class ConnectionState:
             if not isinstance(intents, Intents):
                 raise TypeError('intents parameter must be Intent not %r' % type(intents))
         else:
-            intents = Intents.default()
+            intents = Intents.all()
 
         if not intents.guilds:
             log.warning('Guilds intent seems to be disabled. This may cause state related issues.')
@@ -475,8 +475,9 @@ class ConnectionState:
         self.clear()
         self.user = user = ClientUser(state=self, data=data['user'])
         self._users[user.id] = user
-
-        for guild_data in data['guilds']:
+        
+        for merged_member_list, guild_data in zip(data['merged_members'], data['guilds']):
+            guild_data['my_member'] = merged_member_list
             self._add_guild_from_data(guild_data)
 
         for relationship in data.get('relationships', []):

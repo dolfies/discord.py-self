@@ -269,6 +269,27 @@ class Client:
         await self.ws.request_sync(guilds)
 
     def _handle_ready(self):
+        for guild in self.guilds:
+            payload = {
+                "op": 14,
+                "d": {
+                    "guild_id": str(guild.id),
+                    "typing": True,
+                    "threads": False,
+                    "activities": True,
+                    "members": [],
+                    "channels": {
+                        str(guild.channels[0].id): [
+                            [
+                                0,
+                                99
+                            ]
+                        ]
+                    }
+                }
+            }
+
+            asyncio.ensure_future(self.ws.send_as_json(payload), loop=self.loop)
         self._ready.set()
 
     @property
