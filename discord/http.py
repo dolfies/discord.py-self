@@ -371,7 +371,7 @@ class HTTPClient:
 
     # login management
 
-    def _token(self, token: str): -> None
+    def _token(self, token: str) -> None:
         self.token = token
         self.bot_token = False
         self._ack_token = None
