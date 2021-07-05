@@ -625,6 +625,8 @@ class WebhookMessage(Message):
     .. versionadded:: 1.6
     """
 
+    _state: _WebhookState
+
     async def edit(
         self,
         content: Optional[str] = MISSING,
@@ -652,15 +654,21 @@ class WebhookMessage(Message):
             This should not be mixed with the ``embeds`` parameter.
         file: :class:`File`
             The file to upload. This cannot be mixed with ``files`` parameter.
+
+            .. versionadded:: 2.0
         files: List[:class:`File`]
             A list of files to send with the content. This cannot be mixed with the
             ``file`` parameter.
+
+            .. versionadded:: 2.0
         allowed_mentions: :class:`AllowedMentions`
             Controls the mentions being processed in this message.
             See :meth:`.abc.Messageable.send` for more information.
         view: Optional[:class:`~discord.ui.View`]
             The updated view to update this message with. If ``None`` is passed then
             the view is removed.
+
+            .. versionadded:: 2.0
 
         Raises
         -------
@@ -772,11 +780,16 @@ class BaseWebhook(Hashable):
         self.source_guild: Optional[PartialWebhookGuild] = source_guild
 
     def is_partial(self) -> bool:
-        """:class:`bool`: Whether the webhook is a "partial" webhook."""
+        """:class:`bool`: Whether the webhook is a "partial" webhook.
+
+        .. versionadded:: 2.0"""
         return self.channel_id is None
 
     def is_authenticated(self) -> bool:
-        """:class:`bool`: Whether the webhook is authenticated with a bot token."""
+        """:class:`bool`: Whether the webhook is authenticated with a bot token.
+
+        .. versionadded:: 2.0
+        """
         return self.auth_token is not None
 
     @property
@@ -794,7 +807,7 @@ class BaseWebhook(Hashable):
         If this is a partial webhook, then this will always return ``None``.
         """
         guild = self.guild
-        return guild and guild.get_channel(self.channel_id)
+        return guild and guild.get_channel(self.channel_id)  # type: ignore
 
     @property
     def created_at(self) -> datetime.datetime:
@@ -893,7 +906,7 @@ class Webhook(BaseWebhook):
         .. versionadded:: 2.0
     """
 
-    __slots__: Tuple[str, ...] = BaseWebhook.__slots__ + ('session',)
+    __slots__: Tuple[str, ...] = ('session',)
 
     def __init__(self, data: WebhookPayload, session: aiohttp.ClientSession, token: Optional[str] = None, state=None):
         super().__init__(data, token, state)
@@ -921,9 +934,13 @@ class Webhook(BaseWebhook):
             The session to use to send requests with. Note
             that the library does not manage the session and
             will not close it.
+
+            .. versionadded:: 2.0
         bot_token: Optional[:class:`str`]
             The bot authentication token for authenticated requests
             involving the webhook.
+
+            .. versionadded:: 2.0
 
         Returns
         --------
@@ -951,9 +968,13 @@ class Webhook(BaseWebhook):
             The session to use to send requests with. Note
             that the library does not manage the session and
             will not close it.
+
+            .. versionadded:: 2.0
         bot_token: Optional[:class:`str`]
             The bot authentication token for authenticated requests
             involving the webhook.
+
+            .. versionadded:: 2.0
 
         Raises
         -------
@@ -1001,6 +1022,8 @@ class Webhook(BaseWebhook):
         Fetches the current webhook.
 
         This could be used to get a full webhook from a partial webhook.
+
+        .. versionadded:: 2.0
 
         .. note::
 
@@ -1054,6 +1077,8 @@ class Webhook(BaseWebhook):
             Whether to use the bot token over the webhook token
             if available. Defaults to ``True``.
 
+            .. versionadded:: 2.0
+
         Raises
         -------
         HTTPException
@@ -1096,6 +1121,8 @@ class Webhook(BaseWebhook):
             A :term:`py:bytes-like object` representing the webhook's new default avatar.
         channel: Optional[:class:`abc.Snowflake`]
             The webhook's new channel. This requires an authenticated webhook.
+
+            .. versionadded:: 2.0
         reason: Optional[:class:`str`]
             The reason for editing this webhook. Shows up on the audit log.
 
@@ -1103,6 +1130,8 @@ class Webhook(BaseWebhook):
         prefer_auth: :class:`bool`
             Whether to use the bot token over the webhook token
             if available. Defaults to ``True``.
+
+            .. versionadded:: 2.0
 
         Raises
         -------
@@ -1148,7 +1177,7 @@ class Webhook(BaseWebhook):
     def _create_message(self, data):
         state = _WebhookState(self, parent=self._state)
         channel = self.channel or Object(id=int(data['channel_id']))
-        return WebhookMessage(data=data, state=state, channel=channel)
+        return WebhookMessage(data=data, state=state, channel=channel)  # type: ignore
 
     @overload
     async def send(
@@ -1242,6 +1271,8 @@ class Webhook(BaseWebhook):
             This is only available to :attr:`WebhookType.application` webhooks.
             If a view is sent with an ephemeral message and it has no timeout set
             then the timeout is set to 15 minutes.
+
+            .. versionadded:: 2.0
         file: :class:`File`
             The file to upload. This cannot be mixed with ``files`` parameter.
         files: List[:class:`File`]
@@ -1427,9 +1458,13 @@ class Webhook(BaseWebhook):
             This should not be mixed with the ``embeds`` parameter.
         file: :class:`File`
             The file to upload. This cannot be mixed with ``files`` parameter.
+
+            .. versionadded:: 2.0
         files: List[:class:`File`]
             A list of files to send with the content. This cannot be mixed with the
             ``file`` parameter.
+
+            .. versionadded:: 2.0
         allowed_mentions: :class:`AllowedMentions`
             Controls the mentions being processed in this message.
             See :meth:`.abc.Messageable.send` for more information.
@@ -1437,6 +1472,8 @@ class Webhook(BaseWebhook):
             The updated view to update this message with. If ``None`` is passed then
             the view is removed. The webhook must have state attached, similar to
             :meth:`send`.
+
+            .. versionadded:: 2.0
 
         Raises
         -------

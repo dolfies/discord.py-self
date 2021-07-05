@@ -71,6 +71,7 @@ __all__ = (
     'CategoryChannelConverter',
     'IDConverter',
     'StoreChannelConverter',
+    'ThreadConverter',
     'GuildChannelConverter',
     'clean_content',
     'Greedy',
@@ -393,10 +394,10 @@ class GuildChannelConverter(IDConverter[discord.abc.GuildChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.abc.GuildChannel:
-        return self._resolve_channel(ctx, argument, ctx.guild.channels, discord.abc.GuildChannel)
+        return self._resolve_channel(ctx, argument, 'channels', discord.abc.GuildChannel)
 
     @staticmethod
-    def _resolve_channel(ctx: Context, argument: str, iterable: Iterable[CT], type: Type[CT]) -> CT:
+    def _resolve_channel(ctx: Context, argument: str, attribute: str, type: Type[CT]) -> CT:
         bot = ctx.bot
 
         match = IDConverter._get_id_match(argument) or re.match(r'<#([0-9]{15,20})>$', argument)
@@ -406,6 +407,7 @@ class GuildChannelConverter(IDConverter[discord.abc.GuildChannel]):
         if match is None:
             # not a mention
             if guild:
+                iterable: Iterable[CT] = getattr(guild, attribute)
                 result: Optional[CT] = discord.utils.get(iterable, name=argument)
             else:
 
@@ -425,6 +427,28 @@ class GuildChannelConverter(IDConverter[discord.abc.GuildChannel]):
 
         return result
 
+    @staticmethod
+    def _resolve_thread(ctx: Context, argument: str, attribute: str, type: Type[CT]) -> CT:
+        bot = ctx.bot
+
+        match = IDConverter._get_id_match(argument) or re.match(r'<#([0-9]{15,20})>$', argument)
+        result = None
+        guild = ctx.guild
+
+        if match is None:
+            # not a mention
+            if guild:
+                iterable: Iterable[CT] = getattr(guild, attribute)
+                result: Optional[CT] = discord.utils.get(iterable, name=argument)
+        else:
+            thread_id = int(match.group(1))
+            if guild:
+                result = guild.get_thread(thread_id)
+
+        if not result or not isinstance(result, type):
+            raise ThreadNotFound(argument)
+
+        return result
 
 class TextChannelConverter(IDConverter[discord.TextChannel]):
     """Converts to a :class:`~discord.TextChannel`.
@@ -443,7 +467,7 @@ class TextChannelConverter(IDConverter[discord.TextChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.TextChannel:
-        return GuildChannelConverter._resolve_channel(ctx, argument, ctx.guild.text_channels, discord.TextChannel)
+        return GuildChannelConverter._resolve_channel(ctx, argument, 'text_channels', discord.TextChannel)
 
 
 class VoiceChannelConverter(IDConverter[discord.VoiceChannel]):
@@ -463,7 +487,7 @@ class VoiceChannelConverter(IDConverter[discord.VoiceChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.VoiceChannel:
-        return GuildChannelConverter._resolve_channel(ctx, argument, ctx.guild.voice_channels, discord.VoiceChannel)
+        return GuildChannelConverter._resolve_channel(ctx, argument, 'voice_channels', discord.VoiceChannel)
 
 
 class StageChannelConverter(IDConverter[discord.StageChannel]):
@@ -482,7 +506,7 @@ class StageChannelConverter(IDConverter[discord.StageChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.StageChannel:
-        return GuildChannelConverter._resolve_channel(ctx, argument, ctx.guild.stage_channels, discord.StageChannel)
+        return GuildChannelConverter._resolve_channel(ctx, argument, 'stage_channels', discord.StageChannel)
 
 
 class CategoryChannelConverter(IDConverter[discord.CategoryChannel]):
@@ -502,7 +526,7 @@ class CategoryChannelConverter(IDConverter[discord.CategoryChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.CategoryChannel:
-        return GuildChannelConverter._resolve_channel(ctx, argument, ctx.guild.categories, discord.CategoryChannel)
+        return GuildChannelConverter._resolve_channel(ctx, argument, 'categories', discord.CategoryChannel)
 
 
 class StoreChannelConverter(IDConverter[discord.StoreChannel]):
@@ -521,8 +545,24 @@ class StoreChannelConverter(IDConverter[discord.StoreChannel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.StoreChannel:
-        return GuildChannelConverter._resolve_channel(ctx, argument, ctx.guild.channels, discord.StoreChannel)
+        return GuildChannelConverter._resolve_channel(ctx, argument, 'channels', discord.StoreChannel)
 
+class ThreadConverter(IDConverter[discord.Thread]):
+    """Coverts to a :class:`~discord.Thread`.
+
+    All lookups are via the local guild.
+
+    The lookup strategy is as follows (in order):
+
+    1. Lookup by ID.
+    2. Lookup by mention.
+    3. Lookup by name.
+
+    .. versionadded: 2.0
+    """
+
+    async def convert(self, ctx: Context, argument: str) -> discord.Thread:
+        return GuildChannelConverter._resolve_thread(ctx, argument, 'threads', discord.Thread)
 
 class ColourConverter(Converter[discord.Colour]):
     """Converts to a :class:`~discord.Colour`.
@@ -663,7 +703,7 @@ class InviteConverter(Converter[discord.Invite]):
             invite = await ctx.bot.fetch_invite(argument)
             return invite
         except Exception as exc:
-            raise BadInviteArgument() from exc
+            raise BadInviteArgument(argument) from exc
 
 
 class GuildConverter(IDConverter[discord.Guild]):
@@ -726,11 +766,7 @@ class EmojiConverter(IDConverter[discord.Emoji]):
             emoji_id = int(match.group(1))
 
             # Try to look up emoji by id.
-            if guild:
-                result = discord.utils.get(guild.emojis, id=emoji_id)
-
-            if result is None:
-                result = discord.utils.get(bot.emojis, id=emoji_id)
+            result = bot.get_emoji(emoji_id)
 
         if result is None:
             raise EmojiNotFound(argument)
@@ -950,6 +986,7 @@ CONVERTER_MAPPING: Dict[Type[Any], Any] = {
     discord.PartialEmoji: PartialEmojiConverter,
     discord.CategoryChannel: CategoryChannelConverter,
     discord.StoreChannel: StoreChannelConverter,
+    discord.Thread: ThreadConverter,
     discord.abc.GuildChannel: GuildChannelConverter,
 }
 

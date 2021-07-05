@@ -266,55 +266,12 @@ class Guild(Hashable):
         3: _GuildLimit(emoji=250, bitrate=384e3, filesize=104857600),
     }
 
-    # The attributes are typed here due to the usage of late init
-
-    name: str
-    region: VoiceRegion
-    verification_level: VerificationLevel
-    default_notifications: NotificationLevel
-    explicit_content_filter: ContentFilter
-    afk_timeout: int
-    unavailable: bool
-    id: int
-    mfa_level: MFALevel
-    emojis: Tuple[Emoji, ...]
-    features: List[str]
-    description: Optional[str]
-    max_presences: Optional[int]
-    max_members: Optional[int]
-    max_video_channel_users: Optional[int]
-    premium_tier: int
-    premium_subscription_count: int
-    preferred_locale: Optional[str]
-    nsfw_level: NSFWLevel
-    owner_id: Optional[int]
-    afk_channel: Optional[VocalGuildChannel]
-
-    # These are private
-
-    _channels: Dict[int, GuildChannel]
-    _members: Dict[int, Member]
-    _voice_states: Dict[int, VoiceState]
-    _threads: Dict[int, Thread]
-    _state: ConnectionState
-    _icon: Optional[str]
-    _banner: Optional[str]
-    _roles: Dict[int, Role]
-    _splash: Optional[str]
-    _system_channel_id: Optional[int]
-    _system_channel_flags: int
-    _discovery_splash: Optional[str]
-    _rules_channel_id: Optional[int]
-    _public_updates_channel_id: Optional[int]
-    _stage_instances: Dict[int, StageInstance]
-    _large: Optional[bool]
-
     def __init__(self, *, data: GuildPayload, state: ConnectionState):
-        self._channels = {}
-        self._members = {}
-        self._voice_states = {}
-        self._threads = {}
-        self._state = state
+        self._channels: Dict[int, GuildChannel] = {}
+        self._members: Dict[int, Member] = {}
+        self._voice_states: Dict[int, VoiceState] = {}
+        self._threads: Dict[int, Thread] = {}
+        self._state: ConnectionState = state
         self._from_data(data)
 
     def _add_channel(self, channel: GuildChannel, /) -> None:
@@ -330,7 +287,7 @@ class Guild(Hashable):
         self._members[member.id] = member
 
     def _store_thread(self, payload: ThreadPayload, /) -> Thread:
-        thread = Thread(guild=self, data=payload)
+        thread = Thread(guild=self, state=self._state, data=payload)
         self._threads[thread.id] = thread
         return thread
 
@@ -426,43 +383,45 @@ class Guild(Hashable):
         # I don't have this guarantee when someone updates the guild.
         member_count = guild.get('member_count', None)
         if member_count is not None:
-            self._member_count = member_count
+            self._member_count: int = member_count
 
-        self.name = guild.get('name')
-        self.region = try_enum(VoiceRegion, guild.get('region'))
-        self.verification_level = try_enum(VerificationLevel, guild.get('verification_level'))
-        self.default_notifications = try_enum(NotificationLevel, guild.get('default_message_notifications'))
-        self.explicit_content_filter = try_enum(ContentFilter, guild.get('explicit_content_filter', 0))
-        self.afk_timeout = guild.get('afk_timeout')
-        self._icon = guild.get('icon')
-        self._banner = guild.get('banner')
-        self.unavailable = guild.get('unavailable', False)
-        self.id = int(guild['id'])
-        self._roles = {}
+        self.name: str = guild.get('name')
+        self.region: VoiceRegion = try_enum(VoiceRegion, guild.get('region'))
+        self.verification_level: VerificationLevel = try_enum(VerificationLevel, guild.get('verification_level'))
+        self.default_notifications: NotificationLevel = try_enum(
+            NotificationLevel, guild.get('default_message_notifications')
+        )
+        self.explicit_content_filter: ContentFilter = try_enum(ContentFilter, guild.get('explicit_content_filter', 0))
+        self.afk_timeout: int = guild.get('afk_timeout')
+        self._icon: Optional[str] = guild.get('icon')
+        self._banner: Optional[str] = guild.get('banner')
+        self.unavailable: bool = guild.get('unavailable', False)
+        self.id: int = int(guild['id'])
+        self._roles: Dict[int, Role] = {}
         state = self._state  # speed up attribute access
         for r in guild.get('roles', []):
             role = Role(guild=self, data=r, state=state)
             self._roles[role.id] = role
 
-        self.mfa_level = guild.get('mfa_level')
-        self.emojis = tuple(map(lambda d: state.store_emoji(self, d), guild.get('emojis', [])))
-        self.features = guild.get('features', [])
-        self._splash = guild.get('splash')
-        self._system_channel_id = utils._get_as_snowflake(guild, 'system_channel_id')
-        self.description = guild.get('description')
-        self.max_presences = guild.get('max_presences')
-        self.max_members = guild.get('max_members')
-        self.max_video_channel_users = guild.get('max_video_channel_users')
-        self.premium_tier = guild.get('premium_tier', 0)
-        self.premium_subscription_count = guild.get('premium_subscription_count') or 0
-        self._system_channel_flags = guild.get('system_channel_flags', 0)
-        self.preferred_locale = guild.get('preferred_locale')
-        self._discovery_splash = guild.get('discovery_splash')
-        self._rules_channel_id = utils._get_as_snowflake(guild, 'rules_channel_id')
-        self._public_updates_channel_id = utils._get_as_snowflake(guild, 'public_updates_channel_id')
-        self.nsfw_level = try_enum(NSFWLevel, guild.get('nsfw_level', 0))
+        self.mfa_level: MFALevel = guild.get('mfa_level')
+        self.emojis: Tuple[Emoji, ...] = tuple(map(lambda d: state.store_emoji(self, d), guild.get('emojis', [])))
+        self.features: List[str] = guild.get('features', [])
+        self._splash: Optional[str] = guild.get('splash')
+        self._system_channel_id: Optional[int] = utils._get_as_snowflake(guild, 'system_channel_id')
+        self.description: Optional[str] = guild.get('description')
+        self.max_presences: Optional[int] = guild.get('max_presences')
+        self.max_members: Optional[int] = guild.get('max_members')
+        self.max_video_channel_users: Optional[int] = guild.get('max_video_channel_users')
+        self.premium_tier: int = guild.get('premium_tier', 0)
+        self.premium_subscription_count: int = guild.get('premium_subscription_count') or 0
+        self._system_channel_flags: int = guild.get('system_channel_flags', 0)
+        self.preferred_locale: Optional[str] = guild.get('preferred_locale')
+        self._discovery_splash: Optional[str] = guild.get('discovery_splash')
+        self._rules_channel_id: Optional[int] = utils._get_as_snowflake(guild, 'rules_channel_id')
+        self._public_updates_channel_id: Optional[int] = utils._get_as_snowflake(guild, 'public_updates_channel_id')
+        self.nsfw_level: NSFWLevel = try_enum(NSFWLevel, guild.get('nsfw_level', 0))
 
-        self._stage_instances = {}
+        self._stage_instances: Dict[int, StageInstance] = {}
         for s in guild.get('stage_instances', []):
             stage_instance = StageInstance(guild=self, data=s, state=state)
             self._stage_instances[stage_instance.id] = stage_instance
@@ -475,10 +434,10 @@ class Guild(Hashable):
                 self._add_member(member)
 
         self._sync(guild)
-        self._large = None if member_count is None else self._member_count >= 250
+        self._large: Optional[bool] = None if member_count is None else self._member_count >= 250
 
-        self.owner_id = utils._get_as_snowflake(guild, 'owner_id')
-        self.afk_channel = self.get_channel(utils._get_as_snowflake(guild, 'afk_channel_id'))  # type: ignore
+        self.owner_id: Optional[int] = utils._get_as_snowflake(guild, 'owner_id')
+        self.afk_channel: Optional[VocalGuildChannel] = self.get_channel(utils._get_as_snowflake(guild, 'afk_channel_id'))  # type: ignore
 
         for obj in guild.get('voice_states', []):
             self._update_voice_state(obj, int(obj['channel_id']))
@@ -495,19 +454,19 @@ class Guild(Hashable):
             user_id = int(presence['user']['id'])
             member = self.get_member(user_id)
             if member is not None:
-                member._presence_update(presence, empty_tuple)
+                member._presence_update(presence, empty_tuple)  # type: ignore
 
         if 'channels' in data:
             channels = data['channels']
             for c in channels:
                 factory, ch_type = _guild_channel_factory(c['type'])
                 if factory:
-                    self._add_channel(factory(guild=self, data=c, state=self._state))
+                    self._add_channel(factory(guild=self, data=c, state=self._state))  # type: ignore
 
         if 'threads' in data:
             threads = data['threads']
             for thread in threads:
-                self._add_thread(Thread(guild=self, data=thread))
+                self._add_thread(Thread(guild=self, state=self._state, data=thread))
 
     @property
     def channels(self) -> List[GuildChannel]:
@@ -626,6 +585,12 @@ class Guild(Hashable):
         for _, channels in as_list:
             channels.sort(key=lambda c: (c._sorting_bucket, c.position, c.id))
         return as_list
+
+    def _resolve_channel(self, id: Optional[int], /) -> Optional[Union[GuildChannel, Thread]]:
+        if id is None:
+            return
+
+        return self._channels.get(id) or self._threads.get(id)
 
     def get_channel(self, channel_id: int, /) -> Optional[GuildChannel]:
         """Returns a channel with the given ID.
@@ -1345,7 +1310,6 @@ class Guild(Hashable):
         rules_channel: Optional[TextChannel] = MISSING,
         public_updates_channel: Optional[TextChannel] = MISSING,
     ) -> None:
-        ...
         r"""|coro|
 
         Edits the guild.
@@ -2200,7 +2164,7 @@ class Guild(Hashable):
         permissions: Permissions = ...,
         colour: Union[Colour, int] = ...,
         hoist: bool = ...,
-        mentionable: str = ...,
+        mentionable: bool = ...,
     ) -> Role:
         ...
 
@@ -2213,7 +2177,7 @@ class Guild(Hashable):
         permissions: Permissions = ...,
         color: Union[Colour, int] = ...,
         hoist: bool = ...,
-        mentionable: str = ...,
+        mentionable: bool = ...,
     ) -> Role:
         ...
 
@@ -2225,10 +2189,9 @@ class Guild(Hashable):
         color: Union[Colour, int] = MISSING,
         colour: Union[Colour, int] = MISSING,
         hoist: bool = MISSING,
-        mentionable: str = MISSING,
+        mentionable: bool = MISSING,
         reason: Optional[str] = None,
     ) -> Role:
-        ...
         """|coro|
 
         Creates a :class:`Role` for the guild.
@@ -2450,7 +2413,7 @@ class Guild(Hashable):
         """
         await self._state.http.unban(user.id, self.id, reason=reason)
 
-    async def vanity_invite(self) -> Invite:
+    async def vanity_invite(self) -> Optional[Invite]:
         """|coro|
 
         Returns the guild's special vanity invite.
@@ -2469,12 +2432,15 @@ class Guild(Hashable):
 
         Returns
         --------
-        :class:`Invite`
-            The special vanity invite.
+        Optional[:class:`Invite`]
+            The special vanity invite. If ``None`` then the guild does not
+            have a vanity invite set.
         """
 
         # we start with { code: abc }
         payload = await self._state.http.get_vanity_code(self.id)
+        if not payload['code']:
+            return None
 
         # get the vanity URL channel since default channels aren't
         # reliable or a thing anymore
@@ -2485,6 +2451,7 @@ class Guild(Hashable):
         payload['temporary'] = False
         payload['max_uses'] = 0
         payload['max_age'] = 0
+        payload['uses'] = payload.get('uses', 0)
         return Invite(state=self._state, data=payload, guild=self, channel=channel)
 
     # TODO: use MISSING when async iterators get refactored

@@ -28,9 +28,12 @@ from .snowflake import Snowflake
 from .threads import ThreadMetadata, ThreadMember
 
 
+OverwriteType = Literal[0, 1]
+
+
 class PermissionOverwrite(TypedDict):
     id: Snowflake
-    type: Literal[0, 1]
+    type: OverwriteType
     allow: str
     deny: str
 
@@ -75,13 +78,13 @@ VideoQualityMode = Literal[1, 2]
 
 class _VoiceChannelOptional(TypedDict, total=False):
     rtc_region: Optional[str]
-    bitrate: int
-    user_limit: int
     video_quality_mode: VideoQualityMode
 
 
 class VoiceChannel(_BaseGuildChannel, _VoiceChannelOptional):
     type: Literal[2]
+    bitrate: int
+    user_limit: int
 
 
 class CategoryChannel(_BaseGuildChannel):
@@ -94,13 +97,13 @@ class StoreChannel(_BaseGuildChannel):
 
 class _StageChannelOptional(TypedDict, total=False):
     rtc_region: Optional[str]
-    bitrate: int
-    user_limit: int
     topic: str
 
 
 class StageChannel(_BaseGuildChannel, _StageChannelOptional):
     type: Literal[13]
+    bitrate: int
+    user_limit: int
 
 
 class _ThreadChannelOptional(TypedDict, total=False):
