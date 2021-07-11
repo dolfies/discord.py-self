@@ -6,6 +6,3 @@ contact_links:
   - name: Suggest a feature
     url: https://github.com/dolfies/discord.py-self/discussions/new?category=ideas
     about: Suggest new features for the library!
-  - name: Join the Discord
-    url: https://discord.gg/
-    about: Join the Discord community for support and updates!
