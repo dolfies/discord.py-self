@@ -15,10 +15,10 @@ A modern, easy to use, feature-rich, and async ready API wrapper for Discord's u
 Fork Changes
 ------------
 
-The changes have been moved to the `website <https://dolf.ml/discord.py-self>`_ (WIP).
+This has been moved to the `website <https://dolf.ml/discord.py-self>`_ (WIP).
 
 **Credits:**
-s.
+
 - `karibiusk <https://stackoverflow.com/users/15139805/karibiusk/>`_ for some food for thought.
 - `Maxx0911 <https://www.reddit.com/user/Maxx0911/>`_ for more food for thought.
 - `arandomnewaccount <https://www.reddit.com/user/obviouslymymain123/>`_ for Discord API help.
