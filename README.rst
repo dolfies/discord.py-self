@@ -129,4 +129,5 @@ You can find more examples in the examples directory.
 Links
 ------
 
-- `Documentation (WIP) <https://dolf.ml/discord.py-self>`_
+- `Official Documentation <https://discordpy.readthedocs.io/en/latest/index.html>`_
+- `Fork Documentation (WIP) <https://dolf.ml/discord.py-self>`_
