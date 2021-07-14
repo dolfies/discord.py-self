@@ -635,7 +635,7 @@ class HTTPClient:
         return self.request(r)
 
     def get_message(self, channel_id: Snowflake, message_id: Snowflake) -> Response[message.Message]:
-        r = Route('GET', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id, message_id=message_id)
+        r = Route('GET', f'/channels/{channel_id}/messages?limit=1&around={message_id}', channel_id=channel_id, message_id=message_id)
         return self.request(r)
 
     def get_channel(self, channel_id: Snowflake) -> Response[channel.Channel]:
