@@ -935,9 +935,8 @@ class Client:
         ----------
         activity: Optional[:class:`.BaseActivity`]
             The activity being done. ``None`` if no currently active activity is done.
-        status: Optional[:class:`.Status`]
-            Indicates what status to change to. If ``None``, then
-            :attr:`.Status.online` is used.
+        status: :class:`.Status`
+            Indicates what status to change to.
         afk: Optional[:class:`bool`]
             Indicates if you are going AFK. This allows the Discord
             client to know how to handle push notifications better
@@ -950,8 +949,7 @@ class Client:
         """
 
         if status is None:
-            status = 'online'
-            status_enum = Status.online
+            return
         elif status is Status.offline:
             status = 'invisible'
             status_enum = Status.offline
