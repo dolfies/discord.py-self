@@ -607,6 +607,10 @@ class ClientUser(BaseUser):
 
     def _update(self, data):
         super()._update(data)
+        
+        if not data.get('verified'):
+            return
+        
         self.verified = data.get('verified', False)
         self.email = data.get('email')
         self.phone = data.get('phone')
