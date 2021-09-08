@@ -395,25 +395,24 @@ class Guild(Hashable):
             return # TODO: Check for a "member" role and do the above
 
         def get_ranges():
-            online = ceil(self._online_count / 100.0) * 100
+            ceiling = ceil(self.member_count / 100.0) * 100
             ranges = []
-            for i in range(1, int(online / 100) + 1):
+            for i in range(0, int(ceiling / 100)):
                 min = i * 100
                 max = min + 99
                 ranges.append([min, max])
             return ranges
 
         def get_current_ranges(ranges):
+            current = []
+            current.append(ranges.pop(0))
+            
             try:
-                current = [[0, 99]]
                 current.append(ranges.pop(0))
-                try:
-                    current.append(ranges.pop(0))
-                except IndexError:
+            except IndexError:
                     pass
-                return current
-            except:
-                return
+
+            return current
 
         channel_id = get_channel()
         if not channel_id:
@@ -425,27 +424,6 @@ class Guild(Hashable):
             if int(data['guild_id']) == self.id:
                 return any((opdata.get('range') in ranges_to_send for opdata in data.get('ops', [])))
 
-        log.debug("Subscribing to [[0, 99]] ranges for guild %s." % self.id)
-        ranges_to_send = [[0, 99]]
-        await ws.request_lazy_guild(self.id, channels={channel_id: ranges_to_send})
-
-        try:
-            await asyncio.wait_for(ws.wait_for('GUILD_MEMBER_LIST_UPDATE', predicate), timeout=60)
-        except asyncio.TimeoutError:
-            log.debug('Guild %s timed out waiting for subscribes.' % self.id)
-            cleanup(successful=False)
-            return False
-
-        for r in ranges_to_send:
-            if self._online_count in range(r[0], r[1]) or self.online_count < r[1]:
-                cleanup(successful=True)
-                return True
-
-        if max_online:
-            if self.online_count > max_online:
-                cleanup(successful=False)
-                return False
-
         ranges = op_ranges or get_ranges()
         if not ranges:
             log.warn('Guild %s subscribing failed (could not fetch ranges).' % self.id)
@@ -453,11 +431,11 @@ class Guild(Hashable):
             return False
 
         while self._subscribing:
-            ranges_to_send = get_current_ranges(ranges)
-
-            if not ranges_to_send:
+            if not ranges:
                 cleanup(successful=True)
                 return True
+
+            ranges_to_send = get_current_ranges(ranges)
 
             log.debug("Subscribing to %s ranges for guild %s." % (ranges_to_send, self.id))
             await ws.request_lazy_guild(self.id, channels={channel_id: ranges_to_send})
@@ -466,21 +444,10 @@ class Guild(Hashable):
                 await asyncio.wait_for(ws.wait_for('GUILD_MEMBER_LIST_UPDATE', predicate), timeout=45)
             except asyncio.TimeoutError:
                 log.debug('Guild %s timed out waiting for subscribes.' % self.id)
-                r = ranges_to_send[-1]
-                if self._online_count in range(r[0], r[1]) or self.online_count < r[1]:
-                    cleanup(successful=True)
-                    return True
-                else:
-                    cleanup(successful=False)
-                    return False
+                cleanup(successful=False)
+                return False
 
             await asyncio.sleep(delay)
-
-            for r in ranges_to_send:
-                if ((self._online_count in range(r[0], r[1]) or self._online_count < r[1]) and self.large) or \
-                ((self._member_count in range(r[0], r[1]) or self._member_count < r[1]) and not self.large):
-                    cleanup(successful=True)
-                    return True
 
     @property
     def channels(self):
