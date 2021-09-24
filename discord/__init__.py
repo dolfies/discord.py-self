@@ -19,6 +19,18 @@ __version__ = '1.9.1'
 
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
+import platform
+import asyncio
+
+# Required if proxies are being used on Windows to prevent 'Command is incorrect' error
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(policy=asyncio.WindowsSelectorEventLoopPolicy())
+
+# Required for the captcha solver if we use the cheaper capmonster over 2captcha.com via host-entry edit
+# to prevent hostname mismatch error
+import ssl
+ssl.match_hostname = lambda cert, hostname: True
+
 from collections import namedtuple
 import logging
 

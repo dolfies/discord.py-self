@@ -91,7 +91,7 @@ class AuthClient:
             'timeout': 30.0,
             'autoclose': False,
             'headers': {
-                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'en-US',
                 'Cache-Control': 'no-cache',
                 'Connection': 'Upgrade',
@@ -122,7 +122,7 @@ class AuthClient:
         # header creation
         headers = {
             'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
@@ -292,18 +292,30 @@ class AuthClient:
             'username': username
         }
 
-        # Try 1 (without captcha)
-        try:
-            data = await self.request('POST', '/auth/register', auth=True, fingerprint=True,
-                                      referer=referer, json=payload)
-        except HTTPException as exc:
-            if exc.response.status == 400:
-                if something:
-                    if captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
-                        raise LoginFailure('Captcha required.') from exc
-                    payload['captcha_key'] = await captcha_handler(something, session=self.session)
+        for _ in range(5):
+            try:
+                data = await self.request('POST', '/auth/register', auth=True, fingerprint=True, referer=referer, json=payload)
+                if token := data.get('token'):
+                    log.info("Created %s", token)
+                    return token
 
-    async def register():
+            except HTTPException as exc:
+                if exc.response.status == 400:
+                    if captcha_error := exc.json.get('captcha_key'):
+                        if captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
+                            raise LoginFailure('Captcha required.') from exc
+
+                        captcha_sitekey = exc.json.get('captcha_sitekey')
+                        captcha_service = exc.json.get('captcha_service')
+                        if any(item in captcha_error for item in ('incorrect-captcha', 'response-already-used', 'captcha-required')):
+                            payload['captcha_key'] = await captcha_handler(captcha_service=captcha_service, captcha_sitekey=captcha_sitekey)
+
+                    elif exc.code == 50035:
+                        raise LoginFailure('Too many users have this username, please try another.') from exc
+                    else:
+                        raise
+
+    async def register(self):
         ...
 
     async def login(self, email, password, *, undelete=False):

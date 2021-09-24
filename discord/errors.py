@@ -88,10 +88,13 @@ class HTTPException(DiscordException):
     def __init__(self, response, message):
         self.response = response
         self.status = response.status
+        self.json = {}
+
         if isinstance(message, dict):
             self.code = message.get('code', 0)
             base = message.get('message', '')
             errors = message.get('errors')
+            self.json = message
             if errors:
                 errors = flatten_error_dict(errors)
                 helpful = '\n'.join('In %s: %s' % t for t in errors.items())

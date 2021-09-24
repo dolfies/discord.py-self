@@ -465,11 +465,11 @@ def remove_markdown(text, *, ignore_links=True):
     """A helper function that removes markdown characters.
 
     .. versionadded:: 1.7
-    
+
     .. note::
             This function is not markdown aware and may remove meaning from the original text. For example,
             if the input contains ``10 * 5`` then it will be converted into ``10  5``.
-    
+
     Parameters
     -----------
     text: :class:`str`
@@ -563,10 +563,10 @@ def escape_mentions(text):
 async def _get_build_number(session): # Thank you Discord-S.C.U.M
     """Fetches client build number"""
     try:
-        login_page_request = await session.request('get', 'https://discord.com/login', headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
+        login_page_request = await session.request('get', 'https://discord.com/login', headers={'Accept-Encoding': 'gzip, deflate, br'}, timeout=10)
         login_page = await login_page_request.text()
         build_url = 'https://discord.com/assets/' + re.compile(r'assets/+([a-z0-9]+)\.js').findall(login_page)[-2] + '.js'
-        build_request = await session.request('get', build_url, headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
+        build_request = await session.request('get', build_url, headers={'Accept-Encoding': 'gzip, deflate, br'}, timeout=10)
         build_file = await build_request.text()
         build_index = build_file.find('buildNumber') + 14
         return int(build_file[build_index:build_index + 5])

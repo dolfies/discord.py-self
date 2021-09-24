@@ -16,3 +16,4 @@ cogs/
 utils.py
 test.py
 *.kate-swp
+.idea

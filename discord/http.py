@@ -55,7 +55,7 @@ async def json_or_text(response):
     return text
 
 class Route:
-    BASE = 'https://discord.com/api/v7'
+    BASE = 'https://discord.com/api/v9'
 
     def __init__(self, method, path, **parameters):
         self.path = path
@@ -149,7 +149,7 @@ class HTTPClient:
             'timeout': 30.0,
             'autoclose': False,
             'headers': {
-                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'en-US',
                 'Cache-Control': 'no-cache',
                 'Connection': 'Upgrade',
@@ -181,7 +181,7 @@ class HTTPClient:
         # header creation
         headers = {
             'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',

@@ -152,9 +152,9 @@ class Account:
         if invite is None:
             raise TypeError('register() missing 1 required keyword-only argument: \'invite\'')
         else:
-            invite = utils.resolve_invite(invite)
+            invite = discord.utils.resolve_invite(invite)
 
-        token = await http.register_from_invite()
+        return await http.register_from_invite(invite, username, captcha_handler=kwargs.get('captcha_handler'))
 
     async def login(self, *args, **kwargs):
         self._closed = False
