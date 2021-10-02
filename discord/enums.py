@@ -56,6 +56,8 @@ __all__ = (
     'StickerAnimationOptions',
     'RelationshipAction',
     'UnavailableGuildType',
+    'RequiredActionType',
+    'ReportType'
 )
 
 def _create_value_cls(name):
@@ -497,6 +499,13 @@ class StickerType(Enum):
     apng = 2
     lottie = 3
 
+class ReportType(Enum):
+    illegal_content = 1
+    harassment = 2
+    phishing = 3
+    self_harm = 4
+    nsfw_content = 5
+
 class RelationshipAction(Enum):
     send_friend_request = 'request'
     unfriend = 'unfriend'
@@ -515,6 +524,7 @@ class RequiredActionType(Enum):
     verify_email = 'REQUIRE_VERIFIED_EMAIL'
     captcha = 'REQUIRE_CAPTCHA'
     accept_terms = 'AGREEMENTS'
+    
 
 def try_enum(cls, val):
     """A function that tries to turn the value into enum ``cls``.
