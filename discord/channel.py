@@ -1214,13 +1214,31 @@ class DMChannel(discord.abc.Messageable, Hashable):
             The message ID to create a partial message for.
 
         Returns
-        ---------
+        ----------
         :class:`PartialMessage`
             The partial message.
         """
 
         from .message import PartialMessage
         return PartialMessage(channel=self, id=message_id)
+
+    async def change_region(self, region):
+        """|coro|
+
+        Changes the channels voice region.
+        
+        Parameters
+        -----------
+        region: :class:`VoiceRegion`
+            An argument :class:`VoiceRegion` to change the voice
+            region in the dm channel to.
+
+        Raises
+        -------
+        HTTPException
+            Failed to change the channels voice region.
+        """
+        return await self._state.http.change_voice_region_in_dm_channel(self.id, region.value)
 
 class GroupChannel(discord.abc.Messageable, Hashable):
     """Represents a Discord group channel.
@@ -1473,6 +1491,25 @@ class GroupChannel(discord.abc.Messageable, Hashable):
         """
 
         await self._state.http.leave_group(self.id)
+
+    async def change_region(self, region):
+        """|coro|
+
+        Changes the channels voice region.
+        
+        Parameters
+        -----------
+        region: :class:`VoiceRegion`
+            An argument :class:`VoiceRegion` to change the voice
+            region in the group channel to.
+
+        Raises
+        -------
+        HTTPException
+            Failed to change the channels voice region.
+        """
+        return await self._state.http.change_voice_region_in_group_channel(self.id, region.value)
+
 
 def _channel_factory(channel_type):
     value = try_enum(ChannelType, channel_type)
