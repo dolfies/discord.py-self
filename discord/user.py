@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 import discord.abc
 from .flags import PublicUserFlags
 from .utils import snowflake_time, _bytes_to_base64_data, parse_time, cached_slot_property
-from .enums import DefaultAvatar, FriendFlags, StickerAnimationOptions, Theme, UserContentFilter, RelationshipAction, RelationshipType, UserFlags, HypeSquadHouse, PremiumType, try_enum
+from .enums import DefaultAvatar, FriendFlags, ReportType, StickerAnimationOptions, Theme, UserContentFilter, RelationshipAction, RelationshipType, UserFlags, HypeSquadHouse, PremiumType, try_enum
 from .errors import ClientException, NotFound
 from .colour import Colour
 from .asset import Asset
@@ -54,7 +54,7 @@ class Note:
         ClientException
             Attempted to access note without fetching it.
         """
-        if note == 0:
+        if self._note == 0:
             raise ClientException('Note is not fetched.')
         return self._note
 
@@ -990,7 +990,7 @@ class ClientUser(BaseUser):
 
     accent_color = accent_colour
 
-    def disable(self, password):
+    async def disable(self, password):
         """|coro|
 
         Disables the client's account.
@@ -1007,9 +1007,9 @@ class ClientUser(BaseUser):
         HTTPException
             Disabling the account failed.
         """
-        return self._state.http.disable_account(password)
+        return await self._state.http.disable_account(password)
 
-    def delete(self, password):
+    async def delete(self, password):
         """|coro|
 
         Deletes the client's account.
@@ -1026,7 +1026,33 @@ class ClientUser(BaseUser):
         HTTPException
             Deleting the account failed.
         """
-        return self._state.http.delete_account(password)
+        return await self._state.http.delete_account(password)
+
+    async def report(self, message_link, reason):
+        """|coro|
+
+        Reports a message.
+
+        Parameters
+        -----------
+        message_link :class:`str`
+            The message_link to report.
+
+        Raises
+        -------
+        HTTPException
+            Reporting the message failed.
+
+        Returns
+        --------
+        :class:`int`
+            The resulting report ID.
+        """
+        reason = try_enum(ReportType, reason)
+        guild_id, channel_id, message_id = message_link.split('/')[4:7]
+        data = await self._state.http.report(guild_id, channel_id, message_id, reason)
+        return data['id']
+
 
 class User(BaseUser, discord.abc.Messageable):
     """Represents a Discord user.
