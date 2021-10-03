@@ -26,25 +26,25 @@ DEALINGS IN THE SOFTWARE.
 
 import asyncio
 import datetime
-import re
 import io
+import re
 
 from . import utils
-from .reaction import Reaction
-from .emoji import Emoji
-from .partial_emoji import PartialEmoji
 from .calls import CallMessage
-from .enums import MessageType, ChannelType, try_enum
-from .errors import InvalidArgument, HTTPException, DiscordException
 from .embeds import Embed
-from .member import Member
-from .flags import MessageFlags
+from .emoji import Emoji
+from .enums import ChannelType, MessageType, ReportType, try_enum
+from .errors import DiscordException, HTTPException, InvalidArgument
 from .file import File
-from .utils import escape_mentions
+from .flags import MessageFlags
 from .guild import Guild
-from .mixins import Hashable
-from .sticker import Sticker
 from .invite import Invite
+from .member import Member
+from .mixins import Hashable
+from .partial_emoji import PartialEmoji
+from .reaction import Reaction
+from .sticker import Sticker
+from .utils import escape_mentions
 
 __all__ = (
     'Attachment',
@@ -1158,6 +1158,33 @@ class Message(Hashable):
         """
 
         await self._state.http.publish_message(self.channel.id, self.id)
+
+    async def report(self, reason):
+        """|coro|
+
+        Reports this message.
+
+        Parameters
+        -----------
+        reason :class:`ReportType`
+            The reason to report the message for.
+
+        Raises
+        -------
+        HTTPException
+            Reporting the message failed.
+
+        Returns
+        --------
+        :class:`int`
+            The resulting report ID.
+        """
+        reason = try_enum(ReportType, reason)
+        if isinstance(reason, ReportType):
+            reason = reason.value
+        guild_id = getattr(self.guild, 'id', None)
+        data = await self._state.http.report(guild_id, self.channel.id, self.id, reason)
+        return int(data['id'])
 
     async def pin(self):
         """|coro|
