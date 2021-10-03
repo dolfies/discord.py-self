@@ -38,8 +38,8 @@ import aiohttp
 from . import utils
 from .context_properties import ContextProperties
 from .enums import RelationshipAction
-from .errors import (DiscordServerError, Forbidden,  # , GatewayNotFound
-                     HTTPException, LoginFailure, NotFound)
+from .errors import (DiscordServerError, Forbidden, HTTPException,
+                     LoginFailure, NotFound)
 from .gateway import DiscordClientWebSocketResponse
 
 log = logging.getLogger(__name__)
@@ -1005,21 +1005,12 @@ class HTTPClient:
     def move_member(self, user_id, guild_id, channel_id):
         return self.edit_member(guild_id=guild_id, user_id=user_id, channel_id=channel_id)
 
-    def change_voice_region_in_dm_channel(self, channel_id, voice_region):
+    def change_voice_region_in_private_channel(self, channel_id, voice_region):
         payload = {
             'region': voice_region
         }
-        context_properties = ContextProperties._from_dm_channel()
         r = Route('PATCH', '/channels/{channel_id}/call', channel_id=channel_id)
-        return self.request(r, json=payload, context_properties=context_properties)
-
-    def change_voice_region_in_group_channel(self, channel_id, voice_region):
-        payload = {
-            'region': voice_region
-        }
-        context_properties = ContextProperties._from_group_dm()
-        r = Route('PATCH', '/channels/{channel_id}/call', channel_id=channel_id)
-        return self.request(r, json=payload, context_properties=context_properties)
+        return self.request(r, json=payload)
 
     # Relationship related
 
@@ -1139,7 +1130,9 @@ class HTTPClient:
         return self.request(Route('PUT', '/users/@me/notes/{user_id}', user_id=user_id), json=payload)
 
     def change_hypesquad_house(self, house_id):
-        payload = {'house_id': house_id}
+        payload = {
+            'house_id': house_id
+        }
         return self.request(Route('POST', '/hypesquad/online'), json=payload)
 
     def leave_hypesquad_house(self):
@@ -1184,7 +1177,7 @@ class HTTPClient:
             'guild_id': guild_id,
             'channel_id': channel_id,
             'message_id': message_id,
-            'reason': reason.value
+            'reason': reason
         }
         return self.request(Route('POST', '/report'), json=payload)
 
