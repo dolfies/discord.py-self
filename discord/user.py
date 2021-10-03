@@ -25,14 +25,20 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import discord.abc
-from .flags import PublicUserFlags
-from .utils import snowflake_time, _bytes_to_base64_data, parse_time, cached_slot_property
-from .enums import DefaultAvatar, FriendFlags, ReportType, StickerAnimationOptions, Theme, UserContentFilter, RelationshipAction, RelationshipType, UserFlags, HypeSquadHouse, PremiumType, try_enum
-from .errors import ClientException, NotFound
-from .colour import Colour
+
 from .asset import Asset
-from .settings import Settings
+from .colour import Colour
+from .enums import (DefaultAvatar, HypeSquadHouse, PremiumType,
+                    RelationshipAction, RelationshipType, UserFlags, try_enum)
+from .errors import ClientException, NotFound
+from .flags import PublicUserFlags
 from .object import Object
+from .settings import Settings
+from .utils import (_bytes_to_base64_data, cached_slot_property, parse_time,
+                    snowflake_time)
+
+
+from datetime import datetime
 
 class Note:
     """Represents a Discord note."""
@@ -667,7 +673,7 @@ class ClientUser(BaseUser):
         -----------
         password: :class:`str`
             The current password for the client's account.
-            Required for everything except avatar, banner, accent_colour, and bio.
+            Required for everything except avatar, banner, accent_colour, date_of_birth, and bio.
         new_password: :class:`str`
             The new password you wish to change to.
         email: :class:`str`
@@ -691,6 +697,8 @@ class ClientUser(BaseUser):
         bio: :class:`str`
             Your 'about me' section.
             Could be ``None`` to represent no 'about me'.
+        date_of_birth: :class:`datetime.datetime`
+            Your date of birth.
 
         Raises
         ------
@@ -700,7 +708,8 @@ class ClientUser(BaseUser):
             Wrong image format passed for ``avatar``.
         ClientException
             Password was not passed when it was required.
-            House field was not a HypeSquadHouse.
+            `house` field was not a HypeSquadHouse.
+            `date_of_birth` field was not a :class:`datetime.datetime` object.
         """
 
         args = {}
@@ -753,6 +762,12 @@ class ClientUser(BaseUser):
                 args['bio'] = bio
             else:
                 args['bio'] = ''
+
+        if 'date_of_birth' in fields:
+            dob = fields['date_of_birth']
+            if not isinstance(dob, datetime):
+                raise ClientException('`date_of_birth` parameter was not a datetime object')
+            args['date_of_birth'] = dob.strftime('%F')
 
         http = self._state.http
 
@@ -1027,31 +1042,6 @@ class ClientUser(BaseUser):
             Deleting the account failed.
         """
         return await self._state.http.delete_account(password)
-
-    async def report(self, message_link, reason):
-        """|coro|
-
-        Reports a message.
-
-        Parameters
-        -----------
-        message_link :class:`str`
-            The message_link to report.
-
-        Raises
-        -------
-        HTTPException
-            Reporting the message failed.
-
-        Returns
-        --------
-        :class:`int`
-            The resulting report ID.
-        """
-        reason = try_enum(ReportType, reason)
-        guild_id, channel_id, message_id = message_link.split('/')[4:7]
-        data = await self._state.http.report(guild_id, channel_id, message_id, reason)
-        return data['id']
 
 
 class User(BaseUser, discord.abc.Messageable):
