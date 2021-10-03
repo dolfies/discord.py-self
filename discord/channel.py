@@ -1225,20 +1225,19 @@ class DMChannel(discord.abc.Messageable, Hashable):
     async def change_region(self, region):
         """|coro|
 
-        Changes the channels voice region.
+        Changes the channel's voice region.
         
         Parameters
         -----------
         region: :class:`VoiceRegion`
-            An argument :class:`VoiceRegion` to change the voice
-            region in the dm channel to.
+            A :class:`VoiceRegion` to change the voice region to.
 
         Raises
         -------
         HTTPException
-            Failed to change the channels voice region.
+            Failed to change the channel's voice region.
         """
-        return await self._state.http.change_voice_region_in_dm_channel(self.id, region.value)
+        return await self._state.http.change_voice_region_in_private_channel(self.id, region.value)
 
 class GroupChannel(discord.abc.Messageable, Hashable):
     """Represents a Discord group channel.
@@ -1495,20 +1494,19 @@ class GroupChannel(discord.abc.Messageable, Hashable):
     async def change_region(self, region):
         """|coro|
 
-        Changes the channels voice region.
+        Changes the channel's voice region.
         
         Parameters
         -----------
         region: :class:`VoiceRegion`
-            An argument :class:`VoiceRegion` to change the voice
-            region in the group channel to.
+            A :class:`VoiceRegion` to change the voice region to.
 
         Raises
         -------
         HTTPException
-            Failed to change the channels voice region.
+            Failed to change the channel's voice region.
         """
-        return await self._state.http.change_voice_region_in_group_channel(self.id, region.value)
+        return await self._state.http.change_voice_region_in_private_channel(self.id, region.value)
 
 
 def _channel_factory(channel_type):
