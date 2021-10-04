@@ -21,7 +21,7 @@ class MyClient(discord.Client):
             await message.channel.send('Guess a number between 1 and 10.')
 
             def is_correct(m):
-                return m.author == message.author and m.content.isdigit()
+                return m.content.isdigit()
 
             answer = random.randint(1, 10)
 
