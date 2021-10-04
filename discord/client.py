@@ -1095,7 +1095,7 @@ class Client:
 
         Returns
         -------
-        :class:`~discord.Sticker`
+        :class:`~.Sticker`
             The sticker from the ID.
         """
         data = await self.http.get_sticker(sticker_id)
