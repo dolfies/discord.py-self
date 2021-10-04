@@ -363,7 +363,6 @@ class HTTPClient:
             'recipients': recipients
         }
         context_properties = ContextProperties._empty() # {}
-
         return self.request(Route('POST', '/users/@me/channels'), json=payload, context_properties=context_properties)
 
     def leave_group(self, channel_id):
@@ -378,21 +377,43 @@ class HTTPClient:
         return self.request(r)
 
     def edit_group(self, channel_id, **options):
-        valid_keys = ('name', 'icon')
+        valid_keys = {'name', 'icon'}
         payload = {
             k: v for k, v in options.items() if k in valid_keys
         }
-
         return self.request(Route('PATCH', '/channels/{channel_id}', channel_id=channel_id), json=payload)
 
     # Message management
+
+    def search_messages(self, *, guild_id=None, channel_id=None, **options):
+        valid_keys = {'channel_id', 'author_id', 'author_type', 'mentions', 'has',
+                      'link_hostname', 'embed_provider', 'embed_type', 'attachment_extension'
+                      'attachment_filename', 'mention_everyone', 'max_id', 'min_id', 'content'
+                      'include_nsfw', 'offset', 'limit'}
+
+        if guild_id is not None and channel_id is None:
+            r = Route('GET', '/guilds/{guild_id}/messages/search', guild_id=guild_id)
+        elif channel_id is not None and guild_id is None:
+            r = Route('GET', '/channels/{channel_id}/messages/search', channel_id=channel_id)
+            # I think these keys aren't valid in a channel, e.g dm chat environment
+            # Haven't actually tested this
+            valid_keys.difference_update(['channel_id', 'include_nsfw'])
+
+        # Cant use a dict, as some key value pairs might repeat
+        # So we must make a list[tuple[key, val]], which aiohttp will format for us
+        # Example input: options = {'channel_id': [764584777642672160, 311225587970605066], 'author_id': 884800179042152448, 'content': 'test string here'}
+        # output : [('channel_id', '764584777642672160'), ('channel_id', '311225587970605066'), ('author_id', '884800179042152448'), ('content', 'test string here')]
+        params = [
+            (k, str(sv)) for k, v in options.items() if k in valid_keys
+            for sv in (v if isinstance(v, list) else [str(v)])
+        ]
+        return self.request(r, params=params)
 
     def start_private_message(self, recipient):
         payload = {
             'recipients': [recipient]
         }
         context_properties = ContextProperties._empty() # {}
-
         return self.request(Route('POST', '/users/@me/channels'), json=payload, context_properties=context_properties)
 
     def send_message(self, channel_id, content, *, tts=False, embed=None, nonce=0, allowed_mentions=None, message_reference=None):
@@ -642,11 +663,18 @@ class HTTPClient:
 
     # Channel management
 
+    def greet(self, channel_id, *stickers_ids):
+        payload = {
+            'sticker_ids': stickers_ids
+        }
+        r = Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id)
+        return self.request(r, json=payload)
+
     def edit_channel(self, channel_id, **options):
         r = Route('PATCH', '/channels/{channel_id}', channel_id=channel_id)
-        valid_keys = ('name', 'parent_id', 'topic', 'bitrate', 'nsfw',
-                      'user_limit', 'position', 'permission_overwrites', 'rate_limit_per_user',
-                      'type', 'rtc_region')
+        valid_keys = {'name', 'parent_id', 'topic', 'bitrate', 'nsfw',
+                      'user_limit', 'position', 'permission_overwrites',
+                      'rate_limit_per_user', 'type', 'rtc_region'}
         payload = {
             k: v for k, v in options.items() if k in valid_keys
         }
@@ -661,10 +689,9 @@ class HTTPClient:
         payload = {
             'type': channel_type
         }
-
-        valid_keys = ('name', 'parent_id', 'topic', 'bitrate', 'nsfw',
-                      'user_limit', 'position', 'permission_overwrites', 'rate_limit_per_user',
-                      'rtc_region')
+        valid_keys = {'name', 'parent_id', 'topic', 'bitrate', 'nsfw',
+                      'user_limit', 'position', 'permission_overwrites',
+                      'rate_limit_per_user', 'rtc_region'}
         payload.update({
             k: v for k, v in options.items() if k in valid_keys and v is not None
         })
@@ -741,12 +768,13 @@ class HTTPClient:
         return self.request(Route('POST', '/guilds'), json=payload)
 
     def edit_guild(self, guild_id, **fields):
-        valid_keys = ('name', 'region', 'icon', 'afk_timeout', 'owner_id',
+        valid_keys = {'name', 'region', 'icon', 'afk_timeout', 'owner_id',
                       'afk_channel_id', 'splash', 'verification_level',
                       'system_channel_id', 'default_message_notifications',
                       'description', 'explicit_content_filter', 'banner',
                       'system_channel_flags', 'rules_channel_id',
-                      'public_updates_channel_id', 'preferred_locale', 'features')
+                      'public_updates_channel_id', 'preferred_locale',
+                      'features'}
         payload = {
             k: v for k, v in fields.items() if k in valid_keys
         }
@@ -769,10 +797,7 @@ class HTTPClient:
         return self.request(Route('PUT', '/guilds/{guild_id}/templates/{code}', guild_id=guild_id, code=code))
 
     def edit_template(self, guild_id, code, payload):
-        valid_keys = (
-            'name',
-            'description',
-        )
+        valid_keys = {'name', 'description'}
         payload = {
             k: v for k, v in payload.items() if k in valid_keys
         }
@@ -953,7 +978,7 @@ class HTTPClient:
 
     def edit_role(self, guild_id, role_id, **fields):
         r = Route('PATCH', '/guilds/{guild_id}/roles/{role_id}', guild_id=guild_id, role_id=role_id)
-        valid_keys = ('name', 'permissions', 'color', 'hoist', 'mentionable')
+        valid_keys = {'name', 'permissions', 'color', 'hoist', 'mentionable'}
         payload = {
             k: v for k, v in fields.items() if k in valid_keys
         }
@@ -1107,6 +1132,9 @@ class HTTPClient:
 
     def get_user(self, user_id):
         return self.request(Route('GET', '/users/{user_id}', user_id=user_id))
+
+    def get_sticker(self, sticker_id):
+        return self.request(Route('GET', '/stickers/{sticker_id}', sticker_id=sticker_id))
 
     def get_user_profile(self, user_id, *, with_mutual_guilds=True):
         params = {
