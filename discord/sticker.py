@@ -24,10 +24,11 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from .mixins import Hashable
 from .asset import Asset
-from .utils import snowflake_time
 from .enums import StickerType, try_enum
+from .mixins import Hashable
+from .utils import snowflake_time
+
 
 class Sticker(Hashable):
     """Represents a sticker.

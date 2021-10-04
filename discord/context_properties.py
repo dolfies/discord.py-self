@@ -24,8 +24,9 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from base64 import b64encode
 import json
+from base64 import b64encode
+
 
 class ContextProperties: # Thank you Discord-S.C.U.M
     """Represents the Discord X-Context-Properties header.

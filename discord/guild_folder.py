@@ -26,6 +26,7 @@ DEALINGS IN THE SOFTWARE.
 
 from .colour import Colour
 
+
 class GuildFolder:
     __slots__ = ('_state', 'id', 'name', '_color', 'guilds')
 

@@ -24,8 +24,8 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from .utils import parse_time, _get_as_snowflake, _bytes_to_base64_data
 from .guild import Guild
+from .utils import _bytes_to_base64_data, _get_as_snowflake, parse_time
 
 __all__ = (
     'Template',

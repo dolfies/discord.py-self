@@ -24,11 +24,12 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from .permissions import Permissions
-from .errors import InvalidArgument
 from .colour import Colour
+from .errors import InvalidArgument
 from .mixins import Hashable
-from .utils import snowflake_time, _get_as_snowflake
+from .permissions import Permissions
+from .utils import _get_as_snowflake, snowflake_time
+
 
 class RoleTags:
     """Represents tags on a role.

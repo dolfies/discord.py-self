@@ -32,27 +32,26 @@ import traceback
 
 import aiohttp
 
-from .user import User, Profile, Note
-from .invite import Invite
-from .template import Template
-from .widget import Widget
-from .guild import Guild
+from . import utils
+from .activity import BaseActivity, create_activity
+from .appinfo import AppInfo
+from .backoff import ExponentialBackoff
 from .channel import _channel_factory
 from .enums import ChannelType, Status, try_enum
-from .mentions import AllowedMentions
 from .errors import *
-from .enums import Status
 from .gateway import *
-from .activity import BaseActivity, create_activity
-from .voice_client import VoiceClient
+from .guild import Guild
 from .http import HTTPClient
-from .state import ConnectionState
-from . import utils
-from .object import Object
-from .backoff import ExponentialBackoff
-from .webhook import Webhook
+from .invite import Invite
 from .iterators import GuildIterator
-from .appinfo import AppInfo
+from .mentions import AllowedMentions
+from .object import Object
+from .state import ConnectionState
+from .template import Template
+from .user import Note, Profile, User
+from .voice_client import VoiceClient
+from .webhook import Webhook
+from .widget import Widget
 
 log = logging.getLogger(__name__)
 

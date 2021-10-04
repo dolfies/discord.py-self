@@ -24,10 +24,11 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from discord.enums import Enum
-import time
 import asyncio
+import time
 from collections import deque
+
+from discord.enums import Enum
 
 from ...abc import PrivateChannel
 from .errors import MaxConcurrencyReached

@@ -24,6 +24,8 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
+from datetime import datetime
+
 import discord.abc
 
 from .asset import Asset
@@ -37,8 +39,6 @@ from .settings import Settings
 from .utils import (_bytes_to_base64_data, cached_slot_property, parse_time,
                     snowflake_time)
 
-
-from datetime import datetime
 
 class Note:
     """Represents a Discord note."""

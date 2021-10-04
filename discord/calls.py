@@ -30,6 +30,7 @@ from . import utils
 from .enums import VoiceRegion, try_enum
 from .member import VoiceState
 
+
 class CallMessage:
     """Represents a group call message from Discord.
 

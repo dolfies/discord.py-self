@@ -26,6 +26,7 @@ DEALINGS IN THE SOFTWARE.
 
 import asyncio
 
+
 def _typing_done_callback(fut):
     # just retrieve any exception and call it a day
     try:

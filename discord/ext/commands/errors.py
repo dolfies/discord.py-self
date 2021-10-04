@@ -26,7 +26,6 @@ DEALINGS IN THE SOFTWARE.
 
 from discord.errors import ClientException, DiscordException
 
-
 __all__ = (
     'CommandError',
     'MissingRequiredArgument',

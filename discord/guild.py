@@ -25,31 +25,30 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import asyncio
-from datetime import datetime, timedelta
 import copy
-from collections import namedtuple
 import logging
+from collections import namedtuple
+from datetime import datetime, timedelta
 from math import ceil
 
 from . import utils
-from .role import Role
-from .member import Member, VoiceState
-from .emoji import Emoji
-from .errors import InvalidData
-from .permissions import PermissionOverwrite
-from .colour import Colour
-from .errors import InvalidArgument, ClientException
-from .channel import *
-from .enums import VoiceRegion, ChannelType, try_enum, VerificationLevel, ContentFilter, NotificationLevel
-from .mixins import Hashable
-from .user import User
-from .invite import Invite
-from .iterators import AuditLogIterator
-from .widget import Widget
 from .asset import Asset
+from .channel import *
+from .colour import Colour
+from .emoji import Emoji
+from .enums import (ChannelType, ContentFilter, NotificationLevel,
+                    VerificationLevel, VoiceRegion, try_enum)
+from .errors import ClientException, InvalidArgument, InvalidData
 from .flags import SystemChannelFlags
 from .integrations import Integration
-
+from .invite import Invite
+from .iterators import AuditLogIterator
+from .member import Member, VoiceState
+from .mixins import Hashable
+from .permissions import PermissionOverwrite
+from .role import Role
+from .user import User
+from .widget import Widget
 
 BanEntry = namedtuple('BanEntry', 'reason user')
 _GuildLimit = namedtuple('_GuildLimit', 'emoji bitrate filesize')

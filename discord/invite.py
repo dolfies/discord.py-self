@@ -25,11 +25,12 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from .asset import Asset
-from .utils import parse_time, snowflake_time, _get_as_snowflake
-from .object import Object
-from .mixins import Hashable
 from .enums import ChannelType, VerificationLevel, try_enum
 from .errors import InvalidArgument
+from .mixins import Hashable
+from .object import Object
+from .utils import _get_as_snowflake, parse_time, snowflake_time
+
 
 class PartialInviteChannel:
     """Represents a "partial" invite channel.

@@ -24,22 +24,23 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-import logging
 import asyncio
 import json
-import time
+import logging
 import re
+import time
 from urllib.parse import quote as _uriquote
 
 import aiohttp
 
 from . import utils
-from .errors import InvalidArgument, HTTPException, Forbidden, NotFound, DiscordServerError
-from .message import Message
-from .enums import try_enum, WebhookType
-from .user import BaseUser, User
 from .asset import Asset
+from .enums import WebhookType, try_enum
+from .errors import (DiscordServerError, Forbidden, HTTPException,
+                     InvalidArgument, NotFound)
+from .message import Message
 from .mixins import Hashable
+from .user import BaseUser, User
 
 __all__ = (
     'WebhookAdapter',

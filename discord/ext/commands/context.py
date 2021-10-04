@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 import discord.abc
 import discord.utils
 
+
 class Context(discord.abc.Messageable):
     r"""Represents the context in which a command is being invoked under.
 
@@ -284,7 +285,7 @@ class Context(discord.abc.Messageable):
         Any
             The result of the help command, if any.
         """
-        from .core import Group, Command, wrap_callback
+        from .core import Command, Group, wrap_callback
         from .errors import CommandError
 
         bot = self.bot

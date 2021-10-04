@@ -27,17 +27,18 @@ DEALINGS IN THE SOFTWARE.
 import array
 import asyncio
 import collections.abc
-import unicodedata
-from base64 import b64encode
-from bisect import bisect_left
 import datetime
 import functools
-from inspect import isawaitable as _isawaitable, signature as _signature
-from operator import attrgetter
 import json
-import re
-import warnings
 import logging
+import re
+import unicodedata
+import warnings
+from base64 import b64encode
+from bisect import bisect_left
+from inspect import isawaitable as _isawaitable
+from inspect import signature as _signature
+from operator import attrgetter
 
 from .errors import InvalidArgument
 
@@ -440,7 +441,7 @@ def resolve_template(code):
     :class:`str`
         The template code.
     """
-    from .template import Template # circular import
+    from .template import Template  # circular import
     if isinstance(code, Template):
         return code.code
     else:

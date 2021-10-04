@@ -25,9 +25,9 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from . import utils
-from .user import User
 from .asset import Asset
 from .team import Team
+from .user import User
 
 
 class AppInfo:

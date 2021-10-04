@@ -25,6 +25,7 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import inspect
+
 from ._types import _BaseCommand
 
 __all__ = (

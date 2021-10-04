@@ -25,33 +25,34 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import asyncio
-from collections import deque, OrderedDict
 import copy
 import datetime
-import logging
-from weakref import WeakValueDictionary
 import inspect
-
+import logging
 import os
+from collections import OrderedDict, deque
+from weakref import WeakValueDictionary
 
-from .guild import Guild
-from .activity import BaseActivity
-from .user import User, ClientUser
-from .emoji import Emoji
-from .mentions import AllowedMentions
-from .partial_emoji import PartialEmoji
-from .message import Message
-from .relationship import Relationship
-from .channel import *
-from .raw_models import *
-from .member import Member
-from .role import Role
-from .enums import ChannelType, try_enum, Status, UnavailableGuildType, RequiredActionType, VoiceRegion
 from . import utils
+from .activity import BaseActivity
+from .channel import *
+from .emoji import Emoji
+from .enums import (ChannelType, RequiredActionType, Status,
+                    UnavailableGuildType, VoiceRegion, try_enum)
 from .flags import GuildSubscriptionOptions, MemberCacheFlags
-from .object import Object
+from .guild import Guild
 from .invite import Invite
+from .member import Member
+from .mentions import AllowedMentions
+from .message import Message
+from .object import Object
+from .partial_emoji import PartialEmoji
+from .raw_models import *
+from .relationship import Relationship
+from .role import Role
 from .settings import Settings
+from .user import ClientUser, User
+
 
 class ChunkRequest:
     def __init__(self, guild_id, loop, resolver, *, cache=True):
