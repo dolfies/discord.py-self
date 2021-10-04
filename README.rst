@@ -85,20 +85,22 @@ Quick Example
 
     import discord
 
+    TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
+
     class MyClient(discord.Client):
         async def on_ready(self):
             print('Logged on as', self.user)
 
         async def on_message(self, message):
-            # don't respond to ourselves
-            if message.author == self.user:
+            # Only respond to ourselves
+            if message.author != self.user:
                 return
 
             if message.content == 'ping':
                 await message.channel.send('pong')
 
     client = MyClient()
-    client.run('token')
+    client.run(TOKEN)
 
 Bot Example
 ~~~~~~~~~~~~~
@@ -108,13 +110,14 @@ Bot Example
     import discord
     from discord.ext import commands
 
-    bot = commands.Bot(command_prefix='>', self_bot=True)
+    TOKEN = ''
+    bot = commands.Bot(command_prefix='!', self_bot=True)
 
     @bot.command()
     async def ping(ctx):
         await ctx.send('pong')
 
-    bot.run('token')
+    bot.run(TOKEN)
 
 You can find more examples in the examples directory.
 
