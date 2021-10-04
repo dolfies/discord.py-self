@@ -8,14 +8,13 @@ A basic wrapper for the Discord user API.
 
 :copyright: (c) 2015-present Rapptz
 :license: MIT, see LICENSE for more details.
-
 """
 
 __title__ = 'discord'
 __author__ = 'Rapptz'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015-present Rapptz'
-__version__ = '1.9.1'
+__version__ = '1.10.0'
 
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
@@ -47,7 +46,7 @@ from .template import Template
 from .widget import Widget, WidgetMember, WidgetChannel
 from .object import Object
 from .reaction import Reaction
-from . import utils, opus, abc
+from . import utils, opus, abc, auth
 from .enums import *
 from .embeds import Embed
 from .mentions import AllowedMentions
@@ -58,7 +57,6 @@ from .audit_logs import AuditLogChanges, AuditLogEntry, AuditLogDiff
 from .raw_models import *
 from .team import *
 from .sticker import Sticker
-from .accounts import Account
 
 VersionInfo = namedtuple('VersionInfo', 'major minor micro releaselevel serial')
 

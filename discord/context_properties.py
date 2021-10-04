@@ -49,7 +49,8 @@ class ContextProperties: # Thank you Discord-S.C.U.M
             'Group DM': 'eyJsb2NhdGlvbiI6Ikdyb3VwIERNIn0=',
             'DM Channel': 'eyJsb2NhdGlvbiI6IkRNIENoYW5uZWwifQ==',
             '/app': 'eyJsb2NhdGlvbiI6ICIvYXBwIn0=',
-            'Login': 'eyJsb2NhdGlvbiI6IkxvZ2luIn0='
+            'Login': 'eyJsb2NhdGlvbiI6IkxvZ2luIn0=',
+            'Register': 'eyJsb2NhdGlvbiI6IlJlZ2lzdGVyIn0=',
         }
 
         try:
@@ -129,6 +130,13 @@ class ContextProperties: # Thank you Discord-S.C.U.M
     def _from_login(cls):
         data = {
             'location': 'Login'
+        }
+        return cls(data)
+
+    @classmethod
+    def _from_register(cls):
+        data = {
+            'location': 'Register'
         }
         return cls(data)
 

@@ -34,11 +34,17 @@ import datetime
 import functools
 from inspect import isawaitable as _isawaitable, signature as _signature
 from operator import attrgetter
+import os
+from threading import Timer
 import json
 import re
 import warnings
 import logging
+import platform
+import subprocess
+import tempfile
 
+from .enums import BrowserEnum
 from .errors import InvalidArgument
 
 DISCORD_EPOCH = 1420070400000
@@ -560,13 +566,159 @@ def escape_mentions(text):
     """
     return re.sub(r'@(everyone|here|[!&]?[0-9]{17,20})', '@\u200b\\1', text)
 
+class ExpiringQueue(asyncio.Queue):  # Inspired from https://github.com/NoahCardoza/CaptchaHarvester
+    def __init__(self, timeout, maxsize=0):
+        super().__init__(maxsize)
+        self.timeout = timeout
+        self.timers = asyncio.Queue()
+
+    async def put(self, item):
+        thread = Timer(self.timeout, self.expire)
+        thread.start()
+        await self.timers.put(thread)
+        await super().put(item)
+
+    async def get(self, block=True):
+        if block:
+            thread = await self.timers.get()
+        else:
+            thread = self.timers.get_nowait()
+        thread.cancel()
+        if block:
+            return await super().get()
+        else:
+            return self.get_nowait()
+
+    def expire(self):
+        try:
+            self._queue.popleft()
+        except:
+            pass
+
+    def to_list(self):
+        return list(self._queue)
+
+class Browser:  # Inspired from https://github.com/NoahCardoza/CaptchaHarvester
+    def __init__(self, browser=None):
+        if isinstance(browser, (BrowserEnum, type(None))):
+            try:
+                browser = self.get_browser(browser)
+            except:
+                raise RuntimeError('Could not find browser. Please pass browser path manually.')
+
+        if browser is None:
+            raise RuntimeError('Could not find browser. Please pass browser path manually.')
+
+        self.browser = browser
+        self.proc = None
+
+    def get_mac_browser(pkg, binary):
+        import plistlib as plist
+        pfile = f'{os.environ["HOME"]}/Library/Preferences/{pkg}.plist'
+        if os.path.exists(pfile):
+            with open(pfile, 'rb') as f:
+                binary_path = plist.load(f).get('LastRunAppBundlePath')
+            if binary_path is not None:
+                return os.path.join(binary_path, 'Contents', 'MacOS', binary)
+
+    def get_windows_browser(browser):
+        import winreg as reg
+        reg_path = f'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{browser}.exe'
+        exe_path = None
+        for install_type in reg.HKEY_CURRENT_USER, reg.HKEY_LOCAL_MACHINE:
+            try:
+                reg_key = reg.OpenKey(install_type, reg_path, 0, reg.KEY_READ)
+                exe_path = reg.QueryValue(reg_key, None)
+                reg_key.Close()
+                if not os.path.isfile(exe_path):
+                    continue
+            except WindowsError:
+                pass
+            else:
+                break
+        return exe_path
+
+    def get_linux_browser(browser):
+        from shutil import which as exist
+        possibilities = [browser + channel for channel in ('', '-beta', '-dev', '-developer', '-canary')]
+        for browser in possibilities:
+            if exist(browser):
+                return browser
+
+    registry = {
+        'Windows': {
+            'chrome': functools.partial(get_windows_browser, 'chrome'),
+            'chromium': functools.partial(get_windows_browser, 'chromium'),
+            'microsoft-edge': lambda: os.environ.get('ProgramFiles(x86)',
+                                                     'C:\\Program Files (x86)') + '\\Microsoft\\Edge\\Application\\msedge.exe',
+            'opera': functools.partial(get_windows_browser, 'opera'),
+        },
+        'Darwin': {
+            'chrome': functools.partial(get_mac_browser, 'com.google.Chrome', 'Google Chrome'),
+            'chromium': functools.partial(get_mac_browser, 'org.chromium.Chromium', 'Chromium'),
+            'microsoft-edge': functools.partial(get_mac_browser, 'com.microsoft.Edge', 'Microsoft Edge'),
+            'opera': functools.partial(get_mac_browser, 'com.operasoftware.Opera', 'Opera'),
+        },
+        'Linux': {
+            'chrome': functools.partial(get_linux_browser, 'chrome'),
+            'chromium': functools.partial(get_linux_browser, 'chromium'),
+            'microsoft-edge': functools.partial(get_linux_browser, 'microsoft-edge'),
+            'opera': functools.partial(get_linux_browser, 'opera'),
+        }
+    }
+
+    def get_browser(self, browser=None):
+        if browser is not None:
+            return self.registry.get(platform.system())[browser.value]()
+
+        for browser in self.registry.get(platform.system()).values():
+            browser = browser()
+            if browser is not None:
+                return browser
+
+    @property
+    def running(self):
+        try:
+            return self.proc.poll() is None
+        except:
+            return False
+
+    def launch(self, domain=None, server=(None, None), width=400, height=500, browser_args=[], extensions=None):
+        browser_command = [self.browser, *browser_args]
+
+        if extensions:
+            browser_command.append(f'--load-extension={extensions}')
+
+        browser_command.extend((
+            '--disable-default-apps',
+            '--no-default-browser-check',
+            '--no-check-default-browser',
+            '--no-first-run',
+            '--ignore-certificate-errors',
+            '--disable-background-networking',
+            '--disable-component-update',
+            '--disable-domain-reliability',
+            f'--user-data-dir={os.path.join(tempfile.TemporaryDirectory().name, "Profiles")}',
+            f'--host-rules=MAP {domain} {server[0]}:{server[1]}',
+            f'--window-size={width},{height}',
+            f'--app=https://{domain}'
+        ))
+
+        self.proc = subprocess.Popen(browser_command, stdout=-1, stderr=-1)
+
+    def stop(self):
+        try:
+            self.proc.terminate()
+        except:
+            pass
+
 async def _get_build_number(session): # Thank you Discord-S.C.U.M
     """Fetches client build number"""
     try:
-        login_page_request = await session.request('get', 'https://discord.com/login', headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
+        login_page_request = await session.request('GET', 'https://discord.com/login', headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
         login_page = await login_page_request.text()
         build_url = 'https://discord.com/assets/' + re.compile(r'assets/+([a-z0-9]+)\.js').findall(login_page)[-2] + '.js'
-        build_request = await session.request('get', build_url, headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
+        build_request = await session.request('GET', build_url, headers={'Accept-Encoding': 'gzip, deflate'}, timeout=10)
         build_file = await build_request.text()
         build_index = build_file.find('buildNumber') + 14
         return int(build_file[build_index:build_index + 5])
@@ -577,7 +729,7 @@ async def _get_build_number(session): # Thank you Discord-S.C.U.M
 async def _get_user_agent(session):
     """Fetches the latest Windows 10/Chrome user-agent."""
     try:
-        request = await session.request('get', 'https://jnrbsn.github.io/user-agents/user-agents.json', timeout=10)
+        request = await session.request('GET', 'https://jnrbsn.github.io/user-agents/user-agents.json', timeout=10)
         response = json.loads(await request.text())
         return response[0]
     except:
@@ -587,10 +739,11 @@ async def _get_user_agent(session):
 async def _get_browser_version(session):
     """Fetches the latest Windows 10/Chrome version."""
     try:
-        request = await session.request('get', 'https://omahaproxy.appspot.com/all.json', timeout=10)
+        request = await session.request('GET', 'https://omahaproxy.appspot.com/all.json', timeout=10)
         response = json.loads(await request.text())
         if response[0]['versions'][4]['channel'] == 'stable':
             return response[0]['versions'][4]['version']
+        raise RuntimeError
     except:
         log.warning('Could not fetch browser version.')
         return '91.0.4472.77'

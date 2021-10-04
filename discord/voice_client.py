@@ -73,7 +73,7 @@ class VoiceProtocol:
     .. _Lavalink: https://github.com/freyacodes/Lavalink
 
     Parameters
-    ------------
+    -----------
     client: :class:`Client`
         The client (or its subclasses) that started the connection request.
     channel: :class:`abc.Connectable`

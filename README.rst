@@ -17,6 +17,7 @@ This has been moved to the `website <https://dolf.ml/discord.py-self>`_.
 
 | **Credits:**
 | - `arandomnewaccount <https://www.reddit.com/user/obviouslymymain123/>`_ for Discord API help.
+| - `NoahCardoza <https://github.com/NoahCardoza/>`_ for the library `CaptchaHarvester <https://github.com/NoahCardoza/CaptchaHarvester/>`_, part of which is used here.
 |
 
 | **Note:**

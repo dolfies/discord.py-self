@@ -31,9 +31,9 @@ from os.path import split as path_split
 import random
 import tempfile
 
-from discord.errors import LoginFailure
+from discord.errors import AuthFailure, InvalidArgument
 from discord.user import BaseUser as ClientUser # Temporary workaround until I make a custom class...
-import discord.utils
+from discord import utils
 
 from .http import AuthClient
 #from .user import ClientUser
@@ -46,9 +46,9 @@ class Account:
     def __init__(self, *, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self.use_cache = options.get('use_cache', True)
-        self._closed = False
+        self._closed = True
 
-        self.clear()
+        self._clear()
 
         connector = options.pop('connector', None)
         proxy = options.pop('proxy', None)
@@ -57,12 +57,19 @@ class Account:
         captcha_handler = options.pop('captcha_handler', None)
         self.http = AuthClient(connector, proxy=proxy, proxy_auth=proxy_auth, unsync_clock=unsync_clock, loop=self.loop, captcha_handler=captcha_handler)
 
-    def clear(self):
+    def _clear(self):
         self.token = None
         self.email = None
         self.password = None
         self.phone = None
         self.user = None
+
+    def _ready(self, token, data, *, password=None):
+        self.token = token
+        self.email = data.get('email')
+        self.phone = data.get('phone')
+        self.password = password
+        self.user = ClientUser(state=None, data=data)
 
     def _generate_dob(self):
         min = datetime.date(1970, 1, 1)
@@ -105,67 +112,16 @@ class Account:
             log.warn('Error clearing the token cache')
             pass
 
-    def _ready(self, token, data, *, password=None):
-        self.token = token
-        self.email = data['email']
-        self.phone = data['phone']
-        self.password = password
-        self.user = ClientUser(state=None, data=data)
+    @property
+    def authenticated(self):
+        return self.token is not None
 
-    async def _token_login(self, token, **kwargs):
-        if kwargs.get('undelete', False):
-            raise TypeError('Cannot undelete account without credentials.')
+    async def reset_password(self, email=None):
+        email = email or self.email
+        if email is None:
+            TypeError('register() takes 1 positional argument but 0 were given')
 
-        log.info('Logging in using static token')
-        data = await self.http.static_login(token.strip())
-        self._ready(token, data)
-
-    async def _credential_login(self, email, password, **kwargs):
-        http = self.http
-        use_cache = self.use_cache
-        undelete = kwargs.get('undelete', False)
-
-        if use_cache and not undelete:
-            token = self._get_cache_token(email)
-            if token is not None:
-                try:
-                    data = await http.static_login(token)
-                except LoginFailure:
-                    log.info('Cached token is invalid')
-                else:
-                    self._ready(token, data, password=password)
-                    return
-
-        token = await http.login(email, password, undelete=undelete)
-        data = await http.static_login(token)
-        self._ready(token, data, password=password)
-
-        if use_cache:
-            self._update_cache()
-
-    async def _claimed_register(self, username, email, password, **kwargs):
-        ...
-
-    async def _unclaimed_register(self, username, **kwargs):
-        http = self.http
-        invite = kwargs.get('invite', None)
-        if invite is None:
-            raise TypeError('register() missing 1 required keyword-only argument: \'invite\'')
-        else:
-            invite = utils.resolve_invite(invite)
-
-        token = await http.register_from_invite()
-
-    async def login(self, *args, **kwargs):
-        self._closed = False
-
-        length = len(args)
-        if length == 1:
-            await self._token_login(args[0], **kwargs)
-        elif length == 2:
-            await self._credential_login(args[0], args[1], **kwargs)
-        else:
-            raise TypeError(f'login() takes 1 or 2 positional arguments but {length} were given')
+        return self.http.reset_password(email)
 
     async def register(self, *args, **kwargs):
         self._closed = False
@@ -178,18 +134,84 @@ class Account:
         else:
             raise TypeError(f'register() takes 1 or 3 positional arguments but {length} were given')
 
-    async def logout(self):
+    async def _claimed_register(self, username, email, password, **kwargs):
+        http = self.http
+        if http.captcha_handler:
+            self.loop.create_task(http.captcha_handler.prefetch_token())
+        dob = kwargs.get('dob', self._generate_dob())
+        spam_mail = kwargs.get('spam_mail', False)
+
+        token = await http.register(username, email, password, dob.strftime('%F'), spam_mail=spam_mail)
+        data = await http.static_login(token)
+        self._ready(token, data, password=password)
+
         if self.use_cache:
-            self._clear_cache(self.email)
+            self._update_cache()
 
-        await self.http.logout()
-        await self.close()
+    async def _unclaimed_register(self, username, **kwargs):
+        http = self.http
+        if http.captcha_handler:
+            self.loop.create_task(http.captcha_handler.prefetch_token())
+        invite = kwargs.get('invite')
+        if invite is None:
+            raise TypeError('register() missing 1 required keyword-only argument: \'invite\'')
+        else:
+            invite = utils.resolve_invite(invite)
 
-    async def close(self):
+        token = await http.register_from_invite(invite, username)
+        data = await http.static_login(token)
+        self._ready(token, data)
+
+    async def login(self, *args, **kwargs):
+        self._closed = False
+
+        length = len(args)
+        if length == 1:
+            await self._token_login(args[0], **kwargs)
+        elif length == 2:
+            await self._credential_login(args[0], args[1], **kwargs)
+        else:
+            raise TypeError(f'login() takes 1 or 2 positional arguments but {length} were given')
+
+    async def _token_login(self, token, **kwargs):
+        if kwargs.get('undelete', False):
+            raise TypeError('Cannot undelete account without credentials.')
+
+        log.info('Logging in using static token')
+        data = await self.http.static_login(token)
+        self._ready(token, data)
+
+    async def _credential_login(self, email, password, **kwargs):
+        http = self.http
+        use_cache = self.use_cache
+        undelete = kwargs.get('undelete', False)
+
+        if use_cache and not undelete:
+            token = self._get_cache_token(email)
+            if token is not None:
+                try:
+                    data = await http.static_login(token)
+                except AuthFailure:
+                    log.info('Cached token is invalid')
+                else:
+                    self._ready(token, data, password=password)
+                    return
+
+        token = await http.login(email, password, undelete=undelete)
+        data = await http.static_login(token)
+        self._ready(token, data, password=password)
+
+        if use_cache:
+            self._update_cache()
+
+    async def close(self, *, logout=False):
         if self._closed:
             return
 
-        self.clear()
+        if logout:
+            await self.http.logout()
+
+        self._clear()
 
         await self.http.close()
         self._closed = True

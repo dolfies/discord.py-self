@@ -105,7 +105,6 @@ class GatewayRatelimiter:
                 log.warning('WebSocket is ratelimited, waiting %.2f seconds', delta)
                 await asyncio.sleep(delta)
 
-
 class KeepAliveHandler(threading.Thread):
     def __init__(self, *args, **kwargs):
         ws = kwargs.pop('ws', None)
@@ -207,10 +206,6 @@ class VoiceKeepAliveHandler(KeepAliveHandler):
         self.latency = ack_time - self._last_send
         self.recent_ack_latencies.append(self.latency)
 
-class DiscordClientWebSocketResponse(aiohttp.ClientWebSocketResponse):
-    async def close(self, *, code: int = 4000, message: bytes = b'') -> bool:
-        return await super().close(code=code, message=message)
-
 class DiscordWebSocket:
     """Implements a WebSocket for Discord's gateway v6.
 
@@ -246,7 +241,7 @@ class DiscordWebSocket:
     GUILD_SYNC
         Send only. Requests a guild sync. This is unfortunately no longer functional.
     ACCESS_DM
-        Send only. Useless.
+        Send only. Useless tracking.
     GUILD_SUBSCRIBE
         Send only. Subscribes you to guilds. Might respond with GUILD_MEMBER_LIST_UPDATE.
     gateway

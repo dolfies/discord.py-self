@@ -40,6 +40,8 @@ from .utils import (_bytes_to_base64_data, cached_slot_property, parse_time,
 
 from datetime import datetime
 
+from datetime import datetime
+
 class Note:
     """Represents a Discord note."""
     __slots__ = ('_state', '_note', '_user_id', '_user')

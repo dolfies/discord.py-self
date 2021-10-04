@@ -1110,9 +1110,7 @@ class Messageable(metaclass=abc.ABCMeta):
         Raises
         --------
         ~discord.NotFound
-            The specified message was not found.
-        ~discord.Forbidden
-            You do not have the permissions required to get a message.
+            The specified message was not found or you do not have permission to get it.
         ~discord.HTTPException
             Retrieving the message failed.
 
