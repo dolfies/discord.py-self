@@ -1,5 +1,8 @@
-import discord
 import asyncio
+
+import discord
+
+TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
@@ -23,6 +26,5 @@ class MyClient(discord.Client):
             await channel.send(counter)
             await asyncio.sleep(60) # task runs every 60 seconds
 
-
 client = MyClient()
-client.run('token')
+client.run(TOKEN)

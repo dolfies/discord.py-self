@@ -3,6 +3,7 @@ import random
 import discord
 from discord.ext import commands
 
+TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyContext(commands.Context):
     async def tick(self, value):
@@ -29,7 +30,7 @@ class MyBot(commands.Bot):
         return await super().get_context(message, cls=cls)
         
 
-bot = MyBot(command_prefix='!')
+bot = MyBot(command_prefix='!', self_bot=True)
 
 @bot.command()
 async def guess(ctx, number: int):
@@ -42,10 +43,4 @@ async def guess(ctx, number: int):
     # or a red cross mark if it wasnt
     await ctx.tick(number == value)
 
-# important: you shouldnt hard code your token
-# these are very important, and leaking them can 
-# let people do very malicious things with your
-# bot. try to use a file or something to keep
-# them private, and dont commit it to GitHub
-token = "your token here"
-bot.run(token)
+bot.run(TOKEN)

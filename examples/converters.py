@@ -5,11 +5,8 @@ import typing
 import discord
 from discord.ext import commands
 
-intents = discord.Intents.default()
-intents.members = True
-
-bot = commands.Bot('!', intents=intents)
-
+TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
+bot = commands.Bot(command_prefix='!', self_bot=True)
 
 @bot.command()
 async def userinfo(ctx: commands.Context, user: discord.User):
@@ -72,8 +69,6 @@ class ChannelOrMemberConverter(commands.Converter):
         # The error has to be CommandError derived, so BadArgument works fine here.
         raise commands.BadArgument('No Member or TextChannel could be converted from "{}"'.format(argument))
 
-
-
 @bot.command()
 async def notify(ctx: commands.Context, target: ChannelOrMemberConverter):
     # This command signature utilises the custom converter written above
@@ -110,4 +105,4 @@ async def multiply(ctx: commands.Context, number: int, maybe: bool):
         return await ctx.send(number * 2)
     await ctx.send(number * 5)
 
-bot.run('token')
+bot.run(TOKEN)

@@ -1,20 +1,26 @@
-import discord
 import asyncio
+
+import discord
+
+TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyClient(discord.Client):
     async def on_ready(self):
-        print('Connected!')
-        print('Username: {0.name}\nID: {0.id}'.format(self.user))
+        print('Logged in as')
+        print(self.user.name)
+        print(self.user.id)
+        print('------')
 
     async def on_message(self, message):
-        if message.content.startswith('!editme'):
-            msg = await message.channel.send('10')
-            await asyncio.sleep(3.0)
-            await msg.edit(content='40')
+        if message.author == self.user:
+            if message.content.startswith('!editme'):
+                msg = await message.channel.send('10')
+                await asyncio.sleep(3.0)
+                await msg.edit(content='40')
 
     async def on_message_edit(self, before, after):
         fmt = '**{0.author}** edited their message:\n{0.content} -> {1.content}'
         await before.channel.send(fmt.format(before, after))
 
 client = MyClient()
-client.run('token')
+client.run(TOKEN)

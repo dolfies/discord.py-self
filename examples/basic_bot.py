@@ -1,18 +1,15 @@
-# This example requires the 'members' privileged intents
+import random
 
 import discord
 from discord.ext import commands
-import random
 
 description = '''An example bot to showcase the discord.ext.commands extension
 module.
 
 There are a number of utility commands being showcased here.'''
 
-intents = discord.Intents.default()
-intents.members = True
-
-bot = commands.Bot(command_prefix='?', description=description, intents=intents)
+TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
+bot = commands.Bot(command_prefix='?', description=description, self_bot=True)
 
 @bot.event
 async def on_ready():
@@ -35,7 +32,7 @@ async def roll(ctx, dice: str):
         await ctx.send('Format has to be in NdN!')
         return
 
-    result = ', '.join(str(random.randint(1, limit)) for r in range(rolls))
+    result = ', '.join(str(random.randint(1, limit)) for _ in range(rolls))
     await ctx.send(result)
 
 @bot.command(description='For when you wanna settle the score some other way')
@@ -46,7 +43,7 @@ async def choose(ctx, *choices: str):
 @bot.command()
 async def repeat(ctx, times: int, content='repeating...'):
     """Repeats a message multiple times."""
-    for i in range(times):
+    for _ in range(times):
         await ctx.send(content)
 
 @bot.command()
@@ -68,4 +65,4 @@ async def _bot(ctx):
     """Is the bot cool?"""
     await ctx.send('Yes, the bot is cool.')
 
-bot.run('token')
+bot.run(TOKEN)
