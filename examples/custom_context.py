@@ -28,7 +28,7 @@ class MyBot(commands.Bot):
         # subclass to the super() method, which tells the bot to
         # use the new MyContext class
         return await super().get_context(message, cls=cls)
-        
+
 
 bot = MyBot(command_prefix='!', self_bot=True)
 

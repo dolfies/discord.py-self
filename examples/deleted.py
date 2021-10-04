@@ -10,13 +10,16 @@ class MyClient(discord.Client):
         print('------')
 
     async def on_message(self, message):
-        if message.author == self.user:
-            if message.content.startswith('!deleteme'):
-                msg = await message.channel.send('I will delete myself now...')
-                await msg.delete()
+        # Only respond to ourselves
+        if message.author != self.user:
+            return
 
-                # this also works
-                await message.channel.send('Goodbye in 3 seconds...', delete_after=3.0)
+        if message.content.startswith('!deleteme'):
+            msg = await message.channel.send('I will delete myself now...')
+            await msg.delete()
+
+            # this also works
+            await message.channel.send('Goodbye in 3 seconds...', delete_after=3.0)
 
     async def on_message_delete(self, message):
         fmt = '{0.author} has deleted the message: {0.content}'

@@ -12,11 +12,14 @@ class MyClient(discord.Client):
         print('------')
 
     async def on_message(self, message):
-        if message.author == self.user:
-            if message.content.startswith('!editme'):
-                msg = await message.channel.send('10')
-                await asyncio.sleep(3.0)
-                await msg.edit(content='40')
+        # Only respond to ourselves
+        if message.author != self.user:
+            return
+
+        if message.content.startswith('!editme'):
+            msg = await message.channel.send('10')
+            await asyncio.sleep(3.0)
+            await msg.edit(content='40')
 
     async def on_message_edit(self, before, after):
         fmt = '**{0.author}** edited their message:\n{0.content} -> {1.content}'
