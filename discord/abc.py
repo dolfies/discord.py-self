@@ -35,10 +35,11 @@ from .enums import ChannelType
 from .errors import ClientException, InvalidArgument
 from .file import File
 from .invite import Invite
-from .iterators import HistoryIterator
+from .iterators import HistoryIterator, MessageSearchIterator
 from .mentions import AllowedMentions
 from .permissions import PermissionOverwrite, Permissions
 from .role import Role
+from .sticker import Sticker
 from .voice_client import VoiceClient, VoiceProtocol
 
 
@@ -1006,7 +1007,6 @@ class Messageable(metaclass=abc.ABCMeta):
         :class:`~discord.Message`
             The message that was sent.
         """
-
         channel = await self._get_channel()
         state = self._state
         content = str(content) if content is not None else None
@@ -1075,7 +1075,6 @@ class Messageable(metaclass=abc.ABCMeta):
 
         *Typing* indicator will go away after 10 seconds, or after a message is sent.
         """
-
         channel = await self._get_channel()
         await self._state.http.send_typing(channel.id)
 
@@ -1122,10 +1121,64 @@ class Messageable(metaclass=abc.ABCMeta):
         :class:`~discord.Message`
             The message asked for.
         """
-
         channel = await self._get_channel()
         data = await self._state.http.get_message(channel.id, id)
         return self._state.create_message(channel=channel, data=data)
+
+    async def search_messages(self, **options):
+        """|coro|
+
+        Searches the channel for messages by options.
+        This is the equivalent of the Discord search bar.
+
+        # TODO: List parameters and possible raises
+        Parameters
+        -----------
+        
+        Raises
+        -------
+
+        Yields
+        -------
+        :class:`Message`
+            The message result found
+        """
+        channel = await self._get_channel()
+        return MessageSearchIterator(channnel=channel, **options)
+
+    async def greet(self, *, sticker=None, stickers=None):
+        """|coro|
+
+        Greets with stickers in the channel.
+
+        Raises
+        ------
+        ~discord.Forbidden
+            You do not have the permissions to greet with a sticker.
+
+        Parameters
+        ----------
+        sticker: :class:`discord.Sticker`
+            The sticker to greet with
+        stickers: List[:class:`discord.Sticker`]
+            The stickers to greet with
+        """
+        channel = await self._get_channel()
+        if sticker is not None and stickers is not None:
+            raise InvalidArgument('cannot pass both sticker and stickers to greet()')
+
+        if sticker is not None:
+            if not isinstance(sticker, Sticker):
+                raise InvalidArgument('sticker parameter must be a Sticker')
+
+            return await self._state.http.greet(channel.id, sticker.id)
+
+        elif stickers is not None:
+            if not all(isinstance(sticker, Sticker) for sticker in stickers):
+                raise InvalidArgument('stickers parameter must be a list of Sticker')
+        
+            sticker_ids = [sticker.id for sticker in stickers]
+            return await self._state.http.greet(channel.id, *sticker_ids)
 
     async def pins(self):
         """|coro|
@@ -1148,7 +1201,6 @@ class Messageable(metaclass=abc.ABCMeta):
         List[:class:`~discord.Message`]
             The messages that are currently pinned.
         """
-
         channel = await self._get_channel()
         state = self._state
         data = await state.http.pins_from(channel.id)
@@ -1261,7 +1313,6 @@ class Connectable(metaclass=abc.ABCMeta):
         :class:`~discord.VoiceProtocol`
             A voice client that is fully connected to the voice server.
         """
-
         key_id, _ = self._get_voice_client_key()
         state = self._state
 
