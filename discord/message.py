@@ -1180,10 +1180,8 @@ class Message(Hashable):
             The resulting report ID.
         """
         reason = try_enum(ReportType, reason)
-        if isinstance(reason, ReportType):
-            reason = reason.value
         guild_id = getattr(self.guild, 'id', None)
-        data = await self._state.http.report(guild_id, self.channel.id, self.id, reason)
+        data = await self._state.http.report(guild_id, self.channel.id, self.id, str(reason))
         return int(data['id'])
 
     async def pin(self):
