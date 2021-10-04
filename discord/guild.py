@@ -42,7 +42,7 @@ from .errors import ClientException, InvalidArgument, InvalidData
 from .flags import SystemChannelFlags
 from .integrations import Integration
 from .invite import Invite
-from .iterators import AuditLogIterator
+from .iterators import AuditLogIterator, MessageSearchIterator
 from .member import Member, VoiceState
 from .mixins import Hashable
 from .permissions import PermissionOverwrite
@@ -996,6 +996,62 @@ class Guild(Hashable):
         parent_id = category.id if category else None
         return self._state.http.create_channel(self.id, channel_type.value, name=name, parent_id=parent_id,
                                                permission_overwrites=perms, **options)
+
+    async def search_messages(self, **options):
+        """|coro|
+
+        Searches the guild for messages by options.
+        This is the equivalent of the Discord search bar.
+
+        Parameters
+        -----------
+        channel: :class:`TextChannel`
+            The channel to search in, leave out to search in the whole guild.
+        channels: List[:class:`TextChannel`]
+            A list of channels to search in, leave out to search in the whole guild.
+        author: :class:`User`
+            The user to filter to.
+        authors: List[:class:`User`]
+            A list of users to filter to.
+        mentions: List[:class:`User`]
+            A list of users the message mentions
+        has: List[:class:`str`]
+            A list of things the message has, this can be one or more of:
+            link, embed, file, video, image, sound, sticker
+        embed_types: List[:class:`str`]
+            A list of the types of embed used.
+            Possible strings for embed types can be found on discord's
+            `api docs <https://discord.com/developers/docs/resources/channel#embed-object-embed-types>`_
+        attachment_extensions: List[:class:`str`]
+            A list of the file extensions used in attachments of a message.
+        attachment_filenames: List[:class:`str`]
+            A list of the filenames used in attachments of a message.
+        mention_everyone: :class:`bool`
+            Specifies if the message mentions everyone.
+        content: :class:`str`
+            A part, or the entire content of the messages to search for.
+        include_nsfw: :class:`bool`
+            Whether to include NSFW results
+        offset: class:`int`
+            Offset of message results.
+            In Discord, page 2 of the results would be offset=25
+        limit: class:`int`
+            Max amount of results to return
+        max_id: ??
+        min_id: ??
+        embed_provider: ??
+        link_hostname: ??
+        author_type: ??
+
+        Raises
+        -------
+
+        Yields
+        -------
+        :class:`Message`
+            The message result found
+        """
+        return MessageSearchIterator(guild=self, **options)
 
     async def create_text_channel(self, name, *, overwrites=None, category=None, **options):
         """|coro|
