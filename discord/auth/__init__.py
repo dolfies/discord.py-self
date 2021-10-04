@@ -1,5 +1,5 @@
 """
-discord.Account
+discord.Auth
 ~~~~~~~~~~~~~~~
 
 A helper module to wrap the auth APIs.
@@ -9,3 +9,4 @@ A helper module to wrap the auth APIs.
 """
 
 from .account import Account
+from .helpers import *

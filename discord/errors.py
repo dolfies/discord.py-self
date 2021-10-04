@@ -44,7 +44,7 @@ class NoMoreItems(DiscordException):
     pass
 
 class GatewayNotFound(DiscordException):
-    """An exception that is usually thrown when the gateway hub
+    """An exception that is usually thrown when the gateway url
     for the :class:`Client` websocket is not found."""
     def __init__(self):
         message = 'The gateway to connect to Discord was not found.'
@@ -76,19 +76,22 @@ class HTTPException(DiscordException):
         The response of the failed HTTP request. This is an
         instance of :class:`aiohttp.ClientResponse`. In some cases
         this could also be a :class:`requests.Response`.
-
     text: :class:`str`
         The text of the error. Could be an empty string.
     status: :class:`int`
         The status code of the HTTP request.
     code: :class:`int`
         The Discord specific error code for the failure.
+    json: :class:`dict`
+        The raw error JSON.
     """
 
     def __init__(self, response, message):
         self.response = response
         self.status = response.status
+        self._text = message
         if isinstance(message, dict):
+            self.json = message
             self.code = message.get('code', 0)
             base = message.get('message', '')
             errors = message.get('errors')
@@ -147,7 +150,7 @@ class InvalidArgument(ClientException):
     """
     pass
 
-class LoginFailure(ClientException):
+class AuthFailure(ClientException):
     """Exception that's thrown when the :meth:`Client.login` function
     fails to log you in from improper credentials or some other misc.
     failure.

@@ -1,0 +1,46 @@
+body {
+  background-color: #101010;
+  color: #ffffff;
+}
+
+h1 {
+  color: #ffffff;
+}
+
+nav a {
+  color: #ffffff;
+}
+
+section {
+  margin: auto;
+  width: 350px;
+  padding: 10px;
+  text-align: center;
+  color: #ffffff;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 58px;
+  text-align: center;
+  color: #ffffff;
+}
+
+footer div {
+  line-height: 18px;
+  display: inline-block
+  color: #ffffff;
+}
+
+footer iframe {
+  display: inline-block;
+  margin-bottom: -5px;
+  color: #ffffff;
+}
+
+.h-captcha {
+  display: inline-block;
+  margin: 20px;
+}

@@ -1,0 +1,64 @@
+name: Bug Report
+description: Report broken or incorrect behaviour
+labels: unconfirmed bug
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for taking the time to fill out a bug report!
+  - type: input
+    attributes:
+      label: Summary
+      description: A simple summary of your bug report
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction Steps
+      description: >
+         How did you make it happen?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Code
+      description: >
+        Relevant code that shows the bug.
+      render: python
+  - type: textarea
+    attributes:
+      label: Expected Results
+      description: >
+        What is supposed to happen?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual Results
+      description: >
+       What is actually happening?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: System Information
+      description: >
+        Run `python -m discord -v` and paste this information below.
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      description: >
+        Let's make sure this issue is valid!
+      options:
+        - label: I have searched the open issues for duplicates.
+          required: true
+        - label: I have shared the entire traceback.
+          required: true
+        - label: I am using a user token (and it isn't visible in the code).
+          required: true
+  - type: textarea
+    attributes:
+      label: Additional Information
+      description: Put any extra context, weird configurations, or other important info here.

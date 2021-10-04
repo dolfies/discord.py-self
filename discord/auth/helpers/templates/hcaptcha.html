@@ -1,0 +1,44 @@
+<html lang='en'>
+
+<head>
+    <title>hCaptcha Harvester</title>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>
+    <link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css'
+        integrity='sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z' crossorigin='anonymous'>
+    <link rel='stylesheet' href='/style.css'>
+    <script type='text/javascript' src='https://hcaptcha.com/1/api.js?onload=execute' async defer></script>
+</head>
+
+<body>
+    <section>
+        <h3>hCaptcha Harvester</h3>
+        <h6>Generates captcha tokens that can be used to register/login.</h6>
+        <form method='POST'>
+            <div class='h-captcha' data-sitekey='{{ sitekey }}' data-callback='submit' data-theme='dark'> </div>
+            <button id='submit' type='submit' style="visibility:hidden;" class='btn btn-primary'>Placeholder</button>
+        </form>
+    </section>
+    <footer>
+        <div class='footer'>
+            Note: These only last for a limited amount of time.
+        </div>
+        <div class='dev-options'>
+            Developers:
+            <a href='{{ server }}/api/tokens' class='btn btn-primary' target='_blank'>Tokens</a>
+            <a href='{{ server }}/api/token-count' class='btn btn-primary' target='_blank'>Token Count</a>
+        </div>
+    </footer>
+    <script>function submit() {
+                document.getElementById('submit').click();
+            }
+            async function execute() {
+                while(true) {
+                    hcaptcha.execute();
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+                };
+            }
+    </script>
+</body>
+
+</html>
