@@ -476,6 +476,34 @@ class AuditLogIterator(_AsyncIterator):
                 await self.entries.put(AuditLogEntry(data=element, users=self._users, guild=self.guild))
 
 
+class MessageSearchIterator(_AsyncIterator):
+    """Iterator for receiving the message results on your search.
+
+    Parameters
+    -----------
+    guild: :class:`Guild`
+        The guild to search messages in
+    channel: :class:`Messageable`
+        The channel to search messages in
+    """
+    def __init__(self, *, guild=None, channel=None, **options):
+        if guild is not None and channel is None:
+            self.state = guild._state
+        elif guild is None and channel is not None:
+            self.state = channel._state
+
+        self.results_from = self.state.http.search_messages
+        self.messages = asyncio.Queue()
+
+    async def next(self):
+        if self.messages.empty():
+            await self.fill_messages()
+
+    async def flatten(self): ...
+
+    async def fill_messages(self): ...
+
+
 class GuildIterator(_AsyncIterator):
     """Iterator for receiving the client's guilds.
 
