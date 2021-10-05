@@ -76,25 +76,17 @@ class _AsyncIterator:
         return _FilteredAsyncIterator(self, predicate)
 
     async def flatten(self):
-        ret = []
-        while True:
-            try:
-                item = await self.next()
-            except NoMoreItems:
-                return ret
-            else:
-                ret.append(item)
+        return [element async for element in self]
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
         try:
-            msg = await self.next()
+            return await self.next()
         except NoMoreItems:
             raise StopAsyncIteration()
-        else:
-            return msg
+
 
 def _identity(x):
     return x
@@ -489,38 +481,41 @@ class MessageSearchIterator(_AsyncIterator):
         The channel to search messages in
     """
     def __init__(self, *, guild=None, messageable=None, **options):
-        print('initialized')
+        before = options.pop('before', None)
+        after = options.pop('after', None)
+        if isinstance(before, Object):
+            options['max_id'] = before
+        elif isinstance(before, datetime.datetime):
+            options['max_id'] = Object(id=time_snowflake(before, high=False))
+        if isinstance(after, Object):
+            options['min_id'] = Object
+        elif isinstance(after, datetime.datetime):
+            options['min_id'] = Object(id=time_snowflake(after, high=True))
+
         if guild is not None and messageable is None:
             self.state = guild._state
-            self.results_from = functools.partial(self.state.http.search_messages, guild_id=guild.id)
+            self.get_messages = functools.partial(self.state.http.search_messages, guild_id=guild.id)
         elif guild is None and messageable is not None:
             self.state = messageable._state
-            self.results_from = functools.partial(self.state.http.search_messages, _channel_id=messageable.id)
+            self.get_messages = functools.partial(self.state.http.search_messages, _channel_id=messageable.id)
 
-        # Attempt to use IDs for each object in options
-        # This is the case for the folling kwargs:
-        # channel, author, mentions
+        # I don't want to bother checking if it even needs to be a list
+        # HTTPClient.search_messages handles it properly either way
         _options = collections.defaultdict(list)
         for k, v in options.items():
             for sv in [v] if not isinstance(v, list) else v:
-                object_id = getattr(sv, 'id', None)
-                if object_id:
-                    # Because why would it be "mention_id" like "author_id" and "channel_id" if it can be "mentions"
-                    if k in {'channel', 'author'}:
-                        k += '_id'
-                    # I don't want to bother checking if it even needs to be a list, the HTTPClient.search_messages
-                    # method handles it properly either way
-                    _options[k].append(object_id)
-                else:
-                    _options[k] = v
+                if k in {'channel', 'author'}:
+                    k += '_id'
+                sv = getattr(sv, 'id', sv)
+                _options[k].append(sv)
 
         self.options = dict(_options)
         self.messages = asyncio.Queue()
 
     async def next(self):
-        print('next               ', self.messages)
+        # even when there are items in the queue, .empty() returns True
+        # causing there to be an infinite loop of requests to api 🙄
         if self.messages.empty():
-            print('empty              ')
             await self.fill_messages()
 
         try:
@@ -529,31 +524,20 @@ class MessageSearchIterator(_AsyncIterator):
             raise NoMoreItems()
 
     def create_message(self, data):
-        print('create_message     ', self.messages)
         from .message import Message
         channel = self.state.get_channel(int(data['channel_id']))
         return Message(state=self.state, channel=channel, data=data)
 
-    async def flatten(self):
-        print('flatten            ', self.messages)
-        result = []
-        data = await self._retrieve_messages()
-        for element in data:
-            result.append(self.create_message(element))
-
-        return result
-
     async def fill_messages(self):
-        print('fill_messages      ', self.messages)
         data = await self._retrieve_messages()
+
         for element in data:
             await self.messages.put(self.create_message(element))
 
     async def _retrieve_messages(self):
-        print('_retrieve_messages ', self.messages)
         # I don't know why the resulting messages are in a nested list
         # api response looks like a bit like this {..., 'messages': [ [{message 1 ...}], [{message 2...}] ]}
-        data = sum((await self.results_from(**self.options))['messages'], [])
+        data = sum((await self.get_messages(**self.options))['messages'], [])
         return data
 
 
