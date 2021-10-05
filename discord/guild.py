@@ -1033,8 +1033,12 @@ class Guild(Hashable):
             In Discord, page 2 of the results would be offset=25
         limit: class:`int`
             Max amount of results to return
-        max_id: ??
-        min_id: ??
+        before: Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]
+            Retrieve entries before this date or entry.
+            If a date is provided it must be a timezone-naive datetime representing UTC time.
+        after: Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]
+            Retrieve entries after this date or entry.
+            If a date is provided it must be a timezone-naive datetime representing UTC time.
         embed_provider: ??
         link_hostname: ??
         author_type: ??
