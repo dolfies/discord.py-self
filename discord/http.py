@@ -398,23 +398,23 @@ class HTTPClient:
 
     # Message management
 
-    def search_messages(self, *, guild_id=None, channel_id=None, **options):
+    def search_messages(self, *, guild_id=None, _channel_id=None, **options):
         valid_keys = {'channel_id', 'author_id', 'author_type', 'mentions', 'has',
-                      'link_hostname', 'embed_provider', 'embed_type', 'attachment_extension'
-                      'attachment_filename', 'mention_everyone', 'max_id', 'min_id', 'content'
+                      'link_hostname', 'embed_provider', 'embed_type', 'attachment_extension',
+                      'attachment_filename', 'mention_everyone', 'max_id', 'min_id', 'content',
                       'include_nsfw', 'offset', 'limit'}
 
-        if guild_id is not None and channel_id is None:
+        if guild_id is not None and _channel_id is None:
             r = Route('GET', '/guilds/{guild_id}/messages/search', guild_id=guild_id)
-        elif channel_id is not None and guild_id is None:
-            r = Route('GET', '/channels/{channel_id}/messages/search', channel_id=channel_id)
-            # I think these keys aren't valid in a channel, e.g dm chat environment
-            # Haven't actually tested this
-            valid_keys.difference_update(['channel_id', 'include_nsfw'])
+        elif _channel_id is not None and guild_id is None:
+            r = Route('GET', '/channels/{channel_id}/messages/search', channel_id=_channel_id)
+            # These option wouldn't make sense
+            # Haven't actually tested if it produces an error if you let this through
+            valid_keys.discard('channel_id')
 
         # Cant use a dict, as some key value pairs might repeat
         # So we must make a list[tuple[key, val]], which aiohttp will format for us
-        # Example input: options = {'channel_id': [764584777642672160, 311225587970605066], 'author_id': 884800179042152448, 'content': 'test string here'}
+        # input: {'channel_id': [764584777642672160, 311225587970605066], 'author_id': 884800179042152448, 'content': 'test string here'}
         # output : [('channel_id', '764584777642672160'), ('channel_id', '311225587970605066'), ('author_id', '884800179042152448'), ('content', 'test string here')]
         params = [
             (k, str(sv)) for k, v in options.items() if k in valid_keys
