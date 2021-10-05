@@ -793,8 +793,7 @@ class HTTPClient:
                       'system_channel_id', 'default_message_notifications',
                       'description', 'explicit_content_filter', 'banner',
                       'system_channel_flags', 'rules_channel_id',
-                      'public_updates_channel_id', 'preferred_locale',
-                      'features'}
+                      'public_updates_channel_id', 'preferred_locale', 'features')
         payload = {
             k: v for k, v in fields.items() if k in valid_keys
         }
