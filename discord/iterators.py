@@ -26,6 +26,8 @@ DEALINGS IN THE SOFTWARE.
 
 import asyncio
 import datetime
+import functools
+import collections
 
 from .audit_logs import AuditLogEntry
 from .errors import NoMoreItems
@@ -483,25 +485,76 @@ class MessageSearchIterator(_AsyncIterator):
     -----------
     guild: :class:`Guild`
         The guild to search messages in
-    channel: :class:`Messageable`
+    messageable: :class:`Messageable`
         The channel to search messages in
     """
-    def __init__(self, *, guild=None, channel=None, **options):
-        if guild is not None and channel is None:
+    def __init__(self, *, guild=None, messageable=None, **options):
+        print('initialized')
+        if guild is not None and messageable is None:
             self.state = guild._state
-        elif guild is None and channel is not None:
-            self.state = channel._state
+            self.results_from = functools.partial(self.state.http.search_messages, guild_id=guild.id)
+        elif guild is None and messageable is not None:
+            self.state = messageable._state
+            self.results_from = functools.partial(self.state.http.search_messages, _channel_id=messageable.id)
 
-        self.results_from = self.state.http.search_messages
+        # Attempt to use IDs for each object in options
+        # This is the case for the folling kwargs:
+        # channel, author, mentions
+        _options = collections.defaultdict(list)
+        for k, v in options.items():
+            for sv in [v] if not isinstance(v, list) else v:
+                object_id = getattr(sv, 'id', None)
+                if object_id:
+                    # Because why would it be "mention_id" like "author_id" and "channel_id" if it can be "mentions"
+                    if k in {'channel', 'author'}:
+                        k += '_id'
+                    # I don't want to bother checking if it even needs to be a list, the HTTPClient.search_messages
+                    # method handles it properly either way
+                    _options[k].append(object_id)
+                else:
+                    _options[k] = v
+
+        self.options = dict(_options)
         self.messages = asyncio.Queue()
 
     async def next(self):
+        print('next               ', self.messages)
         if self.messages.empty():
+            print('empty              ')
             await self.fill_messages()
 
-    async def flatten(self): ...
+        try:
+            return self.messages.get_nowait()
+        except asyncio.QueueEmpty:
+            raise NoMoreItems()
 
-    async def fill_messages(self): ...
+    def create_message(self, data):
+        print('create_message     ', self.messages)
+        from .message import Message
+        channel = self.state.get_channel(int(data['channel_id']))
+        return Message(state=self.state, channel=channel, data=data)
+
+    async def flatten(self):
+        print('flatten            ', self.messages)
+        result = []
+        data = await self._retrieve_messages()
+        for element in data:
+            result.append(self.create_message(element))
+
+        return result
+
+    async def fill_messages(self):
+        print('fill_messages      ', self.messages)
+        data = await self._retrieve_messages()
+        for element in data:
+            await self.messages.put(self.create_message(element))
+
+    async def _retrieve_messages(self):
+        print('_retrieve_messages ', self.messages)
+        # I don't know why the resulting messages are in a nested list
+        # api response looks like a bit like this {..., 'messages': [ [{message 1 ...}], [{message 2...}] ]}
+        data = sum((await self.results_from(**self.options))['messages'], [])
+        return data
 
 
 class GuildIterator(_AsyncIterator):
@@ -543,6 +596,7 @@ class GuildIterator(_AsyncIterator):
 
         for element in data:
             result.append(self.create_guild(element))
+
         return result
 
     async def fill_guilds(self):
