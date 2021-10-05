@@ -103,7 +103,32 @@ class CaptchaHandler:
     way than the built-in library implementation.
 
     These classes are passed to :class:`auth.Account`.
+
+    Attributes
+    -----------
+    session: :class:`aiohttp.ClientSession`
+        A ClientSession to use when requesting.
+    headers: :class:`dict`
+        Basic headers (such as a user-agent).
     """
+
+    async def startup(self, session, headers):
+        """|coro|
+
+        An abstract method that is called by the library at startup.
+
+        This helps the handler by giving it a ClientSession and header
+        information.
+
+        Parameters
+        -----------
+        session: :class:`aiohttp.ClientSession`
+            A ClientSession to use when requesting.
+        headers: :class:`dict`
+            Basic headers (such as a user-agent).
+        """
+        self.session = session
+        self.headers = headers
 
     async def prefetch_token(self):
         """|coro|
@@ -143,7 +168,7 @@ class CaptchaSolver(CaptchaHandler):
 
     Parameters
     -----------
-    browser: Optional[Union[:class:`str`, :class:`~discord.enums.BrowserEnum`]]
+    browser: Union[:class:`str`, :class:`~discord.enums.BrowserEnum`]
         The browser to launch.
     domain: :class:`str`
         The base domain serving the captcha. Should always be 'discord.com'.
@@ -168,10 +193,15 @@ class CaptchaSolver(CaptchaHandler):
 
         self.domain = domain
         self.sitekey = sitekey
-
         self.server = (host, port)
+        self.log = log
+
         self.browser = Browser(browser)
-        self.harvester = harvester = _Harvester(domain, sitekey, host=host, port=port, log=log)
+        self.harvester = None
+
+    async def startup(self, *args):
+        self.harvester = harvester = _Harvester(self.domain, self.sitekey, host=self.server[0],
+                                                port=self.server[1], log=self.log)
         harvester.run()
 
     @cached_property
@@ -209,13 +239,13 @@ class CaptchaSolver(CaptchaHandler):
     async def prefetch_token(self):
         if self.tokens.empty():
             self.launch_browser()
-            timer = Timer(15, self.stop_browser)
 
     async def fetch_token(self, data):
         assert data.get('captcha_service') == 'hcaptcha'
 
         if self.tokens.empty():
             self.launch_browser()
+
         token = await self.harvester.fetch_token()
         self.stop_browser()
 

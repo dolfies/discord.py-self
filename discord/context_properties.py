@@ -52,6 +52,7 @@ class ContextProperties: # Thank you Discord-S.C.U.M
             '/app': 'eyJsb2NhdGlvbiI6ICIvYXBwIn0=',
             'Login': 'eyJsb2NhdGlvbiI6IkxvZ2luIn0=',
             'Register': 'eyJsb2NhdGlvbiI6IlJlZ2lzdGVyIn0=',
+            'Verify Email': 'eyJsb2NhdGlvbiI6IlZlcmlmeSBFbWFpbCJ9',
         }
 
         try:
@@ -138,6 +139,13 @@ class ContextProperties: # Thank you Discord-S.C.U.M
     def _from_register(cls):
         data = {
             'location': 'Register'
+        }
+        return cls(data)
+
+    @classmethod
+    def _from_verification(cls):
+        data = {
+            'location': 'Verify Email'
         }
         return cls(data)
 

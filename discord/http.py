@@ -61,10 +61,11 @@ async def json_or_text(response):
 class Route:
     BASE = 'https://discord.com/api/v7'
 
-    def __init__(self, method, path, **parameters):
+    def __init__(self, method, path, *, base=None, **parameters):
         self.path = path
         self.method = method
-        url = (self.BASE + self.path)
+        base = base or self.BASE
+        url = (base + self.path)
         if parameters:
             self.url = url.format(**{k: _uriquote(v) if isinstance(v, str) else v for k, v in parameters.items()})
         else:
@@ -167,9 +168,6 @@ class HTTPClient:
                 'Host': host,
                 'Origin': 'https://discord.com',
                 'Pragma': 'no-cache',
-                'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not A Brand";v="99"'.format(self.browser_version.split('.')[0]),
-                'Sec-CH-UA-Mobile': '?0',
-                'Sec-CH-UA-Platform': '"Windows"',
                 'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
                 'Sec-WebSocket-Key': websocket_key,
                 'Sec-WebSocket-Version': '13',
@@ -202,6 +200,9 @@ class HTTPClient:
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
             'Referer': 'https://discord.com/channels/@me',
+            'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not A Brand";v="99"'.format(self.browser_version.split('.')[0]),
+            'Sec-CH-UA-Mobile': '?0',
+            'Sec-CH-UA-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
@@ -254,36 +255,35 @@ class HTTPClient:
                     async with self.__session.request(method, url, **kwargs) as r:
                         log.debug('%s %s with %s has returned %s', method, url, kwargs.get('data'), r.status)
 
-                        # even errors have text involved in them so this is safe to call
                         data = await json_or_text(r)
 
-                        # check if we have rate limit header information
+                        # Check if we have rate limit information
                         remaining = r.headers.get('X-Ratelimit-Remaining')
                         if remaining == '0' and r.status != 429:
-                            # we've depleted our current bucket
+                            # We've depleted our current bucket
                             delta = utils._parse_ratelimit_header(r, use_clock=self.use_clock)
                             log.debug('A rate limit bucket has been exhausted (bucket: %s, retry: %s).', bucket, delta)
                             maybe_lock.defer()
                             self.loop.call_later(delta, lock.release)
 
-                        # the request was successful so just return the text/json
+                        # Request was successful so just return the text/json
                         if 300 > r.status >= 200:
                             log.debug('%s %s has received %s', method, url, data)
                             return data
 
-                        # we are being rate limited
+                        # Rate limited
                         if r.status == 429:
                             if not r.headers.get('Via'):
-                                # Banned by Cloudflare more than likely.
+                                # Banned by Cloudflare more than likely
                                 raise HTTPException(r, data)
 
-                            fmt = 'We are being rate limited. Retrying in %.2f seconds. Handled under the bucket "%s"'
+                            fmt = 'We are being rate limited. Retrying in %.2f seconds. Handled under the bucket "%s".'
 
-                            # sleep a bit
+                            # Sleep a bit
                             retry_after = data['retry_after'] / 1000.0
                             log.warning(fmt, retry_after, bucket)
 
-                            # check if it's a global rate limit
+                            # Check if it's a global rate limit
                             is_global = data.get('global', False)
                             if is_global:
                                 log.warning('Global rate limit has been hit. Retrying in %.2f seconds.', retry_after)
@@ -292,20 +292,19 @@ class HTTPClient:
                             await asyncio.sleep(retry_after)
                             log.debug('Done sleeping for the rate limit. Retrying...')
 
-                            # release the global lock now that the
-                            # global rate limit has passed
+                            # Release the global lock now that the rate limit passed
                             if is_global:
                                 self._global_over.set()
                                 log.debug('Global rate limit is now over.')
 
                             continue
 
-                        # we've received a 500 or 502, unconditional retry
+                        # Unconditional retry
                         if r.status in {500, 502}:
                             await asyncio.sleep(1 + tries * 2)
                             continue
 
-                        # the usual error cases
+                        # Usual error cases
                         if r.status == 403:
                             raise Forbidden(r, data)
                         elif r.status == 404:
@@ -352,24 +351,32 @@ class HTTPClient:
     # Login management
 
     async def static_login(self, token):
-        # Necessary to get aiohttp to stop complaining about session creation
         self.__session = aiohttp.ClientSession(connector=self.connector)
         old_token = self.token
         self._token(token)
 
         await self.startup_tasks()
 
+        params = {
+            'with_analytics_token': 'true'
+        }
         try:
-            data = await self.request(Route('GET', '/users/@me?with_analytics_token=true'))
+            data = await self.get_me()
         except HTTPException as exc:
             self._token(old_token)
             if exc.response.status == 401:
-                raise AuthFailure('Improper token has been passed.') from exc
+                raise AuthFailure('Improper token has been passed') from exc
             raise
 
         return data
 
     # Group functionality
+
+    def get_me(self):
+        params = {
+            'with_analytics_token': 'true'
+        }
+        return self.request(Route('GET', '/users/@me'), params=params)
 
     def start_group(self, recipients):
         payload = {

@@ -42,15 +42,17 @@ class AuthClient:
 
     BASE = 'https://discord.com/api/v9'  # Using older versions of the auth APIs is a big nono
 
-    def __init__(self, connector=None, *, proxy=None, proxy_auth=None, loop=None, unsync_clock=True, captcha_handler=None):
+    def __init__(self, connector=None, *, proxy, proxy_auth, loop, unsync_clock, captcha_handler, email_handler):
         self.connector = connector
-        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self.loop = loop
         self.session = None
         self.proxy = proxy
         self.proxy_auth = proxy_auth
         self.captcha_handler = captcha_handler
+        self.email_handler = email_handler
         self.use_clock = not unsync_clock
         self._started = False
+        self._initialized_handlers = False
 
         self.token = None
         self.fingerprint = None
@@ -61,6 +63,8 @@ class AuthClient:
             session.connector._close()
 
     async def startup(self):
+        if self._started:
+            return
         self._started = True
         self.session = aiohttp.ClientSession(connector=self.connector)
         self.user_agent = ua = await utils._get_user_agent(self.session)
@@ -84,6 +88,29 @@ class AuthClient:
         }
         self.encoded_super_properties = b64encode(json.dumps(super_properties).encode()).decode('utf-8')
 
+        if self._initialized_handlers:
+            return
+
+        headers = {
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'en-US',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not A Brand";v="99"'.format(bv.split('.')[0]),
+            'Sec-CH-UA-Mobile': '?0',
+            'Sec-CH-UA-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': ua
+        }
+
+        if self.captcha_handler is not None:
+            await self.captcha_handler.startup(self.session, headers)
+        if self.email_handler is not None:
+            await self.email_handler.startup(self.session, headers)
+
     async def ws_connect(self, url, *, compress=0, host=None):
         websocket_key = b64encode(bytes(getrandbits(8) for _ in range(16))).decode()  # Thank you Discord-S.C.U.M
         if not host:
@@ -102,28 +129,24 @@ class AuthClient:
                 'Host': host,
                 'Origin': 'https://discord.com',
                 'Pragma': 'no-cache',
-                'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not A Brand";v="99"'.format(self.browser_version.split('.')[0]),
-                'Sec-CH-UA-Mobile': '?0',
-                'Sec-CH-UA-Platform': '"Windows"',
                 'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
                 'Sec-WebSocket-Key': websocket_key,
                 'Sec-WebSocket-Version': '13',
                 'Upgrade': 'websocket',
-                'User-Agent': self.user_agent,
+                'User-Agent': self.user_agent
             },
             'compress': compress
         }
 
         return await self.session.ws_connect(url, **kwargs)
 
-    async def request(self, verb, url, **kwargs):
+    async def request(self, method, url, **kwargs):
         if not self._started:
             await self.startup()
 
         if not self.session:
             self.session = aiohttp.ClientSession(connector=self.connector)
 
-        method = verb
         url = (self.BASE + url)
 
         # Header creation
@@ -136,6 +159,9 @@ class AuthClient:
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
             'Referer': 'https://discord.com/',
+            'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not A Brand";v="99"'.format(self.browser_version.split('.')[0]),
+            'Sec-CH-UA-Mobile': '?0',
+            'Sec-CH-UA-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
@@ -180,25 +206,24 @@ class AuthClient:
                 async with self.session.request(method, url, **kwargs) as r:
                     log.debug('%s %s with %s has returned %s', method, url, kwargs.get('data'), r.status)
 
-                    # even errors have text involved in them so this is safe to call
                     data = await json_or_text(r)
 
-                    # check if we have rate limit header information
+                    # Check if we have rate limit information
                     remaining = r.headers.get('X-Ratelimit-Remaining')
                     if remaining == '0' and r.status != 429:
                         delta = utils._parse_ratelimit_header(r, use_clock=self.use_clock)
                         log.debug('Auth ratelimit has been hit (retry: %s).', delta)
                         await asyncio.sleep(delta)
 
-                    # the request was successful so just return the text/json
+                    # Request was successful so just return the text/json
                     if 300 > r.status >= 200:
                         log.debug('%s %s has received %s', method, url, data)
                         return data
 
-                    # we are being rate limited
+                    # Rate limited
                     if r.status == 429:
                         if not r.headers.get('Via'):
-                            # Banned by Cloudflare more than likely.
+                            # Banned by Cloudflare more than likely
                             raise HTTPException(r, data)
 
                         retry_after = data['retry_after'] / 1000.0
@@ -206,12 +231,12 @@ class AuthClient:
                         await asyncio.sleep(retry_after)
                         continue
 
-                    # we've received a 500 or 502, unconditional retry
+                    # Unconditional retry
                     if r.status in {500, 502}:
                         await asyncio.sleep(1 + tries * 2)
                         continue
 
-                    # the usual error cases
+                    # Usual error cases
                     if r.status == 403:
                         raise Forbidden(r, data)
                     elif r.status == 404:
@@ -246,13 +271,24 @@ class AuthClient:
     async def static_login(self, token):
         self.token = token
         try:
-            data = await self.request('GET', '/users/@me?with_analytics_token=true', auth=True, referer='https://discord.com/channels/@me')
+            data = await self.get_me()
         except HTTPException as exc:
             if exc.response.status == 401:
                 raise AuthFailure('Improper token has been passed.') from exc
             raise
         else:
             return data
+
+    def get_me(self):
+        params = {
+            'with_analytics_token': 'true'
+        }
+        return self.request('GET', '/users/@me', auth=True,
+                            referer='https://discord.com/channels/@me', params=params)
+
+    def edit_me(self, **fields):
+        return self.request('PATCH', '/users/@me', auth=True, json=fields,
+                            referer='https://discord.com/channels/@me')
 
     def get_invite(self, invite_id):
         params = {
@@ -276,6 +312,10 @@ class AuthClient:
         elif mode == 3:  # Login page
             referer = 'https://discord.com/login'
             context_properties = ContextProperties._from_login()
+            data = await self.request('GET', '/experiments', auth=True, context_properties=context_properties, referer=referer)
+        elif mode == 4:  # Verify email page
+            referer = 'https://discord.com/verify'
+            context_properties = ContextProperties._from_verification()
             data = await self.request('GET', '/experiments', auth=True, context_properties=context_properties, referer=referer)
         elif mode == -1:  # Currently unused, still works
             data = await self.request('POST', '/auth/fingerprint')
@@ -324,7 +364,7 @@ class AuthClient:
                     if values is None:
                         raise InvalidData(f'Please open an issue with this info: {exc._text.get("captcha_key")}') from exc
                     elif captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
-                        raise AuthFailure('Captcha required.') from exc
+                        raise AuthFailure('Captcha required') from exc
                     else:
                         payload['captcha_key'] = await captcha_handler.fetch_token(exc._text)
                 else:
@@ -372,6 +412,8 @@ class AuthClient:
             'username': username
         }
 
+        print(payload)
+
         for tries in range(5):
             try:
                 data = await self.request('POST', '/auth/register', auth=True, fingerprint=True,
@@ -386,7 +428,7 @@ class AuthClient:
                     if values is None:
                         raise InvalidData(f'Please open an issue with this info: {exc._text.get("captcha_key")}') from exc
                     elif captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
-                        raise AuthFailure('Captcha required.') from exc
+                        raise AuthFailure('Captcha required') from exc
                     else:
                         payload['captcha_key'] = await captcha_handler.fetch_token(exc._text)
             else:
@@ -437,7 +479,7 @@ class AuthClient:
                     if values is None:
                         raise InvalidData(f'Please open an issue with this info: {exc._text.get("captcha_key")}') from exc
                     elif captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
-                        raise AuthFailure('Captcha required.') from exc
+                        raise AuthFailure('Captcha required') from exc
                     else:
                         payload['captcha_key'] = await captcha_handler.fetch_token(exc._text)
             else:
@@ -486,7 +528,46 @@ class AuthClient:
                     if values is None:
                         raise InvalidData(f'Please open an issue with this info: {exc._text.get("captcha_key")}') from exc
                     elif captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
-                        raise AuthFailure('Captcha required.') from exc
+                        raise AuthFailure('Captcha required') from exc
+                    else:
+                        payload['captcha_key'] = await captcha_handler.fetch_token(exc._text)
+            else:
+                self.token = old_token
+                return
+
+    def resend_verification_email(self):
+        return self.request('POST', '/auth/verify/resend', auth=True, referer='https://discord.com/channels/@me')
+
+    async def verify_email(self, token):
+        # Prepare environment
+        old_token = self.token
+        captcha_handler = self.captcha_handler
+        referer = 'https://discord.com/verify'
+        if not self.fingerprint:
+            await self.get_fingerprint(4)
+
+        # Construct the payload (captcha_key may be required later)
+        payload = {
+            'captcha_key': None,
+            'token': token
+        }
+
+        for tries in range(5):
+            try:
+                await self.request('POST', '/auth/verify', auth=True, fingerprint=True,
+                                   referer=referer, json=payload)
+            except HTTPException as exc:
+                if exc.code == 50035:
+                    raise AuthFailure(exc.text or 'Unknown error') from exc
+                elif tries == 4:
+                    self.token = old_token
+                    raise
+                elif captcha_key := exc._text.get('captcha_key'):
+                    values = [i for i in captcha_key if i in ('incorrect-captcha', 'response-already-used', 'captcha-required')]
+                    if values is None:
+                        raise InvalidData(f'Please open an issue with this info: {exc._text.get("captcha_key")}') from exc
+                    elif captcha_handler is None:  # No captcha handler ¯\_(ツ)_/¯
+                        raise AuthFailure('Captcha required') from exc
                     else:
                         payload['captcha_key'] = await captcha_handler.fetch_token(exc._text)
             else:
