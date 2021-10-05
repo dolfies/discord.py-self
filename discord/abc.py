@@ -1131,40 +1131,36 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Parameters
         -----------
-        channel: :class:`TextChannel`
-            The channel to search in, leave out to search in the whole guild.
-        channels: List[:class:`TextChannel`]
-            A list of channels to search in, leave out to search in the whole guild.
-        author: :class:`User`
+        author: :class:`User` or List[:class:`User`]
             The user to filter to.
-        authors: List[:class:`User`]
-            A list of users to filter to.
-        mentions: List[:class:`User`]
+        mentions: :class:`User` or List[:class:`User`]
             A list of users the message mentions
         has: List[:class:`str`]
             A list of things the message has, this can be one or more of:
             link, embed, file, video, image, sound, sticker
-        embed_types: List[:class:`str`]
+        embed_type: :class:`str` or List[:class:`str`]
             A list of the types of embed used.
             Possible strings for embed types can be found on discord's
             `api docs <https://discord.com/developers/docs/resources/channel#embed-object-embed-types>`_
-        attachment_extensions: List[:class:`str`]
+        attachment_extension: :class:`str` or List[:class:`str`]
             A list of the file extensions used in attachments of a message.
-        attachment_filenames: List[:class:`str`]
+        attachment_filename: :class:`str` or List[:class:`str`]
             A list of the filenames used in attachments of a message.
         mention_everyone: :class:`bool`
             Specifies if the message mentions everyone.
         content: :class:`str`
             A part, or the entire content of the messages to search for.
-        include_nsfw: :class:`bool`
-            Whether to include NSFW results
         offset: class:`int`
             Offset of message results.
             In Discord, page 2 of the results would be offset=25
         limit: class:`int`
             Max amount of results to return
-        max_id: ??
-        min_id: ??
+        before: Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]
+            Retrieve entries before this date or entry.
+            If a date is provided it must be a timezone-naive datetime representing UTC time.
+        after: Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]
+            Retrieve entries after this date or entry.
+            If a date is provided it must be a timezone-naive datetime representing UTC time.
         embed_provider: ??
         link_hostname: ??
         author_type: ??
