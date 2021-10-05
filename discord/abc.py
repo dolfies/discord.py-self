@@ -1206,7 +1206,7 @@ class Messageable(metaclass=abc.ABCMeta):
         elif stickers is not None:
             if not all(isinstance(sticker, Sticker) for sticker in stickers):
                 raise InvalidArgument('stickers parameter must be a list of Sticker')
-        
+
             sticker_ids = [sticker.id for sticker in stickers]
             return await self._state.http.greet(channel.id, *sticker_ids)
 
