@@ -1078,29 +1078,6 @@ class Client:
         data = await self.http.get_guild(guild_id)
         return Guild(data=data, state=self._connection)
 
-    async def fetch_sticker(self, sticker_id):
-        """|coro|
-        
-        Retrieves a :class:`.Sticker` with the given ID.
-
-        Parameters
-        ----------
-        sticker_id: :class:`int`
-            The ID to search for.
-
-        Raises
-        ------
-        :exc:`.NotFound`
-            The sticker was not found or is invalid.
-
-        Returns
-        -------
-        :class:`~.Sticker`
-            The sticker from the ID.
-        """
-        data = await self.http.get_sticker(sticker_id)
-        return Sticker(data=data, state=self._connection)
-
     async def create_guild(self, name, icon=None, *, code=None):
         """|coro|
 
