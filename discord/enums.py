@@ -58,7 +58,10 @@ __all__ = (
     'UnavailableGuildType',
     'RequiredActionType',
     'ReportType',
-    'BrowserEnum'
+    'BrowserEnum',
+    'ContainType',
+    'AuthorType',
+    'EmbedType'
 )
 
 def _create_value_cls(name):
@@ -528,15 +531,45 @@ class RequiredActionType(Enum):
     verify_email = 'REQUIRE_VERIFIED_EMAIL'
     captcha      = 'REQUIRE_CAPTCHA'
     accept_terms = 'AGREEMENTS'
-    
+
+class ContainType(Enum):
+    link    = 'link'
+    embed   = 'embed'
+    file    = 'file'
+    video   = 'video'
+    image   = 'image'
+    sound   = 'sound'
+    sticker = 'sticker'
+
+    def __str__(self):
+        return self.value
+
+class AuthorType(Enum):
+    user    = 'user'
+    bot     = 'bot'
+    webhook = 'webhook'
+
+    def __str__(self):
+        return self.value
+
+class EmbedType(Enum):
+    rich    = 'rich'
+    image   = 'image'
+    video   = 'video'
+    gifv    = 'gifv'
+    article = 'article'
+    link    = 'link'
+
+    def __str__(self):
+        return self.value
 
 class BrowserEnum(Enum):
-    google_chrome = 'chrome'
-    chrome = 'chrome'
-    chromium = 'chromium'
+    google_chrome  = 'chrome'
+    chrome         = 'chrome'
+    chromium       = 'chromium'
     microsoft_edge = 'microsoft-edge'
-    edge = 'microsoft-edge'
-    opera = 'opera'
+    edge           = 'microsoft-edge'
+    opera          = 'opera'
 
 def try_enum(cls, val):
     """A function that tries to turn the value into enum ``cls``.
