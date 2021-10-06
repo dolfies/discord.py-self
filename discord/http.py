@@ -415,9 +415,6 @@ class HTTPClient:
             r = Route('GET', '/guilds/{guild_id}/messages/search', guild_id=guild_id)
         elif _channel_id is not None and guild_id is None:
             r = Route('GET', '/channels/{channel_id}/messages/search', channel_id=_channel_id)
-            # These option wouldn't make sense
-            # Haven't actually tested if it produces an error if you let this through
-            valid_keys.discard('channel_id')
 
         # Cant use a dict, as some key value pairs might repeat
         # So we must make a list[tuple[key, val]], which aiohttp will format for us
@@ -1158,9 +1155,6 @@ class HTTPClient:
 
     def get_user(self, user_id):
         return self.request(Route('GET', '/users/{user_id}', user_id=user_id))
-
-    def get_sticker(self, sticker_id):
-        return self.request(Route('GET', '/stickers/{sticker_id}', sticker_id=sticker_id))
 
     def get_user_profile(self, user_id, *, with_mutual_guilds=True):
         params = {
