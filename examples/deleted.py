@@ -1,6 +1,5 @@
 import discord
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyClient(discord.Client):
     async def on_ready(self):
@@ -26,4 +25,4 @@ class MyClient(discord.Client):
         await message.channel.send(fmt.format(message))
 
 client = MyClient()
-client.run(TOKEN)
+client.run('token')

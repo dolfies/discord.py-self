@@ -1,7 +1,6 @@
 import discord
 from discord.ext import tasks
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
@@ -30,4 +29,4 @@ class MyClient(discord.Client):
         await self.wait_until_ready() # wait until the bot logs in
 
 client = MyClient()
-client.run(TOKEN)
+client.run('token')

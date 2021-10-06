@@ -86,8 +86,6 @@ Quick Example
 
     import discord
 
-    TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
-
     class MyClient(discord.Client):
         async def on_ready(self):
             print('Logged on as', self.user)
@@ -101,7 +99,7 @@ Quick Example
                 await message.channel.send('pong')
 
     client = MyClient()
-    client.run(TOKEN)
+    client.run('token')
 
 Bot Example
 ~~~~~~~~~~~~~

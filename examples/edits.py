@@ -2,7 +2,6 @@ import asyncio
 
 import discord
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyClient(discord.Client):
     async def on_ready(self):
@@ -26,4 +25,4 @@ class MyClient(discord.Client):
         await before.channel.send(fmt.format(before, after))
 
 client = MyClient()
-client.run(TOKEN)
+client.run('token')

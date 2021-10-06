@@ -5,7 +5,6 @@ import typing
 import discord
 from discord.ext import commands
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 bot = commands.Bot(command_prefix='!', self_bot=True)
 
 @bot.command()
@@ -105,4 +104,4 @@ async def multiply(ctx: commands.Context, number: int, maybe: bool):
         return await ctx.send(number * 2)
     await ctx.send(number * 5)
 
-bot.run(TOKEN)
+bot.run('token')

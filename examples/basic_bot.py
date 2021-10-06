@@ -8,7 +8,6 @@ module.
 
 There are a number of utility commands being showcased here.'''
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 bot = commands.Bot(command_prefix='?', description=description, self_bot=True)
 
 @bot.event
@@ -63,6 +62,6 @@ async def cool(ctx):
 @cool.command(name='bot')
 async def _bot(ctx):
     """Is the bot cool?"""
-    await ctx.send('Yes, the bot is cool.')
+    await ctx.send('Yes, the selfbot is cool.')
 
-bot.run(TOKEN)
+bot.run('token')

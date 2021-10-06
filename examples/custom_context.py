@@ -3,7 +3,6 @@ import random
 import discord
 from discord.ext import commands
 
-TOKEN = '' # How to obtain your token: https://discordhelp.net/discord-token
 
 class MyContext(commands.Context):
     async def tick(self, value):
@@ -43,4 +42,4 @@ async def guess(ctx, number: int):
     # or a red cross mark if it wasnt
     await ctx.tick(number == value)
 
-bot.run(TOKEN)
+bot.run('token')
