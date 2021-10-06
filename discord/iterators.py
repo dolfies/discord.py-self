@@ -480,7 +480,7 @@ class MessageSearchIterator(_AsyncIterator):
     messageable: :class:`Messageable`
         The channel to search messages in
     """
-    def __init__(self, *, guild=None, messageable=None, **options):
+    def __init__(self, guild=None, messageable=None, **options):
         before = options.pop('before', None)
         after = options.pop('after', None)
         if isinstance(before, Object):
