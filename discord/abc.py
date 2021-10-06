@@ -1131,25 +1131,25 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Parameters
         -----------
-        author: :class:`User` or List[:class:`User`]
+        author: Union[:class:`User`, List[:class:`User`]]
             The user to filter to.
-        mentions: :class:`User` or List[:class:`User`]
+        mentions: Union[:class:`User`, List[:class:`User`]]
             A list of users the message mentions
-        has: List[:class:`str`]
-            A list of things the message has, this can be one or more of:
-            link, embed, file, video, image, sound, sticker
-        embed_type: :class:`str` or List[:class:`str`]
+        has: Union[:class:`ContainType`, List[:class:`ContainType`]]
+            A list of things the message contains.
+        embed_type: Union[:class:`EmbedType`, List[:class:`EmbedType`]]
             A list of the types of embed used.
-            Possible strings for embed types can be found on discord's
-            `api docs <https://discord.com/developers/docs/resources/channel#embed-object-embed-types>`_
-        attachment_extension: :class:`str` or List[:class:`str`]
+        attachment_extension: Union[:class:`str`, List[:class:`str`]]
             A list of the file extensions used in attachments of a message.
-        attachment_filename: :class:`str` or List[:class:`str`]
+            e.g ['mp3', 'wav', 'ogg']
+        attachment_filename: Union[:class:`str`, List[:class:`str`]]
             A list of the filenames used in attachments of a message.
         mention_everyone: :class:`bool`
             Specifies if the message mentions everyone.
         content: :class:`str`
             A part, or the entire content of the messages to search for.
+        include_nsfw: :class:`bool`
+            Whether to include NSFW results
         offset: class:`int`
             Offset of message results.
             In Discord, page 2 of the results would be offset=25
@@ -1161,9 +1161,14 @@ class Messageable(metaclass=abc.ABCMeta):
         after: Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]
             Retrieve entries after this date or entry.
             If a date is provided it must be a timezone-naive datetime representing UTC time.
-        embed_provider: ??
-        link_hostname: ??
-        author_type: ??
+        author_type: Union[:class:`AuthorType`, List[:class:`AuthorType`]]
+            The type of author of the message.
+        embed_provider: Union[:class:`str`, List[:class:`str`]]
+            The provider of the embed
+            e.g ['tenor', 'giphy']
+        link_hostname: Union[:class:`str`, List[:class:`str`]]
+            Hostname of link
+            e.g 'stackoverflow.com'
 
         Raises
         -------
@@ -1176,39 +1181,27 @@ class Messageable(metaclass=abc.ABCMeta):
         channel = await self._get_channel()
         return MessageSearchIterator(messageable=channel, **options)
 
-    async def greet(self, *, sticker=None, stickers=None):
-        """|coro|
+    async def greet(self, *stickers):
+        r"""|coro|
 
         Greets with stickers in the channel.
 
         Raises
-        ------
+        -------
         ~discord.Forbidden
             You do not have the permissions to greet with a sticker.
 
         Parameters
-        ----------
-        sticker: :class:`discord.Sticker`
-            The sticker to greet with
-        stickers: List[:class:`discord.Sticker`]
-            The stickers to greet with
+        -----------
+        \*stickers: :class:`Sticker`
+            An argument list of stickers to add to greet with.
         """
         channel = await self._get_channel()
-        if sticker is not None and stickers is not None:
-            raise InvalidArgument('cannot pass both sticker and stickers to greet()')
+        if not all(isinstance(sticker, Sticker) for sticker in stickers):
+            raise InvalidArgument('stickers parameter must be a list of Sticker')
 
-        if sticker is not None:
-            if not isinstance(sticker, Sticker):
-                raise InvalidArgument('sticker parameter must be a Sticker')
-
-            return await self._state.http.greet(channel.id, sticker.id)
-
-        elif stickers is not None:
-            if not all(isinstance(sticker, Sticker) for sticker in stickers):
-                raise InvalidArgument('stickers parameter must be a list of Sticker')
-
-            sticker_ids = [sticker.id for sticker in stickers]
-            return await self._state.http.greet(channel.id, *sticker_ids)
+        sticker_ids = [sticker.id for sticker in stickers]
+        return await self._state.http.greet(channel.id, *sticker_ids)
 
     async def pins(self):
         """|coro|
