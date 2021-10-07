@@ -1131,9 +1131,9 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Parameters
         -----------
-        author: Union[:class:`User`, List[:class:`User`]]
+        author: Union[:class:`abc.Snowflake`, List[:class:`abc.Snowflake`]]
             The user to filter to.
-        mentions: Union[:class:`User`, List[:class:`User`]]
+        mentions: Union[:class:`abc.Snowflake`, List[:class:`abc.Snowflake`]]
             A list of users the message mentions
         has: Union[:class:`ContainType`, List[:class:`ContainType`]]
             A list of things the message contains.
