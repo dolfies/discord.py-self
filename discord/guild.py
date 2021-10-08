@@ -997,7 +997,7 @@ class Guild(Hashable):
         return self._state.http.create_channel(self.id, channel_type.value, name=name, parent_id=parent_id,
                                                permission_overwrites=perms, **options)
 
-    async def search_messages(self, **options):
+    def search_messages(self, **options):
         """|coro|
 
         Searches the guild for messages by options.
