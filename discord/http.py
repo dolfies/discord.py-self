@@ -1153,6 +1153,14 @@ class HTTPClient:
             value = 'wss://gateway.discord.gg?encoding={0}&v={1}'
         return value.format(encoding, v)
 
+    def get_mentions(self, limit, roles, everyone):
+        params = {
+            'limit': limit,
+            'roles': str(roles).lower(),
+            'everyone': str(everyone).lower()
+        }
+        return self.request(Route('GET', '/users/@me/mentions'), params=params)
+
     def get_user(self, user_id):
         return self.request(Route('GET', '/users/{user_id}', user_id=user_id))
 
