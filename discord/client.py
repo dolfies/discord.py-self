@@ -47,7 +47,6 @@ from .iterators import GuildIterator
 from .mentions import AllowedMentions
 from .object import Object
 from .state import ConnectionState
-from .sticker import Sticker
 from .template import Template
 from .user import Note, Profile, User
 from .voice_client import VoiceClient
@@ -1249,6 +1248,31 @@ class Client:
         await self.http.delete_invite(invite_id)
 
     # Miscellaneous stuff
+    async def fetch_mentions(self, limit, include_role_mentions=True, include_everyone_mentions=True):
+        """|coro|
+
+        Retrieves client mentions
+
+        Parameters
+        -----------
+        limit: :class:`int`
+            Max amount of results to return
+        include_role_mentions: :class:`bool`
+            Whether to include @role mentions
+        include_everyone_mentions: :class:`bool`
+            Whether to include @everyone mentions
+
+        Returns
+        --------
+        List[:class:`Message`]
+        """
+        
+        data = await self.http.get_mentions(limit, include_role_mentions, include_everyone_mentions)
+        results = []
+        for m in data:
+            channel = self.get_channel(m['channel_id'])
+            results.append(self._connection.create_message(channel=channel, data=m))
+        return results
 
     async def fetch_application(self, app_id):
         """|coro|
