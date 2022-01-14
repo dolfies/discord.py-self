@@ -13,7 +13,7 @@ A modern, easy to use, feature-rich, and async ready API wrapper for Discord's u
 Fork Changes
 ------------
 
-This has been moved to the `website <https://dolf.ml/discord.py-self>`_.
+This has been moved to the `website <https://dolfies.github.io/discord.py-self>`_.
 
 | **Credits:**
 | - `arandomnewaccount <https://www.reddit.com/user/obviouslymymain123/>`_ for Discord API help.
