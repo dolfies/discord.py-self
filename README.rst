@@ -123,4 +123,4 @@ Links
 ------
 
 - `Official Documentation <https://discordpy.readthedocs.io/en/latest/index.html>`_
-- `Fork Documentation <https://dolf.ml/discord.py-self>`_
+- `Fork Documentation <https://dolfies.github.io/discord.py-self>`_
