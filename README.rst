@@ -1,4 +1,4 @@
-discord.py
+Discord.py-self
 ==========
 
 .. image:: https://img.shields.io/pypi/v/discord.py-self.svg
