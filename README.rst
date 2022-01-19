@@ -43,7 +43,7 @@ To install the development version, do the following:
 
 Quick Example
 --------------
-Note: Intents are not used, nor are they needed in this library. Also, Discord.py-self uses the same namespace as Discord, using a - `virtual environment <examples/venv.md>`_ for selfbotting is recommended.
+Note: Intents are not used, nor are they needed in this library. Also, Discord.py-self uses the same namespace as Discord, meaning that, when you try importing discord to create a normal bot, Python will instead import whichever library was installed more recently, either discord.py or discord.py-self, using a `virtual environment <examples/venv.md>`_ for selfbotting is recommended.
 
 .. code:: py
 
