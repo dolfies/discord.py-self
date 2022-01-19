@@ -1,3 +1,18 @@
+Basic Bot Example
+------------------
+This example tells you how to create a bot that can be used by anyone, with the prefix `!`. This bot showcases `on_ready` and `bot.command()`.
+
+To make this a bot that only *you* (the account being botted) can use, change
+```python
+bot = commands.Bot(command_prefix='!')
+```
+to
+```python
+bot = commands.Bot(command_prefix='!', self_bot=True)
+```
+
+
+## Example
 ```python
 from discord.ext import commands
 # Importing Bot from discord.ext.commands
