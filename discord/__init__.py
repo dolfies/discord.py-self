@@ -62,7 +62,7 @@ from .guild_folder import *
 from .settings import *
 from .profile import *
 from .welcome_screen import *
-
+from .colorize import *
 
 class _VersionInfo(NamedTuple):
     major: int
