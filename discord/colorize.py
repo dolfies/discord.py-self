@@ -34,7 +34,7 @@ class Colors:
 
     from discord.colorize import Colors
     colors = Colors()
-    message = colors.colorize('Hello World!', fg='green', 'bg'='red', 'bold'=True)
+    message = colors.colorize('Hello World!', fg='green', 'bg'='indigo', 'bold'=True)
 
 
     All Colors
