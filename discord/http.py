@@ -450,6 +450,20 @@ class HTTPClient:
             payload['message_reference'] = message_reference
 
         return self.request(r, json=payload)
+    
+    def send_interaction(self, application_id, message, data, interaction_type:int):
+        r = Route('POST', '/interactions')
+        payload = {
+            'application_id': str(application_id),
+            'channel_id': str(message.channel.id),
+            'data': data,
+            'guild_id': str(message.guild.id),
+            'message_id': str(message.id),
+            'message_flags': message.flags.value,
+            'nonce': utils.time_snowflake(datetime.utcnow()),
+            'type': interaction_type
+        }
+        return self.request(r, json=payload)
 
     def send_typing(self, channel_id):
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))

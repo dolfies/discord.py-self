@@ -8,7 +8,7 @@ discord.py-self
    :target: https://pypi.python.org/pypi/discord.py-self
    :alt: PyPI supported Python versions
 
-A modern, easy to use, feature-rich, and async ready API wrapper for Discord's user API written in Python.
+A modern, easy to use, feature-rich, and async ready API wrapper for Discord's user API written in Python supporting interactions.
 
 Development is currently happening on the rebase branch.
 

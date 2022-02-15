@@ -42,7 +42,7 @@ extras_require = {
     ]
 }
 
-setuptools.setup(name='discord.py-self',
+setuptools.setup(name='dpy-interactions-self',
       author='Dolfies',
       url='https://github.com/dolfies/discord.py-self',
       packages=setuptools.find_packages(),

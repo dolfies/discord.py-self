@@ -1550,3 +1550,10 @@ class Client:
         except NotFound:
             data = {'note': ''}
         return Note(self._connection, int(user_id), note=data['note'])
+    
+    async def click_button(self, component):
+        data = {
+            'component_type': component.type,
+            'custom_id': str(component.custom_id)
+        }
+        return await self.http.send_interaction(component.message.author.id, component.message, data, 3)

@@ -45,6 +45,7 @@ from .partial_emoji import PartialEmoji
 from .reaction import Reaction
 from .sticker import Sticker
 from .utils import escape_mentions
+from .component import component_from_data
 
 __all__ = (
     'Attachment',
@@ -537,7 +538,7 @@ class Message(Hashable):
                  '_cs_clean_content', '_cs_raw_channel_mentions', 'nonce', 'pinned',
                  'role_mentions', '_cs_raw_role_mentions', 'type', 'call', 'flags',
                  '_cs_system_content', '_cs_guild', '_state', 'reactions', 'reference',
-                 'application', 'activity', 'stickers', '_cs_invites')
+                 'application', 'activity', 'stickers', '_cs_invites', 'components')
 
     def __init__(self, *, state, channel, data):
         self._state = state
@@ -559,6 +560,9 @@ class Message(Hashable):
         self.content = data['content']
         self.nonce = data.get('nonce')
         self.stickers = [Sticker(data=data, state=state) for data in data.get('stickers', [])]
+        self.components = []
+        for d in data.get('components', []):
+            self.components.extend([component_from_data(component, self) for component in d.get('components', [])])
 
         try:
             ref = data['message_reference']
