@@ -372,7 +372,7 @@ class DiscordWebSocket:
                 'capabilities': 125,
                 'properties': self._super_properties,
                 'presence': {
-                    'status': 'online',
+                    'status': 'dnd', # TODO: Add a way to automatically detect? - Will leaving this blank keep it the same?
                     'since': 0,
                     'activities': [],
                     'afk': False
