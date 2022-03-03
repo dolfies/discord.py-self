@@ -637,7 +637,7 @@ class DiscordWebSocket:
         payload = {
             'op': self.GUILD_SUBSCRIBE,
             'd': {
-                'guild_id': guild_id,
+                'guild_id': str(guild_id),
             }
         }
 

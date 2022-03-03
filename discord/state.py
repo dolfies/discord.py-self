@@ -35,8 +35,6 @@ import time
 import random
 from sys import intern
 from math import ceil
-from itertools import chain
-from contextlib import suppress
 
 from .errors import NotFound
 from .guild import CommandCounts, Guild
@@ -155,7 +153,9 @@ class MemberSidebar:
         self.chunk = chunk
         self.delay = delay
         self.loop = loop
-        self.channels, self.ranges = self.parse_args(channels)
+
+        self.channels = [str(channel.id) for channel in (channels or self.get_channels(1 if chunk else 5))]
+        self.ranges = self.get_ranges()
         self.subscribing: bool = False
         self.buffer: Optional[List[Member]] = []
         self.waiters: List[asyncio.Future[Optional[List[Member]]]] = []
@@ -176,12 +176,20 @@ class MemberSidebar:
     def ws(self):
         return self.guild._state.ws
 
-    def get_ranges(self, safe: bool = False) -> List[Tuple[int, int]]:
-        chunk = 100 if safe else 400
-        end = 99 if safe else 300  # Technically you get 400 back
+    @property
+    def safe(self):
+        return self.guild._member_count >= 75000
+
+    @staticmethod
+    def amalgamate(original: Tuple[int, int], value: Tuple[int, int]) -> Tuple[int, int]:
+        return original[0], value[1] - 99
+
+    def get_ranges(self) -> List[Tuple[int, int]]:
+        chunk = 100
+        end = 99
         amount = self.limit
         if amount is None:
-            raise RuntimeError('Cannot get ranges for a guild with no member count')
+            raise RuntimeError('cannot get ranges for a guild with no member/presence count')
 
         ceiling = ceil(amount / chunk) * chunk
         ranges = []
@@ -195,9 +203,25 @@ class MemberSidebar:
     def get_current_ranges(self) -> List[Tuple[int, int]]:
         ranges = self.ranges
         ret = []
-        with suppress(IndexError):
-            for _ in range(3):
-                ret.append(ranges.pop(0))
+
+        for _ in range(3):
+            if self.safe:
+                try:
+                    ret.append(ranges.pop(0))
+                except IndexError:
+                    break
+            else:
+                try:
+                    current = ranges.pop(0)
+                except IndexError:
+                    break
+                for _ in range(3):
+                    try:
+                        current = self.amalgamate(current, ranges.pop(0))
+                    except IndexError:
+                        break
+                ret.append(current)
+
         return ret
 
     def get_channels(self, amount: int) -> List[Snowflake]:
@@ -225,14 +249,6 @@ class MemberSidebar:
                 ret.add(channel)
 
         return list(ret)
-
-    def parse_args(self, channels: List[Snowflake], force_safe: bool = MISSING) -> Tuple[List[str], List[Tuple[int, int]]]:
-        if not channels:
-            channels = self.get_channels(1 if self.chunk else 5)
-        if force_safe is MISSING:
-            force_safe = self.guild._member_count > 74999
-
-        return [str(channel.id) for channel in channels], self.get_ranges(safe=force_safe)
 
     def add_members(self, members: List[Member]) -> None:
         if self.buffer is None:
@@ -273,8 +289,8 @@ class MemberSidebar:
     async def wrapper(self):
         try:
             await self.scrape()
-        except RuntimeError:
-            _log.warning('Member list scraping failed for %s.', self.guild.id)
+        except RuntimeError as exc:
+            _log.warning('Member list scraping failed for %s (%s).', self.guild.id, exc)
             self.buffer = None
         finally:
             self.done()
@@ -296,15 +312,10 @@ class MemberSidebar:
                 requests[channel] = ranges
 
             if not requests:
-                raise RuntimeError('Unable to get channels or ranges')
+                raise RuntimeError('failed to choose channels or ranges')
 
             def predicate(data):
-                if int(data['guild_id']) != guild.id:
-                    return False
-
-                ranges = tuple(chain(requests.values()))
-                ranges_returned = tuple(chain(op.get('ranges', []) for op in data['ops']))
-                return any(range in ranges_returned for range in ranges)
+                return int(data['guild_id']) == guild.id and any(op['op'] == 'SYNC' for op in data['ops'])
 
             _log.debug('Subscribing to %s ranges for guild %s.', requests, guild.id)
             await ws.request_lazy_guild(guild.id, channels=requests)
@@ -312,13 +323,12 @@ class MemberSidebar:
             try:
                 await asyncio.wait_for(ws.wait_for('GUILD_MEMBER_LIST_UPDATE', predicate), timeout=15)
             except asyncio.TimeoutError:
-                _log.debug('Guild %s timed out waiting for a GUILD_MEMBER_LIST_UPDATE.', guild.id)
                 r = tuple(requests.values())[-1][-1]
                 if self.limit in range(r[0], r[1]) or self.limit < r[1]:
                     self.subscribing = False
                     break
                 else:
-                    raise RuntimeError('No response')
+                    raise RuntimeError('timeout: no response from gateway')
 
             await asyncio.sleep(delay)
 
