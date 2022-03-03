@@ -292,6 +292,8 @@ class MemberSidebar:
         except RuntimeError as exc:
             _log.warning('Member list scraping failed for %s (%s).', self.guild.id, exc)
             self.buffer = None
+        except asyncio.CancelledError:
+            pass
         finally:
             self.done()
 
