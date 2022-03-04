@@ -497,10 +497,6 @@ class ConnectionState:
         else:
             await coro(*args, **kwargs)
 
-    @staticmethod
-    def should_dispatch(guild: Guild):
-        ...
-
     @property
     def session_id(self) -> Optional[str]:
         return self.ws.session_id
@@ -1429,6 +1425,7 @@ class ConnectionState:
             return
 
         request = self._scrape_requests.get(guild.id)
+        should_parse = guild.chunked or getattr(request, 'chunk', False)
 
         if (count := data['member_count']) > 0:
             guild._member_count = count
@@ -1480,14 +1477,14 @@ class ConnectionState:
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
 
-                    if old_member._client_status != member._client_status or old_member._activities != member._activities:
+                    if should_parse and (old_member._client_status != member._client_status or old_member._activities != member._activities):
                         self.dispatch('presence_update', old_member, member)
 
                     user_update = member._update_inner_user(user)
-                    if user_update:
+                    if should_parse and user_update:
                         self.dispatch('user_update', user_update[0], user_update[1])
 
-                    if dispatch:
+                    if should_parse and dispatch:
                         self.dispatch('member_update', old_member, member)
                 else:
                     member = Member(data=mdata, guild=guild, state=self)
@@ -1497,7 +1494,7 @@ class ConnectionState:
 
                     to_add.append(member)
 
-            elif op == 'UPDATE':
+            elif op == 'UPDATE' and should_parse:
                 item = opdata['item']
                 if 'group' in item:  # Hoisted role
                     continue
@@ -1515,14 +1512,14 @@ class ConnectionState:
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
 
-                    if old_member._client_status != member._client_status or old_member._activities != member._activities:
+                    if should_parse and (old_member._client_status != member._client_status or old_member._activities != member._activities):
                         self.dispatch('presence_update', old_member, member)
 
                     user_update = member._update_inner_user(user)
-                    if user_update:
+                    if should_parse and user_update:
                         self.dispatch('user_update', user_update[0], user_update[1])
 
-                    if dispatch:
+                    if should_parse and dispatch:
                         self.dispatch('member_update', old_member, member)
                 else:
                     member = Member(data=mdata, guild=guild, state=self)
@@ -1532,7 +1529,7 @@ class ConnectionState:
 
                     to_add.append(member)
 
-            elif op == 'DELETE':
+            elif op == 'DELETE' and should_parse:
                 index = opdata['index']
                 member = utils.get(guild.members, _index=index)
                 if member is not None:
@@ -1546,7 +1543,7 @@ class ConnectionState:
             for member in members + to_add:
                 guild._add_member(member)
 
-        if guild.chunked:
+        if should_parse:
             actually_remove = [member for member in to_remove if member not in to_add]
             actually_add = [member for member in to_add if member not in to_remove]
             for member in actually_remove:
@@ -1602,7 +1599,10 @@ class ConnectionState:
     def is_guild_evicted(self, guild) -> bool:
         return guild.id not in self._guilds
 
-    async def assert_guild_presence_count(self, guild):
+    async def assert_guild_presence_count(self, guild: Guild):
+        if not guild._offline_members_hidden or guild._presence_count:
+            return
+
         ws = self.ws
         channel = None
         for channel in guild.channels:
@@ -1622,7 +1622,11 @@ class ConnectionState:
         try:
             await asyncio.wait_for(ws.wait_for('GUILD_MEMBER_LIST_UPDATE', predicate), timeout=15)
         except asyncio.TimeoutError:
-            raise RuntimeError('No response')
+            pass
+
+        if not guild._presence_count:
+            data = await self.http.get_guild_preview(guild.id)
+            guild._presence_count = data['approximate_presence_count']
 
     async def scrape_guild(
         self,
@@ -1648,11 +1652,7 @@ class ConnectionState:
                 self._chunk_requests[guild.id] = request = ChunkRequest(guild.id, self.loop, self._get_guild, cache=cache)
                 await self.chunker(guild.id, nonce=request.nonce)
         else:
-            try:
-                await self.assert_guild_presence_count(guild)
-            except RuntimeError:
-                _log.warning('Member list scraping failed for %s.', guild.id)
-                return
+            await self.assert_guild_presence_count(guild)
 
             request = self._scrape_requests.get(guild.id)
             if request is None:

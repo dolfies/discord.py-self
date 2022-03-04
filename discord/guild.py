@@ -2984,7 +2984,7 @@ class Guild(Hashable):
 
         members = await self._state.scrape_guild(self, cache=cache, force_scraping=force_scraping, delay=delay, channels=channels)
         if members is None:
-            raise ClientException('Fetching members failed.')
+            raise ClientException('Fetching members failed')
         return members  # type: ignore
 
     async def query_members(
