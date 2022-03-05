@@ -261,7 +261,6 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         '_user',
         '_state',
         '_avatar',
-        '_index',  # Member list index
         '_communication_disabled_until',
     )
 
@@ -295,7 +294,6 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         self.pending: bool = data.get('pending', False)
         self._avatar: Optional[str] = data.get('avatar')
         self._communication_disabled_until: Optional[datetime.datetime] = utils.parse_time(data.get('communication_disabled_until'))
-        self._index = 0
 
     def __str__(self) -> str:
         return str(self._user)

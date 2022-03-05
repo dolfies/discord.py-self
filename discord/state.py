@@ -800,6 +800,9 @@ class ConnectionState:
                 guild_settings,
             ) or {'guild_id': guild_data['id']}
 
+            for presence in merged_presences:
+                presence['user'] = {'id': presence['user_id']}
+
             voice_states = guild_data.setdefault('voice_states', [])
             voice_states.extend(guild_extra.get('voice_states', []))
             members = guild_data.setdefault('members', [])
@@ -1437,8 +1440,17 @@ class ConnectionState:
 
         to_add = []
         to_remove = []
+        disregard = []
         members = []
-        for opdata in data['ops']:
+
+        if should_parse:  # The SYNCs need to be first and in order for indexes to not crap a brick
+            syncs = [opdata for opdata in data['ops'] if opdata['op'] == 'SYNC']
+            syncs.sort(key=lambda op: op['range'][0])
+            ops = syncs + [opdata for opdata in data['ops'] if opdata['op'] != 'SYNC']
+        else:
+            ops = data['ops']
+
+        for opdata in ops:
             op = opdata['op']
             # The OPs are as follows:
             # SYNC: Provides member/presence data for a 100 member range of the member list
@@ -1448,20 +1460,23 @@ class ConnectionState:
             # INVALIDATE: Sent when you're unsubscribed from a range
 
             if op == 'SYNC':
-                for i, item in enumerate(opdata['items']):
+                for item in opdata['items']:
                     if 'group' in item:  # Hoisted role
+                        guild._member_list.append(None) if should_parse else None  # Insert blank so indexes don't fuck up
                         continue
 
                     member = Member(data=item['member'], guild=guild, state=self)
-                    member._index = i
                     if (presence := item['member'].get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
 
                     members.append(member)
+                    guild._member_list.append(member) if should_parse else None
 
             elif op == 'INSERT':
+                index = opdata['index']
                 item = opdata['item']
                 if 'group' in item:  # Hoisted role
+                    guild._member_list.insert(index, None) if should_parse else None  # Insert blank so indexes don't fuck up
                     continue
 
                 mdata = item['member']
@@ -1472,7 +1487,6 @@ class ConnectionState:
                 if member is not None:  # INSERTs are also sent when a user changes range
                     old_member = Member._copy(member)
                     dispatch = bool(member._update(mdata))
-                    member._index = opdata['index']
 
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
@@ -1486,13 +1500,16 @@ class ConnectionState:
 
                     if should_parse and dispatch:
                         self.dispatch('member_update', old_member, member)
+
+                    disregard.append(member)
                 else:
                     member = Member(data=mdata, guild=guild, state=self)
-                    member._index = opdata['index']
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
 
                     to_add.append(member)
+
+                guild._member_list.insert(index, member) if should_parse else None
 
             elif op == 'UPDATE' and should_parse:
                 item = opdata['item']
@@ -1507,7 +1524,6 @@ class ConnectionState:
                 if member is not None:
                     old_member = Member._copy(member)
                     dispatch = bool(member._update(mdata))
-                    member._index = opdata['index']
 
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
@@ -1523,19 +1539,21 @@ class ConnectionState:
                         self.dispatch('member_update', old_member, member)
                 else:
                     member = Member(data=mdata, guild=guild, state=self)
-                    member._index = opdata['index']
                     if (presence := mdata.get('presence')):
                         member._presence_update(presence, empty_tuple)  # type: ignore
 
-                    to_add.append(member)
+                    guild._member_list.insert(opdata['index'], member)  # Race condition?
 
             elif op == 'DELETE' and should_parse:
                 index = opdata['index']
-                member = utils.get(guild.members, _index=index)
-                if member is not None:
-                    to_remove.append(member)
-                else:
+                try:
+                    item = guild._member_list.pop(index)
+                except IndexError:
                     _log.debug('GUILD_MEMBER_LIST_UPDATE type DELETE referencing an unknown member index %s in %s. Discarding.', index, guild.id)
+                    continue
+
+                if item is not None:
+                    to_remove.append(item)
 
         if request:
             request.add_members(members + to_add)
@@ -1544,7 +1562,7 @@ class ConnectionState:
                 guild._add_member(member)
 
         if should_parse:
-            actually_remove = [member for member in to_remove if member not in to_add]
+            actually_remove = [member for member in to_remove if member not in to_add and member not in disregard]
             actually_add = [member for member in to_add if member not in to_remove]
             for member in actually_remove:
                 guild._remove_member(member)

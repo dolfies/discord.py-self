@@ -273,7 +273,7 @@ class Guild(Hashable):
         '_presence_count',
         '_true_online_count',
         '_chunked',
-        '_member_sidebar',
+        '_member_list',
     )
 
     _PREMIUM_GUILD_LIMITS: ClassVar[Dict[Optional[int], _GuildLimit]] = {
@@ -289,6 +289,7 @@ class Guild(Hashable):
         self._roles: Dict[int, Role] = {}
         self._channels: Dict[int, GuildChannel] = {}
         self._members: Dict[int, Member] = {}
+        self._member_list: List[Optional[Member]] = []
         self._voice_states: Dict[int, VoiceState] = {}
         self._threads: Dict[int, Thread] = {}
         self._stage_instances: Dict[int, StageInstance] = {}
@@ -475,7 +476,7 @@ class Guild(Hashable):
 
         empty_tuple = tuple()
         for presence in guild.get('presences', []):
-            user_id = int(presence['user_id'])
+            user_id = int(presence['user']['id'])
             member = self.get_member(user_id)
             if member is not None:
                 member._presence_update(presence, empty_tuple)  # type: ignore
