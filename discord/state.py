@@ -761,7 +761,7 @@ class ConnectionState:
 
             for guild, future in states:
                 try:
-                    await asyncio.wait_for(future, timeout=15)
+                    await asyncio.wait_for(future, timeout=10)
                 except asyncio.TimeoutError:
                     _log.warning('Timed out waiting for chunks for guild_id %s.', guild.id)
         except asyncio.CancelledError:
@@ -1700,12 +1700,12 @@ class ConnectionState:
             return await request.wait()
         return request.get_future()
 
-    async def _parse_and_dispatch(self, guild, chunk) -> None:
+    async def _chunk_and_dispatch(self, guild, chunk) -> None:
         self._queued_guilds[guild.id] = guild
 
         if chunk:
             try:
-                await asyncio.wait_for(self.chunk_guild(guild), timeout=60.0)
+                await asyncio.wait_for(self.chunk_guild(guild), timeout=10)
             except asyncio.TimeoutError:
                 _log.info('Somehow timed out waiting for chunks for guild %s.', guild.id)
 
@@ -1730,9 +1730,9 @@ class ConnectionState:
         if self._request_guilds:
             asyncio.ensure_future(self.request_guild(guild.id), loop=self.loop)
 
-        # Chunk/subscribe if needed
+        # Chunk if needed
         needs_chunking = self._guild_needs_chunking(guild)
-        asyncio.ensure_future(self._parse_and_dispatch(guild, needs_chunking), loop=self.loop)
+        asyncio.ensure_future(self._chunk_and_dispatch(guild, needs_chunking), loop=self.loop)
 
     def parse_guild_update(self, data) -> None:
         guild = self._get_guild(int(data['id']))
