@@ -2100,7 +2100,7 @@ def is_owner() -> Callable[[T], T]:
     """
 
     async def predicate(ctx: Context) -> bool:
-        if not await ctx.bot.is_owner(ctx.author):
+        if not ctx.bot.is_owner(ctx.author):
             raise NotOwner('You do not own this bot.')
         return True
 
