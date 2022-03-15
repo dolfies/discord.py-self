@@ -345,7 +345,7 @@ class SelectMenu(Component):
         message = self.message
         state = message._state
         payload = {
-            'application_id': str(message.application_id),
+            'application_id': str(message.application_id or message.author.id),
             'channel_id': str(message.channel.id),
             'data': {
                 'component_type': 3,
