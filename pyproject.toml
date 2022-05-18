@@ -8,8 +8,8 @@ skip-string-normalization = true
 
 [tool.coverage.run]
 omit = [
-    "discord/__main__.py",
-    "discord/types/*",
+    "selfcord/__main__.py",
+    "selfcord/types/*",
     "*/_types.py",
 ]
 
@@ -27,11 +27,11 @@ line_length = 125
 
 [tool.pyright]
 include = [
-    "discord",
-    "discord/types",
-    "discord/ext",
-    "discord/ext/commands",
-    "discord/ext/tasks",
+    "selfcord",
+    "selfcord/types",
+    "selfcord/ext",
+    "selfcord/ext/commands",
+    "selfcord/ext/tasks",
 ]
 exclude = [
     "**/__pycache__",
