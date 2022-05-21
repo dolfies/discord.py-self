@@ -45,7 +45,6 @@ __all__ = (
 FuncT = TypeVar('FuncT', bound=Callable[..., Any])
 
 
-
 class CogMeta(type):
     """A metaclass for defining a cog.
 
