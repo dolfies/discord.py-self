@@ -35,7 +35,7 @@ Because of this, it is *highly* recommended to pin your installation to a certai
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install git+https://github.com/dolfies/discord.py-self@2193ws21sf4cs74hdg317ac8ad076ed234d3dbf70g1#egg=selfcord.py[voice]
+    python3 -m pip install 'git+https://github.com/dolfies/discord.py-self@2193ws21sf4cs74hdg317ac8ad076ed234d3dbf70g1#egg=selfcord.py[voice]'
 
     # Windows
     py -3 -m pip install git+https://github.com/dolfies/discord.py-self@2193ws21sf4cs74hdg317ac8ad076ed234d3dbf70g1#egg=selfcord.py[voice]
@@ -45,7 +45,7 @@ Otherwise, you can install the current commit:
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install git+https://github.com/dolfies/discord.py-self@renamed#egg=selfcord.py[voice]
+    python3 -m pip install 'git+https://github.com/dolfies/discord.py-self@renamed#egg=selfcord.py[voice]'
 
     # Windows
     py -3 -m pip install git+https://github.com/dolfies/discord.py-self@renamed#egg=selfcord.py[voice]
