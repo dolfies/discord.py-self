@@ -240,6 +240,7 @@ class BaseUser(_UserTag):
         '_avatar',
         '_banner',
         '_accent_colour',
+        '_banner_colour',
         'bot',
         'system',
         '_public_flags',
@@ -256,6 +257,7 @@ class BaseUser(_UserTag):
         _avatar: Optional[str]
         _banner: Optional[str]
         _accent_colour: Optional[int]
+        _banner_colour: Optional[int]
         _public_flags: int
 
     def __init__(self, *, state: ConnectionState, data: Union[UserPayload, PartialUserPayload]) -> None:
@@ -287,6 +289,7 @@ class BaseUser(_UserTag):
         self._avatar = data['avatar']
         self._banner = data.get('banner', None)
         self._accent_colour = data.get('accent_color', None)
+        self._banner_colour = data.get('banner_color', None)
         self._public_flags = data.get('public_flags', 0)
         self.bot = data.get('bot', False)
         self.system = data.get('system', False)
@@ -301,6 +304,7 @@ class BaseUser(_UserTag):
         self._avatar = user._avatar
         self._banner = user._banner
         self._accent_colour = user._accent_colour
+        self._banner_colour = user._banner_colour
         self.bot = user.bot
         self._state = user._state
         self._public_flags = user._public_flags
@@ -376,6 +380,39 @@ class BaseUser(_UserTag):
         .. versionadded:: 2.0
         """
         return self.banner
+
+    @property
+    def banner_colour(self) -> Optional[Colour]:
+        """Optional[:class:`Colour`]: Returns the user's banner colour, if applicable.
+
+        There is an alias for this named :attr:`banner_color`.
+
+        .. versionadded:: 2.0
+
+        .. note::
+
+            This information is only available via :meth:`Client.fetch_user`.
+        """
+        if self._banner_colour is None:
+            return None
+        return Colour(self._banner_colour)
+
+    @property
+    def banner_color(self) -> Optional[Colour]:
+        """Optional[:class:`Colour`]: Returns the user's banner color, if applicable.
+
+        There is an alias for this named :attr:`banner_colour`.
+
+        .. versionadded:: 2.0
+
+        .. note::
+
+            This information is only available via :meth:`Client.fetch_user`.
+        """
+        if self._banner_colour is None:
+            return None
+        return Colour(self._banner_colour)
+        
 
     @property
     def accent_colour(self) -> Optional[Colour]:
