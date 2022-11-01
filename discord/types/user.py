@@ -52,7 +52,7 @@ ConnectionType = Literal[
     'spotify',
     'skype',
     'steam',
-    'tiktok'.
+    'tiktok',
     'twitch',
     'twitter',
     'youtube',
