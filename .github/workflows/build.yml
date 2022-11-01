@@ -3,7 +3,7 @@ name: Build
 on:
   push:
   pull_request:
-    types: [ opened, synchronize ]
+    types: [opened, synchronize]
 
 jobs:
   dists-and-docs:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up CPython 3.8
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
 
       - name: Install dependencies
         run: |

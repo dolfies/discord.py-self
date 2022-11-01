@@ -3,7 +3,7 @@ name: Rename
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   rename:

@@ -16,7 +16,7 @@ body:
     attributes:
       label: Reproduction Steps
       description: >
-         How did you make it happen?
+        How did you make it happen?
     validations:
       required: true
   - type: textarea
@@ -36,7 +36,7 @@ body:
     attributes:
       label: Actual Results
       description: >
-       What is actually happening?
+        What is actually happening?
     validations:
       required: true
   - type: textarea
