@@ -3255,10 +3255,6 @@ of :class:`enum.Enum`.
     .. attribute:: steam
 
         The user has a Steam connection.
-    
-    .. attribute:: tiktok
-    
-         The user has a TikTok connection.
 
     .. attribute:: twitch
 
