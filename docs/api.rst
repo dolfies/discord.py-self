@@ -4675,6 +4675,10 @@ of :class:`enum.Enum`.
 
         The user has a contact sync connection.
 
+    .. attribute:: crunchyroll
+
+        The user has a Crunchyroll connection.
+
     .. attribute:: ebay
 
         The user has an eBay connection.

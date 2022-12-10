@@ -43,6 +43,7 @@ class PartialUser(TypedDict):
 ConnectionType = Literal[
     'battlenet',
     'contacts',
+    'crunchyroll',
     'ebay',
     'epicgames',
     'facebook',
