@@ -25,11 +25,13 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import logging
 import sys
 import traceback
 from typing import (
     Any,
+    AsyncIterator,
     Callable,
     Coroutine,
     Dict,
@@ -47,7 +49,7 @@ from typing import (
 
 import aiohttp
 
-from .user import BaseUser, User, ClientUser, Note
+from .user import _UserTag, User, ClientUser, Note
 from .invite import Invite
 from .template import Template
 from .widget import Widget
@@ -66,10 +68,10 @@ from .http import HTTPClient
 from .state import ConnectionState
 from . import utils
 from .utils import MISSING
-from .object import Object
+from .object import Object, OLDEST_OBJECT
 from .backoff import ExponentialBackoff
 from .webhook import Webhook
-from .appinfo import Application, PartialApplication
+from .appinfo import Application, Company, PartialApplication
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -78,17 +80,23 @@ from .connections import Connection
 from .team import Team
 from .member import _ClientStatus
 from .handlers import CaptchaHandler
+from .billing import PaymentSource
+from .subscriptions import Payment, Subscription, SubscriptionItem, SubscriptionInvoice
+from .promotions import Promotion, TrialOffer
 
 if TYPE_CHECKING:
     from typing_extensions import Self
     from types import TracebackType
     from .guild import GuildChannel
-    from .abc import PrivateChannel, GuildChannel, Snowflake
+    from .abc import PrivateChannel, GuildChannel, Snowflake, SnowflakeTime
     from .channel import DMChannel
     from .message import Message
     from .member import Member
     from .voice_client import VoiceProtocol
     from .settings import GuildSettings
+    from .billing import BillingAddress
+    from .enums import PaymentGateway
+    from .metadata import MetadataObject
     from .types.snowflake import Snowflake as _Snowflake
 
 # fmt: off
@@ -380,6 +388,14 @@ class Client:
         .. versionadded:: 2.0
         """
         return self._connection.preferred_regions
+
+    @property
+    def pending_payments(self) -> List[Payment]:
+        """List[:class:`.Payment`]: The pending payments that the connected client has.
+
+        .. versionadded:: 2.0
+        """
+        return list(self._connection.pending_payments.values())
 
     def is_ready(self) -> bool:
         """:class:`bool`: Specifies if the client's internal cache is ready for use."""
@@ -1380,8 +1396,7 @@ class Client:
             Whether to update the settings with the new status and/or
             custom activity. This will broadcast the change and cause
             all connected (official) clients to change presence as well.
-            Defaults to ``True``. Required for setting/editing expires_at
-            for custom activities.
+            Required for setting/editing expires_at for custom activities.
             It's not recommended to change this.
 
         Raises
@@ -1472,7 +1487,9 @@ class Client:
     # Guild stuff
 
     async def fetch_guilds(self, *, with_counts: bool = True) -> List[Guild]:
-        """Retrieves all your your guilds.
+        """|coro|
+
+        Retrieves all your your guilds.
 
         .. note::
 
@@ -1487,7 +1504,6 @@ class Client:
         -----------
         with_counts: :class:`bool`
             Whether to fill :attr:`.Guild.approximate_member_count` and :attr:`.Guild.approximate_presence_count`.
-            Defaults to ``True``.
 
         Raises
         ------
@@ -1560,7 +1576,6 @@ class Client:
         with_counts: :class:`bool`
             Whether to include count information in the guild. This fills the
             :attr:`.Guild.approximate_member_count` and :attr:`.Guild.approximate_presence_count`.
-            Defaults to ``True``.
 
             .. versionadded:: 2.0
 
@@ -2071,7 +2086,7 @@ class Client:
         NotFound
             A user with this ID does not exist.
         Forbidden
-            Not allowed to fetch this profile.
+            You do not have a mutual with this user, and and the user is not a bot.
         HTTPException
             Fetching the profile failed.
 
@@ -2193,12 +2208,17 @@ class Client:
         cls, _ = _sticker_factory(data['type'])
         return cls(state=self._connection, data=data)  # type: ignore
 
-    async def fetch_sticker_packs(self) -> List[StickerPack]:
+    async def sticker_packs(self, payment_source: Optional[Snowflake] = None) -> List[StickerPack]:
         """|coro|
 
         Retrieves all available default sticker packs.
 
         .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        payment_source: Optional[:class:`PaymentSource`]
+            The payment source to request sticker packs with.
 
         Raises
         -------
@@ -2210,8 +2230,9 @@ class Client:
         List[:class:`.StickerPack`]
             All available sticker packs.
         """
-        data = await self.http.list_premium_sticker_packs()
-        return [StickerPack(state=self._connection, data=pack) for pack in data['sticker_packs']]
+        state = self._connection
+        data = await self.http.list_premium_sticker_packs(state.country_code or 'US', state.locale, payment_source.id if payment_source else None)
+        return [StickerPack(state=state, data=pack) for pack in data['sticker_packs']]
 
     async def fetch_sticker_pack(self, pack_id: int, /):
         """|coro|
@@ -2308,7 +2329,11 @@ class Client:
         return [Connection(data=d, state=state) for d in data]
 
     async def authorize_connection(
-        self, type: ConnectionType, two_way_link_type: Optional[ConnectionLinkType] = None, continuation: bool = False
+        self,
+        type: ConnectionType,
+        two_way_link_type: Optional[ConnectionLinkType] = None,
+        two_way_user_code: Optional[str] = None,
+        continuation: bool = False,
     ) -> str:
         """|coro|
 
@@ -2322,6 +2347,8 @@ class Client:
             The type of connection to authorize.
         two_way_link_type: Optional[:class:`.ConnectionLinkType`]
             The type of two-way link to use, if any.
+        two_way_user_code: Optional[:class:`str`]
+            The device code to use for two-way linking, if any.
         continuation: :class:`bool`
             Whether this is a continuation of a previous authorization.
 
@@ -2336,7 +2363,7 @@ class Client:
             The URL to redirect the user to.
         """
         data = await self.http.authorize_connection(
-            str(type), str(two_way_link_type) if two_way_link_type else None, continuation=continuation
+            str(type), str(two_way_link_type) if two_way_link_type else None, two_way_user_code, continuation=continuation
         )
         return data['url']
 
@@ -2346,6 +2373,7 @@ class Client:
         code: str,
         state: str,
         *,
+        two_way_link_code: Optional[str] = None,
         insecure: bool = True,
         friend_sync: bool = MISSING,
     ) -> None:
@@ -2365,8 +2393,10 @@ class Client:
             The authorization code for the connection.
         state: :class:`str`
             The state used to authorize the connection.
+        two_way_link_code: Optional[:class:`str`]
+            The code to use for two-way linking, if any.
         insecure: :class:`bool`
-            Whether the authorization is insecure. Defaults to ``True``.
+            Whether the authorization is insecure.
         friend_sync: :class:`bool`
             Whether friends are synced over the connection.
 
@@ -2384,6 +2414,7 @@ class Client:
             str(type),
             code=code,
             state=state,
+            two_way_link_code=two_way_link_code,
             insecure=insecure,
             friend_sync=friend_sync,
         )
@@ -2508,7 +2539,7 @@ class Client:
         return GroupChannel(me=self.user, data=data, state=state)  # type: ignore # user is always present when logged in
 
     @overload
-    async def send_friend_request(self, user: BaseUser, /) -> None:
+    async def send_friend_request(self, user: _UserTag, /) -> None:
         ...
 
     @overload
@@ -2519,7 +2550,7 @@ class Client:
     async def send_friend_request(self, username: str, discriminator: str, /) -> None:
         ...
 
-    async def send_friend_request(self, *args: Union[BaseUser, str]) -> None:
+    async def send_friend_request(self, *args: Union[_UserTag, str]) -> None:
         """|coro|
 
         Sends a friend request to another user.
@@ -2538,7 +2569,6 @@ class Client:
 
             # Passing a username and discriminator:
             await client.send_friend_request('Jake', '0001')
-
 
         Parameters
         -----------
@@ -2562,7 +2592,7 @@ class Client:
         discrim: str
         if len(args) == 1:
             user = args[0]
-            if isinstance(user, BaseUser):
+            if isinstance(user, _UserTag):
                 user = str(user)
             username, discrim = user.split('#')
         elif len(args) == 2:
@@ -2584,7 +2614,6 @@ class Client:
         -----------
         with_team_applications: :class:`bool`
             Whether to include applications owned by teams you're a part of.
-            Defaults to ``True``.
 
         Raises
         -------
@@ -2626,7 +2655,7 @@ class Client:
 
         Retrieves the application with the given ID.
 
-        The application must be owned by you.
+        The application must be owned by you or a team you are a part of.
 
         .. versionadded:: 2.0
 
@@ -2740,12 +2769,17 @@ class Client:
         data = await state.http.get_public_applications(app_ids)
         return [PartialApplication(state=state, data=d) for d in data]
 
-    async def teams(self) -> List[Team]:
+    async def teams(self, include_payout_account_status: bool = False) -> List[Team]:
         """|coro|
 
         Retrieves all the teams you're a part of.
 
         .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        include_payout_account_status: :class:`bool`
+            Whether to return the payout account status of the teams.
 
         Raises
         -------
@@ -2758,7 +2792,7 @@ class Client:
             The teams you're a part of.
         """
         state = self._connection
-        data = await state.http.get_teams()
+        data = await state.http.get_teams(include_payout_account_status=include_payout_account_status)
         return [Team(state=state, data=d) for d in data]
 
     async def fetch_team(self, team_id: int, /) -> Team:
@@ -2793,7 +2827,7 @@ class Client:
         data = await state.http.get_team(team_id)
         return Team(state=state, data=data)
 
-    async def create_application(self, name: str, /):
+    async def create_application(self, name: str, /, *, team: Optional[Snowflake] = None) -> Application:
         """|coro|
 
         Creates an application.
@@ -2804,6 +2838,8 @@ class Client:
         ----------
         name: :class:`str`
             The name of the application.
+        team: :class:`~discord.abc.Snowflake`
+            The team to create the application under.
 
         Raises
         -------
@@ -2816,7 +2852,7 @@ class Client:
             The newly-created application.
         """
         state = self._connection
-        data = await state.http.create_app(name)
+        data = await state.http.create_app(name, team.id if team else None)
         return Application(state=state, data=data)
 
     async def create_team(self, name: str, /):
@@ -2844,3 +2880,526 @@ class Client:
         state = self._connection
         data = await state.http.create_team(name)
         return Team(state=state, data=data)
+
+    async def search_companies(self, query: str, /) -> List[Company]:
+        """|coro|
+
+        Query your created companies.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        query: :class:`str`
+            The query to search for.
+
+        Raises
+        -------
+        HTTPException
+            Searching failed.
+
+        Returns
+        -------
+        List[:class:`.Company`]
+            The companies found.
+        """
+        state = self._connection
+        data = await state.http.search_companies(query)
+        return [Company(data=d) for d in data]
+
+    async def payment_sources(self) -> List[PaymentSource]:
+        """|coro|
+
+        Retrieves all the payment sources for your account.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the payment sources failed.
+
+        Returns
+        -------
+        List[:class:`.PaymentSource`]
+            The payment sources.
+        """
+        state = self._connection
+        data = await state.http.get_payment_sources()
+        return [PaymentSource(state=state, data=d) for d in data]
+
+    async def fetch_payment_source(self, source_id: int, /) -> PaymentSource:
+        """|coro|
+
+        Retrieves the payment source with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        source_id: :class:`int`
+            The ID of the payment source to fetch.
+
+        Raises
+        -------
+        NotFound
+            The payment source was not found.
+        HTTPException
+            Retrieving the payment source failed.
+
+        Returns
+        -------
+        :class:`.PaymentSource`
+            The retrieved payment source.
+        """
+        state = self._connection
+        data = await state.http.get_payment_source(source_id)
+        return PaymentSource(state=state, data=data)
+
+    async def create_payment_source(
+        self,
+        *,
+        token: str,
+        payment_gateway: PaymentGateway,
+        billing_address: BillingAddress,
+        billing_address_token: Optional[str] = MISSING,
+        return_url: Optional[str] = None,
+        bank: Any,
+    ) -> PaymentSource:
+        """|coro|
+
+        Creates a payment source.
+
+        This is a low-level method that requires data obtained from other APIs.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        ----------
+        token: :class:`str`
+            The payment source token.
+        payment_gateway: :class:`.PaymentGateway`
+            The payment gateway to use.
+        billing_address: :class:`.BillingAddress`
+            The billing address to use.
+        billing_address_token: Optional[:class:`str`]
+            The billing address token. If not provided, the library will fetch it for you.
+            Not required for all payment gateways.
+        return_url: Optional[:class:`str`]
+            The URL to return to after the payment source is created.
+        bank: Any
+            The bank information for the payment source.
+            Not required for most payment gateways.
+
+        Raises
+        -------
+        HTTPException
+            Creating the payment source failed.
+
+        Returns
+        -------
+        :class:`.PaymentSource`
+            The newly-created payment source.
+        """
+        state = self._connection
+        billing_address._state = state
+
+        data = await state.http.create_payment_source(
+            token=token,
+            payment_gateway=int(payment_gateway),
+            billing_address=billing_address.to_dict(),
+            billing_address_token=billing_address_token or await billing_address.validate()
+            if billing_address is not None
+            else None,
+            return_url=return_url,
+            bank=bank,
+        )
+        return PaymentSource(state=state, data=data)
+
+    async def subscriptions(self, limit: Optional[int] = None, include_inactive: bool = False) -> List[Subscription]:
+        """|coro|
+
+        Retrieves all the subscriptions on your account.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of subscriptions to retrieve.
+            Defaults to all subscriptions.
+        include_inactive: :class:`bool`
+            Whether to include inactive subscriptions.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the subscriptions failed.
+
+        Returns
+        -------
+        List[:class:`.Subscription`]
+            Your account's subscriptions.
+        """
+        state = self._connection
+        data = await state.http.get_subscriptions(limit=limit, include_inactive=include_inactive)
+        return [Subscription(state=state, data=d) for d in data]
+
+    async def fetch_subscription(self, subscription_id: int, /) -> Subscription:
+        """|coro|
+
+        Retrieves the subscription with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        subscription_id: :class:`int`
+            The ID of the subscription to fetch.
+
+        Raises
+        -------
+        NotFound
+            The subscription was not found.
+        HTTPException
+            Retrieving the subscription failed.
+
+        Returns
+        -------
+        :class:`.Subscription`
+            The retrieved subscription.
+        """
+        state = self._connection
+        data = await state.http.get_subscription(subscription_id)
+        return Subscription(state=state, data=data)
+
+    async def preview_subscription(
+        self,
+        items: List[SubscriptionItem],
+        *,
+        currency: str = 'usd',
+        payment_source: Optional[Snowflake] = None,
+        trial: Optional[Snowflake] = None,
+        apply_entitlements: bool = MISSING,
+        renewal: bool = MISSING,
+        code: Optional[str] = None,
+        metadata: Optional[MetadataObject] = None,
+    ) -> SubscriptionInvoice:
+        """|coro|
+
+        Preview an invoice for the subscription with the given parameters.
+
+        All parameters are optional and default to the current subscription values.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        ----------
+        items: List[:class:`SubscriptionItem`]
+            The items the subscription should have.
+        currency: :class:`str`
+            The currency the subscription should be paid in.
+        payment_source: Optional[:class:`~discord.abc.Snowflake`]
+            The payment source the subscription should be paid with.
+        trial: Optional[:class:`~discord.abc.Snowflake`]
+            The trial plan the subscription should be on.
+        apply_entitlements: :class:`bool`
+            Whether to apply entitlements (credits) to the previewed invoice.
+        renewal: :class:`bool`
+            Whether the subscription should be a renewal.
+        code: Optional[:class:`str`]
+            Unknown.
+        metadata: Optional[:class:`Metadata`]
+            Extra metadata about the subscription.
+
+        Raises
+        ------
+        HTTPException
+            Failed to preview the invoice.
+
+        Returns
+        -------
+        :class:`SubscriptionInvoice`
+            The previewed invoice.
+        """
+        state = self._connection
+        data = await state.http.preview_subscriptions_update(
+            [item.to_dict(False) for item in items],
+            currency,
+            payment_source_id=payment_source.id if payment_source else None,
+            trial_id=trial.id if trial else None,
+            apply_entitlements=apply_entitlements,
+            renewal=renewal,
+            code=code,
+            metadata=dict(metadata) if metadata else None,
+        )
+        return SubscriptionInvoice(None, data=data, state=state)
+
+    async def create_subscription(
+        self,
+        items: List[SubscriptionItem],
+        payment_source: Snowflake,
+        currency: str = 'usd',
+        *,
+        purchase_token: Optional[str] = None,
+        trial: Optional[Snowflake] = None,
+        payment_source_token: Optional[str] = None,
+        return_url: Optional[str] = None,
+        gateway_checkout_context: Optional[str] = None,
+        code: Optional[str] = None,
+        metadata: Optional[MetadataObject] = None,
+    ) -> Subscription:
+        """|coro|
+
+        Creates a new subscription.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        ----------
+        items: List[:class:`.SubscriptionItem`]
+            The items in the subscription.
+        payment_source: :class:`~discord.abc.Snowflake`
+            The payment source (i.e. credit card) to pay with.
+        currency: :class:`str`
+            The currency to pay with.
+        purchase_token: Optional[:class:`str`]
+            The purchase token to use.
+        trial: Optional[:class:`~discord.abc.Snowflake`]
+            The trial to apply to the subscription.
+        payment_source_token: Optional[:class:`str`]
+            The token used to authorize with the payment source.
+        return_url: Optional[:class:`str`]
+            The URL to return to after the payment is complete.
+        gateway_checkout_context: Optional[:class:`str`]
+            The current checkout context.
+        code: Optional[:class:`str`]
+            Unknown.
+        metadata: Optional[:class:`Metadata`]
+            Extra metadata about the subscription.
+
+        Raises
+        -------
+        HTTPException
+            Creating the subscription failed.
+
+        Returns
+        -------
+        :class:`.Subscription`
+            The newly-created subscription.
+        """
+        state = self._connection
+        data = await state.http.create_subscription(
+            [i.to_dict(False) for i in items],
+            payment_source.id,
+            currency,
+            trial_id=trial.id if trial else None,
+            payment_source_token=payment_source_token,
+            return_url=return_url,
+            purchase_token=purchase_token,
+            gateway_checkout_context=gateway_checkout_context,
+            code=code,
+            metadata=dict(metadata) if metadata else None,
+        )
+        return Subscription(state=state, data=data)
+
+    async def payments(
+        self,
+        *,
+        limit: Optional[int] = 100,
+        before: Optional[SnowflakeTime] = None,
+        after: Optional[SnowflakeTime] = None,
+        oldest_first: Optional[bool] = None,
+    ) -> AsyncIterator[Payment]:
+        """Returns an :term:`asynchronous iterator` that enables receiving your payments.
+
+        .. versionadded:: 2.0
+
+        Examples
+        ---------
+
+        Usage ::
+
+            counter = 0
+            async for payment in client.payments(limit=200):
+                if payment.is_purchased_externally():
+                    counter += 1
+
+        Flattening into a list: ::
+
+            payments = [payment async for payment in client.payments(limit=123)]
+            # payments is now a list of Payment...
+
+        All parameters are optional.
+
+        Parameters
+        -----------
+        limit: Optional[:class:`int`]
+            The number of payments to retrieve.
+            If ``None``, retrieves every payment you have made. Note, however,
+            that this would make it a slow operation.
+        before: Optional[Union[:class:`~discord.abc.Snowflake`, :class:`datetime.datetime`]]
+            Retrieve payments before this date or payment.
+            If a datetime is provided, it is recommended to use a UTC aware datetime.
+            If the datetime is naive, it is assumed to be local time.
+        after: Optional[Union[:class:`~discord.abc.Snowflake`, :class:`datetime.datetime`]]
+            Retrieve messages after this date or payment.
+            If a datetime is provided, it is recommended to use a UTC aware datetime.
+            If the datetime is naive, it is assumed to be local time.
+        oldest_first: Optional[:class:`bool`]
+            If set to ``True``, return payments in oldest->newest order. Defaults to ``True`` if
+            ``after`` is specified, otherwise ``False``.
+
+        Raises
+        ------
+        HTTPException
+            The request to get payments failed.
+
+        Yields
+        -------
+        :class:`.Payment`
+            The payment made.
+        """
+
+        _state = self._connection
+
+        async def _after_strategy(retrieve, after, limit):
+            after_id = after.id if after else None
+            data = await _state.http.get_payments(retrieve, after=after_id)
+
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                after = Object(id=int(data[0]['id']))
+
+            return data, after, limit
+
+        async def _before_strategy(retrieve, before, limit):
+            before_id = before.id if before else None
+            data = await _state.http.get_payments(retrieve, before=before_id)
+
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                before = Object(id=int(data[-1]['id']))
+
+            return data, before, limit
+
+        if isinstance(before, datetime):
+            before = Object(id=utils.time_snowflake(before, high=False))
+        if isinstance(after, datetime):
+            after = Object(id=utils.time_snowflake(after, high=True))
+
+        if oldest_first is None:
+            reverse = after is not None
+        else:
+            reverse = oldest_first
+
+        after = after or OLDEST_OBJECT
+        predicate = None
+
+        if reverse:
+            strategy, state = _after_strategy, after
+            if before:
+                predicate = lambda m: int(m['id']) < before.id
+        else:
+            strategy, state = _before_strategy, before
+            if after and after != OLDEST_OBJECT:
+                predicate = lambda m: int(m['id']) > after.id
+
+        while True:
+            retrieve = min(100 if limit is None else limit, 100)
+            if retrieve < 1:
+                return
+
+            data, state, limit = await strategy(retrieve, state, limit)
+
+            # Terminate loop on next iteration; there's no data left after this
+            if len(data) < 100:
+                limit = 0
+
+            if reverse:
+                data = reversed(data)
+            if predicate:
+                data = filter(predicate, data)
+
+            for payment in data:
+                yield Payment(data=payment, state=_state)
+
+    async def fetch_payment(self, payment_id: int) -> Payment:
+        """|coro|
+
+        Retrieves the payment with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        payment_id: :class:`int`
+            The ID of the payment to fetch.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the payment failed.
+
+        Returns
+        -------
+        :class:`.Payment`
+            The retrieved payment.
+        """
+        state = self._connection
+        data = await state.http.get_payment(payment_id)
+        return Payment(data=data, state=state)
+
+    async def promotions(self, claimed: bool = False) -> List[Promotion]:
+        """|coro|
+
+        Retrieves all the promotions available for your account.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        claimed: :class:`bool`
+            Whether to only retrieve claimed promotions.
+            These will have :attr:`Promotion.claimed_at` and :attr:`Promotion.code` set.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the promotions failed.
+
+        Returns
+        -------
+        List[:class:`.Promotion`]
+            The promotions available for you.
+        """
+        state = self._connection
+        data = await state.http.get_claimed_promotions(state.locale) if claimed else await state.http.get_promotions(state.locale)
+        return [Promotion(state=state, data=d) for d in data]
+
+    async def trial_offer(self) -> TrialOffer:
+        """|coro|
+
+        Retrieves the current trial offer for the logged in user.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        NotFound
+            You do not have a trial offer.
+        HTTPException
+            Retrieving the trial offer failed.
+
+        Returns
+        -------
+        :class:`.TrialOffer`
+            The trial offer for your account.
+        """
+        state = self._connection
+        data = await state.http.get_trial_offer()
+        return TrialOffer(data)

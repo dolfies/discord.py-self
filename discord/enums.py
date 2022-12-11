@@ -43,6 +43,9 @@ __all__ = (
     'NotificationLevel',
     'HighlightLevel',
     'TeamMembershipState',
+    'PayoutAccountStatus',
+    'PayoutStatus',
+    'PayoutReportType',
     'WebhookType',
     'ExpireBehaviour',
     'ExpireBehavior',
@@ -82,6 +85,21 @@ __all__ = (
     'ApplicationType',
     'ConnectionType',
     'ConnectionLinkType',
+    'PaymentSourceType',
+    'PaymentGateway',
+    'SubscriptionType',
+    'SubscriptionStatus',
+    'SubscriptionInvoiceStatus',
+    'SubscriptionDiscountType',
+    'SubscriptionInterval',
+    'PaymentStatus',
+    'ApplicationAssetType',
+    'SKUType',
+    'SKUAccessLevel',
+    'SKUFeature',
+    'SKUGenre',
+    'OperatingSystem',
+    'ContentRatingAgency',
 )
 
 if TYPE_CHECKING:
@@ -564,6 +582,7 @@ class UserFlags(Enum):
     bot_http_interactions = 524288
     spammer = 1048576
     disable_premium = 2097152
+    quarantined = 17592186044416
 
 
 class ActivityType(Enum):
@@ -585,14 +604,49 @@ class HypeSquadHouse(Enum):
     balance = 3
 
 
-class PremiumType(Enum, comparable=True):
+class PremiumType(Enum):
     nitro_classic = 1
     nitro = 2
+    nitro_basic = 3
 
 
 class TeamMembershipState(Enum, comparable=True):
     invited = 1
     accepted = 2
+
+
+class PayoutAccountStatus(Enum):
+    unsubmitted = 1
+    pending = 2
+    action_required = 3
+    active = 4
+    blocked = 5
+    suspended = 6
+
+
+class PayoutStatus(Enum):
+    open = 1
+    paid = 2
+    pending = 3
+    manual = 4
+    canceled = 5
+    cancelled = 5
+    deferred = 6
+    deferred_internal = 7
+    processing = 8
+    error = 9
+    rejected = 10
+    risk_review = 11
+    submitted = 12
+    pending_funds = 13
+
+
+class PayoutReportType(Enum):
+    by_sku = 'sku'
+    by_transaction = 'transaction'
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class WebhookType(Enum):
@@ -661,7 +715,9 @@ class RequiredActionType(Enum):
     verify_phone = 'REQUIRE_VERIFIED_PHONE'
     verify_email = 'REQUIRE_VERIFIED_EMAIL'
     complete_captcha = 'REQUIRE_CAPTCHA'
-    accept_terms = 'AGREEMENTS'
+    update_agreements = 'AGREEMENTS'
+    acknowledge_tos_update = 'TOS_UPDATE_ACKNOWLEDGMENT'
+    none = None
 
 
 class InviteTarget(Enum):
@@ -792,7 +848,6 @@ class RPCApplicationState(Enum, comparable=True):
 
 
 class ApplicationType(Enum):
-    none = None
     game = 1
     music = 2
     ticketed_events = 3
@@ -915,6 +970,214 @@ class ConnectionLinkType(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+class PaymentSourceType(Enum):
+    unknown = 0
+    card = 1
+    paypal = 2
+    giropay = 3
+    sofort = 4
+    przzelewy24 = 5
+    sepa_debit = 6
+    paysafe_card = 7
+    gcash = 8
+    grabpay_my = 9
+    momo_wallet = 10
+    venmo = 11
+    gopay_wallet = 12
+    kakaopay = 13
+    bancontact = 14
+    eps = 15
+    ideal = 16
+    payment_request = 99
+
+
+class PaymentGateway(Enum):
+    stripe = 1
+    braintree = 2
+    apple = 3
+    google = 4
+    adyen = 5
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class SubscriptionType(Enum):
+    premium = 1
+    guild = 2
+    application = 3
+
+
+class SubscriptionStatus(Enum, comparable=True):
+    unpaid = 0
+    active = 1
+    past_due = 2
+    canceled = 3
+    cancelled = 3
+    ended = 4
+    account_hold = 6
+
+
+class SubscriptionInvoiceStatus(Enum):
+    open = 1
+    paid = 2
+    void = 3
+    uncollectible = 4
+
+
+class SubscriptionDiscountType(Enum):
+    subscription_plan = 1
+    entitlement = 2
+    premium_legacy_upgrade_promotion = 3
+    premium_trial = 4
+
+
+class SubscriptionInterval(Enum):
+    month = 1
+    year = 2
+    day = 3
+
+
+class PaymentStatus(Enum):
+    pending = 0
+    completed = 1
+    failed = 2
+    reversed = 3
+    refunded = 4
+    canceled = 5
+    cancelled = 5
+
+
+class ApplicationAssetType(Enum):
+    one = 1
+    two = 2
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class SKUType(Enum):
+    durable_primary = 1
+    durable = 2
+    consumable = 3
+    bundle = 4
+    subscription = 5
+    group = 6
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class SKUAccessLevel(Enum):
+    full = 1
+    early_access = 2
+    vip_access = 3
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class SKUFeature(Enum):
+    single_player = 1
+    online_multiplayer = 2
+    local_multiplayer = 3
+    pvp = 4
+    local_coop = 5
+    cross_platform = 6
+    rich_presence = 7
+    discord_game_invites = 8
+    spectator_mode = 9
+    controller_support = 10
+    cloud_saves = 11
+    online_coop = 12
+    secure_networking = 13
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class SKUGenre(Enum):
+    action = 1
+    action_adventure = 9
+    action_rpg = 2
+    adventure = 8
+    artillery = 50
+    baseball = 34
+    basketball = 35
+    billiards = 36
+    bowling = 37
+    boxing = 38
+    brawler = 3
+    card_game = 58
+    driving_racing = 16
+    dual_joystick_shooter = 27
+    dungeon_crawler = 21
+    education = 59
+    fighting = 56
+    fishing = 32
+    fitness = 60
+    flight_simulator = 29
+    football = 39
+    four_x = 49
+    fps = 26
+    gambling = 61
+    golf = 40
+    hack_and_slash = 4
+    hockey = 41
+    life_simulator = 31
+    light_gun = 24
+    massively_multiplayer = 18
+    metroidvania = 10
+    mmorpg = 19
+    moba = 55
+    music_rhythm = 62
+    open_world = 11
+    party_mini_game = 63
+    pinball = 64
+    platformer = 5
+    psychological_horror = 12
+    puzzle = 57
+    rpg = 22
+    role_playing = 20
+    rts = 51
+    sandbox = 13
+    shooter = 23
+    shoot_em_up = 25
+    simulation = 28
+    skateboarding_skating = 42
+    snowboarding_skiing = 43
+    soccer = 44
+    sports = 33
+    stealth = 6
+    strategy = 48
+    surfing_wakeboarding = 46
+    survival = 7
+    survival_horror = 14
+    tower_defense = 52
+    track_field = 45
+    train_simulator = 30
+    trivia_board_game = 65
+    turn_based_strategy = 53
+    vehicular_combat = 17
+    visual_novel = 15
+    wargame = 54
+    wrestling = 47
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class OperatingSystem(Enum):
+    windows = 1
+    mac = 2
+    linux = 3
+
+
+class ContentRatingAgency(Enum):
+    esrb = 1
+    pegi = 2
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

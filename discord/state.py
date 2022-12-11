@@ -77,8 +77,9 @@ from .permissions import Permissions, PermissionOverwrite
 from .member import _ClientStatus
 from .modal import Modal
 from .member import VoiceState
-from .appinfo import InteractionApplication
+from .appinfo import InteractionApplication, PartialApplication
 from .connections import Connection
+from .subscriptions import Payment
 
 if TYPE_CHECKING:
     from .abc import PrivateChannel, Snowflake as abcSnowflake
@@ -462,6 +463,7 @@ class ConnectionState:
         self.guild_settings: Dict[Optional[int], GuildSettings] = {}
         self.consents: Optional[TrackingSettings] = None
         self.connections: Dict[str, Connection] = {}
+        self.pending_payments: Dict[int, Payment] = {}
         self.analytics_token: Optional[str] = None
         self.preferred_regions: List[str] = []
         self.country_code: Optional[str] = None
@@ -532,6 +534,10 @@ class ConnectionState:
     def self_id(self) -> Optional[int]:
         u = self.user
         return u.id if u else None
+
+    @property
+    def locale(self) -> str:
+        return str(getattr(self.user, 'locale', 'en-US'))
 
     @property
     def preferred_region(self) -> str:
@@ -894,6 +900,7 @@ class ConnectionState:
         self.country_code = data.get('country_code', 'US')
         self.session_type = data.get('session_type', 'normal')
         self.connections = {c['id']: Connection(state=self, data=c) for c in data.get('connected_accounts', [])}
+        self.pending_payments = {int(p['id']): Payment(state=self, data=p) for p in data.get('pending_payments', [])}
 
         if 'required_action' in data:
             self.parse_user_required_action_update(data)
@@ -1054,7 +1061,7 @@ class ConnectionState:
         member_id = int(user['id'])
         member = guild.get_member(member_id)
         if member is None:
-            _log.debug('PRESENCE_UPDATE referencing an unknown member ID: %s. Discarding', member_id)
+            _log.debug('PRESENCE_UPDATE referencing an unknown member ID: %s. Discarding.', member_id)
             return
 
         old_member = Member._copy(member)
@@ -1092,8 +1099,13 @@ class ConnectionState:
         required_action = try_enum(RequiredActionType, data['required_action'])
         self.dispatch('required_action_update', required_action)
 
-    def parse_user_connections_update(self, data: gw.Connection) -> None:
-        id = data['id']
+    def parse_user_connections_update(self, data: Union[gw.ConnectionEvent, gw.PartialConnectionEvent]) -> None:
+        self.dispatch('connections_update')
+
+        id = data.get('id')
+        if id is None or 'user_id' in data:
+            return
+
         if id not in self.connections:
             self.connections[id] = connection = Connection(state=self, data=data)
             self.dispatch('connection_create', connection)
@@ -1106,6 +1118,30 @@ class ConnectionState:
             old_connection = copy.copy(connection)
             connection._update(data)
             self.dispatch('connection_update', old_connection, connection)
+
+    def parse_user_payment_sources_update(self, data: gw.ResumedEvent) -> None:
+        self.dispatch('payment_sources_update')
+
+    def parse_user_subscriptions_update(self, data: gw.ResumedEvent) -> None:
+        self.dispatch('subscriptions_update')
+
+    def parse_user_payment_client_add(self, data: gw.UserPaymentClientAddEvent) -> None:
+        self.dispatch('payment_client_add', data['purchase_token_hash'], utils.parse_time(data['expires_at']))
+
+    def parse_oauth2_token_revoke(self, data: gw.OAuth2TokenRevokeEvent) -> None:
+        if 'access_token' not in data:
+            _log.warning('OAUTH2_TOKEN_REVOKE payload has invalid data: %s. Discarding.', list(data.keys()))
+        self.dispatch('oauth2_token_revoke', data['access_token'])
+
+    def parse_payment_update(self, data: dict) -> None:
+        id = int(data['id'])
+        payment = self.pending_payments.get(id)
+        if payment is not None:
+            payment._update(data)
+        else:
+            payment = Payment(state=self, data=data)
+
+        self.dispatch('payment_update', payment)
 
     def parse_sessions_replace(self, data: List[Dict[str, Any]]) -> None:
         overall = MISSING
@@ -1642,6 +1678,8 @@ class ConnectionState:
 
         guild.command_counts = CommandCounts(data.get(0, 0), data.get(1, 0), data.get(2, 0))
 
+    parse_guild_application_command_index_update = parse_guild_application_command_counts_update
+
     def parse_guild_emojis_update(self, data: gw.GuildEmojisUpdateEvent) -> None:
         guild = self._get_guild(int(data['guild_id']))
         if guild is None:
@@ -1670,7 +1708,7 @@ class ConnectionState:
 
     def _get_create_guild(self, data: gw.GuildCreateEvent):
         guild = self._get_guild(int(data['id']))
-        # Discord being Discord sends a GUILD_CREATE after an OPCode 14 is sent (a la bots)
+        # Discord being Discord sometimes sends a GUILD_CREATE after an OPCode 14 is sent (a la bots)
         # However, we want that if we forced a GUILD_CREATE for an unavailable guild
         if guild is not None:
             guild._from_data(data)
@@ -2318,3 +2356,20 @@ class ConnectionState:
 
     def default_channel_settings(self, guild_id: Optional[int], channel_id: int) -> ChannelSettings:
         return ChannelSettings(guild_id, data={'channel_id': channel_id}, state=self)
+
+    @utils.cached_property
+    def premium_subscriptions_application(self) -> PartialApplication:
+        # Hardcoded application for premium subscriptions, highly unlikely to change
+        return PartialApplication(
+            state=self,
+            data={
+                'id': 521842831262875670,
+                'name': 'Nitro',
+                'icon': None,
+                'cover_image': None,
+                'description': '',
+                'verify_key': '93661a9eefe452d12f51e129e8d9340e7ca53a770158c0ec7970e701534b7420',
+                'rpc_origins': [],
+                'type': None,
+            },
+        )

@@ -341,3 +341,19 @@ class TypingStartEvent(TypedDict):
     timestamp: int
     guild_id: NotRequired[Snowflake]
     member: NotRequired[MemberWithUser]
+
+
+ConnectionEvent = Connection
+
+
+class PartialConnectionEvent(TypedDict):
+    user_id: Snowflake
+
+
+class OAuth2TokenRevokeEvent(TypedDict):
+    access_token: str
+
+
+class UserPaymentClientAddEvent(TypedDict):
+    purchase_token_hash: str
+    expires_at: str

@@ -1498,6 +1498,11 @@ of :class:`enum.Enum`.
         The user bought premium but has it manually disabled.
 
         .. versionadded:: 2.0
+    .. attribute:: quarantined
+
+        The user is quarantined.
+
+        .. versionadded:: 2.0
 
 .. class:: ActivityType
 
@@ -2484,10 +2489,6 @@ of :class:`enum.Enum`.
 
     .. versionadded:: 2.0
 
-    .. attribute:: none
-
-        The application does not have a special type.
-
     .. attribute:: game
 
         The application is a game.
@@ -2499,6 +2500,10 @@ of :class:`enum.Enum`.
     .. attribute:: ticketed_events
 
         The application can use ticketed event.
+
+    .. attribute:: guild_role_subscriptions
+
+        The application can make custom guild role subscriptions.
 
 .. class:: ApplicationVerificationState
 
@@ -2903,36 +2908,19 @@ of :class:`enum.Enum`.
 
     Represents the user's Discord Nitro subscription type.
 
-    .. container:: operations
-
-        .. versionadded:: 2.0
-
-        .. describe:: x == y
-
-            Checks if two premium types are equal.
-        .. describe:: x != y
-
-            Checks if two premium types are not equal.
-        .. describe:: x > y
-
-            Checks if a premium level is higher than another.
-        .. describe:: x < y
-
-            Checks if a premium level is lower than another.
-        .. describe:: x >= y
-
-            Checks if a premium level is higher or equal to another.
-        .. describe:: x <= y
-
-            Checks if a premium level is lower or equal to another.
-
     .. attribute:: nitro
 
-        Represents the Discord Nitro with Nitro-exclusive games.
+        Represents the new, full Discord Nitro.
 
     .. attribute:: nitro_classic
 
-        Represents the Discord Nitro with no Nitro-exclusive games.
+        Represents the classic Discord Nitro.
+
+    .. attribute:: nitro_basic
+
+        Represents the basic Discord Nitro.
+
+        .. versionadded:: 2.0
 
 .. class:: StickerAnimationOptions
 
@@ -3186,9 +3174,17 @@ of :class:`enum.Enum`.
 
         The user must complete a captcha.
 
-    .. attribute:: accept_terms
+    .. attribute:: update_agreements
 
-        The user must accept Discord's terms of service.
+        The user must update their agreement of Discord's terms of service and privacy policy.
+
+    .. attribute:: acknowledge_tos_update
+
+        The user must acknowledge the update to Discord's terms of service.
+
+    .. attribute:: none
+
+        The user does not need to take any more actions.
 
 .. class:: ConnectionType
 
@@ -4245,13 +4241,13 @@ Connection
 .. autoclass:: PartialConnection()
     :members:
 
-.. attributetable:: ConnectionMetadata
-
-.. autoclass:: ConnectionMetadata()
-    :members:
-
 Application
 ~~~~~~~~~~~
+
+.. attributetable:: Company
+
+.. autoclass:: Company()
+    :members:
 
 .. attributetable:: Application
 
@@ -4278,11 +4274,6 @@ Application
 .. attributetable:: ApplicationProfile
 
 .. autoclass:: ApplicationProfile()
-    :members:
-
-.. attributetable:: ApplicationCompany
-
-.. autoclass:: ApplicationCompany()
     :members:
 
 .. attributetable:: ApplicationExecutable
@@ -4354,6 +4345,15 @@ Settings
 
 .. autoclass:: MuteConfig()
     :members:
+
+Metadata
+~~~~~~~~~
+
+.. attributetable:: Metadata
+
+.. autoclass:: Metadata()
+    :members:
+    :inherited-members:
 
 Asset
 ~~~~~

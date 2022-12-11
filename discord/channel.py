@@ -2637,7 +2637,7 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, Hashable):
 
     @property
     def icon(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Returns the channel's icon asset if available."""
+        """Optional[:class:`Asset`]: Returns he channel's icon asset if available."""
         if self._icon is None:
             return None
         return Asset._from_icon(self._state, self.id, self._icon, path='channel')

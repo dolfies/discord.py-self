@@ -95,9 +95,13 @@ class PartialInviteChannel:
         The partial channel's ID.
     type: :class:`ChannelType`
         The partial channel's type.
+    recipients: Optional[List[:class:`str`]]
+        The partial channel's recipient names. This is only applicable to group DMs.
+
+        .. versionadded:: 2.0
     """
 
-    __slots__ = ('_state', 'id', 'name', 'type', '_icon')
+    __slots__ = ('_state', 'id', 'name', 'type', 'recipients', '_icon')
 
     def __new__(cls, data: Optional[InviteChannelPayload], *args, **kwargs):
         if data is None:
@@ -111,6 +115,9 @@ class PartialInviteChannel:
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.type: ChannelType = try_enum(ChannelType, data['type'])
+        self.recipients: Optional[List[str]] = (
+            [user['username'] for user in data.get('recipients', [])] if self.type == ChannelType.group else None
+        )
         self._icon: Optional[str] = data.get('icon')
 
     def __str__(self) -> str:

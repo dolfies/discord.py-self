@@ -34,6 +34,10 @@ class PartialUser(TypedDict):
     username: str
     discriminator: str
     avatar: Optional[str]
+    avatar_decoration: NotRequired[Optional[str]]
+    public_flags: NotRequired[int]
+    bot: NotRequired[bool]
+    system: NotRequired[bool]
 
 
 ConnectionType = Literal[
@@ -59,7 +63,7 @@ ConnectionType = Literal[
     'xbox',
 ]
 ConnectionVisibilty = Literal[0, 1]
-PremiumType = Literal[0, 1, 2]
+PremiumType = Literal[0, 1, 2, 3]
 
 
 class User(PartialUser, total=False):
@@ -74,7 +78,6 @@ class User(PartialUser, total=False):
     premium_usage_flags: int
     premium_type: PremiumType
     public_flags: int
-    avatar_decoration: Optional[str]
     banner: Optional[str]
     accent_color: Optional[int]
     bio: str
@@ -89,6 +92,7 @@ class PartialConnection(TypedDict):
     type: ConnectionType
     name: str
     verified: bool
+    metadata: NotRequired[Dict[str, Any]]
 
 
 class Connection(PartialConnection):
@@ -100,7 +104,6 @@ class Connection(PartialConnection):
     two_way_link: bool
     integrations: NotRequired[List[ConnectionIntegration]]
     access_token: NotRequired[str]
-    metadata: NotRequired[Dict[str, Any]]
 
 
 class ConnectionAccessToken(TypedDict):

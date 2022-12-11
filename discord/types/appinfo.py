@@ -37,11 +37,11 @@ class BaseAppInfo(TypedDict):
     name: str
     verify_key: str
     icon: Optional[str]
-    summary: str
     description: str
     cover_image: Optional[str]
     flags: NotRequired[int]
     rpc_origins: List[str]
+    type: Optional[int]
 
 
 class AppInfo(BaseAppInfo):
@@ -70,3 +70,22 @@ class PartialAppInfo(BaseAppInfo, total=False):
     terms_of_service_url: str
     privacy_policy_url: str
     max_participants: int
+
+
+class Asset(TypedDict):
+    id: Snowflake
+    name: str
+    type: int
+
+
+class StoreAsset(TypedDict):
+    id: Snowflake
+    size: int
+    width: int
+    height: int
+    mime_type: str
+
+
+class Company(TypedDict):
+    id: Snowflake
+    name: str
