@@ -32,6 +32,7 @@ from .enums import (
     ApplicationAssetType,
     ApplicationType,
     ApplicationVerificationState,
+    Distributor,
     Locale,
     RPCApplicationState,
     StoreApplicationState,
@@ -40,7 +41,7 @@ from .enums import (
 from .flags import ApplicationFlags
 from .mixins import Hashable
 from .permissions import Permissions
-from .store import StoreAsset, SKU
+from .store import SKU, StoreAsset, StoreListing
 from .user import User
 from .utils import _bytes_to_base64_data, _parse_localizations
 
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     'Company',
+    'EULA',
     'Achievement',
     'ApplicationBot',
     'ApplicationExecutable',
@@ -113,6 +115,55 @@ class Company(Hashable):
     def __init__(self, data: CompanyPayload):
         self.id: int = int(data['id'])
         self.name: str = data['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class EULA(Hashable):
+    """Represents the EULA for an application.
+
+    This is usually found on applications that are a game.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two EULAs are equal.
+
+        .. describe:: x != y
+
+            Checks if two EULAs are not equal.
+
+        .. describe:: hash(x)
+
+            Returns the EULA's hash.
+
+        .. describe:: str(x)
+
+            Returns the EULA's name.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    id: :class:`int`
+        The EULA's ID.
+    name: :class:`str`
+        The EULA's name.
+    content: :class:`str`
+        The EULA's content.
+    """
+
+    __slots__ = ('id', 'name', 'content')
+
+    def __init__(self, data: dict) -> None:
+        self.id: int = int(data['id'])
+        self.name: str = data['name']
+        self.content: str = data['content']
+
+    def __repr__(self) -> str:
+        return f'<StoreEULA id={self.id} name={self.name!r}>'
 
     def __str__(self) -> str:
         return self.name
@@ -229,11 +280,11 @@ class Achievement(Hashable):
         name: :class:`str`
             The achievement's name.
         name_localizations: Dict[:class:`locale`, :class:`str`]
-            The achievement's name localized to other languages, if available.
+            The achievement's name localized to other languages.
         description: :class:`str`
             The achievement's description.
         description_localizations: Dict[:class:`locale`, :class:`str`]
-            The achievement's description localized to other languages, if available.
+            The achievement's description localized to other languages.
         icon: :class:`bytes`
             A :term:`py:bytes-like object` representing the new icon.
         secure: :class:`bool`
@@ -284,6 +335,32 @@ class Achievement(Hashable):
             Deleting the achievement failed.
         """
         await self._state.http.delete_achievement(self.application_id, self.id)
+
+
+class ThirdPartySKU:
+    """Represents an application's primary SKU on third-party platforms.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    distributor: :class:`Distributor`
+        The distributor of the SKU.
+    id: Optional[:class:`str`]
+        The product ID.
+    sku_id: Optional[:class:`str`]
+        The SKU ID.
+    """
+
+    __slots__ = ('distributor', 'id', 'sku_id')
+
+    def __init__(self, *, data: dict):
+        self.distributor: Distributor = try_enum(Distributor, data['distributor'])
+        self.id: Optional[str] = data.get('id')
+        self.sku_id: Optional[str] = data.get('sku_id')
+
+    def __repr__(self) -> str:
+        return f'<ThirdPartySKU distributor={self.distributor!r} id={self.id!r} sku_id={self.sku_id!r}>'
 
 
 class ApplicationBot(User):
@@ -655,20 +732,23 @@ class PartialApplication(Hashable):
         Whether the application has a Discord overlay or not.
     guild_id: Optional[:class:`int`]
         The ID of the guild the application is attached to, if any.
-    slug: Optional[:class:`str`]
-        If this application is a game sold on Discord,
-        this field will be the URL slug that links to the store page.
     primary_sku_id: Optional[:class:`int`]
-        If this application is a game sold on Discord,
-        this field will be the id of the "Game SKU" that is created, if exists.
+        The application's primary SKU ID, if any.
+        This is usually the ID of the game SKU if the application is a game.
+    slug: Optional[:class:`str`]
+        The slug for the application's primary SKU, if any.
+    eula_id: Optional[:class:`int`]
+        The ID of the EULA for the application, if any.
     aliases: List[:class:`str`]
-        A list of aliases that can be used to identify the application. Only available for specific applications.
+        A list of aliases that can be used to identify the application.
     developers: List[:class:`Company`]
-        A list of developers that developed the application. Only available for specific applications.
+        A list of developers that developed the application.
     publishers: List[:class:`Company`]
-        A list of publishers that published the application. Only available for specific applications.
+        A list of publishers that published the application.
     executables: List[:class:`ApplicationExecutable`]
-        A list of executables that are the application's. Only available for specific applications.
+        A list of executables that are the application's.
+    third_party_skus: List[:class:`ThirdPartySKU`]
+        A list of third party platforms the SKU is available at.
     custom_install_url: Optional[:class:`str`]
         The custom URL to use for authorizing the application, if specified.
     install_params: Optional[:class:`ApplicationInstallParams`]
@@ -701,11 +781,13 @@ class PartialApplication(Hashable):
         'developers',
         'publishers',
         'executables',
+        'third_party_skus',
         'custom_install_url',
         'install_params',
         'guild_id',
         'primary_sku_id',
         'slug',
+        'eula_id',
     )
 
     def __init__(self, *, state: ConnectionState, data: PartialAppInfoPayload):
@@ -722,12 +804,15 @@ class PartialApplication(Hashable):
         self.rpc_origins: Optional[List[str]] = data.get('rpc_origins') or []
         self.verify_key: str = data['verify_key']
 
+        self.aliases: List[str] = data.get('aliases', [])
         self.developers: List[Company] = [Company(data=d) for d in data.get('developers', [])]
         self.publishers: List[Company] = [Company(data=d) for d in data.get('publishers', [])]
         self.executables: List[ApplicationExecutable] = [
             ApplicationExecutable(data=e, application=self) for e in data.get('executables', [])
         ]
-        self.aliases: List[str] = data.get('aliases', [])
+        self.third_party_skus: List[ThirdPartySKU] = [
+            ThirdPartySKU(data=t) for t in data.get('third_party_skus', [])
+        ]
 
         self._icon: Optional[str] = data.get('icon')
         self._cover_image: Optional[str] = data.get('cover_image')
@@ -746,6 +831,7 @@ class PartialApplication(Hashable):
         self.guild_id: Optional[int] = utils._get_as_snowflake(data, 'guild_id')
         self.primary_sku_id: Optional[int] = utils._get_as_snowflake(data, 'primary_sku_id')
         self.slug: Optional[str] = data.get('slug')
+        self.eula_id: Optional[int] = utils._get_as_snowflake(data, 'eula_id')
 
         params = data.get('install_params')
         self.custom_install_url: Optional[str] = data.get('custom_install_url')
@@ -765,14 +851,14 @@ class PartialApplication(Hashable):
 
     @property
     def icon(self) -> Optional[Asset]:
-        """Optional[:class:`.Asset`]: Retrieves the application's icon asset, if any."""
+        """Optional[:class:`Asset`]: Retrieves the application's icon asset, if any."""
         if self._icon is None:
             return None
         return Asset._from_icon(self._state, self.id, self._icon, path='app')
 
     @property
     def cover_image(self) -> Optional[Asset]:
-        """Optional[:class:`.Asset`]: Retrieves the cover image on a store embed, if any.
+        """Optional[:class:`Asset`]: Retrieves the cover image on a store embed, if any.
 
         This is only available if the application is a game sold on Discord.
         """
@@ -782,7 +868,7 @@ class PartialApplication(Hashable):
 
     @property
     def splash(self) -> Optional[Asset]:
-        """Optional[:class:`.Asset`]: Retrieves the application's splash asset, if any."""
+        """Optional[:class:`Asset`]: Retrieves the application's splash asset, if any."""
         if self._splash is None:
             return None
         return Asset._from_application_asset(self._state, self.id, self._splash)
@@ -820,12 +906,54 @@ class PartialApplication(Hashable):
 
         Returns
         -------
-        List[:class:`.ApplicationAsset`]
+        List[:class:`ApplicationAsset`]
             The application's assets.
         """
         state = self._state
         data = await state.http.get_app_assets(self.id)
         return [ApplicationAsset(state=state, data=d, application=self) for d in data]
+
+    async def published_store_listings(self) -> List[StoreListing]:
+        """|coro|
+
+        Retrieves all published store listings for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the listings failed.
+
+        Returns
+        -------
+        List[:class:`StoreListing`]
+            The store listings.
+        """
+        state = self._state
+        data = await state.http.get_app_store_listings(self.id)
+        return [StoreListing(state=state, data=d, application=self) for d in data]
+
+    async def primary_store_listing(self) -> StoreListing:
+        """|coro|
+
+        Retrieves the primary store listing of this application.
+
+        This is the public store listing of the primary SKU.
+
+        Raises
+        ------
+        NotFound
+            The application does not have a primary SKU.
+        HTTPException
+            Retrieving the store listing failed.
+
+        Returns
+        -------
+        :class:`StoreListing`
+            The application's primary store listing, if any.
+        """
+        state = self._state
+        data = await state.http.get_app_store_listing(self.id)
+        return StoreListing(state=state, data=data, application=self)
 
     async def achievements(self, completed: bool = True) -> List[Achievement]:
         """|coro|
@@ -855,6 +983,28 @@ class PartialApplication(Hashable):
         state = self._state
         data = (await state.http.get_my_achievements(self.id)) if completed else (await state.http.get_achievements(self.id))
         return [Achievement(data=achievement, state=state, application=self) for achievement in data]
+
+    async def eula(self) -> Optional[EULA]:
+        """|coro|
+
+        Retrieves the EULA for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the EULA failed.
+
+        Returns
+        --------
+        Optional[:class:`EULA`]
+            The EULA retrieved, if any.
+        """
+        if self.eula_id is None:
+            return None
+
+        state = self._state
+        data = await state.http.get_eula(self.eula_id)
+        return EULA(data=data)
 
 
 class Application(PartialApplication):
@@ -1185,7 +1335,7 @@ class Application(PartialApplication):
         data = await state.http.create_store_asset(self.id, file)
         return StoreAsset(state=state, data=data, parent=self)
 
-    async def skus(self, *, localize: bool = False, with_bundled_skus: bool = True) -> List[SKU]:
+    async def skus(self, *, localize: bool = True, with_bundled_skus: bool = True) -> List[SKU]:
         """|coro|
 
         Retrieves the SKUs for this application.
@@ -1218,6 +1368,7 @@ class Application(PartialApplication):
         """|coro|
 
         Retrieves the primary SKU for this application if it exists.
+        This is usually the game SKU if the application is a game.
 
         Raises
         -------
@@ -1265,13 +1416,13 @@ class Application(PartialApplication):
         Parameters
         -----------
         name: :class:`str`
-            The name of the SKU.
+            The SKU's name.
         name_localizations: Optional[Mapping[:class:`Locale`, :class:`str`]]
-            A mapping of locales to localized names.
+            The SKU's name localized to other languages.
         legal_notice: Optional[:class:`str`]
-            The legal notice of the SKU.
+            The SKU's legal notice.
         legal_notice_localizations: Optional[Mapping[:class:`Locale`, :class:`str`]]
-            A mapping of locales to localized legal notices.
+            The SKU's legal notice localized to other languages.
         price_tier: Optional[:class:`int`]
             The price tier of the SKU.
             This is the base price in USD that other currencies will be calculated from.
@@ -1490,6 +1641,7 @@ class InteractionApplication(Hashable):
         The type of application.
     primary_sku_id: Optional[:class:`int`]
         The application's primary SKU ID, if any.
+        This is usually the ID of the game SKU if the application is a game.
     """
 
     __slots__ = (
@@ -1527,20 +1679,26 @@ class InteractionApplication(Hashable):
 
     @property
     def icon(self) -> Optional[Asset]:
-        """Optional[:class:`.Asset`]: Retrieves the application's icon asset, if any."""
+        """Optional[:class:`Asset`]: Retrieves the application's icon asset, if any."""
         if self._icon is None:
             return None
         return Asset._from_icon(self._state, self.id, self._icon, path='app')
 
     @property
     def cover_image(self) -> Optional[Asset]:
-        """Optional[:class:`.Asset`]: Retrieves the cover image on a store embed, if any.
+        """Optional[:class:`Asset`]: Retrieves the cover image on a store embed, if any.
 
-        This is only available if the application is a game sold on Discord.
+        This is only available if the application is a game.
         """
         if self._cover_image is None:
             return None
         return Asset._from_cover_image(self._state, self.id, self._cover_image)
+
+    @property
+    def primary_sku_url(self) -> Optional[str]:
+        """:class:`str`: The URL to the primary SKU of the application, if any."""
+        if self.primary_sku_id:
+            return f'https://discord.com/store/skus/{self.primary_sku_id}/unknown'
 
     async def assets(self) -> List[ApplicationAsset]:
         """|coro|
@@ -1554,9 +1712,51 @@ class InteractionApplication(Hashable):
 
         Returns
         -------
-        List[:class:`.ApplicationAsset`]
+        List[:class:`ApplicationAsset`]
             The application's assets.
         """
         state = self._state
         data = await state.http.get_app_assets(self.id)
         return [ApplicationAsset(state=state, data=d, application=self) for d in data]
+
+    async def published_store_listings(self) -> List[StoreListing]:
+        """|coro|
+
+        Retrieves all published store listings for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the listings failed.
+
+        Returns
+        -------
+        List[:class:`StoreListing`]
+            The store listings.
+        """
+        state = self._state
+        data = await state.http.get_app_store_listings(self.id)
+        return [StoreListing(state=state, data=d) for d in data]
+
+    async def primary_store_listing(self) -> StoreListing:
+        """|coro|
+
+        Retrieves the primary store listing of this application.
+
+        This is the public store listing of the primary SKU.
+
+        Raises
+        ------
+        NotFound
+            The application does not have a primary SKU.
+        HTTPException
+            Retrieving the store listing failed.
+
+        Returns
+        -------
+        :class:`StoreListing`
+            The application's primary store listing, if any.
+        """
+        state = self._state
+        data = await state.http.get_app_store_listing(self.id)
+        return StoreListing(state=state, data=data)

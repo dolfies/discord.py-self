@@ -2473,8 +2473,9 @@ class HTTPClient:
     def get_detectable_applications(self) -> Response[List[appinfo.PartialAppInfo]]:
         return self.request(Route('GET', '/applications/detectable'))
 
-    def get_store_listing(self, listing_id: Snowflake) -> Response[dict]:
-        return self.request(Route('GET', '/store/listings/{listing_id}', app_id=listing_id))
+    def get_store_listing(self, listing_id: Snowflake, localize: bool = True) -> Response[dict]:
+        params = {'localize': str(localize).lower()}
+        return self.request(Route('GET', '/store/listings/{listing_id}', app_id=listing_id), params=params, super_properties_to_track=True)
 
     def get_store_listing_by_sku(self, sku_id: Snowflake, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None, localize: bool = True) -> Response[dict]:
         params = {}
@@ -2485,10 +2486,11 @@ class HTTPClient:
         if not localize:
             params['localize'] = 'false'
 
-        return self.request(Route('GET', '/store/published-listings/skus/{sku_id}', sku_id=sku_id))
+        return self.request(Route('GET', '/store/published-listings/skus/{sku_id}', sku_id=sku_id), params=params, super_properties_to_track=True)
 
-    def get_sku_store_listings(self, sku_id: Snowflake) -> Response[List[dict]]:
-        return self.request(Route('GET', '/store/skus/{sku_id}/listings', sku_id=sku_id))
+    def get_sku_store_listings(self, sku_id: Snowflake, localize: bool = True) -> Response[List[dict]]:
+        params = {'localize': str(localize).lower()}
+        return self.request(Route('GET', '/store/skus/{sku_id}/listings', sku_id=sku_id), params=params, super_properties_to_track=True)
 
     def get_store_listing_subscription_plans(
         self,
@@ -2520,7 +2522,7 @@ class HTTPClient:
     def get_app_store_listing(self, app_id: Snowflake) -> Response[dict]:
         return self.request(Route('GET', '/store/published-listings/applications/{application_id}', application_id=app_id))
 
-    def get_apps_store_listing(self, app_ids: List[Snowflake]) -> Response[List[dict]]:
+    def get_apps_store_listing(self, app_ids: Sequence[Snowflake]) -> Response[List[dict]]:
         params = {'application_ids': app_ids}
         return self.request(Route('GET', '/store/published-listings/applications'), params=params)
 

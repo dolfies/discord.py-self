@@ -45,6 +45,7 @@ class Team(TypedDict):
     icon: Optional[str]
     payout_account_status: NotRequired[Optional[Literal[1, 2, 3, 4, 5, 6]]]
     stripe_connect_account_id: NotRequired[Optional[str]]
+    members: NotRequired[List[TeamMember]]
 
 
 class TeamPayout(TypedDict):

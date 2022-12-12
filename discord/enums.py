@@ -100,6 +100,7 @@ __all__ = (
     'SKUGenre',
     'OperatingSystem',
     'ContentRatingAgency',
+    'Distributor',
 )
 
 if TYPE_CHECKING:
@@ -1178,6 +1179,18 @@ class OperatingSystem(Enum):
 class ContentRatingAgency(Enum):
     esrb = 1
     pegi = 2
+
+
+class Distributor(Enum):
+    discord = 'discord'
+    steam = 'steam'
+    twitch = 'twitch'
+    uplay = 'uplay'
+    battle_net = 'battlenet'
+    origin = 'origin'
+    gog = 'gog'
+    epic_games = 'epic'
+    google_play = 'google_play'
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

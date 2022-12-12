@@ -71,7 +71,7 @@ from .utils import MISSING
 from .object import Object, OLDEST_OBJECT
 from .backoff import ExponentialBackoff
 from .webhook import Webhook
-from .appinfo import Application, Company, PartialApplication
+from .appinfo import Application, Company, EULA, PartialApplication
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -83,6 +83,7 @@ from .handlers import CaptchaHandler
 from .billing import PaymentSource
 from .subscriptions import Payment, Subscription, SubscriptionItem, SubscriptionInvoice
 from .promotions import Promotion, TrialOffer
+from .store import SKU, StoreListing
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -3403,3 +3404,209 @@ class Client:
         state = self._connection
         data = await state.http.get_trial_offer()
         return TrialOffer(data)
+
+    async def library(self): ...
+
+    async def fetch_sku(self, sku_id: int, /) -> SKU:
+        """|coro|
+
+        Retrieves a SKU with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        sku_id: :class:`int`
+            The ID of the SKU to retrieve.
+
+        Raises
+        -------
+        NotFound
+            The SKU does not exist.
+        Forbidden
+            You do not have access to the SKU.
+        HTTPException
+            Retrieving the SKU failed.
+
+        Returns
+        -------
+        :class:`.SKU`
+            The retrieved SKU.
+        """
+        state = self._connection
+        data = await state.http.get_sku(sku_id)
+        return SKU(state=state, data=data)
+
+    async def fetch_store_listing(self, listing_id: int, /) -> StoreListing:
+        """|coro|
+
+        Retrieves a store listing with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        listing_id: :class:`int`
+            The ID of the listing to retrieve.
+
+        Raises
+        -------
+        NotFound
+            The listing does not exist.
+        Forbidden
+            You do not have access to the listing.
+        HTTPException
+            Retrieving the listing failed.
+
+        Returns
+        -------
+        :class:`.StoreListing`
+            The store listing.
+        """
+        state = self._connection
+        data = await state.http.get_store_listing(listing_id)
+        return StoreListing(state=state, data=data)
+
+    async def fetch_published_store_listing(self, sku_id: int, /) -> StoreListing:
+        """|coro|
+
+        Retrieves a published store listing with the given SKU ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        sku_id: :class:`int`
+            The ID of the SKU to retrieve the listing for.
+
+        Raises
+        -------
+        NotFound
+            The listing does not exist or is not public.
+        HTTPException
+            Retrieving the listing failed.
+
+        Returns
+        -------
+        :class:`.StoreListing`
+            The store listing.
+        """
+        state = self._connection
+        data = await state.http.get_store_listing_by_sku(sku_id)
+        return StoreListing(state=state, data=data)
+
+    async def fetch_published_store_listings(self, application_id: int, /) -> List[StoreListing]:
+        """|coro|
+
+        Retrieves all published store listings for the given application ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        application_id: :class:`int`
+            The ID of the application to retrieve the listings for.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the listings failed.
+
+        Returns
+        -------
+        List[:class:`.StoreListing`]
+            The store listings.
+        """
+        state = self._connection
+        data = await state.http.get_app_store_listings(application_id)
+        return [StoreListing(state=state, data=d) for d in data]
+
+    async def fetch_primary_store_listing(self, app_id: int, /) -> StoreListing:
+        """|coro|
+
+        Retrieves the primary store listing for the given application ID.
+
+        This is the public store listing of the primary SKU.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        app_id: :class:`int`
+            The ID of the application to retrieve the listing for.
+
+        Raises
+        ------
+        NotFound
+            The application does not exist or have a primary SKU.
+        HTTPException
+            Retrieving the store listing failed.
+
+        Returns
+        -------
+        :class:`.StoreListing`
+            The retrieved store listing.
+        """
+        state = self._connection
+        data = await state.http.get_app_store_listing(app_id)
+        return StoreListing(state=state, data=data)
+
+    async def fetch_primary_store_listings(self, *app_ids: int) -> List[StoreListing]:
+        r"""|coro|
+
+        Retrieves the primary store listings for the given application IDs.
+
+        This is the public store listing of the primary SKU.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        \*app_ids: :class:`int`
+            A list of application IDs to retrieve the listings for.
+
+        Raises
+        ------
+        TypeError
+            Less than 1 ID was passed.
+        HTTPException
+            Retrieving the store listings failed.
+
+        Returns
+        -------
+        List[:class:`.StoreListing`]
+            The retrieved store listings.
+        """
+        if not app_ids:
+            raise TypeError('fetch_primary_store_listings() takes at least 1 argument (0 given)')
+
+        state = self._connection
+        data = await state.http.get_apps_store_listing(app_ids)
+        return [StoreListing(state=state, data=listing) for listing in data]
+
+    async def fetch_eula(self, eula_id: int, /) -> EULA:
+        """|coro|
+
+        Retrieves a EULA with the given ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        eula_id: :class:`int`
+            The ID of the EULA to retrieve.
+
+        Raises
+        -------
+        NotFound
+            The EULA does not exist.
+        HTTPException
+            Retrieving the EULA failed.
+
+        Returns
+        -------
+        :class:`.EULA`
+            The retrieved EULA.
+        """
+        data = await self._connection.http.get_eula(eula_id)
+        return EULA(data=data)

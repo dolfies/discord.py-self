@@ -45,7 +45,10 @@ if TYPE_CHECKING:
 
 __all__ = (
     'StoreAsset',
+    'SystemRequirements',
     'StoreListing',
+    'SKUPrice',
+    'ContentRating',
     'SKU',
 )
 
@@ -406,9 +409,9 @@ class StoreListing(Hashable):
         'header_logo_dark',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
         self._state = state
-        self._update(data)
+        self._update(data, application=application)
 
     def __str__(self) -> str:
         return self.summary
@@ -416,7 +419,7 @@ class StoreListing(Hashable):
     def __repr__(self) -> str:
         return f'<StoreListing id={self.id} summary={self.summary!r} sku={self.sku!r}>'
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: dict, application: Optional[PartialApplication] = None) -> None:
         from .guild import Guild
 
         state = self._state
@@ -428,7 +431,7 @@ class StoreListing(Hashable):
         self.description: str = data.get('description', ' ')
         self.tagline: str = data.get('tagline', ' ')
         self.flavor: Optional[str] = data.get('flavor_text')
-        self.sku: SKU = SKU(data=data['sku'], state=state)
+        self.sku: SKU = SKU(data=data['sku'], state=state, application=application)
         self.child_skus: List[SKU] = [SKU(data=sku, state=state) for sku in data.get('child_skus', [])]
         self.alternative_skus: List[SKU] = [SKU(data=sku, state=state) for sku in data.get('alternative_skus', [])]
         self.entitlement_branch_id: Optional[int] = _get_as_snowflake(data, 'entitlement_branch_id')
@@ -713,7 +716,7 @@ class SKU(Hashable):
         ]
 
         # TODO: Manifests/branches/builds
-        self.manifest_labels: Any = data.get('manifest_labels')
+        self.manifest_labels: List[int] = [int(label) for label in data.get('manifest_labels', [])]
         self.manifests: Any = data.get('manifests')
 
     def is_free(self) -> bool:
@@ -759,10 +762,16 @@ class SKU(Hashable):
         """List[:class:`OperatingSystem`]: A list of supported operating systems."""
         return list(self.system_requirements.keys()) if self.system_requirements else [OperatingSystem.windows]
 
-    async def store_listings(self) -> List[StoreListing]:
+    async def store_listings(self, localize: bool = False) -> List[StoreListing]:
         r"""|coro|
 
         Returns a list of :class:`StoreListing`\s for this SKU.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         ------
@@ -776,8 +785,8 @@ class SKU(Hashable):
         List[:class:`StoreListing`]
             The store listings for this SKU.
         """
-        data = await self._state.http.get_sku_store_listings(self.id)
-        return [StoreListing(data=listing, state=self._state) for listing in data]
+        data = await self._state.http.get_sku_store_listings(self.id, localize=localize)
+        return [StoreListing(data=listing, state=self._state, application=self.application) for listing in data]
 
     async def preview_purchase(self): ...
 
