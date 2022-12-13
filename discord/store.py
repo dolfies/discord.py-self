@@ -642,7 +642,7 @@ class SKU(Hashable):
     external_purchase_url: Optional[:class:`str`]
         An external URL to purchase the SKU at, if applicable.
     premium: :class:`bool`
-        Whether this SKU is a premium perk.
+        Whether this SKU is provided for free to premium users.
     restricted: :class:`bool`
         Whether this SKU is restricted.
     exclusive: :class:`bool`
@@ -762,7 +762,7 @@ class SKU(Hashable):
         """List[:class:`OperatingSystem`]: A list of supported operating systems."""
         return list(self.system_requirements.keys()) if self.system_requirements else [OperatingSystem.windows]
 
-    async def store_listings(self, localize: bool = False) -> List[StoreListing]:
+    async def store_listings(self, localize: bool = True) -> List[StoreListing]:
         r"""|coro|
 
         Returns a list of :class:`StoreListing`\s for this SKU.

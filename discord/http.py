@@ -2314,16 +2314,30 @@ class HTTPClient:
         return self.request(r, super_properties_to_track=True)
 
     def get_app_skus(
-        self, app_id: Snowflake, *, localize: bool = False, with_bundled_skus: bool = True
+        self,
+        app_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        localize: bool = True,
+        with_bundled_skus: bool = True,
     ):  # TODO: return type
-        r = Route('GET', '/applications/{app_id}/skus', app_id=app_id)
-        params = {'localize': str(localize).lower(), 'with_bundled_skus': str(with_bundled_skus).lower()}
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+        if with_bundled_skus:
+            params['with_bundled_skus'] = 'true'
 
-        return self.request(r, params=params, super_properties_to_track=True)
+        return self.request(
+            Route('GET', '/applications/{app_id}/skus', app_id=app_id), params=params, super_properties_to_track=True
+        )
 
     def create_sku(self, payload: dict):
-        r = Route('POST', '/store/skus')
-        return self.request(r, json=payload, super_properties_to_track=True)
+        return self.request(Route('POST', '/store/skus'), json=payload, super_properties_to_track=True)
 
     def get_app_whitelist(self, app_id: Snowflake):
         return self.request(
@@ -2434,10 +2448,12 @@ class HTTPClient:
 
     def search_companies(self, query: str) -> Response[List[appinfo.Company]]:
         # This endpoint 204s without a query?
-        data = self.request(Route('GET', '/companies'), params={'query': query})
+        data = self.request(Route('GET', '/companies'), params={'query': query}, super_properties_to_track=True)
         return data or []
 
-    def get_team_payouts(self, team_id: Snowflake, *, limit: int = 96, before: Optional[Snowflake] = None):
+    def get_team_payouts(
+        self, team_id: Snowflake, *, limit: int = 96, before: Optional[Snowflake] = None
+    ) -> Response[List[team.TeamPayout]]:
         params: Dict[str, Any] = {'limit': limit}
         if before is not None:
             params['before'] = before
@@ -2473,11 +2489,14 @@ class HTTPClient:
     def get_detectable_applications(self) -> Response[List[appinfo.PartialAppInfo]]:
         return self.request(Route('GET', '/applications/detectable'))
 
-    def get_store_listing(self, listing_id: Snowflake, localize: bool = True) -> Response[dict]:
-        params = {'localize': str(localize).lower()}
-        return self.request(Route('GET', '/store/listings/{listing_id}', app_id=listing_id), params=params, super_properties_to_track=True)
-
-    def get_store_listing_by_sku(self, sku_id: Snowflake, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None, localize: bool = True) -> Response[dict]:
+    def get_store_listing(
+        self,
+        listing_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        localize: bool = True,
+    ) -> Response[dict]:
         params = {}
         if country_code:
             params['country_code'] = country_code
@@ -2486,15 +2505,48 @@ class HTTPClient:
         if not localize:
             params['localize'] = 'false'
 
-        return self.request(Route('GET', '/store/published-listings/skus/{sku_id}', sku_id=sku_id), params=params, super_properties_to_track=True)
+        return self.request(Route('GET', '/store/listings/{listing_id}', app_id=listing_id), params=params)
 
-    def get_sku_store_listings(self, sku_id: Snowflake, localize: bool = True) -> Response[List[dict]]:
-        params = {'localize': str(localize).lower()}
-        return self.request(Route('GET', '/store/skus/{sku_id}/listings', sku_id=sku_id), params=params, super_properties_to_track=True)
+    def get_store_listing_by_sku(
+        self,
+        sku_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        localize: bool = True,
+    ) -> Response[dict]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+
+        return self.request(Route('GET', '/store/published-listings/skus/{sku_id}', sku_id=sku_id), params=params)
+
+    def get_sku_store_listings(
+        self,
+        sku_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[int] = None,
+        localize: bool = True,
+    ) -> Response[List[dict]]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+
+        return self.request(Route('GET', '/store/skus/{sku_id}/listings', sku_id=sku_id), params=params)
 
     def get_store_listing_subscription_plans(
         self,
         sku_id: Snowflake,
+        *,
         country_code: Optional[str] = None,
         payment_source_id: Optional[Snowflake] = None,
         include_unpublished: bool = False,
@@ -2515,19 +2567,79 @@ class HTTPClient:
     def get_store_listings_subscription_plans(self, sku_ids: List[Snowflake]) -> Response[List[dict]]:
         return self.request(Route('GET', '/store/published-listings/skus/subscription-plans'), params={'sku_ids': sku_ids})
 
-    def get_app_store_listings(self, app_id: Snowflake) -> Response[List[dict]]:
+    def get_app_store_listings(
+        self,
+        app_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[int] = None,
+        localize: bool = True,
+    ) -> Response[List[dict]]:
         params = {'application_id': app_id}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+
         return self.request(Route('GET', '/store/published-listings/skus'), params=params)
 
-    def get_app_store_listing(self, app_id: Snowflake) -> Response[dict]:
-        return self.request(Route('GET', '/store/published-listings/applications/{application_id}', application_id=app_id))
+    def get_app_store_listing(
+        self,
+        app_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[int] = None,
+        localize: bool = True,
+    ) -> Response[dict]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
 
-    def get_apps_store_listing(self, app_ids: Sequence[Snowflake]) -> Response[List[dict]]:
-        params = {'application_ids': app_ids}
+        return self.request(
+            Route('GET', '/store/published-listings/applications/{application_id}', application_id=app_id), params=params
+        )
+
+    def get_apps_store_listing(
+        self,
+        app_ids: Sequence[Snowflake],
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        localize: bool = True,
+    ) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'application_ids': app_ids}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+
         return self.request(Route('GET', '/store/published-listings/applications'), params=params)
 
-    def get_sku(self, sku_id: Snowflake) -> Response[dict]:
-        return self.request(Route('GET', '/store/skus/{sku_id}', sku_id=sku_id))
+    def get_sku(
+        self,
+        sku_id: Snowflake,
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        localize: bool = True,
+    ) -> Response[dict]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if not localize:
+            params['localize'] = 'false'
+
+        return self.request(Route('GET', '/store/skus/{sku_id}', sku_id=sku_id), params=params)
 
     def get_eula(self, eula_id: Snowflake) -> Response[dict]:
         return self.request(Route('GET', '/store/eulas/{eula_id}', eula_id=eula_id))
@@ -2547,11 +2659,11 @@ class HTTPClient:
         payload = {
             'name': {
                 'default': name,
-                **{str(k): v for k, v in (name_localizations or {}).items()},
+                'localizations': {str(k): v for k, v in (name_localizations or {}).items()},
             },
             'description': {
                 'default': description,
-                **{str(k): v for k, v in (description_localizations or {}).items()},
+                'localizations': {str(k): v for k, v in (description_localizations or {}).items()},
             },
             'icon': icon,
             'secure': secure,

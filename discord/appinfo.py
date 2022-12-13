@@ -913,10 +913,16 @@ class PartialApplication(Hashable):
         data = await state.http.get_app_assets(self.id)
         return [ApplicationAsset(state=state, data=d, application=self) for d in data]
 
-    async def published_store_listings(self) -> List[StoreListing]:
+    async def published_store_listings(self, *, localize: bool = True) -> List[StoreListing]:
         """|coro|
 
         Retrieves all published store listings for this application.
+
+        Parameters
+        ----------
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -929,15 +935,21 @@ class PartialApplication(Hashable):
             The store listings.
         """
         state = self._state
-        data = await state.http.get_app_store_listings(self.id)
+        data = await state.http.get_app_store_listings(self.id, country_code=state.country_code or 'US', localize=localize)
         return [StoreListing(state=state, data=d, application=self) for d in data]
 
-    async def primary_store_listing(self) -> StoreListing:
+    async def primary_store_listing(self, *, localize: bool = True) -> StoreListing:
         """|coro|
 
         Retrieves the primary store listing of this application.
 
         This is the public store listing of the primary SKU.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the store listing to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         ------
@@ -952,7 +964,7 @@ class PartialApplication(Hashable):
             The application's primary store listing, if any.
         """
         state = self._state
-        data = await state.http.get_app_store_listing(self.id)
+        data = await state.http.get_app_store_listing(self.id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data, application=self)
 
     async def achievements(self, completed: bool = True) -> List[Achievement]:
@@ -1335,18 +1347,18 @@ class Application(PartialApplication):
         data = await state.http.create_store_asset(self.id, file)
         return StoreAsset(state=state, data=data, parent=self)
 
-    async def skus(self, *, localize: bool = True, with_bundled_skus: bool = True) -> List[SKU]:
+    async def skus(self, *, with_bundled_skus: bool = True, localize: bool = True) -> List[SKU]:
         """|coro|
 
         Retrieves the SKUs for this application.
 
         Parameters
         -----------
+        with_bundled_skus: :class:`bool`
+            Whether to include bundled SKUs in the response.
         localize: :class:`bool`
             Whether to localize the SKU name and description to the current user's locale.
             If ``False`` then all localizations are returned.
-        with_bundled_skus: :class:`bool`
-            Whether to include bundled SKUs in the response.
 
         Raises
         -------
@@ -1361,14 +1373,20 @@ class Application(PartialApplication):
             The SKUs retrieved.
         """
         state = self._state
-        data = await self._state.http.get_app_skus(self.id, localize=localize, with_bundled_skus=with_bundled_skus)
+        data = await self._state.http.get_app_skus(self.id, country_code=state.country_code or 'US', with_bundled_skus=with_bundled_skus, localize=localize)
         return [SKU(data=sku, state=state, application=self) for sku in data]
 
-    async def primary_sku(self) -> Optional[SKU]:
+    async def primary_sku(self, *, localize: bool = True) -> Optional[SKU]:
         """|coro|
 
         Retrieves the primary SKU for this application if it exists.
         This is usually the game SKU if the application is a game.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the SKU name and description to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -1386,7 +1404,7 @@ class Application(PartialApplication):
             return None
 
         state = self._state
-        data = await self._state.http.get_sku(self.primary_sku_id)
+        data = await self._state.http.get_sku(self.primary_sku_id, country_code=state.country_code or 'US', localize=localize)
         return SKU(data=data, state=state, application=self)
 
     async def create_sku(
@@ -1719,10 +1737,16 @@ class InteractionApplication(Hashable):
         data = await state.http.get_app_assets(self.id)
         return [ApplicationAsset(state=state, data=d, application=self) for d in data]
 
-    async def published_store_listings(self) -> List[StoreListing]:
+    async def published_store_listings(self, *, localize: bool = True) -> List[StoreListing]:
         """|coro|
 
         Retrieves all published store listings for this application.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -1735,15 +1759,21 @@ class InteractionApplication(Hashable):
             The store listings.
         """
         state = self._state
-        data = await state.http.get_app_store_listings(self.id)
+        data = await state.http.get_app_store_listings(self.id, country_code=state.country_code or 'US', localize=localize)
         return [StoreListing(state=state, data=d) for d in data]
 
-    async def primary_store_listing(self) -> StoreListing:
+    async def primary_store_listing(self, *, localize: bool = True) -> StoreListing:
         """|coro|
 
         Retrieves the primary store listing of this application.
 
         This is the public store listing of the primary SKU.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         ------
@@ -1758,5 +1788,5 @@ class InteractionApplication(Hashable):
             The application's primary store listing, if any.
         """
         state = self._state
-        data = await state.http.get_app_store_listing(self.id)
+        data = await state.http.get_app_store_listing(self.id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data)

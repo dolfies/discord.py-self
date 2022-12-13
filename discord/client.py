@@ -2209,17 +2209,12 @@ class Client:
         cls, _ = _sticker_factory(data['type'])
         return cls(state=self._connection, data=data)  # type: ignore
 
-    async def sticker_packs(self, payment_source: Optional[Snowflake] = None) -> List[StickerPack]:
+    async def sticker_packs(self) -> List[StickerPack]:
         """|coro|
 
         Retrieves all available default sticker packs.
 
         .. versionadded:: 2.0
-
-        Parameters
-        -----------
-        payment_source: Optional[:class:`PaymentSource`]
-            The payment source to request sticker packs with.
 
         Raises
         -------
@@ -2232,7 +2227,9 @@ class Client:
             All available sticker packs.
         """
         state = self._connection
-        data = await self.http.list_premium_sticker_packs(state.country_code or 'US', state.locale, payment_source.id if payment_source else None)
+        data = await self.http.list_premium_sticker_packs(
+            state.country_code or 'US', state.locale
+        )
         return [StickerPack(state=state, data=pack) for pack in data['sticker_packs']]
 
     async def fetch_sticker_pack(self, pack_id: int, /):
@@ -2651,7 +2648,7 @@ class Client:
         data = await state.http.get_detectable_applications()
         return [PartialApplication(state=state, data=d) for d in data]
 
-    async def fetch_application(self, app_id: int, /) -> Application:
+    async def fetch_application(self, application_id: int, /) -> Application:
         """|coro|
 
         Retrieves the application with the given ID.
@@ -2662,7 +2659,7 @@ class Client:
 
         Parameters
         -----------
-        id: :class:`int`
+        application_id: :class:`int`
             The ID of the application to fetch.
 
         Raises
@@ -2680,10 +2677,10 @@ class Client:
             The retrieved application.
         """
         state = self._connection
-        data = await state.http.get_my_application(app_id)
+        data = await state.http.get_my_application(application_id)
         return Application(state=state, data=data)
 
-    async def fetch_partial_application(self, app_id: int, /) -> PartialApplication:
+    async def fetch_partial_application(self, application_id: int, /) -> PartialApplication:
         """|coro|
 
         Retrieves the partial application with the given ID.
@@ -2692,7 +2689,7 @@ class Client:
 
         Parameters
         -----------
-        app_id: :class:`int`
+        application_id: :class:`int`
             The ID of the partial application to fetch.
 
         Raises
@@ -2708,10 +2705,10 @@ class Client:
             The retrieved application.
         """
         state = self._connection
-        data = await state.http.get_partial_application(app_id)
+        data = await state.http.get_partial_application(application_id)
         return PartialApplication(state=state, data=data)
 
-    async def fetch_public_application(self, app_id: int, /) -> PartialApplication:
+    async def fetch_public_application(self, application_id: int, /) -> PartialApplication:
         """|coro|
 
         Retrieves the public application with the given ID.
@@ -2720,7 +2717,7 @@ class Client:
 
         Parameters
         -----------
-        app_id: :class:`int`
+        application_id: :class:`int`
             The ID of the public application to fetch.
 
         Raises
@@ -2736,10 +2733,10 @@ class Client:
             The retrieved application.
         """
         state = self._connection
-        data = await state.http.get_public_application(app_id)
+        data = await state.http.get_public_application(application_id)
         return PartialApplication(state=state, data=data)
 
-    async def fetch_public_applications(self, *app_ids: int) -> List[PartialApplication]:
+    async def fetch_public_applications(self, *application_ids: int) -> List[PartialApplication]:
         r"""|coro|
 
         Retrieves a list of public applications. Only found applications are returned.
@@ -2748,7 +2745,7 @@ class Client:
 
         Parameters
         -----------
-        \*app_ids: :class:`int`
+        \*application_ids: :class:`int`
             The IDs of the public applications to fetch.
 
         Raises
@@ -2763,11 +2760,11 @@ class Client:
         List[:class:`.PartialApplication`]
             The public applications.
         """
-        if not app_ids:
+        if not application_ids:
             raise TypeError('fetch_public_applications() takes at least 1 argument (0 given)')
 
         state = self._connection
-        data = await state.http.get_public_applications(app_ids)
+        data = await state.http.get_public_applications(application_ids)
         return [PartialApplication(state=state, data=d) for d in data]
 
     async def teams(self, include_payout_account_status: bool = False) -> List[Team]:
@@ -3100,7 +3097,7 @@ class Client:
             The items the subscription should have.
         currency: :class:`str`
             The currency the subscription should be paid in.
-        payment_source: Optional[:class:`~discord.abc.Snowflake`]
+        payment_source: Optional[:class:`.PaymentSource`]
             The payment source the subscription should be paid with.
         trial: Optional[:class:`~discord.abc.Snowflake`]
             The trial plan the subscription should be on.
@@ -3160,8 +3157,8 @@ class Client:
         ----------
         items: List[:class:`.SubscriptionItem`]
             The items in the subscription.
-        payment_source: :class:`~discord.abc.Snowflake`
-            The payment source (i.e. credit card) to pay with.
+        payment_source: :class:`.PaymentSource`
+            The payment source to pay with.
         currency: :class:`str`
             The currency to pay with.
         purchase_token: Optional[:class:`str`]
@@ -3379,7 +3376,11 @@ class Client:
             The promotions available for you.
         """
         state = self._connection
-        data = await state.http.get_claimed_promotions(state.locale) if claimed else await state.http.get_promotions(state.locale)
+        data = (
+            await state.http.get_claimed_promotions(state.locale)
+            if claimed
+            else await state.http.get_promotions(state.locale)
+        )
         return [Promotion(state=state, data=d) for d in data]
 
     async def trial_offer(self) -> TrialOffer:
@@ -3405,9 +3406,10 @@ class Client:
         data = await state.http.get_trial_offer()
         return TrialOffer(data)
 
-    async def library(self): ...
+    async def library(self):
+        ...
 
-    async def fetch_sku(self, sku_id: int, /) -> SKU:
+    async def fetch_sku(self, sku_id: int, /, *, localize: bool = True) -> SKU:
         """|coro|
 
         Retrieves a SKU with the given ID.
@@ -3418,6 +3420,9 @@ class Client:
         -----------
         sku_id: :class:`int`
             The ID of the SKU to retrieve.
+        localize: :class:`bool`
+            Whether to localize the SKU name and description to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -3434,10 +3439,10 @@ class Client:
             The retrieved SKU.
         """
         state = self._connection
-        data = await state.http.get_sku(sku_id)
+        data = await state.http.get_sku(sku_id, country_code=state.country_code or 'US', localize=localize)
         return SKU(state=state, data=data)
 
-    async def fetch_store_listing(self, listing_id: int, /) -> StoreListing:
+    async def fetch_store_listing(self, listing_id: int, /, *, localize: bool = True) -> StoreListing:
         """|coro|
 
         Retrieves a store listing with the given ID.
@@ -3448,6 +3453,9 @@ class Client:
         -----------
         listing_id: :class:`int`
             The ID of the listing to retrieve.
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -3464,10 +3472,12 @@ class Client:
             The store listing.
         """
         state = self._connection
-        data = await state.http.get_store_listing(listing_id)
+        data = await state.http.get_store_listing(listing_id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data)
 
-    async def fetch_published_store_listing(self, sku_id: int, /) -> StoreListing:
+    async def fetch_published_store_listing(
+        self, sku_id: int, /, *, localize: bool = True
+    ) -> StoreListing:
         """|coro|
 
         Retrieves a published store listing with the given SKU ID.
@@ -3478,6 +3488,9 @@ class Client:
         -----------
         sku_id: :class:`int`
             The ID of the SKU to retrieve the listing for.
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -3492,10 +3505,14 @@ class Client:
             The store listing.
         """
         state = self._connection
-        data = await state.http.get_store_listing_by_sku(sku_id)
+        data = await state.http.get_store_listing_by_sku(
+            sku_id,
+            country_code=state.country_code or 'US',
+            localize=localize,
+        )
         return StoreListing(state=state, data=data)
 
-    async def fetch_published_store_listings(self, application_id: int, /) -> List[StoreListing]:
+    async def fetch_published_store_listings(self, application_id: int, /, localize: bool = True) -> List[StoreListing]:
         """|coro|
 
         Retrieves all published store listings for the given application ID.
@@ -3506,6 +3523,9 @@ class Client:
         -----------
         application_id: :class:`int`
             The ID of the application to retrieve the listings for.
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         -------
@@ -3518,10 +3538,10 @@ class Client:
             The store listings.
         """
         state = self._connection
-        data = await state.http.get_app_store_listings(application_id)
+        data = await state.http.get_app_store_listings(application_id, country_code=state.country_code or 'US', localize=localize)
         return [StoreListing(state=state, data=d) for d in data]
 
-    async def fetch_primary_store_listing(self, app_id: int, /) -> StoreListing:
+    async def fetch_primary_store_listing(self, application_id: int, /, *, localize: bool = True) -> StoreListing:
         """|coro|
 
         Retrieves the primary store listing for the given application ID.
@@ -3532,8 +3552,11 @@ class Client:
 
         Parameters
         -----------
-        app_id: :class:`int`
+        application_id: :class:`int`
             The ID of the application to retrieve the listing for.
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         ------
@@ -3548,10 +3571,10 @@ class Client:
             The retrieved store listing.
         """
         state = self._connection
-        data = await state.http.get_app_store_listing(app_id)
+        data = await state.http.get_app_store_listing(application_id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data)
 
-    async def fetch_primary_store_listings(self, *app_ids: int) -> List[StoreListing]:
+    async def fetch_primary_store_listings(self, *application_ids: int, localize: bool = True) -> List[StoreListing]:
         r"""|coro|
 
         Retrieves the primary store listings for the given application IDs.
@@ -3562,8 +3585,11 @@ class Client:
 
         Parameters
         -----------
-        \*app_ids: :class:`int`
+        \*application_ids: :class:`int`
             A list of application IDs to retrieve the listings for.
+        localize: :class:`bool`
+            Whether to localize the store listings to the current user's locale.
+            If ``False`` then all localizations are returned.
 
         Raises
         ------
@@ -3577,11 +3603,11 @@ class Client:
         List[:class:`.StoreListing`]
             The retrieved store listings.
         """
-        if not app_ids:
+        if not application_ids:
             raise TypeError('fetch_primary_store_listings() takes at least 1 argument (0 given)')
 
         state = self._connection
-        data = await state.http.get_apps_store_listing(app_ids)
+        data = await state.http.get_apps_store_listing(application_ids, country_code=state.country_code or 'US', localize=localize)
         return [StoreListing(state=state, data=listing) for listing in data]
 
     async def fetch_eula(self, eula_id: int, /) -> EULA:
