@@ -512,7 +512,7 @@ class SKUPrice:
     __slots__ = ('currency', 'amount', 'sale_amount', 'sale_percentage', 'premium')
 
     def __init__(self, data: dict) -> None:
-        self.currency: str = data.get('currency', 'USD')
+        self.currency: str = data.get('currency', 'usd')
         self.amount: int = data.get('amount', 0)
         self.sale_amount: Optional[int] = data.get('sale_amount')
         self.sale_percentage: int = data.get('sale_percentage', 0)
@@ -677,7 +677,7 @@ class SKU(Hashable):
         self.slug: str = data['slug']
         self.price: SKUPrice = SKUPrice(data.get('price', {}))
         self.dependent_sku_id: Optional[int] = _get_as_snowflake(data, 'dependent_sku_id')
-        self.application_id: int = data['application_id']
+        self.application_id: int = int(data['application_id'])
         self.application: Optional[PartialApplication] = (
             PartialApplication(data=data['application'], state=state)
             if data.get('application')
@@ -716,7 +716,7 @@ class SKU(Hashable):
         ]
 
         # TODO: Manifests/branches/builds
-        self.manifest_labels: List[int] = [int(label) for label in data.get('manifest_labels', [])]
+        self.manifest_labels: List[int] = [int(label) for label in data.get('manifest_labels') or []]
         self.manifests: Any = data.get('manifests')
 
     def is_free(self) -> bool:

@@ -82,7 +82,7 @@ from .member import _ClientStatus
 from .handlers import CaptchaHandler
 from .billing import PaymentSource
 from .subscriptions import Payment, Subscription, SubscriptionItem, SubscriptionInvoice
-from .promotions import Promotion, TrialOffer
+from .promotions import Gift, Promotion, TrialOffer
 from .store import SKU, StoreListing
 
 if TYPE_CHECKING:
@@ -3099,7 +3099,7 @@ class Client:
             The currency the subscription should be paid in.
         payment_source: Optional[:class:`.PaymentSource`]
             The payment source the subscription should be paid with.
-        trial: Optional[:class:`~discord.abc.Snowflake`]
+        trial: Optional[:class:`.SubscriptionTrial`]
             The trial plan the subscription should be on.
         apply_entitlements: :class:`bool`
             Whether to apply entitlements (credits) to the previewed invoice.
@@ -3163,7 +3163,7 @@ class Client:
             The currency to pay with.
         purchase_token: Optional[:class:`str`]
             The purchase token to use.
-        trial: Optional[:class:`~discord.abc.Snowflake`]
+        trial: Optional[:class:`.SubscriptionTrial`]
             The trial to apply to the subscription.
         payment_source_token: Optional[:class:`str`]
             The token used to authorize with the payment source.
@@ -3636,3 +3636,37 @@ class Client:
         """
         data = await self._connection.http.get_eula(eula_id)
         return EULA(data=data)
+
+    async def fetch_gift(self, code: Union[Gift, str], *, with_application: bool = False, with_subscription_plan: bool = True) -> Gift:
+        """|coro|
+
+        Retrieves a gift with the given code.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        code: Union[:class:`.Gift`, :class:`str`]
+            The code of the gift to retrieve.
+        with_application: :class:`bool`
+            Whether to include the application in the response's store listing.
+            The premium subscription application is always returned.
+        with_subscription_plan: :class:`bool`
+            Whether to include the subscription plan in the response.
+
+        Raises
+        -------
+        NotFound
+            The gift does not exist.
+        HTTPException
+            Retrieving the gift failed.
+
+        Returns
+        -------
+        :class:`.Gift`
+            The retrieved gift.
+        """
+        state = self._connection
+        code = utils.resolve_gift(code)
+        data = await state.http.get_gift(code, with_application=with_application, with_subscription_plan=with_subscription_plan)
+        return Gift(state=state, data=data)

@@ -34,7 +34,9 @@ from .subscriptions import SubscriptionTrial
 from .utils import _get_as_snowflake, parse_time, utcnow
 
 if TYPE_CHECKING:
+    from .abc import Snowflake
     from .state import ConnectionState
+    from .user import User
 
 __all__ = (
     'Promotion',
@@ -217,8 +219,12 @@ class Gift:
         The promotion the gift is a part of, if any.
     subscription_trial: Optional[:class:`SubscriptionTrial`]
         The subscription trial the gift is a part of, if any.
+    subscription_plan_id: Optional[:class:`int`]
+        The ID of the subscription plan the gift is for, if any.
     subscription_plan: Optional[:class:`SubscriptionPlan`]
         The subscription plan the gift is for, if any.
+    user: Optional[:class:`User`]
+        The user who created the gift, if applicable.
     """
 
     def __init__(self, *, data: dict, state: ConnectionState) -> None:
@@ -229,8 +235,8 @@ class Gift:
         self.code: str = data['code']
         self.expires_at: Optional[datetime] = parse_time(data.get('expires_at'))
         self.application_id: Optional[int] = _get_as_snowflake(data, 'application_id')
-        self.batch_id: int = int(data['batch_id'])
-        self.plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
+        self.batch_id: Optional[int] = _get_as_snowflake(data, 'batch_id')
+        self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
         self.sku_id: int = int(data['sku_id'])
         self.entitlement_branches: List[int] = [int(x) for x in data.get('entitlement_branches', [])]
         self._flags: int = data.get('flags', 0)
@@ -245,6 +251,7 @@ class Gift:
         )
         self.subscription_trial: Optional[SubscriptionTrial] = SubscriptionTrial(data['subscription_trial']) if data.get('subscription_trial') else None
         self.subscription_plan = ...
+        self.user: Optional[User] = self._state.create_user(data['user']) if data.get('user') else None
 
     def __repr__(self) -> str:
         return f'<Gift code={self.code!r} sku_id={self.sku_id} uses={self.uses} max_uses={self.max_uses} redeemed={self.redeemed}>'
@@ -278,6 +285,32 @@ class Gift:
     def is_used(self) -> bool:
         """:class:`bool`: Checks if the gift has been used up."""
         return self.uses >= self.max_uses if self.max_uses else False
+
+    async def redeem(self, channel: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None):  # -> Entitlement:
+        """|coro|
+
+        Redeems the gift.
+
+        Parameters
+        ----------
+        channel: Optional[:class:`abc.Snowflake`]
+            The channel to redeem the gift in. This is usually the channel the gift was sent in.
+            While this is optional, it is recommended to pass this in.
+        gateway_checkout_context: Optional[:class:`str`]
+            The current checkout context.
+
+        Raises
+        ------
+        HTTPException
+            The gift failed to redeem.
+
+        Returns
+        -------
+        :class:`Entitlement`
+            The entitlement that was created from redeeming the gift.
+        """
+        data = await self._state.http.redeem_gift(self.code, channel.id if channel else None, gateway_checkout_context)
+        # return Entitlement(data=data, state=self._state)
 
 
 class TrialOffer(Hashable):

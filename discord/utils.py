@@ -147,6 +147,7 @@ if TYPE_CHECKING:
     from .message import Message
     from .template import Template
     from .commands import ApplicationCommand
+    from .promotions import Gift
 
     class _RequestLike(Protocol):
         headers: Mapping[str, Any]
@@ -862,6 +863,35 @@ def resolve_template(code: Union[Template, str]) -> str:
     return code
 
 
+def resolve_gift(code: Union[Gift, str]) -> str:
+    """
+    Resolves a gift code from a :class:`~discord.Gift`, URL or code.
+
+    .. versionadded:: 2.0
+
+    Parameters
+    -----------
+    code: Union[:class:`~discord.Gift`, :class:`str`]
+        The code.
+
+    Returns
+    --------
+    :class:`str`
+        The gift code.
+    """
+    from .promotions import Gift  # circular import
+
+    if isinstance(code, Gift):
+        return code.code
+    else:
+        rx = r'(?:https?\:\/\/)?(?:discord(?:app)?\.com\/(?:gifts|billing\/promotions)|promos\.discord\.gg|discord.gift)\/(.+)'
+        m = re.match(rx, code)
+        if m:
+            return m.group(1)
+    return code
+
+
+
 _MARKDOWN_ESCAPE_SUBREGEX = '|'.join(r'\{0}(?=([\s\S]*((?<!\{0})\{0})))'.format(c) for c in ('*', '`', '_', '~', '|'))
 
 _MARKDOWN_ESCAPE_COMMON = r'^>(?:>>)?\s|\[.+\]\(.+\)'
@@ -1233,11 +1263,10 @@ def set_target(
 
     for item in items:
         for k, v in attrs.items():
-            if v is not None:
-                try:
-                    setattr(item, k, v)
-                except AttributeError:
-                    pass
+            try:
+                setattr(item, k, v)
+            except AttributeError:
+                pass
 
 
 def _generate_session_id() -> str:

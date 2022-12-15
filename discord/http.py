@@ -2937,6 +2937,32 @@ class HTTPClient:
     def get_trial_offer(self) -> Response[dict]:
         return self.request(Route('GET', '/users/@me/billing/user-trial-offer'))
 
+    def get_gift(
+        self,
+        code: str,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        with_application: bool = False,
+        with_subscription_plan: bool = True,
+    ) -> Response[dict]:
+        params: Dict[str, Any] = {
+            'with_application': str(with_application).lower(),
+            'with_subscription_plan': str(with_subscription_plan).lower(),
+        }
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+
+        return self.request(Route('GET', '/entitlements/gift-codes/{code}', code=code), params=params)
+
+    def redeem_gift(
+        self, code: str, channel_id: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None
+    ) -> Response[dict]:
+        payload: Dict[str, Any] = {'channel_id': channel_id, 'gateway_checkout_context': gateway_checkout_context}
+
+        return self.request(Route('POST', '/entitlements/gift-codes/{code}/redeem', code=code), json=payload)
+
     # Misc
 
     async def get_gateway(self, *, encoding: str = 'json', zlib: bool = True) -> str:
