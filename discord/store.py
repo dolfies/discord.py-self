@@ -653,6 +653,42 @@ class SKU(Hashable):
         A list of SKUs bundled with this SKU. This is only present if the SKU is a bundle.
     """
 
+    __slots__ = (
+        'id',
+        'name',
+        'name_localizations',
+        'summary',
+        'summary_localizations',
+        'legal_notice',
+        'legal_notice_localizations',
+        'type',
+        'slug',
+        'price',
+        'dependent_sku_id',
+        'application_id',
+        'application',
+        'access_level',
+        'features',
+        'locales',
+        'genres',
+        'available_regions',
+        'content_rating',
+        'system_requirements',
+        'release_date',
+        'preorder_release_date',
+        'preorder_released_at',
+        'external_purchase_url',
+        'premium',
+        'restricted',
+        'exclusive',
+        'show_age_gate',
+        'bundled_skus',
+        'manifests',
+        'manifest_labels',
+        '_flags',
+        '_state',
+    )
+
     def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
         self._state = state
         self.application = application

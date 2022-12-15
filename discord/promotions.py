@@ -103,6 +103,26 @@ class Promotion(Hashable):
         The terms and conditions of the promotion.
     """
 
+    __slots__ = (
+        'id',
+        'trial_id',
+        'starts_at',
+        'ends_at',
+        'claimed_at',
+        'code',
+        'outbound_title',
+        'outbound_description',
+        'outbound_link',
+        'outbound_restricted_countries',
+        'inbound_title',
+        'inbound_description',
+        'inbound_link',
+        'inbound_restricted_countries',
+        'terms_and_conditions',
+        '_flags',
+        '_state',
+    )
+
     def __init__(self, *, data: dict, state: ConnectionState) -> None:
         self._state = state
         self._update(data)
@@ -199,7 +219,7 @@ class Gift:
         The gift's code.
     expires_at: Optional[:class:`datetime.datetime`]
         When the gift expires.
-    application_id: Optional[:class:`int`]
+    application_id: :class:`int`
         The ID of the application that owns the SKU the gift is for.
     batch_id: Optional[:class:`int`]
         The ID of the batch the gift is from.
@@ -227,6 +247,26 @@ class Gift:
         The user who created the gift, if applicable.
     """
 
+    __slots__ = (
+        'code',
+        'expires_at',
+        'application_id',
+        'batch_id',
+        'sku_id',
+        'entitlement_branches',
+        'max_uses',
+        'uses',
+        'redeemed',
+        'store_listing',
+        'promotion',
+        'subscription_trial',
+        'subscription_plan_id',
+        'subscription_plan',
+        'user',
+        '_flags',
+        '_state',
+    )
+
     def __init__(self, *, data: dict, state: ConnectionState) -> None:
         self._state = state
         self._update(data)
@@ -234,7 +274,7 @@ class Gift:
     def _update(self, data: dict) -> None:
         self.code: str = data['code']
         self.expires_at: Optional[datetime] = parse_time(data.get('expires_at'))
-        self.application_id: Optional[int] = _get_as_snowflake(data, 'application_id')
+        self.application_id: int = int(data['application_id'])
         self.batch_id: Optional[int] = _get_as_snowflake(data, 'batch_id')
         self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
         self.sku_id: int = int(data['sku_id'])
@@ -343,6 +383,13 @@ class TrialOffer(Hashable):
     trial: :class:`SubscriptionTrial`
         The trial offered.
     """
+
+    __slots__ = (
+        'id',
+        'expires_at',
+        'trial_id',
+        'trial',
+    )
 
     def __init__(self, data: dict) -> None:
         self.id: int = int(data['id'])
