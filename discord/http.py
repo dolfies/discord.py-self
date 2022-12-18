@@ -1699,14 +1699,10 @@ class HTTPClient:
         elif type is InviteType.guild or type is InviteType.group_dm:  # Join Guild, Accept Invite Page
             props = choice(
                 (
-                    ContextProperties._from_accept_invite_page(
-                        guild_id=guild_id, channel_id=channel_id, channel_type=channel_type
-                    ),
-                    ContextProperties._from_join_guild_popup(
-                        guild_id=guild_id, channel_id=channel_id, channel_type=channel_type
-                    ),
+                    ContextProperties._from_accept_invite_page,
+                    ContextProperties._from_join_guild_popup,
                 )
-            )
+            )(guild_id=guild_id, channel_id=channel_id, channel_type=channel_type)
         else:  # Accept Invite Page
             props = ContextProperties._from_accept_invite_page(
                 guild_id=guild_id, channel_id=channel_id, channel_type=channel_type
@@ -1726,7 +1722,6 @@ class HTTPClient:
         target_user_id: Optional[Snowflake] = None,
         target_application_id: Optional[Snowflake] = None,
     ) -> Response[invite.Invite]:
-        r = Route('POST', '/channels/{channel_id}/invites', channel_id=channel_id)
         payload = {
             'max_age': max_age,
             'max_uses': max_uses,
@@ -1739,8 +1734,19 @@ class HTTPClient:
             payload['target_user_id'] = target_user_id
         if target_application_id:
             payload['target_application_id'] = str(target_application_id)
+        props = choice(
+            (
+                ContextProperties._from_guild_header,
+                ContextProperties._from_context_menu,
+            )
+        )()
 
-        return self.request(r, reason=reason, json=payload)
+        return self.request(
+            Route('POST', '/channels/{channel_id}/invites', channel_id=channel_id),
+            reason=reason,
+            json=payload,
+            context_properties=props,
+        )
 
     def create_group_invite(self, channel_id: Snowflake, *, max_age: int = 86400) -> Response[invite.Invite]:
         payload = {
@@ -2147,30 +2153,29 @@ class HTTPClient:
         if action is RelationshipAction.deny_request:  # User Profile, Friends, DM Channel
             props = choice(
                 (
-                    ContextProperties._from_friends_page(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_dm_channel(),
+                    ContextProperties._from_friends_page,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         elif action is RelationshipAction.unfriend:  # Friends, ContextMenu, User Profile, DM Channel
             props = choice(
                 (
-                    ContextProperties._from_context_menu(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_friends_page(),
-                    ContextProperties._from_dm_channel(),
+                    ContextProperties._from_contextmenu,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_friends_page,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         elif action == RelationshipAction.unblock:  # Friends, ContextMenu, User Profile, DM Channel, NONE
             props = choice(
                 (
-                    ContextProperties._from_context_menu(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_friends_page(),
-                    ContextProperties._from_dm_channel(),
-                    None,
+                    ContextProperties._from_contextmenu,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_friends_page,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         elif action == RelationshipAction.remove_pending_request:  # Friends
             props = ContextProperties._from_friends_page()
 
@@ -2181,28 +2186,28 @@ class HTTPClient:
         if action is RelationshipAction.accept_request:  # User Profile, Friends, DM Channel
             props = choice(
                 (
-                    ContextProperties._from_friends_page(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_dm_channel(),
+                    ContextProperties._from_friends_page,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         elif action is RelationshipAction.block:  # Friends, ContextMenu, User Profile, DM Channel.
             props = choice(
                 (
-                    ContextProperties._from_context_menu(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_friends_page(),
-                    ContextProperties._from_dm_channel(),
+                    ContextProperties._from_contextmenu,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_friends_page,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         elif action is RelationshipAction.send_friend_request:  # ContextMenu, User Profile, DM Channel
             props = choice(
                 (
-                    ContextProperties._from_context_menu(),
-                    ContextProperties._from_user_profile(),
-                    ContextProperties._from_dm_channel(),
+                    ContextProperties._from_contextmenu,
+                    ContextProperties._from_user_profile,
+                    ContextProperties._from_dm_channel,
                 )
-            )
+            )()
         kwargs = {'context_properties': props}  # type: ignore
         if type:
             kwargs['json'] = {'type': type}
@@ -2211,7 +2216,7 @@ class HTTPClient:
 
     def send_friend_request(self, username, discriminator) -> Response[None]:
         r = Route('POST', '/users/@me/relationships')
-        props = choice((ContextProperties._from_add_friend_page, ContextProperties._from_group_dm))  # Friends, Group DM
+        props = choice((ContextProperties._from_add_friend_page, ContextProperties._from_group_dm))()  # Friends, Group DM
         payload = {'username': username, 'discriminator': int(discriminator)}
 
         return self.request(r, json=payload, context_properties=props)
@@ -2564,7 +2569,7 @@ class HTTPClient:
 
         return self.request(Route('GET', '/store/published-listings/skus/{sku_id}/subscription-plans', sku_id=sku_id))
 
-    def get_store_listings_subscription_plans(self, sku_ids: List[Snowflake]) -> Response[List[dict]]:
+    def get_store_listings_subscription_plans(self, sku_ids: Sequence[Snowflake]) -> Response[List[dict]]:
         return self.request(Route('GET', '/store/published-listings/skus/subscription-plans'), params={'sku_ids': sku_ids})
 
     def get_app_store_listings(
@@ -2667,7 +2672,9 @@ class HTTPClient:
         return self.request(Route('GET', '/store/price-tiers'), super_properties_to_track=True)
 
     def get_price_tier(self, price_tier: Snowflake) -> Response[dict]:
-        return self.request(Route('GET', '/store/price-tiers/{price_tier}', price_tier=price_tier), super_properties_to_track=True)
+        return self.request(
+            Route('GET', '/store/price-tiers/{price_tier}', price_tier=price_tier), super_properties_to_track=True
+        )
 
     def create_achievement(
         self,
