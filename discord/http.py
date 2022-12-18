@@ -2623,6 +2623,20 @@ class HTTPClient:
 
         return self.request(Route('GET', '/store/published-listings/applications'), params=params)
 
+    def create_store_listing(self, application_id: Snowflake, sku_id: Snowflake, payload: dict) -> Response[dict]:
+        return self.request(
+            Route('POST', '/store/listings'),
+            json={**payload, 'application_id': application_id, 'sku_id': sku_id},
+            super_properties_to_track=True,
+        )
+
+    def edit_store_listing(self, listing_id: Snowflake, payload: dict) -> Response[dict]:
+        return self.request(
+            Route('PATCH', '/store/listings/{listing_id}', listing_id=listing_id),
+            json=payload,
+            super_properties_to_track=True,
+        )
+
     def get_sku(
         self,
         sku_id: Snowflake,
@@ -2641,8 +2655,19 @@ class HTTPClient:
 
         return self.request(Route('GET', '/store/skus/{sku_id}', sku_id=sku_id), params=params)
 
+    def edit_sku(self, sku_id: Snowflake, payload: dict) -> Response[dict]:
+        return self.request(
+            Route('PATCH', '/store/skus/{sku_id}', sku_id=sku_id), json=payload, super_properties_to_track=True
+        )
+
     def get_eula(self, eula_id: Snowflake) -> Response[dict]:
         return self.request(Route('GET', '/store/eulas/{eula_id}', eula_id=eula_id))
+
+    def get_price_tiers(self) -> Response[List[dict]]:
+        return self.request(Route('GET', '/store/price-tiers'), super_properties_to_track=True)
+
+    def get_price_tier(self, price_tier: Snowflake) -> Response[dict]:
+        return self.request(Route('GET', '/store/price-tiers/{price_tier}', price_tier=price_tier), super_properties_to_track=True)
 
     def create_achievement(
         self,
@@ -2670,10 +2695,14 @@ class HTTPClient:
             'secret': secret,
         }
 
-        return self.request(Route('POST', '/applications/{app_id}/achievements', app_id=app_id), json=payload)
+        return self.request(
+            Route('POST', '/applications/{app_id}/achievements', app_id=app_id), json=payload, super_properties_to_track=True
+        )
 
     def get_achievements(self, app_id: Snowflake) -> Response[List[dict]]:
-        return self.request(Route('GET', '/applications/{app_id}/achievements', app_id=app_id))
+        return self.request(
+            Route('GET', '/applications/{app_id}/achievements', app_id=app_id), super_properties_to_track=True
+        )
 
     def get_my_achievements(self, app_id: Snowflake) -> Response[List[dict]]:
         return self.request(Route('GET', '/users/@me/applications/{app_id}/achievements', app_id=app_id))
@@ -2682,7 +2711,8 @@ class HTTPClient:
         return self.request(
             Route(
                 'GET', '/applications/{app_id}/achievements/{achievement_id}', app_id=app_id, achievement_id=achievement_id
-            )
+            ),
+            super_properties_to_track=True,
         )
 
     def edit_achievement(self, app_id: Snowflake, achievement_id: Snowflake, payload: dict) -> Response[dict]:
@@ -2691,6 +2721,7 @@ class HTTPClient:
                 'PATCH', '/applications/{app_id}/achievements/{achievement_id}', app_id=app_id, achievement_id=achievement_id
             ),
             json=payload,
+            super_properties_to_track=True,
         )
 
     def delete_achievement(self, app_id: Snowflake, achievement_id: Snowflake) -> Response[None]:
@@ -2700,7 +2731,8 @@ class HTTPClient:
                 '/applications/{app_id}/achievements/{achievement_id}',
                 app_id=app_id,
                 achievement_id=achievement_id,
-            )
+            ),
+            super_properties_to_track=True,
         )
 
     # Billing

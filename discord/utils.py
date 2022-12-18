@@ -1277,7 +1277,7 @@ def _generate_nonce() -> str:
     return str(time_snowflake(utcnow()))
 
 
-def _parse_localizations(data: dict, key: str) -> tuple[str, dict]:
+def _parse_localizations(data: dict, key: str) -> tuple[Any, dict]:
     values = data[key]
     values = values if isinstance(values, dict) else {'default': values}
     string = values['default']

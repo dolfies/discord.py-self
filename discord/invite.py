@@ -317,8 +317,6 @@ class Invite(Hashable):
     +------------------------------------+------------------------------------------------------------+
     | :attr:`approximate_presence_count` | :meth:`Client.fetch_invite` with `with_counts` enabled     |
     +------------------------------------+------------------------------------------------------------+
-    | :attr:`expires_at`                 | :meth:`Client.fetch_invite` with `with_expiration` enabled |
-    +------------------------------------+------------------------------------------------------------+
 
     If it's not in the table above then it is available by all methods.
 
@@ -356,8 +354,8 @@ class Invite(Hashable):
         The approximate number of members currently active in the guild.
         This includes idle, dnd, online, and invisible members. Offline members are excluded.
     expires_at: Optional[:class:`datetime.datetime`]
-        The expiration date of the invite. If the value is ``None`` when received through
-        `Client.fetch_invite` with `with_expiration` enabled, the invite will never expire.
+        The expiration date of the invite. If the value is ``None`` (unless received through
+        `Client.fetch_invite` with `with_expiration` disabled), the invite will never expire.
 
         .. versionadded:: 2.0
 

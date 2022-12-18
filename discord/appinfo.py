@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from .file import File
     from .guild import Guild
     from .state import ConnectionState
+    from .store import ContentRating
     from .types.appinfo import (
         AppInfo as AppInfoPayload,
         Asset as AssetPayload,
@@ -308,11 +309,11 @@ class Achievement(Hashable):
             payload['icon'] = utils._bytes_to_base64_data(icon)
 
         if name is not MISSING or name_localizations is not MISSING:
-            localizations = name_localizations if name_localizations is not MISSING else self.name_localizations
+            localizations = (name_localizations or {}) if name_localizations is not MISSING else self.name_localizations
             payload['name'] = {'default': name or self.name, 'localizations': {str(k): v for k, v in localizations.items()}}
         if description is not MISSING or description_localizations is not MISSING:
             localizations = (
-                description_localizations if description_localizations is not MISSING else self.description_localizations
+                (name_localizations or {}) if description_localizations is not MISSING else self.description_localizations
             )
             payload['description'] = {
                 'default': description or self.description,
@@ -424,9 +425,8 @@ class ApplicationBot(User):
     @property
     def verified(self) -> bool:
         """:class:`bool`: Whether the bot's email has been verified. This follows the bot owner's value."""
-        if self.application.owner.public_flags.team_user:
-            return True
-        return self._state.user.verified  # type: ignore # user is always present at this point
+        # Not possible to have a bot without a verified email
+        return True
 
     async def edit(
         self,
@@ -567,8 +567,8 @@ class ApplicationInstallParams:
 
     Attributes
     ----------
-    id: :class:`int`
-        The application's ID.
+    application_id: :class:`int`
+        The ID of the application to be authorized.
     scopes: List[:class:`str`]
         The list of `OAuth2 scopes <https://discord.com/developers/docs/topics/oauth2#shared-resources-oauth2-scopes>`_
         to add the application with.
@@ -576,15 +576,25 @@ class ApplicationInstallParams:
         The permissions to grant to the added bot.
     """
 
-    __slots__ = ('id', 'scopes', 'permissions')
+    __slots__ = ('application_id', 'scopes', 'permissions')
 
-    def __init__(self, id: int, data: dict):
-        self.id: int = id
-        self.scopes: List[str] = data.get('scopes', [])
-        self.permissions: Permissions = Permissions(int(data.get('permissions', 0)))
+    def __init__(
+        self, application_id: int, *, scopes: Optional[List[str]] = None, permissions: Optional[Permissions] = None
+    ):
+        self.application_id: int = application_id
+        self.scopes: List[str] = scopes or ['bot', 'applications.commands']
+        self.permissions: Permissions = permissions or Permissions(0)
+
+    @classmethod
+    def from_application(cls, application: Snowflake, data: dict) -> ApplicationInstallParams:
+        return cls(
+            application.id,
+            scopes=data.get('scopes', []),
+            permissions=Permissions(data.get('permissions', 0)),
+        )
 
     def __repr__(self) -> str:
-        return f'<ApplicationInstallParams id={self.id} scopes={self.scopes!r} permissions={self.permissions!r}>'
+        return f'<ApplicationInstallParams application_id={self.application_id} scopes={self.scopes!r} permissions={self.permissions!r}>'
 
     def __str__(self) -> str:
         return self.url
@@ -592,7 +602,13 @@ class ApplicationInstallParams:
     @property
     def url(self) -> str:
         """:class:`str`: The URL to add the application with the parameters."""
-        return utils.oauth_url(self.id, permissions=self.permissions, scopes=self.scopes)
+        return utils.oauth_url(self.application_id, permissions=self.permissions, scopes=self.scopes)
+
+    def to_dict(self) -> dict:
+        return {
+            'scopes': self.scopes,
+            'permissions': self.permissions.value,
+        }
 
 
 class ApplicationAsset(AssetMixin, Hashable):
@@ -626,8 +642,6 @@ class ApplicationAsset(AssetMixin, Hashable):
         The asset's ID.
     name: :class:`str`
         The asset's name.
-    type: :class:`ApplicationAssetType`
-        The asset's type.
     """
 
     __slots__ = ('_state', 'id', 'name', 'type', 'application')
@@ -810,9 +824,7 @@ class PartialApplication(Hashable):
         self.executables: List[ApplicationExecutable] = [
             ApplicationExecutable(data=e, application=self) for e in data.get('executables', [])
         ]
-        self.third_party_skus: List[ThirdPartySKU] = [
-            ThirdPartySKU(data=t) for t in data.get('third_party_skus', [])
-        ]
+        self.third_party_skus: List[ThirdPartySKU] = [ThirdPartySKU(data=t) for t in data.get('third_party_skus', [])]
 
         self._icon: Optional[str] = data.get('icon')
         self._cover_image: Optional[str] = data.get('cover_image')
@@ -836,7 +848,7 @@ class PartialApplication(Hashable):
         params = data.get('install_params')
         self.custom_install_url: Optional[str] = data.get('custom_install_url')
         self.install_params: Optional[ApplicationInstallParams] = (
-            ApplicationInstallParams(self.id, params) if params else None
+            ApplicationInstallParams.from_application(self, params) if params else None
         )
 
         self.public: bool = data.get(
@@ -1123,8 +1135,11 @@ class Application(PartialApplication):
         public: bool = MISSING,
         require_code_grant: bool = MISSING,
         flags: ApplicationFlags = MISSING,
+        custom_install_url: Optional[str] = MISSING,
+        install_params: Optional[ApplicationInstallParams] = MISSING,
         developers: Collection[Snowflake] = MISSING,
         publishers: Collection[Snowflake] = MISSING,
+        guild: Snowflake = MISSING,
         team: Snowflake = MISSING,
     ) -> None:
         """|coro|
@@ -1163,6 +1178,8 @@ class Application(PartialApplication):
             A list of companies that are the developers of the application.
         publishers: List[:class:`Company`]
             A list of companies that are the publishers of the application.
+        guild: :class:`Guild`
+            The guild to transfer the application to.
         team: :class:`Team`
             The team to transfer the application to.
 
@@ -1189,7 +1206,7 @@ class Application(PartialApplication):
             else:
                 payload['cover_image'] = ''
         if tags is not MISSING:
-            payload['tags'] = tags
+            payload['tags'] = tags or []
         if terms_of_service_url is not MISSING:
             payload['terms_of_service_url'] = terms_of_service_url or ''
         if privacy_policy_url is not MISSING:
@@ -1212,12 +1229,18 @@ class Application(PartialApplication):
                 payload['integration_require_code_grant'] = require_code_grant
         if flags is not MISSING:
             payload['flags'] = flags.value
+        if custom_install_url is not MISSING:
+            payload['custom_install_url'] = custom_install_url or ''
+        if install_params is not MISSING:
+            payload['install_params'] = install_params.to_dict() if install_params else None
         if developers is not MISSING:
-            payload['developer_ids'] = [developer.id for developer in developers]
+            payload['developer_ids'] = [developer.id for developer in developers or []]
         if publishers is not MISSING:
-            payload['publisher_ids'] = [publisher.id for publisher in publishers]
+            payload['publisher_ids'] = [publisher.id for publisher in publishers or []]
+        if guild:
+            payload['guild_id'] = guild.id
 
-        if team is not MISSING:
+        if team:
             await self._state.http.transfer_application(self.id, team.id)
 
         data = await self._state.http.edit_application(self.id, payload)
@@ -1373,7 +1396,9 @@ class Application(PartialApplication):
             The SKUs retrieved.
         """
         state = self._state
-        data = await self._state.http.get_app_skus(self.id, country_code=state.country_code or 'US', with_bundled_skus=with_bundled_skus, localize=localize)
+        data = await self._state.http.get_app_skus(
+            self.id, country_code=state.country_code or 'US', with_bundled_skus=with_bundled_skus, localize=localize
+        )
         return [SKU(data=sku, state=state, application=self) for sku in data]
 
     async def primary_sku(self, *, localize: bool = True) -> Optional[SKU]:
@@ -1404,7 +1429,9 @@ class Application(PartialApplication):
             return None
 
         state = self._state
-        data = await self._state.http.get_sku(self.primary_sku_id, country_code=state.country_code or 'US', localize=localize)
+        data = await self._state.http.get_sku(
+            self.primary_sku_id, country_code=state.country_code or 'US', localize=localize
+        )
         return SKU(data=data, state=state, application=self)
 
     async def create_sku(
@@ -1416,16 +1443,18 @@ class Application(PartialApplication):
         legal_notice_localizations: Optional[Mapping[Locale, str]] = None,
         type: SKUType,
         price_tier: Optional[int] = None,
-        price: Optional[Mapping[str, int]] = None,
+        price_overrides: Optional[Mapping[str, int]] = None,
         sale_price_tier: Optional[int] = None,
-        sale_price: Optional[Mapping[str, int]] = None,
+        sale_price_overrides: Optional[Mapping[str, int]] = None,
         dependent_sku: Optional[Snowflake] = None,
         access_level: Optional[SKUAccessLevel] = None,
-        locales: Optional[List[Locale]] = None,
-        features: Optional[List[SKUFeature]] = None,
-        genres: Optional[List[SKUGenre]] = None,
+        features: Optional[Collection[SKUFeature]] = None,
+        locales: Optional[Collection[Locale]] = None,
+        genres: Optional[Collection[SKUGenre]] = None,
+        content_ratings: Optional[Collection[ContentRating]] = None,
         release_date: Optional[date] = None,
-        bundled_skus: Optional[List[Snowflake]] = None,
+        bundled_skus: Optional[Collection[Snowflake]] = None,
+        manifest_labels: Optional[Collection[Snowflake]] = None,
     ):
         """|coro|
 
@@ -1441,30 +1470,34 @@ class Application(PartialApplication):
             The SKU's legal notice.
         legal_notice_localizations: Optional[Mapping[:class:`Locale`, :class:`str`]]
             The SKU's legal notice localized to other languages.
+        type: :class:`SKUType`
+            The SKU's type.
         price_tier: Optional[:class:`int`]
             The price tier of the SKU.
             This is the base price in USD that other currencies will be calculated from.
-        price: Optional[Mapping[:class:`str`, :class:`int`]]
+        price_overrides: Optional[Mapping[:class:`str`, :class:`int`]]
             A mapping of currency to price. These prices override the base price tier.
         sale_price_tier: Optional[:class:`int`]
             The sale price tier of the SKU.
             This is the base sale price in USD that other currencies will be calculated from.
-        sale_price: Optional[Mapping[:class:`str`, :class:`int`]]
+        sale_price_overrides: Optional[Mapping[:class:`str`, :class:`int`]]
             A mapping of currency to sale price. These prices override the base sale price tier.
         dependent_sku: Optional[:class:`int`]
             The ID of the SKU that this SKU is dependent on.
         access_level: Optional[:class:`SKUAccessLevel`]
             The access level of the SKU.
-        locales: Optional[List[:class:`Locale`]]
-            A list of locales supported by the SKU.
         features: Optional[List[:class:`SKUFeature`]]
             A list of features of the SKU.
+        locales: Optional[List[:class:`Locale`]]
+            A list of locales supported by the SKU.
         genres: Optional[List[:class:`SKUGenre`]]
             A list of genres of the SKU.
         release_date: Optional[:class:`date`]
             The release date of the SKU.
         bundled_skus: Optional[List[:class:`SKU`]]
             A list SKUs that are bundled with this SKU.
+        manifest_labels: Optional[List[:class:`Manifest`]]
+            A list of manifest labels for the SKU.
 
         Raises
         -------
@@ -1478,7 +1511,6 @@ class Application(PartialApplication):
         :class:`SKU`
             The SKU created.
         """
-        state = self._state
         payload = {
             'type': int(type),
             'name': {'default': name, 'localizations': {str(k): v for k, v in (name_localizations or {}).items()}},
@@ -1491,12 +1523,12 @@ class Application(PartialApplication):
             }
         if price_tier is not None:
             payload['price_tier'] = price_tier
-        if price:
-            payload['price'] = price
+        if price_overrides:
+            payload['price'] = {str(k): v for k, v in price_overrides.items()}
         if sale_price_tier is not None:
             payload['sale_price_tier'] = sale_price_tier
-        if sale_price:
-            payload['sale_price'] = sale_price
+        if sale_price_overrides:
+            payload['sale_price'] = {str(k): v for k, v in sale_price_overrides.items()}
         if dependent_sku is not None:
             payload['dependent_sku_id'] = dependent_sku.id
         if access_level is not None:
@@ -1507,12 +1539,17 @@ class Application(PartialApplication):
             payload['features'] = [int(f) for f in features]
         if genres:
             payload['genres'] = [int(g) for g in genres]
+        if content_ratings:
+            payload['content_ratings'] = {content_rating.agency: content_rating.to_dict() for content_rating in content_ratings}
         if release_date is not None:
             payload['release_date'] = release_date.isoformat()
         if bundled_skus:
             payload['bundled_skus'] = [s.id for s in bundled_skus]
+        if manifest_labels:
+            payload['manifest_labels'] = [m.id for m in manifest_labels]
 
-        data = await self._state.http.create_sku(payload)
+        state = self._state
+        data = await state.http.create_sku(payload)
         return SKU(data=data, state=state, application=self)
 
     async def fetch_achievement(self, achievement_id: int) -> Achievement:

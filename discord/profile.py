@@ -159,7 +159,7 @@ class ApplicationProfile(Hashable):
         params = data.get('install_params')
         self.custom_install_url: Optional[str] = data.get('custom_install_url')
         self.install_params: Optional[ApplicationInstallParams] = (
-            ApplicationInstallParams(self.id, params) if params else None
+            ApplicationInstallParams.from_application(self, params) if params else None
         )
 
     def __repr__(self) -> str:
