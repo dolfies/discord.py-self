@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, List, Optional
 
 from .flags import SKUFlags
 from .mixins import Hashable
-from .store import StoreListing
+from .store import StoreListing, SubscriptionPlan
 from .subscriptions import SubscriptionTrial
 from .utils import _get_as_snowflake, parse_time, utcnow
 
@@ -272,6 +272,8 @@ class Gift:
         self._update(data)
 
     def _update(self, data: dict) -> None:
+        state = self._state
+
         self.code: str = data['code']
         self.expires_at: Optional[datetime] = parse_time(data.get('expires_at'))
         self.application_id: int = int(data['application_id'])
@@ -285,12 +287,14 @@ class Gift:
         self.uses: int = data.get('uses', 0)
         self.redeemed: bool = data.get('redeemed', False)
 
-        self.store_listing: StoreListing = StoreListing(data=data['store_listing'], state=self._state)
-        self.promotion: Optional[Promotion] = (
-            Promotion(data=data['promotion'], state=self._state) if 'promotion' in data else None
+        self.store_listing: StoreListing = StoreListing(data=data['store_listing'], state=state)
+        self.promotion: Optional[Promotion] = Promotion(data=data['promotion'], state=state) if 'promotion' in data else None
+        self.subscription_trial: Optional[SubscriptionTrial] = (
+            SubscriptionTrial(data['subscription_trial']) if data.get('subscription_trial') else None
         )
-        self.subscription_trial: Optional[SubscriptionTrial] = SubscriptionTrial(data['subscription_trial']) if data.get('subscription_trial') else None
-        self.subscription_plan = ...
+        self.subscription_plan: Optional[SubscriptionPlan] = (
+            SubscriptionPlan(data=data['subscription_plan'], state=state) if data.get('subscription_plan') else None
+        )
         self.user: Optional[User] = self._state.create_user(data['user']) if data.get('user') else None
 
     def __repr__(self) -> str:
@@ -326,7 +330,9 @@ class Gift:
         """:class:`bool`: Checks if the gift has been used up."""
         return self.uses >= self.max_uses if self.max_uses else False
 
-    async def redeem(self, channel: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None):  # -> Entitlement:
+    async def redeem(
+        self, channel: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None
+    ):  # -> Entitlement:
         """|coro|
 
         Redeems the gift.
@@ -399,4 +405,3 @@ class TrialOffer(Hashable):
 
     def __repr__(self) -> str:
         return f'<TrialOffer id={self.id} trial={self.trial!r}>'
-

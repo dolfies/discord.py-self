@@ -83,7 +83,7 @@ from .handlers import CaptchaHandler
 from .billing import PaymentSource
 from .subscriptions import Payment, Subscription, SubscriptionItem, SubscriptionInvoice
 from .promotions import Gift, Promotion, TrialOffer
-from .store import SKU, StoreListing
+from .store import SKU, StoreListing, SubscriptionPlan
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -2227,9 +2227,7 @@ class Client:
             All available sticker packs.
         """
         state = self._connection
-        data = await self.http.list_premium_sticker_packs(
-            state.country_code or 'US', state.locale
-        )
+        data = await self.http.list_premium_sticker_packs(state.country_code or 'US', state.locale)
         return [StickerPack(state=state, data=pack) for pack in data['sticker_packs']]
 
     async def fetch_sticker_pack(self, pack_id: int, /):
@@ -3475,9 +3473,7 @@ class Client:
         data = await state.http.get_store_listing(listing_id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data)
 
-    async def fetch_published_store_listing(
-        self, sku_id: int, /, *, localize: bool = True
-    ) -> StoreListing:
+    async def fetch_published_store_listing(self, sku_id: int, /, *, localize: bool = True) -> StoreListing:
         """|coro|
 
         Retrieves a published store listing with the given SKU ID.
@@ -3538,7 +3534,9 @@ class Client:
             The store listings.
         """
         state = self._connection
-        data = await state.http.get_app_store_listings(application_id, country_code=state.country_code or 'US', localize=localize)
+        data = await state.http.get_app_store_listings(
+            application_id, country_code=state.country_code or 'US', localize=localize
+        )
         return [StoreListing(state=state, data=d) for d in data]
 
     async def fetch_primary_store_listing(self, application_id: int, /, *, localize: bool = True) -> StoreListing:
@@ -3571,7 +3569,9 @@ class Client:
             The retrieved store listing.
         """
         state = self._connection
-        data = await state.http.get_app_store_listing(application_id, country_code=state.country_code or 'US', localize=localize)
+        data = await state.http.get_app_store_listing(
+            application_id, country_code=state.country_code or 'US', localize=localize
+        )
         return StoreListing(state=state, data=data)
 
     async def fetch_primary_store_listings(self, *application_ids: int, localize: bool = True) -> List[StoreListing]:
@@ -3607,8 +3607,89 @@ class Client:
             raise TypeError('fetch_primary_store_listings() takes at least 1 argument (0 given)')
 
         state = self._connection
-        data = await state.http.get_apps_store_listing(application_ids, country_code=state.country_code or 'US', localize=localize)
+        data = await state.http.get_apps_store_listing(
+            application_ids, country_code=state.country_code or 'US', localize=localize
+        )
         return [StoreListing(state=state, data=listing) for listing in data]
+
+    async def premium_subscription_plans(self) -> List[SubscriptionPlan]:
+        """|coro|
+
+        Retrieves all premium subscription plans.
+
+        .. versionadded:: 2.0
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the premium subscription plans failed.
+
+        Returns
+        -------
+        List[:class:`.SubscriptionPlan`]
+            The premium subscription plans.
+        """
+        state = self._connection
+        sku_ids = [v for k, v in state.premium_subscriptions_sku_ids.items() if k != 'none']
+        data = await state.http.get_store_listings_subscription_plans(sku_ids)
+        return [SubscriptionPlan(state=state, data=d) for d in data]
+
+    async def fetch_sku_subscription_plans(self, sku_id: int, /) -> List[SubscriptionPlan]:
+        """|coro|
+
+        Retrieves all subscription plans for the given SKU ID.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        sku_id: :class:`int`
+            The ID of the SKU to retrieve the subscription plans for.
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the subscription plans failed.
+
+        Returns
+        -------
+        List[:class:`.SubscriptionPlan`]
+            The subscription plans.
+        """
+        state = self._connection
+        data = await state.http.get_store_listing_subscription_plans(sku_id)
+        return [SubscriptionPlan(state=state, data=d) for d in data]
+
+    async def fetch_skus_subscriptions_plans(self, *sku_ids: int) -> List[SubscriptionPlan]:
+        r"""|coro|
+
+        Retrieves all subscription plans for the given SKU IDs.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        \*sku_ids: :class:`int`
+            A list of SKU IDs to retrieve the subscription plans for.
+
+        Raises
+        ------
+        TypeError
+            Less than 1 ID was passed.
+        HTTPException
+            Retrieving the subscription plans failed.
+
+        Returns
+        -------
+        List[:class:`.SubscriptionPlan`]
+            The subscription plans.
+        """
+        if not sku_ids:
+            raise TypeError('fetch_skus_subscriptions_plans() takes at least 1 argument (0 given)')
+
+        state = self._connection
+        data = await state.http.get_store_listings_subscription_plans(sku_ids)
+        return [SubscriptionPlan(state=state, data=d) for d in data]
 
     async def fetch_eula(self, eula_id: int, /) -> EULA:
         """|coro|
@@ -3637,7 +3718,9 @@ class Client:
         data = await self._connection.http.get_eula(eula_id)
         return EULA(data=data)
 
-    async def fetch_gift(self, code: Union[Gift, str], *, with_application: bool = False, with_subscription_plan: bool = True) -> Gift:
+    async def fetch_gift(
+        self, code: Union[Gift, str], *, with_application: bool = False, with_subscription_plan: bool = True
+    ) -> Gift:
         """|coro|
 
         Retrieves a gift with the given code.
@@ -3668,5 +3751,7 @@ class Client:
         """
         state = self._connection
         code = utils.resolve_gift(code)
-        data = await state.http.get_gift(code, with_application=with_application, with_subscription_plan=with_subscription_plan)
+        data = await state.http.get_gift(
+            code, with_application=with_application, with_subscription_plan=with_subscription_plan
+        )
         return Gift(state=state, data=data)

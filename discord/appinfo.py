@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Collection, List, Literal, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Collection, List, Literal, Mapping, Optional, Sequence, Union
 
 from . import utils
 from .asset import Asset, AssetMixin
@@ -229,6 +229,12 @@ class Achievement(Hashable):
         '_state',
     )
 
+    if TYPE_CHECKING:
+        name: str
+        name_localizations: dict[Locale, str]
+        description: str
+        description_localizations: dict[Locale, str]
+
     def __init__(self, *, data: dict, state: ConnectionState, application: PartialApplication):
         self._state = state
         self.application = application
@@ -241,10 +247,6 @@ class Achievement(Hashable):
         self.secret: bool = data['secret']
         self._icon = data.get('icon', data.get('icon_hash'))
 
-        self.name: str
-        self.name_localizations: dict[Locale, str]
-        self.description: str
-        self.description_localizations: dict[Locale, str]
         self.name, self.name_localizations = _parse_localizations(data, 'name')
         self.description, self.description_localizations = _parse_localizations(data, 'description')
 
@@ -1126,19 +1128,19 @@ class Application(PartialApplication):
         description: Optional[str] = MISSING,
         icon: Optional[bytes] = MISSING,
         cover_image: Optional[bytes] = MISSING,
-        tags: Collection[str] = MISSING,
+        tags: Sequence[str] = MISSING,
         terms_of_service_url: Optional[str] = MISSING,
         privacy_policy_url: Optional[str] = MISSING,
         interactions_endpoint_url: Optional[str] = MISSING,
-        redirect_uris: Collection[str] = MISSING,
-        rpc_origins: Collection[str] = MISSING,
+        redirect_uris: Sequence[str] = MISSING,
+        rpc_origins: Sequence[str] = MISSING,
         public: bool = MISSING,
         require_code_grant: bool = MISSING,
         flags: ApplicationFlags = MISSING,
         custom_install_url: Optional[str] = MISSING,
         install_params: Optional[ApplicationInstallParams] = MISSING,
-        developers: Collection[Snowflake] = MISSING,
-        publishers: Collection[Snowflake] = MISSING,
+        developers: Sequence[Snowflake] = MISSING,
+        publishers: Sequence[Snowflake] = MISSING,
         guild: Snowflake = MISSING,
         team: Snowflake = MISSING,
     ) -> None:
@@ -1453,8 +1455,8 @@ class Application(PartialApplication):
         genres: Optional[Collection[SKUGenre]] = None,
         content_ratings: Optional[Collection[ContentRating]] = None,
         release_date: Optional[date] = None,
-        bundled_skus: Optional[Collection[Snowflake]] = None,
-        manifest_labels: Optional[Collection[Snowflake]] = None,
+        bundled_skus: Optional[Sequence[Snowflake]] = None,
+        manifest_labels: Optional[Sequence[Snowflake]] = None,
     ):
         """|coro|
 
@@ -1540,7 +1542,9 @@ class Application(PartialApplication):
         if genres:
             payload['genres'] = [int(g) for g in genres]
         if content_ratings:
-            payload['content_ratings'] = {content_rating.agency: content_rating.to_dict() for content_rating in content_ratings}
+            payload['content_ratings'] = {
+                content_rating.agency: content_rating.to_dict() for content_rating in content_ratings
+            }
         if release_date is not None:
             payload['release_date'] = release_date.isoformat()
         if bundled_skus:

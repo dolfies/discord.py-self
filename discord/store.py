@@ -24,15 +24,35 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Sequence, Union
 
 from datetime import datetime
 
 from .asset import Asset, AssetMixin
-from .enums import ContentRatingAgency, Locale, SKUAccessLevel, SKUFeature, SKUGenre, SKUType, OperatingSystem, try_enum
+from .enums import (
+    ContentRatingAgency,
+    Locale,
+    PremiumType,
+    SKUAccessLevel,
+    SKUFeature,
+    SKUGenre,
+    SKUType,
+    OperatingSystem,
+    SubscriptionInterval,
+    try_enum,
+)
 from .flags import SKUFlags
 from .mixins import Hashable
-from .utils import _get_as_snowflake, _get_extension_for_mime_type, _parse_localizations, get, parse_date, parse_time, utcnow, MISSING
+from .utils import (
+    _get_as_snowflake,
+    _get_extension_for_mime_type,
+    _parse_localizations,
+    get,
+    parse_date,
+    parse_time,
+    utcnow,
+    MISSING,
+)
 
 if TYPE_CHECKING:
     from datetime import date
@@ -471,6 +491,14 @@ class StoreListing(Hashable):
         'header_logo_dark',
     )
 
+    if TYPE_CHECKING:
+        summary: Optional[str]
+        summary_localizations: Dict[Locale, str]
+        description: Optional[str]
+        description_localizations: Dict[Locale, str]
+        tagline: Optional[str]
+        tagline_localizations: Dict[Locale, str]
+
     def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
         self._state = state
         self._update(data, application=application)
@@ -486,13 +514,6 @@ class StoreListing(Hashable):
 
         state = self._state
 
-        self.summary: Optional[str]
-        self.summary_localizations: Dict[Locale, str]
-        self.description: Optional[str]
-        self.description_localizations: Dict[Locale, str]
-        self.tagline: Optional[str]
-        self.tagline_localizations: Dict[Locale, str]
-
         self.summary, self.summary_localizations = _parse_localizations(data, 'summary')
         self.description, self.description_localizations = _parse_localizations(data, 'description')
         self.tagline, self.tagline_localizations = _parse_localizations(data, 'tagline')
@@ -505,7 +526,9 @@ class StoreListing(Hashable):
         self.entitlement_branch_id: Optional[int] = _get_as_snowflake(data, 'entitlement_branch_id')
         self.guild: Optional[Guild] = Guild(data=data['guild'], state=state) if data.get('guild') else None
         self.published: bool = data.get('published', True)
-        self.staff_note: Optional[StoreNote] = StoreNote(data=data['staff_notes'], state=state) if data.get('staff_notes') else None
+        self.staff_note: Optional[StoreNote] = (
+            StoreNote(data=data['staff_notes'], state=state) if data.get('staff_notes') else None
+        )
 
         self.assets: List[StoreAsset] = [
             StoreAsset(data=asset, state=state, parent=self) for asset in data.get('assets', [])
@@ -552,10 +575,10 @@ class StoreListing(Hashable):
         description_localizations: Mapping[Locale, str] = MISSING,
         tagline: Optional[str] = MISSING,
         tagline_localizations: Mapping[Locale, str] = MISSING,
-        child_skus: Collection[Snowflake] = MISSING,
+        child_skus: Sequence[Snowflake] = MISSING,
         guild: Optional[Snowflake] = MISSING,
         published: bool = MISSING,
-        carousel_items: Collection[Union[StoreAsset, str]] = MISSING,
+        carousel_items: Sequence[Union[StoreAsset, str]] = MISSING,
         preview_video: Optional[Snowflake] = MISSING,
         header_background: Optional[Snowflake] = MISSING,
         hero_background: Optional[Snowflake] = MISSING,
@@ -620,14 +643,31 @@ class StoreListing(Hashable):
         payload = {}
 
         if summary is not MISSING or summary_localizations is not MISSING:
-            localizations = (summary_localizations or {}) if summary_localizations is not MISSING else self.summary_localizations
-            payload['name'] = {'default': (summary if summary is not MISSING else self.summary) or '', 'localizations': {str(k): v for k, v in localizations.items()}}
+            localizations = (
+                (summary_localizations or {}) if summary_localizations is not MISSING else self.summary_localizations
+            )
+            payload['name'] = {
+                'default': (summary if summary is not MISSING else self.summary) or '',
+                'localizations': {str(k): v for k, v in localizations.items()},
+            }
         if description is not MISSING or description_localizations is not MISSING:
-            localizations = (description_localizations or {}) if description_localizations is not MISSING else self.description_localizations
-            payload['description'] = {'default': (description if description is not MISSING else self.description) or '', 'localizations': {str(k): v for k, v in localizations.items()}}
+            localizations = (
+                (description_localizations or {})
+                if description_localizations is not MISSING
+                else self.description_localizations
+            )
+            payload['description'] = {
+                'default': (description if description is not MISSING else self.description) or '',
+                'localizations': {str(k): v for k, v in localizations.items()},
+            }
         if tagline is not MISSING or tagline_localizations is not MISSING:
-            localizations = (tagline_localizations or {}) if tagline_localizations is not MISSING else self.tagline_localizations
-            payload['tagline'] = {'default': (tagline if tagline is not MISSING else self.tagline) or '', 'localizations': {str(k): v for k, v in localizations.items()}}
+            localizations = (
+                (tagline_localizations or {}) if tagline_localizations is not MISSING else self.tagline_localizations
+            )
+            payload['tagline'] = {
+                'default': (tagline if tagline is not MISSING else self.tagline) or '',
+                'localizations': {str(k): v for k, v in localizations.items()},
+            }
 
         if child_skus is not MISSING:
             payload['child_sku_ids'] = [sku.id for sku in child_skus] if child_skus else []
@@ -636,7 +676,14 @@ class StoreListing(Hashable):
         if published is not MISSING:
             payload['published'] = published
         if carousel_items is not MISSING:
-            payload['carousel_items'] = [item.to_carousel_item() if isinstance(item, StoreAsset) else {'youtube_video_id': item} for item in carousel_items] if carousel_items else []
+            payload['carousel_items'] = (
+                [
+                    item.to_carousel_item() if isinstance(item, StoreAsset) else {'youtube_video_id': item}
+                    for item in carousel_items
+                ]
+                if carousel_items
+                else []
+            )
         if preview_video is not MISSING:
             payload['preview_video_asset_id'] = preview_video.id if preview_video else None
         if header_background is not MISSING:
@@ -755,7 +802,11 @@ class ContentRating:
 
     @classmethod
     def from_data(cls, data: dict, agency: int) -> ContentRating:
-        return cls(agency=try_enum(ContentRatingAgency, agency), rating=data.get('rating', 0), descriptors=data.get('descriptors', []))
+        return cls(
+            agency=try_enum(ContentRatingAgency, agency),
+            rating=data.get('rating', 0),
+            descriptors=data.get('descriptors', []),
+        )
 
     @classmethod
     def from_datas(cls, datas: Optional[dict]) -> List[ContentRating]:
@@ -909,6 +960,14 @@ class SKU(Hashable):
         '_state',
     )
 
+    if TYPE_CHECKING:
+        name: str
+        name_localizations: Dict[Locale, str]
+        summary: Optional[str]
+        summary_localizations: Dict[Locale, str]
+        legal_notice: Optional[str]
+        legal_notice_localizations: Dict[Locale, str]
+
     def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
         self._state = state
         self.application = application
@@ -924,13 +983,6 @@ class SKU(Hashable):
         from .appinfo import PartialApplication
 
         state = self._state
-
-        self.name: str
-        self.name_localizations: Dict[Locale, str]
-        self.summary: Optional[str]
-        self.summary_localizations: Dict[Locale, str]
-        self.legal_notice: Optional[str]
-        self.legal_notice_localizations: Dict[Locale, str]
 
         self.name, self.name_localizations = _parse_localizations(data, 'name')
         self.summary, self.summary_localizations = _parse_localizations(data, 'summary')
@@ -975,7 +1027,9 @@ class SKU(Hashable):
         self.genres: List[SKUGenre] = [try_enum(SKUGenre, genre) for genre in data.get('genres', [])]
         self.available_regions: Optional[List[str]] = data.get('available_regions')
         self.content_ratings: List[ContentRating] = (
-            [ContentRating.from_data(data['content_rating'], data['content_rating_agency'])] if data.get('content_rating') else ContentRating.from_datas(data.get('content_ratings'))
+            [ContentRating.from_data(data['content_rating'], data['content_rating_agency'])]
+            if data.get('content_rating')
+            else ContentRating.from_datas(data.get('content_ratings'))
         )
         # TODO: This is localized :(
         # self.system_requirements: Dict[OperatingSystem, SystemRequirements] = {
@@ -1018,7 +1072,12 @@ class SKU(Hashable):
 
     def is_giftable(self) -> bool:
         """:class:`bool`: Checks if this SKU is giftable."""
-        return self.type == SKUType.durable_primary and self.flags.available and not self.external_purchase_url and self.is_paid()
+        return (
+            self.type == SKUType.durable_primary
+            and self.flags.available
+            and not self.external_purchase_url
+            and self.is_paid()
+        )
 
     def is_premium_subscription(self) -> bool:
         """:class:`bool`: Checks if the SKU is a premium subscription (e.g. Nitro or Server Boosts)."""
@@ -1061,8 +1120,8 @@ class SKU(Hashable):
         genres: Collection[SKUGenre] = MISSING,
         content_ratings: Collection[ContentRating] = MISSING,
         release_date: Optional[date] = MISSING,
-        bundled_skus: Collection[Snowflake] = MISSING,
-        manifest_labels: Collection[Snowflake] = MISSING,
+        bundled_skus: Sequence[Snowflake] = MISSING,
+        manifest_labels: Sequence[Snowflake] = MISSING,
     ) -> None:
         """|coro|
 
@@ -1120,12 +1179,24 @@ class SKU(Hashable):
         if name is not MISSING or name_localizations is not MISSING:
             payload['name'] = {
                 'default': name or self.name,
-                'localizations': {str(k): v for k, v in ((name_localizations or {}) if name_localizations is not MISSING else self.name_localizations).items()},
+                'localizations': {
+                    str(k): v
+                    for k, v in (
+                        (name_localizations or {}) if name_localizations is not MISSING else self.name_localizations
+                    ).items()
+                },
             }
         if legal_notice or legal_notice_localizations:
             payload['legal_notice'] = {
                 'default': legal_notice,
-                'localizations': {str(k): v for k, v in ((legal_notice_localizations or {}) if legal_notice_localizations is not MISSING else self.legal_notice_localizations).items()}
+                'localizations': {
+                    str(k): v
+                    for k, v in (
+                        (legal_notice_localizations or {})
+                        if legal_notice_localizations is not MISSING
+                        else self.legal_notice_localizations
+                    ).items()
+                },
             }
         if price_tier is not MISSING:
             payload['price_tier'] = price_tier
@@ -1137,6 +1208,8 @@ class SKU(Hashable):
             payload['sale_price'] = {str(k): v for k, v in (sale_price_overrides or {}).items()}
         if dependent_sku is not MISSING:
             payload['dependent_sku_id'] = dependent_sku.id if dependent_sku else None
+        if flags is not MISSING:
+            payload['flags'] = flags.value if flags else 0
         if access_level is not MISSING:
             payload['access_level'] = int(access_level)
         if locales is not MISSING:
@@ -1146,7 +1219,11 @@ class SKU(Hashable):
         if genres is not MISSING:
             payload['genres'] = [int(g) for g in genres] if genres else []
         if content_ratings is not MISSING:
-            payload['content_ratings'] = {content_rating.agency: content_rating.to_dict() for content_rating in content_ratings} if content_ratings else {}
+            payload['content_ratings'] = (
+                {content_rating.agency: content_rating.to_dict() for content_rating in content_ratings}
+                if content_ratings
+                else {}
+            )
         if release_date is not MISSING:
             payload['release_date'] = release_date.isoformat() if release_date else None
         if bundled_skus is not MISSING:
@@ -1186,9 +1263,9 @@ class SKU(Hashable):
     async def create_store_listing(
         self,
         *,
-        summary: Optional[str] = None,
+        summary: str,
         summary_localizations: Optional[Mapping[Locale, str]] = None,
-        description: Optional[str] = None,
+        description: str,
         description_localizations: Optional[Mapping[Locale, str]] = None,
         tagline: Optional[str] = None,
         tagline_localizations: Optional[Mapping[Locale, str]] = None,
@@ -1204,7 +1281,7 @@ class SKU(Hashable):
         thumbnail: Optional[Snowflake] = None,
         header_logo_light: Optional[Snowflake] = None,
         header_logo_dark: Optional[Snowflake] = None,
-    ):
+    ) -> StoreListing:
         """|coro|
 
         Creates a a store listing for this SKU.
@@ -1213,11 +1290,11 @@ class SKU(Hashable):
 
         Parameters
         ----------
-        summary: Optional[:class:`str`]
+        summary: :class:`str`
             The summary of the store listing.
         summary_localizations: Optional[Dict[:class:`Locale`, :class:`str`]]
             The summary of the store listing localized to different languages.
-        description: Optional[:class:`str`]
+        description: :class:`str`
             The description of the store listing.
         description_localizations: Optional[Dict[:class:`Locale`, :class:`str`]]
             The description of the store listing localized to different languages.
@@ -1257,14 +1334,22 @@ class SKU(Hashable):
         HTTPException
             Editing the store listing failed.
         """
-        payload = {}
+        payload: Dict[str, Any] = {
+            'summary': {
+                'default': summary or '',
+                'localizations': {str(k): v for k, v in (summary_localizations or {}).items()},
+            },
+            'description': {
+                'default': description or '',
+                'localizations': {str(k): v for k, v in (description_localizations or {}).items()},
+            },
+        }
 
-        if summary or summary_localizations:
-            payload['name'] = {'default': summary or '', 'localizations': {str(k): v for k, v in (summary_localizations or {}).items()}}
-        if description or description_localizations:
-            payload['description'] = {'default': description or '', 'localizations': {str(k): v for k, v in (description_localizations or {}).items()}}
         if tagline or tagline_localizations:
-            payload['tagline'] = {'default': tagline or '', 'localizations': {str(k): v for k, v in (tagline_localizations or {}).items()}}
+            payload['tagline'] = {
+                'default': tagline or '',
+                'localizations': {str(k): v for k, v in (tagline_localizations or {}).items()},
+            }
         if child_skus:
             payload['child_sku_ids'] = [sku.id for sku in child_skus]
         if guild:
@@ -1272,7 +1357,10 @@ class SKU(Hashable):
         if published:
             payload['published'] = True
         if carousel_items:
-            payload['carousel_items'] = [item.to_carousel_item() if isinstance(item, StoreAsset) else {'youtube_video_id': item} for item in carousel_items]
+            payload['carousel_items'] = [
+                item.to_carousel_item() if isinstance(item, StoreAsset) else {'youtube_video_id': item}
+                for item in carousel_items
+            ]
         if preview_video:
             payload['preview_video_asset_id'] = preview_video.id
         if header_background:
@@ -1293,19 +1381,149 @@ class SKU(Hashable):
         data = await self._state.http.create_store_listing(self.application_id, self.id, payload)
         return StoreListing(data=data, state=self._state, application=self.application)
 
-    async def preview_purchase(self): ...
+    async def preview_purchase(
+        self, payment_source: Snowflake, *, subscription_plan: Optional[Snowflake] = None, test_mode: bool = False
+    ) -> SKUPrice:
+        """|coro|
 
-    async def purchase(self): ...
+        Previews a purchase of this SKU.
+
+        Parameters
+        ----------
+        payment_source: :class:`Snowflake`
+            The payment source to use for the purchase.
+        subscription_plan: Optional[:class:`Snowflake`]
+            The subscription plan being purchased.
+        test_mode: :class:`bool`
+            Whether to preview the purchase in test mode.
+
+        Raises
+        ------
+        HTTPException
+            Previewing the purchase failed.
+
+        Returns
+        -------
+        :class:`SKUPrice`
+            The previewed purchase price.
+        """
+        data = await self._state.http.preview_sku_purchase(
+            self.id, payment_source.id, subscription_plan.id if subscription_plan else None, test_mode=test_mode
+        )
+        return SKUPrice(data=data)
+
+    async def purchase(self):
+        ...
 
 
-class SubscriptionPlan:
+class SubscriptionPlan(Hashable):
     """Represents a subscription plan for a :class:`SKU`.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two subscription plans are equal.
+
+        .. describe:: x != y
+
+            Checks if two subscription plans are not equal.
+
+        .. describe:: hash(x)
+
+            Returns the subscription plan's hash.
+
+        .. describe:: str(x)
+
+            Returns the subscription plan's name.
 
     .. versionadded:: 2.0
 
-
-
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the subscription plan.
+    name: :class:`str`
+        The name of the subscription plan.
+    sku_id: :class:`int`
+        The ID of the SKU that this subscription plan is for.
+    interval: :class:`SubscriptionInterval`
+        The interval of the subscription plan.
+    interval_count: :class:`int`
+        The number of intervals that make up a subscription period.
+    tax_inclusive: :class:`bool`
+        Whether the subscription plan price is tax inclusive.
+    currency: :class:`str`
+        The currency of the subscription plan's price.
+    price: :class:`int`
+        The price of the subscription plan.
+    discount_price: Optional[:class:`int`]
+        The discounted price of the subscription plan.
+        This price is the one premium subscribers will pay, and is only available for premium subscribers.
+    fallback_currency: Optional[:class:`str`]
+        The fallback currency of the subscription plan's price.
+        This is the currency that will be used for gifting if the user's currency is not giftable.
+    fallback_price: Optional[:class:`int`]
+        The fallback price of the subscription plan.
+        This is the price that will be used for gifting if the user's currency is not giftable.
+    fallback_discount_price: Optional[:class:`int`]
+        The fallback discounted price of the subscription plan.
+        This is the discounted price that will be used for gifting if the user's currency is not giftable.
     """
 
     def __init__(self, *, data: dict, state: ConnectionState) -> None:
         self._state = state
+        self._update(data)
+
+    def _update(self, data: dict) -> None:
+        self.id: int = int(data['id'])
+        self.name: str = data['name']
+        self.sku_id: int = int(data['sku_id'])
+        self.interval: SubscriptionInterval = try_enum(SubscriptionInterval, data['interval'])
+        self.interval_count: int = data['interval_count']
+        self.tax_inclusive: bool = data['tax_inclusive']
+
+        self.prices = ...
+        self.currency: str = data.get('currency', 'usd')
+        self.price_tier: Optional[int] = data.get('price_tier')
+        self.price: int = data['price']
+        self.discount_price: Optional[int] = data.get('discount_price')
+        self.fallback_currency: Optional[str] = data.get('fallback_currency')
+        self.fallback_price: Optional[int] = data.get('fallback_price')
+        self.fallback_discount_price: Optional[int] = data.get('fallback_discount_price')
+
+    def __repr__(self) -> str:
+        return f'<SubscriptionPlan id={self.id} name={self.name!r} sku_id={self.sku_id} interval={self.interval!r} interval_count={self.interval_count}>'
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def premium_type(self) -> Optional[PremiumType]:
+        """Optional[:class:`PremiumType`]: The premium type of the subscription plan, if it is a premium subscription."""
+        return PremiumType.from_sku_id(self.sku_id)
+
+    async def preview_purchase(self, payment_source: Snowflake, *, test_mode: bool = False) -> SKUPrice:
+        """|coro|
+
+        Previews a purchase of this subscription plan.
+
+        Parameters
+        ----------
+        payment_source: :class:`Snowflake`
+            The payment source to use for the purchase.
+        test_mode: :class:`bool`
+            Whether to preview the purchase in test mode.
+
+        Raises
+        ------
+        HTTPException
+            Previewing the purchase failed.
+
+        Returns
+        -------
+        :class:`SKUPrice`
+            The previewed purchase price.
+        """
+        data = await self._state.http.preview_sku_purchase(self.id, payment_source.id, self.id, test_mode=test_mode)
+        return SKUPrice(data=data)

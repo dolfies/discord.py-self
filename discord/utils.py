@@ -891,7 +891,6 @@ def resolve_gift(code: Union[Gift, str]) -> str:
     return code
 
 
-
 _MARKDOWN_ESCAPE_SUBREGEX = '|'.join(r'\{0}(?=([\s\S]*((?<!\{0})\{0})))'.format(c) for c in ('*', '`', '_', '~', '|'))
 
 _MARKDOWN_ESCAPE_COMMON = r'^>(?:>>)?\s|\[.+\]\(.+\)'
@@ -1278,10 +1277,12 @@ def _generate_nonce() -> str:
 
 
 def _parse_localizations(data: dict, key: str) -> tuple[Any, dict]:
-    values = data[key]
+    values = data.get(key)
     values = values if isinstance(values, dict) else {'default': values}
     string = values['default']
-    localizations = {try_enum(Locale, k): v for k, v in values.get('localizations', data.get(f'{key}_localizations', {})).items()}
+    localizations = {
+        try_enum(Locale, k): v for k, v in (values.get('localizations', data.get(f'{key}_localizations')) or {}).items()
+    }
     return string, localizations
 
 

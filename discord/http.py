@@ -2665,6 +2665,26 @@ class HTTPClient:
             Route('PATCH', '/store/skus/{sku_id}', sku_id=sku_id), json=payload, super_properties_to_track=True
         )
 
+    def preview_sku_purchase(
+        self,
+        sku_id: Snowflake,
+        payment_source_id: Snowflake,
+        subscription_plan_id: Optional[Snowflake] = None,
+        *,
+        test_mode: bool = False,
+    ) -> Response[dict]:
+        params = {'payment_source_id': payment_source_id}
+        if subscription_plan_id:
+            params['subscription_plan_id'] = subscription_plan_id
+        if test_mode:
+            params['test_mode'] = 'true'
+
+        return self.request(
+            Route('GET', '/store/skus/{sku_id}/purchase', sku_id=sku_id),
+            params=params,
+            context_properties=ContextProperties._empty(),
+        )
+
     def get_eula(self, eula_id: Snowflake) -> Response[dict]:
         return self.request(Route('GET', '/store/eulas/{eula_id}', eula_id=eula_id))
 
@@ -2903,7 +2923,7 @@ class HTTPClient:
 
     def preview_subscription_update(self, subscription_id: Snowflake, **payload):
         return self.request(
-            Route('POST', '/users/@me/billing/subscriptions/{subscription_id}/preview', subscription_id=subscription_id),
+            Route('PATCH', '/users/@me/billing/subscriptions/{subscription_id}/preview', subscription_id=subscription_id),
             json=payload,
         )
 

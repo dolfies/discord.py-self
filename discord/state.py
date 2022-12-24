@@ -2373,3 +2373,14 @@ class ConnectionState:
                 'type': None,
             },
         )
+
+    @utils.cached_property
+    def premium_subscriptions_sku_ids(self) -> Dict[str, Snowflake]:
+        return {
+            'none': 628379670982688768,
+            'basic': 978380684370378762,
+            'legacy': 521842865731534868,
+            'classic': 521846918637420545,
+            'full': 521847234246082599,
+            'guild': 590663762298667008,
+        }

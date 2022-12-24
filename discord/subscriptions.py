@@ -746,6 +746,61 @@ class Subscription(Hashable):
         return [SubscriptionInvoice(self, data=d, state=self._state) for d in data]
 
 
+class SubscriptionTrial(Hashable):
+    """Represents a subscription trial.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two trials are equal.
+
+        .. describe:: x != y
+
+            Checks if two trials are not equal.
+
+        .. describe:: hash(x)
+
+            Returns the trial's hash.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the trial.
+    interval: :class:`SubscriptionInterval`
+        The interval of the trial.
+    interval_count: :class:`int`
+        How many counts of the interval the trial provides.
+    """
+
+    __slots__ = ('id', 'interval', 'interval_count', 'sku_id')
+
+    _INTERVAL_TABLE = {
+        SubscriptionInterval.day: 1,
+        SubscriptionInterval.month: 30,
+        SubscriptionInterval.year: 365,
+    }
+
+    def __init__(self, data: Dict[str, Any]):
+        self.id: int = int(data['id'])
+        self.interval: SubscriptionInterval = try_enum(SubscriptionInterval, data['interval'])
+        self.interval_count: int = data['interval_count']
+        self.sku_id: int = int(data['sku_id'])
+
+    def __repr__(self) -> str:
+        return (
+            f'<SubscriptionTrial id={self.id} interval={self.interval} '
+            f'interval_count={self.interval_count} sku_id={self.sku_id}>'
+        )
+
+    @property
+    def duration(self) -> timedelta:
+        """:class:`datetime.timedelta`: How long the trial lasts."""
+        return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])
+
+
 class Payment(Hashable):
     """Represents a payment to Discord.
 
@@ -915,58 +970,3 @@ class Payment(Hashable):
         # Either way, it's optional and this endpoint isn't really used anyway
         await self._state.http.refund_payment(self.id, reason)
         self.status = PaymentStatus.refunded
-
-
-class SubscriptionTrial(Hashable):
-    """Represents a subscription trial.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two trials are equal.
-
-        .. describe:: x != y
-
-            Checks if two trials are not equal.
-
-        .. describe:: hash(x)
-
-            Returns the trial's hash.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    ----------
-    id: :class:`int`
-        The ID of the trial.
-    interval: :class:`SubscriptionInterval`
-        The interval of the trial.
-    interval_count: :class:`int`
-        How many counts of the interval the trial provides.
-    """
-
-    __slots__ = ('id', 'interval', 'interval_count', 'sku_id')
-
-    _INTERVAL_TABLE = {
-        SubscriptionInterval.day: 1,
-        SubscriptionInterval.month: 30,
-        SubscriptionInterval.year: 365,
-    }
-
-    def __init__(self, data: Dict[str, Any]):
-        self.id: int = int(data['id'])
-        self.interval: SubscriptionInterval = try_enum(SubscriptionInterval, data['interval'])
-        self.interval_count: int = data['interval_count']
-        self.sku_id: int = int(data['sku_id'])
-
-    def __repr__(self) -> str:
-        return (
-            f'<SubscriptionTrial id={self.id} interval={self.interval} '
-            f'interval_count={self.interval_count} sku_id={self.sku_id}>'
-        )
-
-    @property
-    def duration(self) -> timedelta:
-        """:class:`datetime.timedelta`: How long the trial lasts."""
-        return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])

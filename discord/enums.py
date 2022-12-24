@@ -606,9 +606,21 @@ class HypeSquadHouse(Enum):
 
 
 class PremiumType(Enum):
+    none = 0
     nitro_classic = 1
     nitro = 2
     nitro_basic = 3
+
+    @classmethod
+    def from_sku_id(cls, sku_id: int) -> Optional[PremiumType]:
+        if sku_id == 628379670982688768:
+            return cls.none
+        elif sku_id == 521846918637420545:
+            return cls.nitro_classic
+        elif sku_id in (521842865731534868, 521847234246082599):
+            return cls.nitro
+        elif sku_id == 978380684370378762:
+            return cls.nitro_basic
 
 
 class TeamMembershipState(Enum, comparable=True):
@@ -1018,6 +1030,7 @@ class SubscriptionStatus(Enum, comparable=True):
     canceled = 3
     cancelled = 3
     ended = 4
+    inactive = 5
     account_hold = 6
 
 
