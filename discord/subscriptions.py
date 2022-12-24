@@ -573,10 +573,10 @@ class Subscription(Hashable):
     async def edit(
         self,
         items: List[SubscriptionItem] = MISSING,
+        payment_source: Snowflake = MISSING,
+        currency: str = MISSING,
         *,
         status: SubscriptionStatus = MISSING,
-        currency: str = MISSING,
-        payment_source: Snowflake = MISSING,
         payment_source_token: Optional[str] = None,
     ) -> None:
         """|coro|
@@ -587,12 +587,12 @@ class Subscription(Hashable):
         ----------
         items: List[:class:`SubscriptionItem`]
             The new subscription items to use.
-        status: :class:`SubscriptionStatus`
-            The new status of the subscription.
-        currency: :class:`str`
-            The new currency to use for payment.
         payment_source: :class:`int`
             The new payment source for payment.
+        currency: :class:`str`
+            The new currency to use for payment.
+        status: :class:`SubscriptionStatus`
+            The new status of the subscription.
         payment_source_token: Optional[:class:`str`]
             The token used to authorize with the payment source.
 

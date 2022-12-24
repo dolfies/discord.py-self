@@ -31,6 +31,7 @@ from datetime import datetime
 from .asset import Asset, AssetMixin
 from .enums import (
     ContentRatingAgency,
+    GiftStyle,
     Locale,
     PremiumType,
     SKUAccessLevel,
@@ -1412,8 +1413,90 @@ class SKU(Hashable):
         )
         return SKUPrice(data=data)
 
-    async def purchase(self):
-        ...
+    async def purchase(
+        self,
+        payment_source: Optional[Snowflake] = None,
+        *,
+        subscription_plan: Optional[Snowflake] = None,
+        expected_amount: Optional[int] = None,
+        expected_currency: Optional[str] = None,
+        gift: bool = False,
+        gift_style: Optional[GiftStyle] = None,
+        test_mode: bool = False,
+        payment_source_token: Optional[str] = None,
+        purchase_token: Optional[str] = None,
+        return_url: Optional[str] = None,
+        gateway_checkout_context: Optional[str] = None,
+    ): #-> SKUPurchase:
+        """|coro|
+
+        Purchases this SKU.
+
+        Parameters
+        ----------
+        payment_source: Optional[:class:`PaymentSource`]
+            The payment source to use for the purchase.
+            Not required for free SKUs.
+        subscription_plan: Optional[:class:`SubscriptionPlan`]
+            The subscription plan to purchase.
+            Can only be used for premium subscription SKUs.
+        expected_amount: Optional[:class:`int`]
+            The expected amount of the purchase.
+            This can be gotten from :attr:`price` or :meth:`preview_purchase`.
+
+            If the value passed here does not match the actual purchase amount,
+            the purchase will error.
+        expected_currency: Optional[:class:`str`]
+            The expected currency of the purchase.
+            This can be gotten from :attr:`price` or :meth:`preview_purchase`.
+
+            If the value passed here does not match the actual purchase currency,
+            the purchase will error.
+        gift: :class:`bool`
+            Whether to purchase the SKU as a gift.
+            Certain requirements must be met for this to be possible.
+        gift_style: Optional[:class:`GiftStyle`]
+            The style of the gift. Only applicable if ``gift`` is ``True``.
+        test_mode: :class:`bool`
+            Whether to purchase the SKU in test mode.
+        payment_source_token: Optional[:class:`str`]
+            The token used to authorize with the payment source.
+        purchase_token: Optional[:class:`str`]
+            The purchase token to use.
+        return_url: Optional[:class:`str`]
+            The URL to return to after the payment is complete.
+        gateway_checkout_context: Optional[:class:`str`]
+            The current checkout context.
+
+        Raises
+        ------
+        TypeError
+            ``gift_style`` was passed but ``gift`` was not ``True``.
+        HTTPException
+            Purchasing the SKU failed.
+
+        Returns
+        -------
+        :class:`SKUPurchase`
+            The purchase that was made.
+        """
+        if not gift and gift_style:
+            raise TypeError('gift_style can only be used with gifts')
+
+        data = await self._state.http.purchase_sku(
+            self.id,
+            payment_source.id if payment_source else None,
+            subscription_plan_id=subscription_plan.id if subscription_plan else None,
+            expected_amount=expected_amount,
+            expected_currency=expected_currency,
+            gift=gift,
+            gift_style=int(gift_style) if gift_style else None,
+            test_mode=test_mode,
+            payment_source_token=payment_source_token,
+            purchase_token=purchase_token,
+            return_url=return_url,
+            gateway_checkout_context=gateway_checkout_context,
+        )
 
 
 class SubscriptionPlan(Hashable):

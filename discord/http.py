@@ -2685,6 +2685,49 @@ class HTTPClient:
             context_properties=ContextProperties._empty(),
         )
 
+    def purchase_sku(
+        self,
+        sku_id: Snowflake,
+        payment_source_id: Optional[Snowflake] = None,
+        *,
+        subscription_plan_id: Optional[Snowflake] = None,
+        expected_amount: Optional[int] = None,
+        expected_currency: Optional[str] = None,
+        gift: bool = False,
+        gift_style: Optional[int] = None,
+        test_mode: bool = False,
+        payment_source_token: Optional[str] = None,
+        purchase_token: Optional[str] = None,
+        return_url: Optional[str] = None,
+        gateway_checkout_context: Optional[str] = None,
+    ) -> Response[dict]:
+        payload = {
+            'gift': gift,
+            'purchase_token': purchase_token,
+            'gateway_checkout_context': gateway_checkout_context,
+        }
+        if payment_source_id:
+            payload['payment_source_id'] = payment_source_id
+            payload['payment_source_token'] = payment_source_token
+        if subscription_plan_id:
+            payload['sku_subscription_plan_id'] = subscription_plan_id
+        if expected_amount is not None:
+            payload['expected_amount'] = expected_amount
+        if expected_currency:
+            payload['expected_currency'] = expected_currency
+        if gift_style:
+            payload['gift_style'] = gift_style
+        if test_mode:
+            payload['test_mode'] = True
+        if return_url:
+            payload['return_url'] = return_url
+
+        return self.request(
+            Route('POST', '/store/skus/{sku_id}/purchase', sku_id=sku_id),
+            json=payload,
+            context_properties=ContextProperties._empty(),
+        )
+
     def get_eula(self, eula_id: Snowflake) -> Response[dict]:
         return self.request(Route('GET', '/store/eulas/{eula_id}', eula_id=eula_id))
 
@@ -3016,9 +3059,15 @@ class HTTPClient:
         return self.request(Route('GET', '/entitlements/gift-codes/{code}', code=code), params=params)
 
     def redeem_gift(
-        self, code: str, channel_id: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None
+        self,
+        code: str,
+        payment_source_id: Optional[Snowflake] = None,
+        channel_id: Optional[Snowflake] = None,
+        gateway_checkout_context: Optional[str] = None,
     ) -> Response[dict]:
         payload: Dict[str, Any] = {'channel_id': channel_id, 'gateway_checkout_context': gateway_checkout_context}
+        if payment_source_id:
+            payload['payment_source_id'] = payment_source_id
 
         return self.request(Route('POST', '/entitlements/gift-codes/{code}/redeem', code=code), json=payload)
 

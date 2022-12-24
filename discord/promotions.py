@@ -27,7 +27,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional
 
-from .flags import SKUFlags
+from .enums import GiftStyle, try_enum
+from .flags import GiftFlags, SKUFlags
 from .mixins import Hashable
 from .store import StoreListing, SubscriptionPlan
 from .subscriptions import SubscriptionTrial
@@ -227,12 +228,16 @@ class Gift:
         The ID of the SKU the gift is for.
     entitlement_branches: List[:class:`int`]
         A list of entitlements the gift is for.
+    gift_style: Optional[:class:`GiftStyle`]
+        The style of the gift.
     max_uses: :class:`int`
         The maximum number of times the gift can be used.
     uses: :class:`int`
         The number of times the gift has been used.
     redeemed: :class:`bool`
         Whether the user has redeemed the gift.
+    revoked: :class:`bool`
+        Whether the gift has been revoked.
     store_listing: :class:`StoreListing`
         The store listing for the SKU the gift is for.
     promotion: Optional[:class:`Promotion`]
@@ -254,9 +259,11 @@ class Gift:
         'batch_id',
         'sku_id',
         'entitlement_branches',
+        'gift_style',
         'max_uses',
         'uses',
         'redeemed',
+        'revoked',
         'store_listing',
         'promotion',
         'subscription_trial',
@@ -281,11 +288,13 @@ class Gift:
         self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
         self.sku_id: int = int(data['sku_id'])
         self.entitlement_branches: List[int] = [int(x) for x in data.get('entitlement_branches', [])]
+        self.gift_style: Optional[GiftStyle] = try_enum(GiftStyle, data['gift_style']) if data.get('gift_style') else None
         self._flags: int = data.get('flags', 0)
 
         self.max_uses: int = data.get('max_uses', 0)
         self.uses: int = data.get('uses', 0)
         self.redeemed: bool = data.get('redeemed', False)
+        self.revoked: bool = data.get('revoked', False)
 
         self.store_listing: StoreListing = StoreListing(data=data['store_listing'], state=state)
         self.promotion: Optional[Promotion] = Promotion(data=data['promotion'], state=state) if 'promotion' in data else None
@@ -322,16 +331,25 @@ class Gift:
         return f'https://discord.gift/{self.code}'
 
     @property
-    def flags(self) -> SKUFlags:
-        """:class:`SKUFlags`: Returns the gift's SKU flags. These are not available for all gifts."""
-        return SKUFlags._from_value(self._flags)
+    def remaining_uses(self) -> int:
+        """:class:`int`: Returns the number of remaining uses for the gift."""
+        return self.max_uses - self.uses
 
-    def is_used(self) -> bool:
+    @property
+    def flags(self) -> GiftFlags:
+        """:class:`GiftFlags`: Returns the gift's flags.."""
+        return GiftFlags._from_value(self._flags)
+
+    def is_claimed(self) -> bool:
         """:class:`bool`: Checks if the gift has been used up."""
         return self.uses >= self.max_uses if self.max_uses else False
 
     async def redeem(
-        self, channel: Optional[Snowflake] = None, gateway_checkout_context: Optional[str] = None
+        self,
+        payment_source: Optional[Snowflake] = None,
+        *,
+        channel: Optional[Snowflake] = None,
+        gateway_checkout_context: Optional[str] = None,
     ):  # -> Entitlement:
         """|coro|
 
@@ -339,6 +357,9 @@ class Gift:
 
         Parameters
         ----------
+        payment_source: Optional[:class:`PaymentSource`]
+            The payment source to use for the redemption.
+            Only required if the gift's :attr:`flags` have :attr:`GiftFlags.payment_source_required` set to ``True``.
         channel: Optional[Union[:class:`TextChannel`, :class:`VoiceChannel`, :class:`Thread`, :class:`DMChannel`, :class:`GroupChannel`]]
             The channel to redeem the gift in. This is usually the channel the gift was sent in.
             While this is optional, it is recommended to pass this in.
@@ -355,7 +376,7 @@ class Gift:
         :class:`Entitlement`
             The entitlement that was created from redeeming the gift.
         """
-        data = await self._state.http.redeem_gift(self.code, channel.id if channel else None, gateway_checkout_context)
+        data = await self._state.http.redeem_gift(self.code, payment_source.id if payment_source else None, channel.id if channel else None, gateway_checkout_context)
         # return Entitlement(data=data, state=self._state)
 
 

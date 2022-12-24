@@ -56,6 +56,7 @@ __all__ = (
     'ComponentType',
     'ButtonStyle',
     'TextStyle',
+    'GiftStyle',
     'PrivacyLevel',
     'InteractionType',
     'NSFWLevel',
@@ -799,6 +800,15 @@ class TextStyle(Enum):
 
     # Aliases
     long = 2
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class GiftStyle(Enum):
+    snowglobe = 1
+    box = 2
+    cup = 3
 
     def __int__(self) -> int:
         return self.value

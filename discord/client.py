@@ -3137,9 +3137,9 @@ class Client:
         payment_source: Snowflake,
         currency: str = 'usd',
         *,
-        purchase_token: Optional[str] = None,
         trial: Optional[Snowflake] = None,
         payment_source_token: Optional[str] = None,
+        purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
         gateway_checkout_context: Optional[str] = None,
         code: Optional[str] = None,
@@ -3159,12 +3159,12 @@ class Client:
             The payment source to pay with.
         currency: :class:`str`
             The currency to pay with.
-        purchase_token: Optional[:class:`str`]
-            The purchase token to use.
         trial: Optional[:class:`.SubscriptionTrial`]
             The trial to apply to the subscription.
         payment_source_token: Optional[:class:`str`]
             The token used to authorize with the payment source.
+        purchase_token: Optional[:class:`str`]
+            The purchase token to use.
         return_url: Optional[:class:`str`]
             The URL to return to after the payment is complete.
         gateway_checkout_context: Optional[:class:`str`]

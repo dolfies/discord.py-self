@@ -45,6 +45,7 @@ __all__ = (
     'PaymentSourceFlags',
     'SKUFlags',
     'PaymentFlags',
+    'GiftFlags',
 )
 
 BF = TypeVar('BF', bound='BaseFlags')
@@ -975,6 +976,10 @@ class PaymentSourceFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the payment source is new."""
         return 1 << 0
 
+    @flag_value
+    def unknown(self):
+        return 1 << 1
+
 
 @fill_with_flags()
 class SKUFlags(BaseFlags):
@@ -1101,3 +1106,63 @@ class PaymentFlags(BaseFlags):
     def temporary_authorization(self):
         """:class:`bool`: Returns ``True`` if the payment is a temporary authorization."""
         return 1 << 5
+
+    @flag_value
+    def unknown(self):
+        return 1 << 6
+
+
+@fill_with_flags()
+class GiftFlags(BaseFlags):
+    r"""Wraps up the Discord payment flags.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two PaymentFlags are equal.
+        .. describe:: x != y
+
+            Checks if two PaymentFlags are not equal.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. This value is a bit array field of a 53-bit integer
+        representing the currently available flags. You should query
+        flags via the properties rather than using this raw value.
+    """
+
+    __slots__ = ()
+
+    @flag_value
+    def payment_source_required(self):
+        """:class:`bool`: Returns ``True`` if the gift requires a payment source to redeem."""
+        return 1 << 0
+
+    @flag_value
+    def existing_subscription_disallowed(self):
+        """:class:`bool`: Returns ``True`` if the gift cannot be redeemed by users with existing premium subscriptions."""
+        return 1 << 1
+
+    @flag_value
+    def not_self_redeemable(self):
+        """:class:`bool`: Returns ``True`` if the gift cannot be redeemed by the gifter."""
+        return 1 << 2
+
+    # TODO: The below are assumptions
+
+    @flag_value
+    def promotion(self):
+        """:class:`bool`: Returns ``True`` if the gift is from a promotion."""
+        return 1 << 3
