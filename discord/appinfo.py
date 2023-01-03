@@ -24,53 +24,74 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Collection, List, Literal, Mapping, Optional, Sequence, Union
+from datetime import datetime
+from typing import TYPE_CHECKING, AsyncIterator, Collection, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+from urllib.parse import quote
 
 from . import utils
 from .asset import Asset, AssetMixin
+from .entitlements import Entitlement, GiftBatch
 from .enums import (
     ApplicationAssetType,
+    ApplicationBuildStatus,
+    ApplicationDiscoverabilityState,
     ApplicationType,
     ApplicationVerificationState,
     Distributor,
     Locale,
     RPCApplicationState,
     StoreApplicationState,
+    UserFlags,
     try_enum,
 )
-from .flags import ApplicationFlags
+from .flags import ApplicationDiscoveryFlags, ApplicationFlags
 from .mixins import Hashable
+from .object import OLDEST_OBJECT, Object
 from .permissions import Permissions
 from .store import SKU, StoreAsset, StoreListing
+from .team import Team
 from .user import User
 from .utils import _bytes_to_base64_data, _parse_localizations
 
 if TYPE_CHECKING:
     from datetime import date
 
-    from .abc import Snowflake
+    from .abc import Snowflake, SnowflakeTime
     from .enums import SKUAccessLevel, SKUFeature, SKUGenre, SKUType
     from .file import File
     from .guild import Guild
+    from .metadata import MetadataObject
     from .state import ConnectionState
     from .store import ContentRating
     from .types.appinfo import (
-        AppInfo as AppInfoPayload,
+        EULA as EULAPayload,
+        Achievement as AchievementPayload,
+        ActivityStatistics as ActivityStatisticsPayload,
+        Application as ApplicationPayload,
         Asset as AssetPayload,
+        Branch as BranchPayload,
+        Build as BuildPayload,
         Company as CompanyPayload,
-        PartialAppInfo as PartialAppInfoPayload,
+        Manifest as ManifestPayload,
+        ManifestLabel as ManifestLabelPayload,
+        PartialApplication as PartialApplicationPayload,
     )
-    from .types.user import User as UserPayload
+    from .types.user import PartialUser as PartialUserPayload
 
 __all__ = (
     'Company',
     'EULA',
     'Achievement',
+    'ThirdPartySKU',
     'ApplicationBot',
     'ApplicationExecutable',
     'ApplicationInstallParams',
-    'Application',
+    'ApplicationAsset',
+    'ApplicationActivityStatistics',
+    'ApplicationBuild',
+    'ApplicationBranch',
     'PartialApplication',
+    'Application',
     'InteractionApplication',
 )
 
@@ -108,14 +129,14 @@ class Company(Hashable):
         The company's name.
     """
 
-    __slots__ = (
-        'id',
-        'name',
-    )
+    __slots__ = ('id', 'name')
 
     def __init__(self, data: CompanyPayload):
         self.id: int = int(data['id'])
         self.name: str = data['name']
+
+    def __repr__(self) -> str:
+        return f'<Company id={self.id} name={self.name!r}>'
 
     def __str__(self) -> str:
         return self.name
@@ -158,13 +179,13 @@ class EULA(Hashable):
 
     __slots__ = ('id', 'name', 'content')
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: EULAPayload) -> None:
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.content: str = data['content']
 
     def __repr__(self) -> str:
-        return f'<StoreEULA id={self.id} name={self.name!r}>'
+        return f'<EULA id={self.id} name={self.name!r}>'
 
     def __str__(self) -> str:
         return self.name
@@ -207,8 +228,6 @@ class Achievement(Hashable):
         The achievement's description localized to other languages, if available.
     application_id: :class:`int`
         The application ID that the achievement belongs to.
-    application: :class:`PartialApplication`
-        The application that the achievement belongs to.
     secure: :class:`bool`
         Whether the achievement is secure.
     secret: :class:`bool`
@@ -222,7 +241,6 @@ class Achievement(Hashable):
         'description',
         'description_localizations',
         'application_id',
-        'application',
         'secure',
         'secret',
         '_icon',
@@ -235,20 +253,19 @@ class Achievement(Hashable):
         description: str
         description_localizations: dict[Locale, str]
 
-    def __init__(self, *, data: dict, state: ConnectionState, application: PartialApplication):
+    def __init__(self, *, data: AchievementPayload, state: ConnectionState):
         self._state = state
-        self.application = application
         self._update(data)
 
-    def _update(self, data: dict):
+    def _update(self, data: AchievementPayload):
         self.id: int = int(data['id'])
         self.application_id: int = int(data['application_id'])
-        self.secure: bool = data['secure']
-        self.secret: bool = data['secret']
+        self.secure: bool = data.get('secure', False)
+        self.secret: bool = data.get('secret', False)
         self._icon = data.get('icon', data.get('icon_hash'))
 
-        self.name, self.name_localizations = _parse_localizations(data, 'name')
-        self.description, self.description_localizations = _parse_localizations(data, 'description')
+        self.name, self.name_localizations = _parse_localizations(data, 'name')  # type: ignore # Yes it is a dict
+        self.description, self.description_localizations = _parse_localizations(data, 'description')  # type: ignore # Yes it is a dict
 
     def __repr__(self) -> str:
         return f'<Achievement id={self.id} name={self.name!r}>'
@@ -257,10 +274,8 @@ class Achievement(Hashable):
         return self.name
 
     @property
-    def icon(self) -> Optional[Asset]:
-        """:class:`Asset`: Returns the achievement's icon, if available."""
-        if self._icon is None:
-            return None
+    def icon(self) -> Asset:
+        """:class:`Asset`: Returns the achievement's icon."""
         return Asset._from_achievement_icon(self._state, self.application_id, self.id, self._icon)
 
     async def edit(
@@ -277,6 +292,8 @@ class Achievement(Hashable):
         """|coro|
 
         Edits the achievement.
+
+        All parameters are optional.
 
         Parameters
         -----------
@@ -325,6 +342,27 @@ class Achievement(Hashable):
         data = await self._state.http.edit_achievement(self.application_id, self.id, payload)
         self._update(data)
 
+    async def update(self, user: Snowflake, percent_complete: int) -> None:
+        """|coro|
+
+        Updates the achievement progress for a specific user.
+
+        Parameters
+        -----------
+        user: :class:`User`
+            The user to update the achievement for.
+        percent_complete: :class:`int`
+            The percent complete for the achievement.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to update the achievement.
+        HTTPException
+            Updating the achievement failed.
+        """
+        await self._state.http.update_user_achievement(self.application_id, self.id, user.id, percent_complete)
+
     async def delete(self):
         """|coro|
 
@@ -347,6 +385,8 @@ class ThirdPartySKU:
 
     Attributes
     -----------
+    application: :class:`PartialApplication`
+        The application that the SKU belongs to.
     distributor: :class:`Distributor`
         The distributor of the SKU.
     id: Optional[:class:`str`]
@@ -355,9 +395,10 @@ class ThirdPartySKU:
         The SKU ID.
     """
 
-    __slots__ = ('distributor', 'id', 'sku_id')
+    __slots__ = ('application', 'distributor', 'id', 'sku_id')
 
-    def __init__(self, *, data: dict):
+    def __init__(self, *, data: dict, application: PartialApplication):
+        self.application = application
         self.distributor: Distributor = try_enum(Distributor, data['distributor'])
         self.id: Optional[str] = data.get('id')
         self.sku_id: Optional[str] = data.get('sku_id')
@@ -403,14 +444,17 @@ class ApplicationBot(User):
 
     __slots__ = ('application', 'public', 'require_code_grant')
 
-    def __init__(self, *, data: UserPayload, state: ConnectionState, application: Application):
+    def __init__(self, *, data: PartialUserPayload, state: ConnectionState, application: Application):
         super().__init__(state=state, data=data)
         self.application = application
 
-    def _update(self, data: UserPayload) -> None:
+    def _update(self, data: PartialUserPayload) -> None:
         super()._update(data)
         self.public: bool = data.get('public', True)
         self.require_code_grant: bool = data.get('require_code_grant', False)
+
+    def __repr__(self) -> str:
+        return f'<ApplicationBot id={self.id} name={self.name!r} discriminator={self.discriminator!r} public={self.public} require_code_grant={self.require_code_grant}>'
 
     @property
     def bio(self) -> Optional[str]:
@@ -442,6 +486,8 @@ class ApplicationBot(User):
         """|coro|
 
         Edits the bot.
+
+        All parameters are optional.
 
         Parameters
         -----------
@@ -476,6 +522,8 @@ class ApplicationBot(User):
 
         if payload:
             data = await self._state.http.edit_bot(self.application.id, payload)
+            data['public'] = self.public  # type: ignore
+            data['require_code_grant'] = self.require_code_grant  # type: ignore
             self._update(data)
             payload = {}
 
@@ -592,7 +640,7 @@ class ApplicationInstallParams:
         return cls(
             application.id,
             scopes=data.get('scopes', []),
-            permissions=Permissions(data.get('permissions', 0)),
+            permissions=Permissions(int(data.get('permissions', 0))),
         )
 
     def __repr__(self) -> str:
@@ -688,6 +736,572 @@ class ApplicationAsset(AssetMixin, Hashable):
         await self._state.http.delete_asset(self.application.id, self.id)
 
 
+class ApplicationActivityStatistics:
+    """Represents an application's activity usage statistics for a particular user.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    application_id: :class:`int`
+        The ID of the application.
+    user_id: :class:`int`
+        The ID of the user.
+    duration: :class:`int`
+        How long the user has ever played the game in seconds.
+    sku_duration: :class:`int`
+        How long the user has ever played the game on Discord in seconds.
+    last_played_at: :class:`datetime.datetime`
+        When the user last played the game.
+    """
+
+    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'last_played_at', '_state')
+
+    def __init__(
+        self, *, data: ActivityStatisticsPayload, state: ConnectionState, application_id: Optional[int] = None
+    ) -> None:
+        self._state = state
+        self.application_id = application_id or int(data['application_id'])  # type: ignore
+        self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
+        self.duration: int = data['total_duration']
+        self.sku_duration: int = data.get('total_discord_sku_duration', 0)
+        self.last_played_at: datetime = utils.parse_time(data['last_played_at'])
+
+    def __repr__(self) -> str:
+        return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.last_played_at!r}>'
+
+    @property
+    def user(self) -> Optional[User]:
+        """Optional[:class:`User`]: Returns the user associated with the statistics, if available."""
+        return self._state.get_user(self.user_id)
+
+
+class ManifestLabel(Hashable):
+    """Represents an application manifest label.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two manifest labels are equal.
+
+        .. describe:: x != y
+
+            Checks if two manifest labels are not equal.
+
+        .. describe:: hash(x)
+
+            Return the manifest label's hash.
+
+        .. describe:: str(x)
+
+            Returns the manifest label's name.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ------------
+    id: :class:`int`
+        The ID of the label.
+    application_id: :class:`int`
+        The ID of the application the label is for.
+    name: :class:`str`
+        The name of the label.
+    """
+
+    __slots__ = ('id', 'application_id', 'name')
+
+    def __new__(cls, *, data: ManifestLabelPayload, application_id: Optional[int] = None) -> Union[ManifestLabel, int]:
+        if data.get('name') is None:
+            return int(data['id'])
+        if application_id is not None:
+            data['application_id'] = application_id
+        return super().__new__(cls)
+
+    def __init__(self, *, data: ManifestLabelPayload, **kwargs) -> None:
+        self.id: int = int(data['id'])
+        self.application_id: int = int(data['application_id'])
+        self.name: Optional[str] = data.get('name')
+
+    def __repr__(self) -> str:
+        return f'<ManifestLabel id={self.id} application_id={self.application_id} name={self.name!r}>'
+
+
+class Manifest(Hashable):
+    """Represents an application manifest.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two manifests are equal.
+
+        .. describe:: x != y
+
+            Checks if two manifests are not equal.
+
+        .. describe:: hash(x)
+
+            Return the manifest's hash.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    id: :class:`int`
+        The ID of the manifest.
+    application_id: :class:`int`
+        The ID of the application the manifest is for.
+    label_id: :class:`int`
+        The ID of the manifest's label.
+    redistributable_label_ids: List[:class:`int`]
+        The label IDs of the manifest's redistributables, if available.
+    url: Optional[:class:`str`]
+        The URL of the manifest.
+    """
+
+    __slots__ = ('id', 'application_id', 'label_id', 'redistributable_label_ids', 'url')
+
+    def __init__(self, *, data: ManifestPayload, application_id: int) -> None:
+        self.id: int = int(data['id'])
+        self.application_id = application_id
+        self.label_id: int = int(data['label']['id'])
+        self.redistributable_label_ids: List[int] = [int(r) for r in data.get('redistributable_label_ids', [])]
+        self.url: Optional[str] = data.get('url')
+
+    def __repr__(self) -> str:
+        return f'<Manifest id={self.id} application_id={self.application_id} label_id={self.label_id}>'
+
+
+class ApplicationBuild(Hashable):
+    """Represents a build of an application branch.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two builds are equal.
+
+        .. describe:: x != y
+
+            Checks if two builds are not equal.
+
+        .. describe:: hash(x)
+
+            Return the build's hash.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    id: :class:`int`
+        The build ID.
+    application_id: :class:`int`
+        The ID of the application the build belongs to.
+    branch: :class:`ApplicationBranch`
+        The branch the build belongs to.
+    created_at: :class:`datetime.datetime`
+        When the build was created.
+    status: :class:`ApplicationBuildStatus`
+        The status of the build.
+    source_build_id: Optional[:class:`int`]
+        The ID of the source build, if any.
+    version: Optional[:class:`str`]
+        The version of the build, if any.
+    """
+
+    def __init__(self, *, data: BuildPayload, state: ConnectionState, branch: ApplicationBranch) -> None:
+        self._state = state
+        self.branch = branch
+        self._update(data)
+
+    def _update(self, data: BuildPayload) -> None:
+        self.id: int = int(data['id'])
+        self.application_id: int = int(data['application_id'])
+        self.created_at: datetime = utils.parse_time(data['created_at'])
+        self.status: ApplicationBuildStatus = try_enum(ApplicationBuildStatus, data['status'])
+        self.source_build_id: Optional[int] = utils._get_as_snowflake(data, 'source_build_id')
+        self.version: Optional[str] = data.get('version')
+        self.manifests: List[Manifest] = [
+            Manifest(data=m, application_id=self.application_id) for m in data.get('manifests', [])
+        ]
+
+    def __repr__(self) -> str:
+        return f'<ApplicationBuild id={self.id} application_id={self.application_id} status={self.status!r}>'
+
+    @staticmethod
+    def format_download_url(
+        endpoint: str, application_id, branch_id, build_id, manifest_id, user_id, expires: int, signature: str
+    ) -> str:
+        return f'{endpoint}/apps/{application_id}/builds/{build_id}/manifests/{manifest_id}/metadata/MANIFEST?branch_id={branch_id}&manifest_id={manifest_id}&user_id={user_id}&expires={expires}&signature={quote(signature)}'
+
+    async def size(self, manifests: Collection[Snowflake] = MISSING) -> float:
+        """|coro|
+
+        Retrieves the storage space used by the build.
+
+        Parameters
+        -----------
+        manifests: List[:class:`Manifest`]
+            The manifests to fetch the storage space for.
+            Defaults to all the build's manifests.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the storage space failed.
+
+        Returns
+        --------
+        :class:`float`
+            The storage space used by the build in kilobytes.
+        """
+        data = await self._state.http.get_branch_build_size(
+            self.application_id, self.branch.id, self.id, [m.id for m in manifests or self.manifests]
+        )
+        return float(data['size_kb'])
+
+    async def download_urls(self, manifest_labels: Collection[Snowflake] = MISSING) -> List[str]:
+        """|coro|
+
+        Retrieves the download URLs of the build.
+
+        These download URLs are for the manifest metadata, which can be used to download the artifacts.
+
+        .. note::
+
+            The download URLs are signed and valid for roughly 7 days.
+
+        Parameters
+        -----------
+        manifest_labels: List[:class:`ManifestLabel`]
+            The manifest labels to fetch the download URLs for.
+            Defaults to all the build's manifest labels.
+
+        Raises
+        -------
+        NotFound
+            The build was not found or you are not entitled to it.
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Fetching the download URLs failed.
+
+        Returns
+        --------
+        List[:class:`str`]
+            The download URLs of the build.
+        """
+        state = self._state
+        app_id, branch_id, build_id, user_id = self.application_id, self.branch.id, self.id, state.self_id
+        data = await state.http.get_branch_build_download_signatures(
+            app_id,
+            branch_id,
+            build_id,
+            [m.id for m in manifest_labels] if manifest_labels else list({m.label_id for m in self.manifests}),
+        )
+        return [
+            self.format_download_url(v['endpoint'], app_id, branch_id, build_id, k, user_id, v['expires'], v['signature'])
+            for k, v in data.items()
+        ]
+
+    async def edit(self, status: ApplicationBuildStatus) -> None:
+        """|coro|
+
+        Edits the build.
+
+        Parameters
+        -----------
+        status: :class:`ApplicationBuildStatus`
+            The new status of the build.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Editing the build failed.
+        """
+        await self._state.http.edit_build(self.application_id, self.id, str(status))
+        self.status = try_enum(ApplicationBuildStatus, str(status))
+
+    async def publish(self) -> None:
+        """|coro|
+
+        Publishes the build.
+
+        This can only be done on builds with an :attr:`status` of :attr:`ApplicationBuildStatus.ready`.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Publishing the build failed.
+        """
+        await self._state.http.publish_build(self.application_id, self.branch.id, self.id)
+
+    async def delete(self) -> None:
+        """|coro|
+
+        Deletes the build.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Deleting the build failed.
+        """
+        await self._state.http.delete_build(self.application_id, self.id)
+
+
+class ApplicationBranch(Hashable):
+    """Represents an application branch.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two branches are equal.
+
+        .. describe:: x != y
+
+            Checks if two branches are not equal.
+
+        .. describe:: hash(x)
+
+            Return the branch's hash.
+
+        .. describe:: str(x)
+
+            Returns the branch's name.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    id: :class:`int`
+        The branch ID.
+    application_id: :class:`int`
+        The ID of the application the branch belongs to.
+    live_build_id: Optional[:class:`int`]
+        The ID of the live build, if it exists and is provided.
+    name: :class:`str`
+        The branch name, if known.
+    """
+
+    __slots__ = ('id', 'live_build_id', 'name', 'application_id', '_created_at', '_state')
+
+    def __init__(self, *, data: BranchPayload, state: ConnectionState, application_id: int) -> None:
+        self._state = state
+        self.application_id = application_id
+
+        self.id: int = int(data['id'])
+        self.name: str = data['name'] if 'name' in data else ('master' if self.id == self.application_id else 'unknown')
+        self.live_build_id: Optional[int] = utils._get_as_snowflake(data, 'live_build_id')
+        self._created_at = data.get('created_at')
+
+    def __repr__(self) -> str:
+        return f'<ApplicationBranch id={self.id} name={self.name!r} live_build_id={self.live_build_id!r}>'
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def created_at(self) -> datetime:
+        """:class:`datetime.datetime`: Returns the branch's creation time in UTC.
+
+        .. note::
+
+            This may be innacurate for the master branch if the data is not provided,
+            as the ID is shared with the application ID.
+        """
+        return utils.parse_time(self._created_at) if self._created_at else utils.snowflake_time(self.id)
+
+    def is_master(self) -> bool:
+        """:class:`bool`: Indicates if this is the master branch."""
+        return self.id == self.application_id
+
+    async def builds(self) -> List[ApplicationBuild]:
+        """|coro|
+
+        Retrieves the builds of the branch.
+
+        Raises
+        ------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Fetching the builds failed.
+        """
+        data = await self._state.http.get_branch_builds(self.application_id, self.id)
+        return [ApplicationBuild(data=build, state=self._state, branch=self) for build in data]
+
+    async def fetch_build(self, build_id: int, /) -> ApplicationBuild:
+        """|coro|
+
+        Retrieves a build of the branch with the given ID.
+
+        Parameters
+        -----------
+        build_id: :class:`int`
+            The ID of the build to fetch.
+
+        Raises
+        ------
+        NotFound
+            The build does not exist.
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Fetching the build failed.
+        """
+        data = await self._state.http.get_branch_build(self.application_id, self.id, build_id)
+        return ApplicationBuild(data=data, state=self._state, branch=self)
+
+    async def fetch_live_build_id(self) -> Optional[int]:
+        """|coro|
+
+        Retrieves and caches the ID of the live build of the branch.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the build failed.
+
+        Returns
+        --------
+        Optional[:class:`int`]
+            The ID of the live build, if it exists.
+        """
+        data = await self._state.http.get_build_ids((self.id,))
+        if not data:
+            return
+        branch = data[0]
+        self.live_build_id = build_id = utils._get_as_snowflake(branch, 'live_build_id')
+        return build_id
+
+    async def live_build(self, locale: Locale, platform: str) -> ApplicationBuild:
+        """|coro|
+
+        Retrieves the live build of the branch.
+
+        Parameters
+        -----------
+        locale: :class:`Locale`
+            The locale to fetch the build for. Defaults to the current user locale.
+        platform: :class:`str`
+            The platform to fetch the build for.
+            Usually one of ``win32``, ``win64``, ``macos``, or ``linux``.
+
+        Raises
+        ------
+        NotFound
+            The branch does not have a live build.
+        HTTPException
+            Fetching the build failed.
+        """
+        state = self._state
+        data = await state.http.get_live_branch_build(
+            self.application_id, self.id, str(locale) if locale else state.locale, str(platform)
+        )
+        self.live_build_id = int(data['id'])
+        return ApplicationBuild(data=data, state=self._state, branch=self)
+
+    async def latest_build(self) -> ApplicationBuild:
+        """|coro|
+
+        Retrieves the latest successful build of the branch.
+
+        Raises
+        ------
+        NotFound
+            The branch does not have a successful build.
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Fetching the build failed.
+        """
+        data = await self._state.http.get_latest_branch_build(self.application_id, self.id)
+        return ApplicationBuild(data=data, state=self._state, branch=self)
+
+    async def create_build(
+        self,
+        built_with: str,
+        manifests: Sequence[MetadataObject],
+        source_build: Optional[Snowflake] = None,
+    ) -> Tuple[ApplicationBuild, List[Manifest]]:
+        """|coro|
+
+        Creates a build for the branch.
+
+        Parameters
+        -----------
+        built_with: :class:`str`
+            The tool used to create the build.
+        manifests: List[:class:`Metadata`]
+            A list of dict-like objects representing the manifests.
+        source_build: Optional[:class:`ApplicationBuild`]
+            The source build of the build, if any.
+
+        Raises
+        ------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Creating the build failed.
+
+        Returns
+        --------
+        Tuple[:class:`ApplicationBuild`, List[:class:`Manifest`]]
+            The created build and manifest uploads.
+        """
+        state = self._state
+        app_id = self.application_id
+        payload = {'built_with': built_with, 'manifests': [dict(m) for m in manifests]}
+        if source_build:
+            payload['source_build_id'] = source_build.id
+
+        data = await state.http.create_branch_build(app_id, self.id, payload)
+        build = ApplicationBuild(data=data['build'], state=state, branch=self)
+        manifest_uploads = [Manifest(data=m, application_id=app_id) for m in data['manifest_uploads']]
+        return build, manifest_uploads
+
+    async def promote(self, branch: Snowflake, /) -> None:
+        """|coro|
+
+        Promotes this branch's live build to the given branch.
+
+        Parameters
+        -----------
+        branch: :class:`ApplicationBranch`
+            The target branch to promote the build to.
+
+        Raises
+        ------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Promoting the branch failed.
+        """
+        await self._state.http.promote_build(self.application_id, self.id, branch.id)
+
+    async def delete(self) -> None:
+        """|coro|
+
+        Deletes the branch.
+
+        Raises
+        ------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Deleting the branch failed.
+        """
+        await self._state.http.delete_app_branch(self.application_id, self.id)
+
+
 class PartialApplication(Hashable):
     """Represents a partial Application.
 
@@ -769,6 +1383,18 @@ class PartialApplication(Hashable):
         The custom URL to use for authorizing the application, if specified.
     install_params: Optional[:class:`ApplicationInstallParams`]
         The parameters to use for authorizing the application, if specified.
+    owner: Optional[:class:`User`]
+        The application owner. This may be a team user account.
+
+        .. note::
+
+            In almost all cases, this is not available for partial applications.
+    team: Optional[:class:`Team`]
+        The team that owns the application.
+
+        .. note::
+
+            In almost all cases, this is not available.
     """
 
     __slots__ = (
@@ -792,6 +1418,7 @@ class PartialApplication(Hashable):
         'tags',
         'max_participants',
         'overlay',
+        'overlay_warn',
         'overlay_compatibility_hook',
         'aliases',
         'developers',
@@ -804,16 +1431,22 @@ class PartialApplication(Hashable):
         'primary_sku_id',
         'slug',
         'eula_id',
+        'owner',
+        'team',
     )
 
-    def __init__(self, *, state: ConnectionState, data: PartialAppInfoPayload):
+    if TYPE_CHECKING:
+        owner: Optional[User]
+        team: Optional[Team]
+
+    def __init__(self, *, state: ConnectionState, data: PartialApplicationPayload):
         self._state: ConnectionState = state
         self._update(data)
 
     def __str__(self) -> str:
         return self.name
 
-    def _update(self, data: PartialAppInfoPayload) -> None:
+    def _update(self, data: PartialApplicationPayload) -> None:
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.description: str = data['description']
@@ -826,7 +1459,9 @@ class PartialApplication(Hashable):
         self.executables: List[ApplicationExecutable] = [
             ApplicationExecutable(data=e, application=self) for e in data.get('executables', [])
         ]
-        self.third_party_skus: List[ThirdPartySKU] = [ThirdPartySKU(data=t) for t in data.get('third_party_skus', [])]
+        self.third_party_skus: List[ThirdPartySKU] = [
+            ThirdPartySKU(data=t, application=self) for t in data.get('third_party_skus', [])
+        ]
 
         self._icon: Optional[str] = data.get('icon')
         self._cover_image: Optional[str] = data.get('cover_image')
@@ -841,6 +1476,7 @@ class PartialApplication(Hashable):
         self.premium_tier_level: Optional[int] = data.get('embedded_activity_config', {}).get('activity_premium_tier_level')
         self.tags: List[str] = data.get('tags', [])
         self.overlay: bool = data.get('overlay', False)
+        self.overlay_warn: bool = data.get('overlay_warn', False)
         self.overlay_compatibility_hook: bool = data.get('overlay_compatibility_hook', False)
         self.guild_id: Optional[int] = utils._get_as_snowflake(data, 'guild_id')
         self.primary_sku_id: Optional[int] = utils._get_as_snowflake(data, 'primary_sku_id')
@@ -860,6 +1496,28 @@ class PartialApplication(Hashable):
             'integration_require_code_grant', data.get('bot_require_code_grant', False)
         )  # Same here
 
+        # Hacky, but I want these to be persisted
+
+        existing = getattr(self, 'owner', None)
+        owner = data.get('owner')
+        self.owner = self._state.create_user(owner) if owner else existing
+
+        existing = getattr(self, 'team', None)
+        team = data.get('team')
+        self.team = Team(state=self._state, data=team) if team else existing
+
+        if self.team and not self.owner:
+            # We can create a team user from the team data
+            team = self.team
+            payload: PartialUserPayload = {
+                'id': team.id,
+                'username': f'team{team.id}',
+                'public_flags': UserFlags.team_user.value,
+                'discriminator': '0000',
+                'avatar': None,
+            }
+            self.owner = self._state.create_user(payload)
+
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__} id={self.id} name={self.name!r} description={self.description!r}>'
 
@@ -872,10 +1530,7 @@ class PartialApplication(Hashable):
 
     @property
     def cover_image(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Retrieves the cover image on a store embed, if any.
-
-        This is only available if the application is a game sold on Discord.
-        """
+        """Optional[:class:`Asset`]: Retrieves the application's cover image, if any."""
         if self._cover_image is None:
             return None
         return Asset._from_cover_image(self._state, self.id, self._cover_image)
@@ -989,7 +1644,7 @@ class PartialApplication(Hashable):
         Parameters
         -----------
         completed: :class:`bool`
-            Whether to include achievements the user has completed or can access.
+            Whether to only include achievements the user has completed or can access.
             This means secret achievements that are not yet unlocked will not be included.
 
             If ``False``, then you require access to the application.
@@ -1008,7 +1663,31 @@ class PartialApplication(Hashable):
         """
         state = self._state
         data = (await state.http.get_my_achievements(self.id)) if completed else (await state.http.get_achievements(self.id))
-        return [Achievement(data=achievement, state=state, application=self) for achievement in data]
+        return [Achievement(data=achievement, state=state) for achievement in data]
+
+    async def entitlements(self, *, exclude_consumed: bool = True) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves the entitlements this account has granted for this application.
+
+        Parameters
+        -----------
+        exclude_consumed: :class:`bool`
+            Whether to exclude consumed entitlements.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the entitlements failed.
+
+        Returns
+        --------
+        List[:class:`Entitlement`]
+            The entitlements retrieved.
+        """
+        state = self._state
+        data = await state.http.get_user_app_entitlements(self.id, exclude_consumed=exclude_consumed)
+        return [Entitlement(data=entitlement, state=state) for entitlement in data]
 
     async def eula(self) -> Optional[EULA]:
         """|coro|
@@ -1031,6 +1710,64 @@ class PartialApplication(Hashable):
         state = self._state
         data = await state.http.get_eula(self.eula_id)
         return EULA(data=data)
+
+    async def ticket(self) -> str:
+        """|coro|
+
+        Retrieves the license ticket for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the ticket failed.
+
+        Returns
+        --------
+        :class:`str`
+            The ticket retrieved.
+        """
+        state = self._state
+        data = await state.http.get_app_ticket(self.id)
+        return data['ticket']
+
+    async def entitlement_ticket(self) -> str:
+        """|coro|
+
+        Retrieves the entitlement ticket for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the ticket failed.
+
+        Returns
+        --------
+        :class:`str`
+            The ticket retrieved.
+        """
+        state = self._state
+        data = await state.http.get_app_entitlement_ticket(self.id)
+        return data['ticket']
+
+    async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
+        """|coro|
+
+        Retrieves the activity usage statistics for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the statistics failed.
+
+        Returns
+        --------
+        List[:class:`ActivityStatistics`]
+            The statistics retrieved.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.get_app_activity_statistics(app_id)
+        return [ApplicationActivityStatistics(data=activity, state=state, application_id=app_id) for activity in data]
 
 
 class Application(PartialApplication):
@@ -1072,19 +1809,30 @@ class Application(PartialApplication):
         The approval state of the commerce application.
     rpc_application_state: :class:`RPCApplicationState`
         The approval state of the RPC usage application.
+    discoverability_state: :class:`ApplicationDiscoverabilityState`
+        The discoverability (app directory) state of the application.
     """
 
     __slots__ = (
         'owner',
         'redirect_uris',
+        'interactions_endpoint_url',
         'bot',
         'verification_state',
         'store_application_state',
         'rpc_application_state',
-        'interactions_endpoint_url',
+        'discoverability_state',
+        '_discovery_eligibility_flags',
     )
 
-    def _update(self, data: AppInfoPayload) -> None:
+    if TYPE_CHECKING:
+        owner: User
+
+    def __init__(self, *, state: ConnectionState, data: ApplicationPayload, team: Optional[Team] = None):
+        self.team = team
+        super().__init__(state=state, data=data)
+
+    def _update(self, data: ApplicationPayload) -> None:
         super()._update(data)
 
         self.redirect_uris: List[str] = data.get('redirect_uris', [])
@@ -1093,26 +1841,23 @@ class Application(PartialApplication):
         self.verification_state = try_enum(ApplicationVerificationState, data['verification_state'])
         self.store_application_state = try_enum(StoreApplicationState, data.get('store_application_state', 1))
         self.rpc_application_state = try_enum(RPCApplicationState, data.get('rpc_application_state', 0))
+        self.discoverability_state = try_enum(ApplicationDiscoverabilityState, data.get('discoverability_state', 1))
+        self._discovery_eligibility_flags = data.get('discovery_eligibility_flags', 0)
 
         state = self._state
 
         # Hacky, but I want these to be persisted
         existing = getattr(self, 'bot', None)
-        if bot := data.get('bot'):
-            bot['public'] = data.get('bot_public', self.public)
-            bot['require_code_grant'] = data.get('bot_require_code_grant', self.require_code_grant)
+        bot = data.get('bot')
+        if bot:
+            bot['public'] = data.get('bot_public', self.public)  # type: ignore
+            bot['require_code_grant'] = data.get('bot_require_code_grant', self.require_code_grant)  # type: ignore
         if existing is not None:
             existing._update(bot)
         else:
             self.bot: Optional[ApplicationBot] = ApplicationBot(data=bot, state=state, application=self) if bot else None
 
-        existing = getattr(self, 'owner', None)
-        if not existing:
-            owner = data.get('owner')
-            if owner is not None:
-                self.owner: User = state.store_user(owner)
-            else:
-                self.owner: User = state.user  # type: ignore # state.user will always be present here
+        self.owner = self.owner or state.user
 
     def __repr__(self) -> str:
         return (
@@ -1120,6 +1865,11 @@ class Application(PartialApplication):
             f'description={self.description!r} public={self.public} '
             f'owner={self.owner!r}>'
         )
+
+    @property
+    def discovery_eligibility_flags(self) -> ApplicationDiscoveryFlags:
+        """:class:`ApplicationDiscoveryFlags`: The discovery (app directory) eligibility flags for this application."""
+        return ApplicationDiscoveryFlags._from_value(self._discovery_eligibility_flags)
 
     async def edit(
         self,
@@ -1147,6 +1897,8 @@ class Application(PartialApplication):
         """|coro|
 
         Edits the application.
+
+        All parameters are optional.
 
         Parameters
         -----------
@@ -1261,15 +2013,24 @@ class Application(PartialApplication):
             or the application does not have a bot.
         HTTPException
             Fetching the bot failed.
+
+        Returns
+        -------
+        :class:`ApplicationBot`
+            The bot attached to this application.
         """
         data = await self._state.http.edit_bot(self.id, {})
         data['public'] = self.public  # type: ignore
         data['require_code_grant'] = self.require_code_grant  # type: ignore
 
-        self.bot = ApplicationBot(data=data, state=self._state, application=self)
+        if not self.bot:
+            self.bot = ApplicationBot(data=data, state=self._state, application=self)
+        else:
+            self.bot._update(data)
+
         return self.bot
 
-    async def create_bot(self) -> None:
+    async def create_bot(self) -> ApplicationBot:
         """|coro|
 
         Creates a bot attached to this application.
@@ -1322,7 +2083,7 @@ class Application(PartialApplication):
             The created asset.
         """
         state = self._state
-        data = await state.http.create_asset(self.id, name, int(type), image)
+        data = await state.http.create_asset(self.id, name, int(type), utils._bytes_to_base64_data(image))
         return ApplicationAsset(state=state, data=data, application=self)
 
     async def store_assets(self) -> List[StoreAsset]:
@@ -1498,7 +2259,7 @@ class Application(PartialApplication):
             The release date of the SKU.
         bundled_skus: Optional[List[:class:`SKU`]]
             A list SKUs that are bundled with this SKU.
-        manifest_labels: Optional[List[:class:`Manifest`]]
+        manifest_labels: Optional[List[:class:`ManifestLabel`]]
             A list of manifest labels for the SKU.
 
         Raises
@@ -1579,7 +2340,7 @@ class Application(PartialApplication):
             The achievement retrieved.
         """
         data = await self._state.http.get_achievement(self.id, achievement_id)
-        return Achievement(data=data, state=self._state, application=self)
+        return Achievement(data=data, state=self._state)
 
     async def create_achievement(
         self,
@@ -1634,11 +2395,294 @@ class Application(PartialApplication):
             description_localizations={str(k): v for k, v in description_localizations.items()}
             if description_localizations
             else None,
-            icon=icon,
+            icon=_bytes_to_base64_data(icon),
             secure=secure,
             secret=secret,
         )
-        return Achievement(state=state, data=data, application=self)
+        return Achievement(state=state, data=data)
+
+    async def entitlements(
+        self,
+        *,
+        user: Optional[Snowflake] = None,
+        skus: Optional[List[Snowflake]] = None,
+        limit: Optional[int] = 100,
+        before: Optional[SnowflakeTime] = None,
+        after: Optional[SnowflakeTime] = None,
+        oldest_first: bool = MISSING,
+        with_payments: bool = False,
+    ) -> AsyncIterator[Entitlement]:
+        """Returns an :term:`asynchronous iterator` that enables receiving this application's entitlements.
+
+        Examples
+        ---------
+
+        Usage ::
+
+            counter = 0
+            async for entitlement in application.entitlements(limit=200, user=client.user):
+                if entitlement.consumed:
+                    counter += 1
+
+        Flattening into a list: ::
+
+            entitlements = [entitlement async for entitlement in application.entitlements(limit=123)]
+            # entitlements is now a list of Entitlement...
+
+        All parameters are optional.
+
+        Parameters
+        -----------
+        user: Optional[:class:`User`]
+            The user to retrieve entitlements for.
+        skus: Optional[List[:class:`SKU`]]
+            The SKUs to retrieve entitlements for.
+        limit: Optional[:class:`int`]
+            The number of payments to retrieve.
+            If ``None``, retrieves every entitlement the application has. Note, however,
+            that this would make it a slow operation.
+        before: Optional[Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]]
+            Retrieve entitlements before this date or entitlement.
+            If a datetime is provided, it is recommended to use a UTC aware datetime.
+            If the datetime is naive, it is assumed to be local time.
+        after: Optional[Union[:class:`abc.Snowflake`, :class:`datetime.datetime`]]
+            Retrieve entitlements after this date or entitlement.
+            If a datetime is provided, it is recommended to use a UTC aware datetime.
+            If the datetime is naive, it is assumed to be local time.
+        oldest_first: :class:`bool`
+            If set to ``True``, return entitlements in oldest->newest order. Defaults to ``True`` if
+            ``after`` is specified, otherwise ``False``.
+        with_payments: :class:`bool`
+            Whether to include partial payment info in the response.
+
+        Raises
+        ------
+        HTTPException
+            The request to get payments failed.
+
+        Yields
+        -------
+        :class:`Entitlement`
+            The entitlement retrieved.
+        """
+
+        _state = self._state
+
+        async def _after_strategy(retrieve, after, limit):
+            after_id = after.id if after else None
+            data = await _state.http.get_app_entitlements(
+                self.id,
+                limit=retrieve,
+                after=after_id,
+                user_id=user.id if user else None,
+                sku_ids=[sku.id for sku in skus] if skus else None,
+                with_payments=with_payments,
+            )
+
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                after = Object(id=int(data[0]['id']))
+
+            return data, after, limit
+
+        async def _before_strategy(retrieve, before, limit):
+            before_id = before.id if before else None
+            data = await _state.http.get_app_entitlements(
+                self.id,
+                limit=retrieve,
+                before=before_id,
+                user_id=user.id if user else None,
+                sku_ids=[sku.id for sku in skus] if skus else None,
+                with_payments=with_payments,
+            )
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                before = Object(id=int(data[-1]['id']))
+
+            return data, before, limit
+
+        if isinstance(before, datetime):
+            before = Object(id=utils.time_snowflake(before, high=False))
+        if isinstance(after, datetime):
+            after = Object(id=utils.time_snowflake(after, high=True))
+
+        if oldest_first in (MISSING, None):
+            reverse = after is not None
+        else:
+            reverse = oldest_first
+
+        after = after or OLDEST_OBJECT
+        predicate = None
+
+        if reverse:
+            strategy, state = _after_strategy, after
+            if before:
+                predicate = lambda m: int(m['id']) < before.id
+        else:
+            strategy, state = _before_strategy, before
+            if after and after != OLDEST_OBJECT:
+                predicate = lambda m: int(m['id']) > after.id
+
+        while True:
+            retrieve = min(100 if limit is None else limit, 100)
+            if retrieve < 1:
+                return
+
+            data, state, limit = await strategy(retrieve, state, limit)
+
+            # Terminate loop on next iteration; there's no data left after this
+            if len(data) < 100:
+                limit = 0
+
+            if reverse:
+                data = reversed(data)
+            if predicate:
+                data = filter(predicate, data)
+
+            for entitlement in data:
+                yield Entitlement(data=entitlement, state=_state)
+
+    async def fetch_entitlement(self, entitlement_id: int, /) -> Entitlement:
+        """|coro|
+
+        Retrieves an entitlement from this application.
+
+        Parameters
+        -----------
+        entitlement_id: :class:`int`
+            The ID of the entitlement to fetch.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the entitlement failed.
+
+        Returns
+        -------
+        :class:`Entitlement`
+            The entitlement retrieved.
+        """
+        state = self._state
+        data = await state.http.get_app_entitlement(self.id, entitlement_id)
+        return Entitlement(data=data, state=state)
+
+    async def gift_batches(self) -> List[GiftBatch]:
+        """|coro|
+
+        Retrieves the gift batches for this application.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the gift batches failed.
+
+        Returns
+        -------
+        List[:class:`GiftBatch`]
+            The gift batches retrieved.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.get_gift_batches(app_id)
+        return [GiftBatch(data=batch, state=state, application_id=app_id) for batch in data]
+
+    async def create_gift_batch(
+        self,
+        sku: Snowflake,
+        *,
+        amount: int,
+        description: str,
+        entitlement_branches: Optional[List[Snowflake]] = None,
+        entitlement_starts_at: Optional[date] = None,
+        entitlement_ends_at: Optional[date] = None,
+    ) -> GiftBatch:
+        """|coro|
+
+        Creates a gift batch for the specified SKU.
+
+        Parameters
+        -----------
+        sku: :class:`SKU`
+            The SKU to create the gift batch for.
+        amount: :class:`int`
+            The amount of gifts to create in the batch.
+        description: :class:`str`
+            The description of the gift batch.
+        entitlement_branches: List[:class:`ApplicationBranch`]
+            The branches to grant in the gifts.
+        entitlement_starts_at: :class:`datetime.date`
+            When the entitlement is valid from.
+        entitlement_ends_at: :class:`datetime.date`
+            When the entitlement is valid until.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to create a gift batch.
+        HTTPException
+            Creating the gift batch failed.
+
+        Returns
+        -------
+        :class:`GiftBatch`
+            The gift batch created.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.create_gift_batch(
+            app_id,
+            sku.id,
+            amount,
+            description,
+            entitlement_branches=[branch.id for branch in entitlement_branches] if entitlement_branches else None,
+            entitlement_starts_at=entitlement_starts_at.isoformat() if entitlement_starts_at else None,
+            entitlement_ends_at=entitlement_ends_at.isoformat() if entitlement_ends_at else None,
+        )
+        return GiftBatch(data=data, state=state, application_id=app_id)
+
+    async def branches(self) -> List[ApplicationBranch]:
+        """|coro|
+
+        Retrieves the branches for this application.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the branches failed.
+
+        Returns
+        -------
+        List[:class:`ApplicationBranch`]
+            The branches retrieved.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.get_app_branches(app_id)
+        return [ApplicationBranch(data=branch, state=state, application_id=app_id) for branch in data]
+
+    async def manifest_labels(self) -> List[ManifestLabel]:
+        """|coro|
+
+        Retrieves the manifest labels for this application.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the manifest labels failed.
+
+        Returns
+        -------
+        List[:class:`ManifestLabel`]
+            The manifest labels retrieved.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.get_app_manifest_labels(app_id)
+        return [ManifestLabel(data=label, application_id=app_id) for label in data]
 
     async def secret(self) -> str:
         """|coro|
@@ -1745,10 +2789,7 @@ class InteractionApplication(Hashable):
 
     @property
     def cover_image(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Retrieves the cover image on a store embed, if any.
-
-        This is only available if the application is a game.
-        """
+        """Optional[:class:`Asset`]: Retrieves the application's cover image, if any."""
         if self._cover_image is None:
             return None
         return Asset._from_cover_image(self._state, self.id, self._cover_image)
@@ -1831,3 +2872,87 @@ class InteractionApplication(Hashable):
         state = self._state
         data = await state.http.get_app_store_listing(self.id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data)
+
+    async def entitlements(self, *, exclude_consumed: bool = True) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves the entitlements this account has granted for this application.
+
+        Parameters
+        -----------
+        exclude_consumed: :class:`bool`
+            Whether to exclude consumed entitlements.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to fetch entitlements.
+        HTTPException
+            Fetching the entitlements failed.
+
+        Returns
+        --------
+        List[:class:`Entitlement`]
+            The entitlements retrieved.
+        """
+        state = self._state
+        data = await state.http.get_user_app_entitlements(self.id, exclude_consumed=exclude_consumed)
+        return [Entitlement(data=entitlement, state=state) for entitlement in data]
+
+    async def ticket(self) -> str:
+        """|coro|
+
+        Retrieves the license ticket for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the ticket failed.
+
+        Returns
+        --------
+        :class:`str`
+            The ticket retrieved.
+        """
+        state = self._state
+        data = await state.http.get_app_ticket(self.id)
+        return data['ticket']
+
+    async def entitlement_ticket(self) -> str:
+        """|coro|
+
+        Retrieves the entitlement ticket for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the ticket failed.
+
+        Returns
+        --------
+        :class:`str`
+            The ticket retrieved.
+        """
+        state = self._state
+        data = await state.http.get_app_entitlement_ticket(self.id)
+        return data['ticket']
+
+    async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
+        """|coro|
+
+        Retrieves the activity usage statistics for this application.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the statistics failed.
+
+        Returns
+        --------
+        List[:class:`ActivityStatistics`]
+            The statistics retrieved.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.get_app_activity_statistics(app_id)
+        return [ApplicationActivityStatistics(data=activity, state=state, application_id=app_id) for activity in data]

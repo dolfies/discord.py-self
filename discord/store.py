@@ -24,27 +24,28 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Sequence, Union
-
-from datetime import datetime
 
 from .asset import Asset, AssetMixin
 from .enums import (
     ContentRatingAgency,
     GiftStyle,
     Locale,
+    OperatingSystem,
     PremiumType,
     SKUAccessLevel,
     SKUFeature,
     SKUGenre,
     SKUType,
-    OperatingSystem,
     SubscriptionInterval,
+    SubscriptionPlanPurchaseType,
     try_enum,
 )
 from .flags import SKUFlags
 from .mixins import Hashable
 from .utils import (
+    MISSING,
     _get_as_snowflake,
     _get_extension_for_mime_type,
     _parse_localizations,
@@ -52,7 +53,6 @@ from .utils import (
     parse_date,
     parse_time,
     utcnow,
-    MISSING,
 )
 
 if TYPE_CHECKING:
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 
     from .abc import Snowflake
     from .appinfo import Application, PartialApplication
+    from .entitlements import Gift, GiftBatch
     from .guild import Guild
     from .state import ConnectionState
     from .types.appinfo import StoreAsset as StoreAssetPayload
@@ -76,7 +77,7 @@ __all__ = (
     'SKU',
 )
 
-THE_GAME_AWARDS_WINNERS = [500428425362931713, 451550535720501248, 471376328319303681, 466696214818193408]
+THE_GAME_AWARDS_WINNERS = (500428425362931713, 451550535720501248, 471376328319303681, 466696214818193408)
 
 
 class StoreAsset(AssetMixin, Hashable):
@@ -226,6 +227,12 @@ class StoreAsset(AssetMixin, Hashable):
 class StoreNote:
     """Represents a note for a store listing.
 
+    .. container:: operations
+
+        .. describe:: str(x)
+
+            Returns the note's content.
+
     .. versionadded:: 2.0
 
     Attributes
@@ -244,6 +251,9 @@ class StoreNote:
 
     def __repr__(self) -> str:
         return f'<StoreNote user={self.user!r} content={self.content!r}>'
+
+    def __str__(self) -> str:
+        return self.content
 
 
 class SystemRequirements:
@@ -736,18 +746,17 @@ class SKUPrice:
         The price of the SKU with discounts applied, if any.
     sale_percentage: :class:`int`
         The percentage of the price discounted, if any.
-    premium: :class:`bool`
-        Whether the price of the SKU is premium.
     """
 
-    __slots__ = ('currency', 'amount', 'sale_amount', 'sale_percentage', 'premium')
+    __slots__ = ('currency', 'amount', 'sale_amount', 'sale_percentage', 'premium', 'exponent')
 
     def __init__(self, data: dict) -> None:
         self.currency: str = data.get('currency', 'usd')
         self.amount: int = data.get('amount', 0)
         self.sale_amount: Optional[int] = data.get('sale_amount')
         self.sale_percentage: int = data.get('sale_percentage', 0)
-        self.premium: bool = data.get('premium', False)
+        self.premium = data.get('premium')
+        self.exponent: Optional[int] = data.get('exponent')
 
     @classmethod
     def from_private(cls, data: dict) -> SKUPrice:
@@ -919,6 +928,8 @@ class SKU(Hashable):
     bundled_skus: List[:class:`SKU`]
         A list of SKUs bundled with this SKU.
         These are SKUs that the user will be entitled to after purchasing this parent SKU.
+    manifest_label_ids: List[:class:`int`]
+        A list of manifest label IDs that this SKU is associated with.
     """
 
     __slots__ = (
@@ -956,7 +967,7 @@ class SKU(Hashable):
         'show_age_gate',
         'bundled_skus',
         'manifests',
-        'manifest_labels',
+        'manifest_label_ids',
         '_flags',
         '_state',
     )
@@ -1051,9 +1062,7 @@ class SKU(Hashable):
             SKU(data=sku, state=state, application=self.application) for sku in data.get('bundled_skus', [])
         ]
 
-        # TODO: Manifests/branches/builds
-        self.manifest_labels: List[int] = [int(label) for label in data.get('manifest_labels') or []]
-        self.manifests: Any = data.get('manifests')
+        self.manifest_label_ids: List[int] = [int(label) for label in data.get('manifest_labels') or []]
 
     def is_free(self) -> bool:
         """:class:`bool`: Checks if the SKU is free."""
@@ -1079,6 +1088,10 @@ class SKU(Hashable):
             and not self.external_purchase_url
             and self.is_paid()
         )
+
+    def is_premium_perk(self) -> bool:
+        """:class:`bool`: Checks if the SKU is a perk for premium users."""
+        return self.premium and (self.flags.premium_and_distribution or self.flags.premium_purchase)
 
     def is_premium_subscription(self) -> bool:
         """:class:`bool`: Checks if the SKU is a premium subscription (e.g. Nitro or Server Boosts)."""
@@ -1166,7 +1179,7 @@ class SKU(Hashable):
             The release date of the SKU.
         bundled_skus: List[:class:`SKU`]
             A list SKUs that are bundled with this SKU.
-        manifest_labels: List[:class:`Manifest`]
+        manifest_labels: List[:class:`ManifestLabel`]
             A list of manifest labels for the SKU.
 
         Raises
@@ -1235,6 +1248,27 @@ class SKU(Hashable):
         data = await self._state.http.edit_sku(self.id, **payload)
         self._update(data)
 
+    async def subscription_plans(self) -> List[SubscriptionPlan]:
+        r"""|coro|
+
+        Returns a list of :class:`SubscriptionPlan`\s for this SKU.
+
+        .. versionadded:: 2.0
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the subscription plans failed.
+
+        Returns
+        -------
+        List[:class:`.SubscriptionPlan`]
+            The subscription plans for this SKU.
+        """
+        state = self._state
+        data = await state.http.get_store_listing_subscription_plans(self.id)
+        return [SubscriptionPlan(state=state, data=d) for d in data]
+
     async def store_listings(self, localize: bool = True) -> List[StoreListing]:
         r"""|coro|
 
@@ -1251,7 +1285,7 @@ class SKU(Hashable):
         Forbidden
             You do not have access to fetch store listings.
         HTTPException
-            Getting the store listings failed.
+            Retrieving the store listings failed.
 
         Returns
         -------
@@ -1286,8 +1320,6 @@ class SKU(Hashable):
         """|coro|
 
         Creates a a store listing for this SKU.
-
-        All parameters are optional.
 
         Parameters
         ----------
@@ -1381,6 +1413,168 @@ class SKU(Hashable):
 
         data = await self._state.http.create_store_listing(self.application_id, self.id, payload)
         return StoreListing(data=data, state=self._state, application=self.application)
+
+    async def create_discount(self, user: Snowflake, percent_off: int, *, ttl: int = 3600) -> None:
+        """|coro|
+
+        Creates a discount for this SKU for a user.
+
+        This discount will be applied to the user's next purchase of this SKU.
+
+        Parameters
+        ----------
+        user: :class:`User`
+            The user to create the discount for.
+        percent_off: :class:`int`
+            The discount in the form of a percentage off the price to give the user.
+        ttl: :class:`int`
+            How long the discount should last for in seconds.
+            Minimum 60 seconds, maximum 3600 seconds.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to create the discount.
+        HTTPException
+            Creating the discount failed.
+        """
+        await self._state.http.create_sku_discount(self.id, user.id, percent_off, ttl)
+
+    async def delete_discount(self, user: Snowflake) -> None:
+        """|coro|
+
+        Deletes a discount for this SKU for a user.
+
+        You do not need to call this after a discounted purchase has been made,
+        as the discount will be automatically consumed and deleted.
+
+        Parameters
+        ----------
+        user: :class:`User`
+            The user to delete the discount for.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to delete the discount.
+        HTTPException
+            Deleting the discount failed.
+        """
+        await self._state.http.delete_sku_discount(self.id, user.id)
+
+    async def create_gift_batch(
+        self,
+        *,
+        amount: int,
+        description: str,
+        entitlement_branches: Optional[List[Snowflake]] = None,
+        entitlement_starts_at: Optional[date] = None,
+        entitlement_ends_at: Optional[date] = None,
+    ) -> GiftBatch:
+        """|coro|
+
+        Creates a gift batch for this SKU.
+
+        Parameters
+        -----------
+        amount: :class:`int`
+            The amount of gifts to create in the batch.
+        description: :class:`str`
+            The description of the gift batch.
+        entitlement_branches: List[:class:`ApplicationBranch`]
+            The branches to grant in the gifts.
+        entitlement_starts_at: :class:`datetime.date`
+            When the entitlement is valid from.
+        entitlement_ends_at: :class:`datetime.date`
+            When the entitlement is valid until.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to create a gift batch.
+        HTTPException
+            Creating the gift batch failed.
+
+        Returns
+        -------
+        :class:`GiftBatch`
+            The gift batch created.
+        """
+        from .entitlements import GiftBatch
+
+        state = self._state
+        app_id = self.application_id
+        data = await state.http.create_gift_batch(
+            app_id,
+            self.id,
+            amount,
+            description,
+            entitlement_branches=[branch.id for branch in entitlement_branches] if entitlement_branches else None,
+            entitlement_starts_at=entitlement_starts_at.isoformat() if entitlement_starts_at else None,
+            entitlement_ends_at=entitlement_ends_at.isoformat() if entitlement_ends_at else None,
+        )
+        return GiftBatch(data=data, state=state, application_id=app_id)
+
+    async def gifts(self, subscription_plan: Optional[Snowflake] = None) -> List[Gift]:
+        """|coro|
+
+        Retrieves the gifts purchased for this SKU.
+
+        Parameters
+        ----------
+        subscription_plan: Optional[:class:`SubscriptionPlan`]
+            The subscription plan to retrieve the gifts for.
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the gifts failed.
+
+        Returns
+        -------
+        List[:class:`Gift`]
+            The gifts that have been purchased for this SKU.
+        """
+        from .entitlements import Gift
+
+        data = await self._state.http.get_sku_gifts(self.id, subscription_plan.id if subscription_plan else None)
+        return [Gift(data=gift, state=self._state) for gift in data]
+
+    async def create_gift(self, *, subscription_plan: Optional[Snowflake] = None, gift_style: Optional[GiftStyle] = None) -> Gift:
+        """|coro|
+
+        Creates a gift for this SKU.
+
+        You must have a giftable entitlement for this SKU to create a gift.
+
+        Parameters
+        -----------
+        subscription_plan: Optional[:class:`Snowflake`]
+            The subscription plan to gift.
+        gift_style: Optional[:class:`GiftStyle`]
+            The style of the gift.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to create a gift.
+        HTTPException
+            Creating the gift failed.
+
+        Returns
+        -------
+        :class:`Gift`
+            The gift created.
+        """
+        from .entitlements import Gift
+
+        state = self._state
+        data = await state.http.create_gift(
+            self.id,
+            subscription_plan_id=subscription_plan.id if subscription_plan else None,
+            gift_style=int(gift_style) if gift_style else None,
+        )
+        return Gift(data=data, state=state)
 
     async def preview_purchase(
         self, payment_source: Snowflake, *, subscription_plan: Optional[Snowflake] = None, test_mode: bool = False
@@ -1499,6 +1693,36 @@ class SKU(Hashable):
         )
 
 
+class SubscriptionPlanPrice:
+    """Represents the different prices for a :class:`SubscriptionPlan`.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ----------
+    country_code: :class:`str`
+        The country code the country prices are for.
+    country_prices: List[:class:`SKUPrice`]
+        The prices for the country the plan is being purchased in.
+    payment_source_prices: Dict[:class:`int`, List[:class:`SKUPrice`]]
+        A mapping of payment source IDs to the prices for that payment source.
+    """
+
+    def __init__(self, data: dict):
+        country_prices = data.get('country_prices') or {}
+        payment_source_prices = data.get('payment_source_prices') or {}
+
+        self.country_code: str = country_prices.get('country_code', 'US')
+        self.country_prices: List[SKUPrice] = [SKUPrice(data=price) for price in country_prices.get('prices', [])]
+        self.payment_source_prices: Dict[int, List[SKUPrice]] = {
+            int(payment_source_id): [SKUPrice(data=price) for price in prices]
+            for payment_source_id, prices in payment_source_prices.items()
+        }
+
+    def __repr__(self) -> str:
+        return f'<SubscriptionPlanPrice country_code={self.country_code!r}>'
+
+
 class SubscriptionPlan(Hashable):
     """Represents a subscription plan for a :class:`SKU`.
 
@@ -1536,10 +1760,15 @@ class SubscriptionPlan(Hashable):
         The number of intervals that make up a subscription period.
     tax_inclusive: :class:`bool`
         Whether the subscription plan price is tax inclusive.
-    currency: :class:`str`
+    prices: Dict[:class:`SubscriptionPlanPurchaseType`, :class:`SubscriptionPlanPrice`]
+        The different prices of the subscription plan.
+        Not available in some contexts.
+    currency: Optional[:class:`str`]
         The currency of the subscription plan's price.
-    price: :class:`int`
+        Not available in some contexts.
+    price: Optional[:class:`int`]
         The price of the subscription plan.
+        Not available in some contexts.
     discount_price: Optional[:class:`int`]
         The discounted price of the subscription plan.
         This price is the one premium subscribers will pay, and is only available for premium subscribers.
@@ -1554,6 +1783,30 @@ class SubscriptionPlan(Hashable):
         This is the discounted price that will be used for gifting if the user's currency is not giftable.
     """
 
+    _INTERVAL_TABLE = {
+        SubscriptionInterval.day: 1,
+        SubscriptionInterval.month: 30,
+        SubscriptionInterval.year: 365,
+    }
+
+    __slots__ = (
+        'id',
+        'name',
+        'sku_id',
+        'interval',
+        'interval_count',
+        'tax_inclusive',
+        'prices',
+        'currency',
+        'price_tier',
+        'price',
+        'discount_price',
+        'fallback_currency',
+        'fallback_price',
+        'fallback_discount_price',
+        '_state',
+    )
+
     def __init__(self, *, data: dict, state: ConnectionState) -> None:
         self._state = state
         self._update(data)
@@ -1566,10 +1819,13 @@ class SubscriptionPlan(Hashable):
         self.interval_count: int = data['interval_count']
         self.tax_inclusive: bool = data['tax_inclusive']
 
-        self.prices = ...
-        self.currency: str = data.get('currency', 'usd')
+        self.prices: Dict[SubscriptionPlanPurchaseType, SubscriptionPlanPrice] = {
+            try_enum(SubscriptionPlanPurchaseType, int(purchase_type)): SubscriptionPlanPrice(data=price_data)
+            for purchase_type, price_data in (data.get('prices') or {}).items()
+        }
+        self.currency: Optional[str] = data.get('currency')
         self.price_tier: Optional[int] = data.get('price_tier')
-        self.price: int = data['price']
+        self.price: Optional[int] = data.get('price')
         self.discount_price: Optional[int] = data.get('discount_price')
         self.fallback_currency: Optional[str] = data.get('fallback_currency')
         self.fallback_price: Optional[int] = data.get('fallback_price')
@@ -1582,9 +1838,68 @@ class SubscriptionPlan(Hashable):
         return self.name
 
     @property
+    def duration(self) -> timedelta:
+        """:class:`datetime.timedelta`: How long the subscription plan lasts."""
+        return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])
+
+    @property
     def premium_type(self) -> Optional[PremiumType]:
         """Optional[:class:`PremiumType`]: The premium type of the subscription plan, if it is a premium subscription."""
         return PremiumType.from_sku_id(self.sku_id)
+
+    async def gifts(self) -> List[Gift]:
+        """|coro|
+
+        Retrieves the gifts purchased for this subscription plan.
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the gifts failed.
+
+        Returns
+        -------
+        List[:class:`Gift`]
+            The gifts that have been purchased for this SKU.
+        """
+        from .entitlements import Gift
+
+        data = await self._state.http.get_sku_gifts(self.sku_id, self.id)
+        return [Gift(data=gift, state=self._state) for gift in data]
+
+    async def create_gift(self, *, gift_style: Optional[GiftStyle] = None) -> Gift:
+        """|coro|
+
+        Creates a gift for this subscription plan.
+
+        You must have a giftable entitlement for this subscription plan to create a gift.
+
+        Parameters
+        -----------
+        gift_style: Optional[:class:`GiftStyle`]
+            The style of the gift.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to create a gift.
+        HTTPException
+            Creating the gift failed.
+
+        Returns
+        -------
+        :class:`Gift`
+            The gift created.
+        """
+        from .entitlements import Gift
+
+        state = self._state
+        data = await state.http.create_gift(
+            self.sku_id,
+            subscription_plan_id=self.id,
+            gift_style=int(gift_style) if gift_style else None,
+        )
+        return Gift(data=data, state=state)
 
     async def preview_purchase(self, payment_source: Snowflake, *, test_mode: bool = False) -> SKUPrice:
         """|coro|
@@ -1610,3 +1925,86 @@ class SubscriptionPlan(Hashable):
         """
         data = await self._state.http.preview_sku_purchase(self.id, payment_source.id, self.id, test_mode=test_mode)
         return SKUPrice(data=data)
+
+    async def purchase(
+        self,
+        payment_source: Optional[Snowflake] = None,
+        *,
+        expected_amount: Optional[int] = None,
+        expected_currency: Optional[str] = None,
+        gift: bool = False,
+        gift_style: Optional[GiftStyle] = None,
+        test_mode: bool = False,
+        payment_source_token: Optional[str] = None,
+        purchase_token: Optional[str] = None,
+        return_url: Optional[str] = None,
+        gateway_checkout_context: Optional[str] = None,
+    ): #-> SKUPurchase:
+        """|coro|
+
+        Purchases this subscription plan.
+
+        This can only be used on premium subscription plans.
+
+        Parameters
+        ----------
+        payment_source: Optional[:class:`PaymentSource`]
+            The payment source to use for the purchase.
+            Not required for free subscription plans.
+        expected_amount: Optional[:class:`int`]
+            The expected amount of the purchase.
+            This can be gotten from :attr:`price` or :meth:`preview_purchase`.
+
+            If the value passed here does not match the actual purchase amount,
+            the purchase will error.
+        expected_currency: Optional[:class:`str`]
+            The expected currency of the purchase.
+            This can be gotten from :attr:`price` or :meth:`preview_purchase`.
+
+            If the value passed here does not match the actual purchase currency,
+            the purchase will error.
+        gift: :class:`bool`
+            Whether to purchase the subscription plan as a gift.
+            Certain requirements must be met for this to be possible.
+        gift_style: Optional[:class:`GiftStyle`]
+            The style of the gift. Only applicable if ``gift`` is ``True``.
+        test_mode: :class:`bool`
+            Whether to purchase the subscription plan in test mode.
+        payment_source_token: Optional[:class:`str`]
+            The token used to authorize with the payment source.
+        purchase_token: Optional[:class:`str`]
+            The purchase token to use.
+        return_url: Optional[:class:`str`]
+            The URL to return to after the payment is complete.
+        gateway_checkout_context: Optional[:class:`str`]
+            The current checkout context.
+
+        Raises
+        ------
+        TypeError
+            ``gift_style`` was passed but ``gift`` was not ``True``.
+        HTTPException
+            Purchasing the subscription plan failed.
+
+        Returns
+        -------
+        :class:`SKUPurchase`
+            The purchase that was made.
+        """
+        if not gift and gift_style:
+            raise TypeError('gift_style can only be used with gifts')
+
+        data = await self._state.http.purchase_sku(
+            self.sku_id,
+            payment_source.id if payment_source else None,
+            subscription_plan_id=self.id,
+            expected_amount=expected_amount,
+            expected_currency=expected_currency,
+            gift=gift,
+            gift_style=int(gift_style) if gift_style else None,
+            test_mode=test_mode,
+            payment_source_token=payment_source_token,
+            purchase_token=purchase_token,
+            return_url=return_url,
+            gateway_checkout_context=gateway_checkout_context,
+        )

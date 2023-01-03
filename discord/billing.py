@@ -125,7 +125,7 @@ class BillingAddress:
 
     @classmethod
     def from_dict(cls, data: dict, state: ConnectionState) -> Self:
-        address = '\n'.join(filter(None, [data['line_1'], data.get('line_2')]))
+        address = '\n'.join(filter(None, (data['line_1'], data.get('line_2'))))
         return cls(
             _state=state,
             name=data['name'],
@@ -203,9 +203,9 @@ class PaymentSource(Hashable):
         The ID of the payment source.
     brand: Optional[:class:`str`]
         The brand of the payment source. This is only available for cards.
-    country: :class:`str`
-        The country of the payment source.
-    partial_card_number: Optional[:class:`int`]
+    country: Optional[:class:`str`]
+        The country of the payment source. Not available in all contexts.
+    partial_card_number: Optional[:class:`str`]
         The last four digits of the payment source. This is only available for cards.
     billing_address: Optional[:class:`BillingAddress`]
         The billing address of the payment source. Not available in all contexts.
@@ -221,6 +221,15 @@ class PaymentSource(Hashable):
         Whether the payment source is invalid.
     expires_at: Optional[:class:`datetime.date`]
         When the payment source expires. This is only available for cards.
+    email: Optional[:class:`str`]
+        The email address associated with the payment source, if any.
+        This is only available for PayPal.
+    bank: Optional[:class:`str`]
+        The bank associated with the payment source, if any.
+        This is only available for certain payment sources.
+    username: Optional[:class:`str`]
+        The username associated with the payment source, if any.
+        This is only available for Venmo.
     """
 
     __slots__ = (
@@ -235,6 +244,9 @@ class PaymentSource(Hashable):
         'default',
         'invalid',
         'expires_at',
+        'email',
+        'bank',
+        'username',
         '_flags',
     )
 
@@ -248,21 +260,31 @@ class PaymentSource(Hashable):
     def _update(self, data: dict) -> None:
         self.id: int = int(data['id'])
         self.brand: Optional[str] = data.get('brand')
-        self.country: str = data['country']
-        self.partial_card_number: Optional[int] = _get_as_snowflake(data, 'last_4')
+        self.country: Optional[str] = data.get('country')
+        self.partial_card_number: Optional[str] = data.get('last_4')
         self.billing_address: Optional[BillingAddress] = (
             BillingAddress.from_dict(data['billing_address'], state=self._state) if data.get('billing_address') else None
         )
 
         self.type: PaymentSourceType = try_enum(PaymentSourceType, data['type'])
         self.payment_gateway: PaymentGateway = try_enum(PaymentGateway, data['payment_gateway'])
-        self.default: bool = data['default']
+        self.default: bool = data.get('default', False)
         self.invalid: bool = data['invalid']
         self._flags: int = data.get('flags', 0)
 
         month = data.get('expires_month')
         year = data.get('expires_year')
-        self.expires_at: Optional[date] = datetime(year=year, month=month, day=1).date() if month and year else None
+        self.expires_at: Optional[date] = datetime(year=year, month=month or 1, day=1).date() if year else None
+
+        self.email: Optional[str] = data.get('email')
+        self.bank: Optional[str] = data.get('bank')
+        self.username: Optional[str] = data.get('username')
+
+        if not self.country and self.billing_address:
+            self.country = self.billing_address.country
+
+        if not self.email and self.billing_address:
+            self.email = self.billing_address.email
 
     @property
     def flags(self) -> PaymentSourceFlags:

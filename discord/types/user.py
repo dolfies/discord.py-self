@@ -67,8 +67,6 @@ PremiumType = Literal[0, 1, 2, 3]
 
 
 class User(PartialUser, total=False):
-    bot: bool
-    system: bool
     mfa_enabled: bool
     locale: str
     verified: bool
@@ -77,7 +75,6 @@ class User(PartialUser, total=False):
     purchased_flags: int
     premium_usage_flags: int
     premium_type: PremiumType
-    public_flags: int
     banner: Optional[str]
     accent_color: Optional[int]
     bio: str

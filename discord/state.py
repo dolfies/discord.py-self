@@ -77,9 +77,12 @@ from .permissions import Permissions, PermissionOverwrite
 from .member import _ClientStatus
 from .modal import Modal
 from .member import VoiceState
-from .appinfo import InteractionApplication, PartialApplication
+from .appinfo import InteractionApplication, PartialApplication, Achievement
 from .connections import Connection
-from .subscriptions import Payment
+from .payments import Payment
+from .entitlements import Entitlement, Gift
+from .guild_premium import PremiumGuildSubscriptionSlot
+from .library import LibraryApplication
 
 if TYPE_CHECKING:
     from .abc import PrivateChannel, Snowflake as abcSnowflake
@@ -93,6 +96,7 @@ if TYPE_CHECKING:
 
     from .types.snowflake import Snowflake
     from .types.activity import Activity as ActivityPayload
+    from .types.appinfo import Achievement as AchievementPayload
     from .types.channel import DMChannel as DMChannelPayload
     from .types.user import User as UserPayload, PartialUser as PartialUserPayload
     from .types.emoji import Emoji as EmojiPayload, PartialEmoji as PartialEmojiPayload
@@ -468,6 +472,7 @@ class ConnectionState:
         self.preferred_regions: List[str] = []
         self.country_code: Optional[str] = None
         self.session_type: Optional[str] = None
+        self.auth_session_id: Optional[str] = None
         self._emojis: Dict[int, Emoji] = {}
         self._stickers: Dict[int, GuildSticker] = {}
         self._guilds: Dict[int, Guild] = {}
@@ -613,6 +618,9 @@ class ConnectionState:
             return user
 
     def create_user(self, data: Union[UserPayload, PartialUserPayload]) -> User:
+        user_id = int(data['id'])
+        if user_id == self.self_id:
+            return self.user  # type: ignore
         return User(state=self, data=data)
 
     def get_user(self, id: int) -> Optional[User]:
@@ -825,7 +833,7 @@ class ConnectionState:
         data = self._ready_data
 
         # Temp user parsing
-        temp_users: Dict[int, UserPayload] = {int(data['user']['id']): data['user']}
+        temp_users: Dict[int, PartialUserPayload] = {int(data['user']['id']): data['user']}
         for u in data.get('users', []):
             u_id = int(u['id'])
             temp_users[u_id] = u
@@ -899,6 +907,7 @@ class ConnectionState:
         self.consents = TrackingSettings(data=data.get('consents', {}), state=self)
         self.country_code = data.get('country_code', 'US')
         self.session_type = data.get('session_type', 'normal')
+        self.auth_session_id = data.get('auth_session_id_hash')
         self.connections = {c['id']: Connection(state=self, data=c) for c in data.get('connected_accounts', [])}
         self.pending_payments = {int(p['id']): Payment(state=self, data=p) for p in data.get('pending_payments', [])}
 
@@ -1095,8 +1104,8 @@ class ConnectionState:
             settings = GuildSettings(data=data, state=self)
         self.dispatch('guild_settings_update', old_settings, settings)
 
-    def parse_user_required_action_update(self, data) -> None:
-        required_action = try_enum(RequiredActionType, data['required_action'])
+    def parse_user_required_action_update(self, data: Union[gw.RequiredActionEvent, gw.ReadyEvent]) -> None:
+        required_action = try_enum(RequiredActionType, data['required_action'])  # type: ignore
         self.dispatch('required_action_update', required_action)
 
     def parse_user_connections_update(self, data: Union[gw.ConnectionEvent, gw.PartialConnectionEvent]) -> None:
@@ -1119,19 +1128,45 @@ class ConnectionState:
             connection._update(data)
             self.dispatch('connection_update', old_connection, connection)
 
-    def parse_user_payment_sources_update(self, data: gw.ResumedEvent) -> None:
+    def parse_user_connections_link_callback(self, data: gw.ConnectionsLinkCallbackEvent) -> None:
+        self.dispatch('connections_link_callback', data['provider'], data['callback_code'], data['callback_state'])
+
+    def parse_user_payment_sources_update(self, data: gw.NoEvent) -> None:
         self.dispatch('payment_sources_update')
 
-    def parse_user_subscriptions_update(self, data: gw.ResumedEvent) -> None:
+    def parse_user_subscriptions_update(self, data: gw.NoEvent) -> None:
         self.dispatch('subscriptions_update')
 
-    def parse_user_payment_client_add(self, data: gw.UserPaymentClientAddEvent) -> None:
+    def parse_user_payment_client_add(self, data: gw.PaymentClientAddEvent) -> None:
         self.dispatch('payment_client_add', data['purchase_token_hash'], utils.parse_time(data['expires_at']))
+
+    def parse_user_premium_guild_subscription_slot_create(self, data: gw.PremiumGuildSubscriptionSlotEvent) -> None:
+        slot = PremiumGuildSubscriptionSlot(state=self, data=data)
+        self.dispatch('premium_guild_subscription_slot_create', slot)
+
+    def parse_user_premium_guild_subscription_slot_update(self, data: gw.PremiumGuildSubscriptionSlotEvent) -> None:
+        slot = PremiumGuildSubscriptionSlot(state=self, data=data)
+        self.dispatch('premium_guild_subscription_slot_update', slot)
+
+    def parse_user_achievement_update(self, data: gw.AchievementUpdatePayload) -> None:
+        achievement: AchievementPayload = data.get('achievement')  # type: ignore
+        application_id = data.get('application_id')
+        if not achievement or not application_id:
+            _log.warning('USER_ACHIEVEMENT_UPDATE payload has invalid data: %s. Discarding.', list(data.keys()))
+            return
+
+        achievement['application_id'] = application_id
+        model = Achievement(state=self, data=achievement)
+        self.dispatch('achievement_update', model, data.get('percent_complete', 0))
 
     def parse_oauth2_token_revoke(self, data: gw.OAuth2TokenRevokeEvent) -> None:
         if 'access_token' not in data:
             _log.warning('OAUTH2_TOKEN_REVOKE payload has invalid data: %s. Discarding.', list(data.keys()))
         self.dispatch('oauth2_token_revoke', data['access_token'])
+
+    def parse_auth_session_change(self, data: gw.AuthSessionChangeEvent) -> None:
+        self.auth_session_id = auth_session_id = data['auth_session_id_hash']
+        self.dispatch('auth_session_change', auth_session_id)
 
     def parse_payment_update(self, data: dict) -> None:
         id = int(data['id'])
@@ -1142,6 +1177,10 @@ class ConnectionState:
             payment = Payment(state=self, data=data)
 
         self.dispatch('payment_update', payment)
+
+    def parse_library_application_update(self, data: dict) -> None:
+        entry = LibraryApplication(state=self, data=data)
+        self.dispatch('library_application_update', entry)
 
     def parse_sessions_replace(self, data: List[Dict[str, Any]]) -> None:
         overall = MISSING
@@ -1183,6 +1222,26 @@ class ConnectionState:
         client._client_status = client_status
         client._client_activities = client_activities
         client._session_count = len(data)
+
+    def parse_entitlement_create(self, data: dict) -> None:
+        entitlement = Entitlement(state=self, data=data)
+        self.dispatch('entitlement_create', entitlement)
+
+    def parse_entitlement_update(self, data: dict) -> None:
+        entitlement = Entitlement(state=self, data=data)
+        self.dispatch('entitlement_update', entitlement)
+
+    def parse_entitlement_delete(self, data: dict) -> None:
+        entitlement = Entitlement(state=self, data=data)
+        self.dispatch('entitlement_delete', entitlement)
+
+    def parse_gift_code_create(self, data: dict) -> None:
+        gift = Gift(state=self, data=data)
+        self.dispatch('gift_create', gift)
+
+    def parse_gift_code_update(self, data: dict) -> None:
+        gift = Gift(state=self, data=data)
+        self.dispatch('gift_update', gift)
 
     def parse_invite_create(self, data: gw.InviteCreateEvent) -> None:
         invite = Invite.from_gateway(state=self, data=data)
@@ -1398,7 +1457,7 @@ class ConnectionState:
                 continue
 
             # channel will be the correct type here
-            message = Message(channel=channel, data=message, state=self)  # type: ignore
+            message = Message(channel=channel, data=message, state=self)
             if self._messages is not None:
                 self._messages.append(message)
 
@@ -2366,10 +2425,8 @@ class ConnectionState:
                 'id': 521842831262875670,
                 'name': 'Nitro',
                 'icon': None,
-                'cover_image': None,
                 'description': '',
                 'verify_key': '93661a9eefe452d12f51e129e8d9340e7ca53a770158c0ec7970e701534b7420',
-                'rpc_origins': [],
                 'type': None,
             },
         )

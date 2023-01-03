@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from .billing import PaymentSource
 from .enums import (
     PaymentGateway,
-    PaymentStatus,
     SubscriptionDiscountType,
     SubscriptionInterval,
     SubscriptionInvoiceStatus,
@@ -38,11 +37,9 @@ from .enums import (
     SubscriptionType,
     try_enum,
 )
-from .flags import PaymentFlags
 from .metadata import Metadata
 from .mixins import Hashable
-from .store import SKU
-from .utils import MISSING, _get_as_snowflake, parse_time
+from .utils import MISSING, _get_as_snowflake, parse_time, snowflake_time
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -58,7 +55,6 @@ __all__ = (
     'SubscriptionRenewalMutations',
     'SubscriptionDiscount',
     'SubscriptionTrial',
-    'Payment',
 )
 
 
@@ -230,7 +226,7 @@ class SubscriptionInvoice(Hashable):
         self.tax: int = data.get('tax', 0)
         self.total: int = data['total']
         self.tax_inclusive: bool = data['tax_inclusive']
-        self.items: List[SubscriptionInvoiceItem] = [SubscriptionInvoiceItem(d) for d in data.get('items', [])]
+        self.items: List[SubscriptionInvoiceItem] = [SubscriptionInvoiceItem(d) for d in data.get('invoice_items', [])]
 
         self.current_period_start: datetime = parse_time(data['subscription_period_start'])  # type: ignore # Should always be a datetime
         self.current_period_end: datetime = parse_time(data['subscription_period_end'])  # type: ignore # Should always be a datetime
@@ -248,19 +244,19 @@ class SubscriptionInvoice(Hashable):
 
     async def pay(
         self,
-        payment_source: Snowflake,
+        payment_source: Optional[Snowflake] = None,
         currency: str = 'usd',
         *,
         payment_source_token: Optional[str] = None,
         return_url: Optional[str] = None,
-    ) -> None:
+    ) -> Subscription:
         """|coro|
 
         Pays the invoice.
 
         Parameters
         ----------
-        payment_source: :class:`~abc.Snowflake`
+        payment_source: Optional[:class:`PaymentSource`]
             The payment source the invoice should be paid with.
         currency: :class:`str`
             The currency to pay with.
@@ -281,9 +277,15 @@ class SubscriptionInvoice(Hashable):
         if self.is_preview() or not self.subscription:
             raise TypeError('Cannot pay a nonexistant invoice')
 
-        await self._state.http.pay_invoice(
-            self.subscription.id, self.id, payment_source.id, payment_source_token, currency, return_url
+        data = await self._state.http.pay_invoice(
+            self.subscription.id,
+            self.id,
+            payment_source.id if payment_source else None,
+            payment_source_token,
+            currency,
+            return_url,
         )
+        return Subscription(state=self._state, data=data)
 
 
 class SubscriptionInvoiceItem(Hashable):
@@ -379,6 +381,7 @@ class SubscriptionRenewalMutations:
     ----------
     payment_gateway_plan_id: Optional[:class:`str`]
         The payment gateway's new plan ID for the subscription.
+        This signifies an external plan change.
     items: Optional[List[:class:`SubscriptionItem`]]
         The new items of the subscription.
     """
@@ -470,8 +473,7 @@ class Subscription(Hashable):
     trial_ends_at: Optional[:class:`datetime.datetime`]
         When the trial ends, if applicable.
     streak_started_at: Optional[:class:`datetime.datetime`]
-        When the current boosting streak started.
-        This is only available for subscriptions with a :attr:`type` of :attr:`SubscriptionType.guild`.
+        When the current subscription streak started.
     ended_at: Optional[:class:`datetime.datetime`]
         When the subscription finally ended.
     metadata: :class:`Metadata`
@@ -537,7 +539,7 @@ class Subscription(Hashable):
         self.payment_gateway_plan_id: Optional[str] = data.get('payment_gateway_plan_id')
         self.payment_gateway_subscription_id: Optional[str] = data.get('payment_gateway_subscription_id')
 
-        self.created_at: datetime = parse_time(data['created_at'])  # type: ignore # Should always be a datetime
+        self.created_at: datetime = parse_time(data.get('created_at')) or snowflake_time(self.id)
         self.canceled_at: Optional[datetime] = parse_time(data.get('canceled_at'))
 
         self.current_period_start: datetime = parse_time(data['current_period_start'])  # type: ignore # Should always be a datetime
@@ -612,7 +614,7 @@ class Subscription(Hashable):
         if currency is not MISSING:
             payload['currency'] = currency
         if status is not MISSING:
-            payload['status'] = status.value
+            payload['status'] = int(status)
 
         data = await self._state.http.edit_subscription(self.id, **payload)
         self._update(data)
@@ -651,8 +653,8 @@ class Subscription(Hashable):
         items: List[SubscriptionItem] = MISSING,
         payment_source: Snowflake = MISSING,
         currency: str = MISSING,
-        renewal: bool = MISSING,
         apply_entitlements: bool = MISSING,
+        renewal: bool = MISSING,
     ) -> SubscriptionInvoice:
         """|coro|
 
@@ -662,16 +664,16 @@ class Subscription(Hashable):
 
         Parameters
         ----------
-        items: Optional[List[:class:`SubscriptionItem`]]
-            The items the subscription should have.
-        payment_source: :class:`~abc.Snowflake`
-            The payment source the subscription should be paid with.
+        items: List[:class:`SubscriptionItem`]
+            The items the previewed invoice should have.
+        payment_source: :class:`.PaymentSource`
+            The payment source the previewed invoice should be paid with.
         currency: :class:`str`
-            The currency the subscription should be paid in.
-        renewal: :class:`bool`
-            Whether the subscription should be renewed.
+            The currency the previewed invoice should be paid in.
         apply_entitlements: :class:`bool`
             Whether to apply entitlements (credits) to the previewed invoice.
+        renewal: :class:`bool`
+            Whether the previewed invoice should be a renewal.
 
         Raises
         ------
@@ -705,7 +707,7 @@ class Subscription(Hashable):
     async def payment_source(self) -> Optional[PaymentSource]:
         """|coro|
 
-        Returns the payment source the subscription is paid with, if applicable.
+        Retrieves the payment source the subscription is paid with, if applicable.
 
         Raises
         ------
@@ -717,10 +719,10 @@ class Subscription(Hashable):
         Returns
         -------
         Optional[:class:`PaymentSource`]
-            The payment source the subscription is paid with.
+            The payment source the subscription is paid with, if applicable.
         """
-        if self.payment_source_id is None:
-            return None
+        if not self.payment_source_id:
+            return
 
         data = await self._state.http.get_payment_source(self.payment_source_id)
         return PaymentSource(data=data, state=self._state)
@@ -742,8 +744,9 @@ class Subscription(Hashable):
         List[:class:`SubscriptionInvoice`]
             The invoices.
         """
-        data = await self._state.http.get_subscription_invoices(self.id)
-        return [SubscriptionInvoice(self, data=d, state=self._state) for d in data]
+        state = self._state
+        data = await state.http.get_subscription_invoices(self.id)
+        return [SubscriptionInvoice(self, data=d, state=state) for d in data]
 
 
 class SubscriptionTrial(Hashable):
@@ -783,7 +786,7 @@ class SubscriptionTrial(Hashable):
         SubscriptionInterval.year: 365,
     }
 
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: dict):
         self.id: int = int(data['id'])
         self.interval: SubscriptionInterval = try_enum(SubscriptionInterval, data['interval'])
         self.interval_count: int = data['interval_count']
@@ -799,174 +802,3 @@ class SubscriptionTrial(Hashable):
     def duration(self) -> timedelta:
         """:class:`datetime.timedelta`: How long the trial lasts."""
         return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])
-
-
-class Payment(Hashable):
-    """Represents a payment to Discord.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two payments are equal.
-
-        .. describe:: x != y
-
-            Checks if two payments are not equal.
-
-        .. describe:: hash(x)
-
-            Returns the payment's hash.
-
-        .. describe:: str(x)
-
-            Returns the payment's description.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    ----------
-    id: :class:`int`
-        The ID of the payment.
-    amount: :class:`int`
-        The amount of the payment.
-    amount_refunded: :class:`int`
-        The amount refunded from the payment, if any.
-    tax: :class:`int`
-        The amount of tax paid.
-    tax_inclusive: :class:`bool`
-        Whether the amount is inclusive of all taxes.
-    currency: :class:`str`
-        The currency the payment was made in.
-    description: :class:`str`
-        What the payment was for.
-    status: :class:`PaymentStatus`
-        The status of the payment.
-    created_at: :class:`datetime.datetime`
-        The time the payment was made.
-    sku: Optional[:class:`SKU`]
-        The SKU the payment was for, if applicable.
-    sku_id: Optional[:class:`int`]
-        The ID of the SKU the payment was for, if applicable.
-    sku_price: Optional[:class:`int`]
-        The price of the SKU the payment was for, if applicable.
-    plan_id: Optional[:class:`int`]
-        The ID of the subscription plan the payment was for, if applicable.
-    subscription: Optional[:class:`Subscription`]
-        The subscription the payment was for, if applicable.
-    payment_source: Optional[:class:`PaymentSource`]
-        The payment source the payment was made with.
-    payment_gateway: Optional[:class:`PaymentGateway`]
-        The payment gateway the payment was made with, if applicable.
-    payment_gateway_payment_id: Optional[:class:`str`]
-        The ID of the payment on the payment gateway, if any.
-    invoice_url: Optional[:class:`str`]
-        The URL to download the VAT invoice for this payment, if available.
-    refund_invoices_urls: List[:class:`str`]
-        A list of URLs to download VAT credit notices for refunds on this payment, if available.
-    refund_disqualification_reasons: List[:class:`str`]
-        A list of reasons why the payment cannot be refunded, if any.
-    """
-
-    __slots__ = (
-        'id',
-        'amount',
-        'amount_refunded',
-        'tax',
-        'tax_inclusive',
-        'currency',
-        'description',
-        'status',
-        'created_at',
-        'sku',
-        'sku_id',
-        'sku_price',
-        'plan_id',
-        'subscription',
-        'payment_source',
-        'payment_gateway',
-        'payment_gateway_payment_id',
-        'invoice_url',
-        'refund_invoices_urls',
-        'refund_disqualification_reasons',
-        '_flags',
-        '_state',
-    )
-
-    def __init__(self, *, data: Dict[str, Any], state: ConnectionState):
-        self._state: ConnectionState = state
-        self._update(data)
-
-    def _update(self, data: Dict[str, Any]) -> None:
-        state = self._state
-
-        self.id: int = int(data['id'])
-        self.amount: int = data['amount']
-        self.amount_refunded: int = data.get('amount_refunded') or 0
-        self.tax: int = data.get('tax') or 0
-        self.tax_inclusive: bool = data.get('tax_inclusive', True)
-        self.currency: str = data.get('currency', 'usd')
-        self.description: str = data['description']
-        self.status: PaymentStatus = try_enum(PaymentStatus, data['status'])
-        self.created_at: datetime = parse_time(data['created_at'])  # type: ignore # Should always be a datetime
-        self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if data.get('sku') else None
-        self.sku_id: Optional[int] = _get_as_snowflake(data, 'sku_id')
-        self.sku_price: Optional[int] = data.get('sku_price')
-        self.plan_id: Optional[int] = _get_as_snowflake(data, 'sku_subscription_plan_id')
-        self.subscription: Optional[Subscription] = (
-            Subscription(data=data['subscription'], state=state) if data.get('subscription') else None
-        )
-        self.payment_source: Optional[PaymentSource] = (
-            PaymentSource(data=data['payment_source'], state=state) if data.get('payment_source') else None
-        )
-        self.payment_gateway: Optional[PaymentGateway] = (
-            try_enum(PaymentGateway, data['payment_gateway']) if data.get('payment_gateway') else None
-        )
-        self.payment_gateway_payment_id: Optional[str] = data.get('payment_gateway_payment_id')
-        self.invoice_url: Optional[str] = data.get('downloadable_invoice')
-        self.refund_invoices_urls: List[str] = data.get('downloadable_refund_invoices', [])
-        self.refund_disqualification_reasons: List[str] = data.get('premium_refund_disqualification_reasons', [])
-        self._flags: int = data.get('flags', 0)
-
-    def __repr__(self) -> str:
-        return f'<Payment id={self.id} amount={self.amount} currency={self.currency} status={self.status}>'
-
-    def __str__(self) -> str:
-        return self.description
-
-    def is_purchased_externally(self) -> bool:
-        """:class:`bool`: Whether the payment was made externally."""
-        return self.payment_gateway in (PaymentGateway.apple, PaymentGateway.google)
-
-    @property
-    def flags(self) -> PaymentFlags:
-        """:class:`PaymentFlags`: Returns the payment's flags."""
-        return PaymentFlags._from_value(self._flags)
-
-    async def void(self) -> None:
-        """|coro|
-
-        Void the payment. Only applicable for payments of status :attr:`PaymentStatus.pending`.
-
-        Raises
-        ------
-        HTTPException
-            Voiding the payment failed.
-        """
-        await self._state.http.void_payment(self.id)
-        self.status = PaymentStatus.failed
-
-    async def refund(self, reason: Optional[int] = None) -> None:
-        """|coro|
-
-        Refund the payment.
-
-        Raises
-        ------
-        HTTPException
-            Refunding the payment failed.
-        """
-        # reason here is an enum (0-8), but I was unable to find the enum values
-        # Either way, it's optional and this endpoint isn't really used anyway
-        await self._state.http.refund_payment(self.id, reason)
-        self.status = PaymentStatus.refunded

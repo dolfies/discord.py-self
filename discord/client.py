@@ -56,7 +56,7 @@ from .widget import Widget
 from .guild import Guild
 from .emoji import Emoji
 from .channel import _private_channel_factory, _threaded_channel_factory, GroupChannel, PartialMessageable
-from .enums import ActivityType, ChannelType, ConnectionLinkType, ConnectionType, Status, try_enum
+from .enums import ActivityType, ChannelType, ConnectionLinkType, ConnectionType, EntitlementType, Status, try_enum
 from .mentions import AllowedMentions
 from .errors import *
 from .enums import Status
@@ -71,7 +71,7 @@ from .utils import MISSING
 from .object import Object, OLDEST_OBJECT
 from .backoff import ExponentialBackoff
 from .webhook import Webhook
-from .appinfo import Application, Company, EULA, PartialApplication
+from .appinfo import Application, ApplicationActivityStatistics, Company, EULA, PartialApplication
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -81,9 +81,13 @@ from .team import Team
 from .member import _ClientStatus
 from .handlers import CaptchaHandler
 from .billing import PaymentSource
-from .subscriptions import Payment, Subscription, SubscriptionItem, SubscriptionInvoice
-from .promotions import Gift, Promotion, TrialOffer
+from .subscriptions import Subscription, SubscriptionItem, SubscriptionInvoice
+from .payments import Payment
+from .promotions import PricingPromotion, Promotion, TrialOffer
+from .entitlements import Entitlement, Gift
 from .store import SKU, StoreListing, SubscriptionPlan
+from .guild_premium import *
+from .library import LibraryApplication
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -2903,6 +2907,27 @@ class Client:
         data = await state.http.search_companies(query)
         return [Company(data=d) for d in data]
 
+    async def application_activity_statistics(self) -> List[ApplicationActivityStatistics]:
+        """|coro|
+
+        Retrieves the available activity usage statistics for your owned applications.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the statistics failed.
+
+        Returns
+        -------
+        List[:class:`.ApplicationActivityStatistics`]
+            The activity statistics.
+        """
+        state = self._connection
+        data = await state.http.get_activity_statistics()
+        return [ApplicationActivityStatistics(state=state, data=d) for d in data]
+
     async def payment_sources(self) -> List[PaymentSource]:
         """|coro|
 
@@ -2960,7 +2985,7 @@ class Client:
         billing_address: BillingAddress,
         billing_address_token: Optional[str] = MISSING,
         return_url: Optional[str] = None,
-        bank: Any,
+        bank: Optional[str] = None,
     ) -> PaymentSource:
         """|coro|
 
@@ -2983,7 +3008,7 @@ class Client:
             Not required for all payment gateways.
         return_url: Optional[:class:`str`]
             The URL to return to after the payment source is created.
-        bank: Any
+        bank: Optional[:class:`str`]
             The bank information for the payment source.
             Not required for most payment gateways.
 
@@ -3041,6 +3066,69 @@ class Client:
         data = await state.http.get_subscriptions(limit=limit, include_inactive=include_inactive)
         return [Subscription(state=state, data=d) for d in data]
 
+    async def premium_guild_subscriptions(self) -> List[PremiumGuildSubscription]:
+        """|coro|
+
+        Retrieves all the premium guild subscriptions (boosts) on your account.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the subscriptions failed.
+
+        Returns
+        -------
+        List[:class:`.PremiumGuildSubscription`]
+            Your account's premium guild subscriptions.
+        """
+        state = self._connection
+        data = await state.http.get_applied_guild_subscriptions()
+        return [PremiumGuildSubscription(state=state, data=d) for d in data]
+
+    async def premium_guild_subscription_slots(self) -> List[PremiumGuildSubscriptionSlot]:
+        """|coro|
+
+        Retrieves all the premium guild subscription (boost) slots available on your account.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the subscriptions failed.
+
+        Returns
+        -------
+        List[:class:`.PremiumGuildSubscriptionSlot`]
+            Your account's premium guild subscription slots.
+        """
+        state = self._connection
+        data = await state.http.get_guild_subscription_slots()
+        return [PremiumGuildSubscriptionSlot(state=state, data=d) for d in data]
+
+    async def premium_guild_subscription_cooldown(self) -> PremiumGuildSubscriptionCooldown:
+        """|coro|
+
+        Retrieves the cooldown for your premium guild subscriptions (boosts).
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the cooldown failed.
+
+        Returns
+        -------
+        :class:`.PremiumGuildSubscriptionCooldown`
+            Your account's premium guild subscription cooldown.
+        """
+        state = self._connection
+        data = await state.http.get_guild_subscriptions_cooldown()
+        return PremiumGuildSubscriptionCooldown(state=state, data=data)
+
     async def fetch_subscription(self, subscription_id: int, /) -> Subscription:
         """|coro|
 
@@ -3073,11 +3161,11 @@ class Client:
         self,
         items: List[SubscriptionItem],
         *,
-        currency: str = 'usd',
         payment_source: Optional[Snowflake] = None,
+        currency: str = 'usd',
         trial: Optional[Snowflake] = None,
-        apply_entitlements: bool = MISSING,
-        renewal: bool = MISSING,
+        apply_entitlements: bool = True,
+        renewal: bool = False,
         code: Optional[str] = None,
         metadata: Optional[MetadataObject] = None,
     ) -> SubscriptionInvoice:
@@ -3092,17 +3180,17 @@ class Client:
         Parameters
         ----------
         items: List[:class:`SubscriptionItem`]
-            The items the subscription should have.
-        currency: :class:`str`
-            The currency the subscription should be paid in.
+            The items the previewed subscription should have.
         payment_source: Optional[:class:`.PaymentSource`]
-            The payment source the subscription should be paid with.
+            The payment source the previewed subscription should be paid with.
+        currency: :class:`str`
+            The currency the previewed subscription should be paid in.
         trial: Optional[:class:`.SubscriptionTrial`]
-            The trial plan the subscription should be on.
+            The trial plan the previewed subscription should be on.
         apply_entitlements: :class:`bool`
-            Whether to apply entitlements (credits) to the previewed invoice.
+            Whether to apply entitlements (credits) to the previewed subscription.
         renewal: :class:`bool`
-            Whether the subscription should be a renewal.
+            Whether the previewed subscription should be a renewal.
         code: Optional[:class:`str`]
             Unknown.
         metadata: Optional[:class:`Metadata`]
@@ -3384,7 +3472,7 @@ class Client:
     async def trial_offer(self) -> TrialOffer:
         """|coro|
 
-        Retrieves the current trial offer for the logged in user.
+        Retrieves the current trial offer for your account.
 
         .. versionadded:: 2.0
 
@@ -3402,10 +3490,196 @@ class Client:
         """
         state = self._connection
         data = await state.http.get_trial_offer()
-        return TrialOffer(data)
+        return TrialOffer(data=data, state=state)
 
-    async def library(self):
-        ...
+    async def pricing_promotion(self) -> Optional[PricingPromotion]:
+        """|coro|
+
+        Retrieves the current localized pricing promotion for your account, if any.
+
+        This also updates your current country code.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the pricing promotion failed.
+
+        Returns
+        -------
+        Optional[:class:`.PricingPromotion`]
+            The pricing promotion for your account, if any.
+        """
+        state = self._connection
+        data = await state.http.get_pricing_promotion()
+        state.country_code = data['country_code']
+        return PricingPromotion(data=data['localized_pricing_promo']) if data.get('localized_pricing_promo') else None
+
+    async def library(self) -> List[LibraryApplication]:
+        """|coro|
+
+        Retrieves the applications in your library.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the library failed.
+
+        Returns
+        -------
+        List[:class:`.LibraryApplication`]
+            The applications in your library.
+        """
+        state = self._connection
+        data = await state.http.get_library_entries(state.country_code or 'US')
+        return [LibraryApplication(state=state, data=d) for d in data]
+
+    async def entitlements(self, *, with_sku: bool = True, with_application: bool = True, entitlement_type: Optional[EntitlementType] = None) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves all the entitlements for your account.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        with_sku: :class:`bool`
+            Whether to include the SKU information in the returned entitlements.
+        with_application: :class:`bool`
+            Whether to include the application in the returned entitlements' SKUs.
+            The premium subscription application is always returned.
+        entitlement_type: Optional[:class:`.EntitlementType`]
+            The type of entitlement to retrieve. If ``None`` then all entitlements are returned.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the entitlements failed.
+
+        Returns
+        -------
+        List[:class:`.Entitlement`]
+            The entitlements for your account.
+        """
+        state = self._connection
+        data = await state.http.get_user_entitlements(with_sku=with_sku, with_application=with_application, entitlement_type=int(entitlement_type) if entitlement_type else None)
+        return [Entitlement(state=state, data=d) for d in data]
+
+    async def giftable_entitlements(self) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves the giftable entitlements for your account.
+
+        These are entitlements you are able to gift to other users.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the giftable entitlements failed.
+
+        Returns
+        -------
+        List[:class:`.Entitlement`]
+            The giftable entitlements for your account.
+        """
+        state = self._connection
+        data = await state.http.get_giftable_entitlements(state.country_code or 'US')
+        return [Entitlement(state=state, data=d) for d in data]
+
+    async def premium_entitlements(self, *, exclude_consumed: bool = True) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves the entitlements this account has granted for the premium application.
+
+        These are the entitlements used for premium subscriptions, referred to as "Nitro Credits".
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        exclude_consumed: :class:`bool`
+            Whether to exclude consumed entitlements.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the entitlements failed.
+
+        Returns
+        --------
+        List[:class:`Entitlement`]
+            The entitlements retrieved.
+        """
+        return await self.fetch_entitlements(self._connection.premium_subscriptions_application.id, exclude_consumed=exclude_consumed)
+
+    async def fetch_entitlements(self, application_id: int, /, *, exclude_consumed: bool = True) -> List[Entitlement]:
+        """|coro|
+
+        Retrieves the entitlements this account has granted for the given application.
+
+        Parameters
+        -----------
+        application_id: :class:`int`
+            The ID of the application to fetch the entitlements for.
+        exclude_consumed: :class:`bool`
+            Whether to exclude consumed entitlements.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the entitlements failed.
+
+        Returns
+        --------
+        List[:class:`Entitlement`]
+            The entitlements retrieved.
+        """
+        state = self._connection
+        data = await state.http.get_user_app_entitlements(application_id, exclude_consumed=exclude_consumed)
+        return [Entitlement(data=entitlement, state=state) for entitlement in data]
+
+    async def fetch_gift(
+        self, code: Union[Gift, str], *, with_application: bool = False, with_subscription_plan: bool = True
+    ) -> Gift:
+        """|coro|
+
+        Retrieves a gift with the given code.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        code: Union[:class:`.Gift`, :class:`str`]
+            The code of the gift to retrieve.
+        with_application: :class:`bool`
+            Whether to include the application in the response's store listing.
+            The premium subscription application is always returned.
+        with_subscription_plan: :class:`bool`
+            Whether to include the subscription plan in the response.
+
+        Raises
+        -------
+        NotFound
+            The gift does not exist.
+        HTTPException
+            Retrieving the gift failed.
+
+        Returns
+        -------
+        :class:`.Gift`
+            The retrieved gift.
+        """
+        state = self._connection
+        code = utils.resolve_gift(code)
+        data = await state.http.get_gift(
+            code, with_application=with_application, with_subscription_plan=with_subscription_plan
+        )
+        return Gift(state=state, data=data)
 
     async def fetch_sku(self, sku_id: int, /, *, localize: bool = True) -> SKU:
         """|coro|
@@ -3660,7 +3934,7 @@ class Client:
         data = await state.http.get_store_listing_subscription_plans(sku_id)
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
-    async def fetch_skus_subscriptions_plans(self, *sku_ids: int) -> List[SubscriptionPlan]:
+    async def fetch_skus_subscription_plans(self, *sku_ids: int) -> List[SubscriptionPlan]:
         r"""|coro|
 
         Retrieves all subscription plans for the given SKU IDs.
@@ -3685,7 +3959,7 @@ class Client:
             The subscription plans.
         """
         if not sku_ids:
-            raise TypeError('fetch_skus_subscriptions_plans() takes at least 1 argument (0 given)')
+            raise TypeError('fetch_skus_subscription_plans() takes at least 1 argument (0 given)')
 
         state = self._connection
         data = await state.http.get_store_listings_subscription_plans(sku_ids)
@@ -3718,40 +3992,77 @@ class Client:
         data = await self._connection.http.get_eula(eula_id)
         return EULA(data=data)
 
-    async def fetch_gift(
-        self, code: Union[Gift, str], *, with_application: bool = False, with_subscription_plan: bool = True
-    ) -> Gift:
-        """|coro|
+    async def fetch_live_build_ids(self, *branch_ids: int) -> Dict[int, Optional[int]]:
+        r"""|coro|
 
-        Retrieves a gift with the given code.
+        Retrieves the live build IDs for the given branch IDs.
 
         .. versionadded:: 2.0
 
         Parameters
         -----------
-        code: Union[:class:`.Gift`, :class:`str`]
-            The code of the gift to retrieve.
-        with_application: :class:`bool`
-            Whether to include the application in the response's store listing.
-            The premium subscription application is always returned.
-        with_subscription_plan: :class:`bool`
-            Whether to include the subscription plan in the response.
+        \*branch_ids: :class:`int`
+            A list of branch IDs to retrieve the live build IDs for.
+
+        Raises
+        ------
+        TypeError
+            Less than 1 ID was passed.
+        HTTPException
+            Retrieving the live build IDs failed.
+
+        Returns
+        -------
+        Dict[:class:`int`, Optional[:class:`int`]]
+            A mapping of found branch IDs to their live build ID, if any.
+        """
+        if not branch_ids:
+            raise TypeError('fetch_live_build_ids() takes at least 1 argument (0 given)')
+
+        data = await self._connection.http.get_build_ids(branch_ids)
+        return {int(b['id']): utils._get_as_snowflake(b, 'live_build_id') for b in data}
+
+    async def price_tiers(self) -> List[int]:
+        """|coro|
+
+        Retrieves all price tiers.
+
+        .. versionadded:: 2.0
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the price tiers failed.
+
+        Returns
+        -------
+        List[:class:`int`]
+            The price tiers.
+        """
+        return await self._connection.http.get_price_tiers()
+
+    async def fetch_price_tier(self, price_tier: int, /) -> Dict[str, int]:
+        """|coro|
+
+        Retrieves a mapping of currency to price for the given price tier.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        price_tier: :class:`int`
+            The price tier to retrieve.
 
         Raises
         -------
         NotFound
-            The gift does not exist.
+            The price tier does not exist.
         HTTPException
-            Retrieving the gift failed.
+            Retrieving the price tier failed.
 
         Returns
         -------
-        :class:`.Gift`
-            The retrieved gift.
+        Dict[:class:`str`, :class:`int`]
+            The retrieved price tier mapping.
         """
-        state = self._connection
-        code = utils.resolve_gift(code)
-        data = await state.http.get_gift(
-            code, with_application=with_application, with_subscription_plan=with_subscription_plan
-        )
-        return Gift(state=state, data=data)
+        return await self._connection.http.get_price_tier(price_tier)

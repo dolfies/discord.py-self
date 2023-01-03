@@ -80,6 +80,7 @@ __all__ = (
     'ApplicationVerificationState',
     'StoreApplicationState',
     'RPCApplicationState',
+    'ApplicationDiscoverabilityState',
     'InviteType',
     'ScheduledEventStatus',
     'ScheduledEventEntityType',
@@ -93,6 +94,7 @@ __all__ = (
     'SubscriptionInvoiceStatus',
     'SubscriptionDiscountType',
     'SubscriptionInterval',
+    'SubscriptionPlanPurchaseType',
     'PaymentStatus',
     'ApplicationAssetType',
     'SKUType',
@@ -102,6 +104,7 @@ __all__ = (
     'OperatingSystem',
     'ContentRatingAgency',
     'Distributor',
+    'EntitlementType',
 )
 
 if TYPE_CHECKING:
@@ -870,11 +873,34 @@ class RPCApplicationState(Enum, comparable=True):
     rejected = 4
 
 
+class ApplicationDiscoverabilityState(Enum, comparable=True):
+    ineligible = 1
+    not_discoverable = 2
+    discoverable = 3
+    featureable = 4
+    blocked = 5
+
+
+class ApplicationBuildStatus(Enum):
+    corrupted = 'CORRUPTED'
+    invalid = 'INVALID'
+    ready = 'READY'
+    validating = 'VALIDATING'
+    uploading = 'UPLOADING'
+    created = 'CREATED'
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class ApplicationType(Enum):
     game = 1
     music = 2
     ticketed_events = 3
     guild_role_subscriptions = 4
+
+    def __int__(self) -> int:
+        return self.value
 
 
 T = TypeVar('T')
@@ -1043,6 +1069,9 @@ class SubscriptionStatus(Enum, comparable=True):
     inactive = 5
     account_hold = 6
 
+    def __int__(self) -> int:
+        return self.value
+
 
 class SubscriptionInvoiceStatus(Enum):
     open = 1
@@ -1062,6 +1091,14 @@ class SubscriptionInterval(Enum):
     month = 1
     year = 2
     day = 3
+
+
+class SubscriptionPlanPurchaseType(Enum):
+    default = 0
+    gift = 1
+    sale = 2
+    nitro_classic = 3
+    nitro = 4
 
 
 class PaymentStatus(Enum):
@@ -1214,6 +1251,20 @@ class Distributor(Enum):
     gog = 'gog'
     epic_games = 'epic'
     google_play = 'google_play'
+
+
+class EntitlementType(Enum):
+    purchase = 1
+    premium_subscription = 2
+    developer_gift = 3
+    test_mode_purchase = 4
+    free_purchase = 5
+    user_gift = 6
+    premium_purchase = 7
+    application_subscription = 8
+
+    def __int__(self) -> int:
+        return self.value
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

@@ -79,6 +79,11 @@ class GatewayNotFound(DiscordException):
 
 def _flatten_error_dict(d: Dict[str, Any], key: str = '') -> Dict[str, str]:
     items: List[Tuple[str, str]] = []
+
+    if '_errors' in d:
+        items.append(('miscallenous', ' '.join(x.get('message', '') for x in d['_errors'])))
+        d.pop('_errors')
+
     for k, v in d.items():
         new_key = key + '.' + k if key else k
 

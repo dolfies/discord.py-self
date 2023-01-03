@@ -28,7 +28,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, AsyncIterator, List, Optional, Union, overload
 
 from . import utils
-from .appinfo import Application, Company
 from .asset import Asset
 from .enums import PayoutAccountStatus, PayoutReportType, PayoutStatus, TeamMembershipState, try_enum
 from .metadata import Metadata
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
     from datetime import date
 
     from .abc import Snowflake, SnowflakeTime
+    from .appinfo import Application, Company
     from .state import ConnectionState
     from .types.team import Team as TeamPayload, TeamMember as TeamMemberPayload, TeamPayout as TeamPayoutPayload
     from .types.user import PartialUser as PartialUserPayload
@@ -83,8 +83,13 @@ class Team(Hashable):
         The team name.
     owner_id: :class:`int`
         The team's owner ID.
-    owner: Optional[:class:`TeamMember`]
-         The team's owner, if available.
+    members: List[:class:`TeamMember`]
+        The team's members.
+
+        .. note::
+
+            In almost all cases, a call to :meth:`fetch_members`
+            is required to populate this list past (sometimes) the owner.
     payout_account_status: Optional[:class:`PayoutAccountStatus`]
         The team's payout account status, if any and available.
     stripe_connect_account_id: Optional[:class:`str`]
@@ -92,10 +97,14 @@ class Team(Hashable):
         team's payout account is linked to, if any and available.
     """
 
-    __slots__ = ('_state', 'id', 'name', '_icon', 'owner_id', 'owner', 'payout_account_status', 'stripe_connect_account_id')
+    __slots__ = ('_state', 'id', 'name', '_icon', 'owner_id', 'members', 'payout_account_status', 'stripe_connect_account_id')
 
     def __init__(self, state: ConnectionState, data: TeamPayload):
         self._state: ConnectionState = state
+
+        self.members: List[TeamMember] = []
+        self.payout_account_status: Optional[PayoutAccountStatus] = None
+        self.stripe_connect_account_id: Optional[str] = None
         self._update(data)
 
     def __repr__(self) -> str:
@@ -105,26 +114,34 @@ class Team(Hashable):
         return self.name
 
     def _update(self, data: TeamPayload):
+        state = self._state
+
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self._icon: Optional[str] = data['icon']
         self.owner_id = owner_id = int(data['owner_user_id'])
-        self.owner: Optional[TeamMember]
-        owner = self._state.get_user(owner_id)
-        if owner:
-            user: PartialUserPayload = owner._to_minimal_user_json()
-            member: TeamMemberPayload = {
-                'user': user,
-                'team_id': self.id,
-                'membership_state': 2,
-                'permissions': ['*'],
-            }
-            self.owner = TeamMember(self, self._state, member)
 
-        self.payout_account_status: Optional[PayoutAccountStatus] = try_enum(
-            PayoutAccountStatus, data.get('payout_account_status')
-        )
-        self.stripe_connect_account_id: Optional[str] = data.get('stripe_connect_account_id')
+        if 'members' in data:
+            self.members = [TeamMember(self, state=state, data=member) for member in data.get('members', [])]
+
+        if not self.owner:
+            owner = self._state.get_user(owner_id)
+            if owner:
+                user: PartialUserPayload = owner._to_minimal_user_json()
+                member: TeamMemberPayload = {
+                    'user': user,
+                    'team_id': self.id,
+                    'membership_state': 2,
+                    'permissions': ['*'],
+                }
+                self.members.append(TeamMember(self, self._state, member))
+
+        if 'payout_account_status' in data:
+            self.payout_account_status = try_enum(
+                PayoutAccountStatus, data.get('payout_account_status')
+            )
+        if 'stripe_connect_account_id' in data:
+            self.stripe_connect_account_id = data.get('stripe_connect_account_id')
 
     @property
     def icon(self) -> Optional[Asset]:
@@ -146,6 +163,11 @@ class Team(Hashable):
         """
         return self.icon or self.default_icon
 
+    @property
+    def owner(self) -> Optional[TeamMember]:
+        """Optional[:class:`TeamMember:`]: The team's owner, if available."""
+        return utils.get(self.members, id=self.owner_id)
+
     async def edit(
         self,
         *,
@@ -156,6 +178,8 @@ class Team(Hashable):
         """|coro|
 
         Edits the team.
+
+        All parameters are optional.
 
         Parameters
         -----------
@@ -204,14 +228,16 @@ class Team(Hashable):
         HTTPException
             Retrieving the team applications failed.
         """
+        from .appinfo import Application
+
         state = self._state
         data = await state.http.get_team_applications(self.id)
-        return [Application(state=state, data=app) for app in data]
+        return [Application(state=state, data=app, team=self) for app in data]
 
-    async def members(self) -> List[TeamMember]:
+    async def fetch_members(self) -> List[TeamMember]:
         """|coro|
 
-        Retrieves the team's members.
+        Retrieves and caches the team's members.
 
         Returns
         --------
@@ -227,8 +253,7 @@ class Team(Hashable):
         """
         data = await self._state.http.get_team_members(self.id)
         members = [TeamMember(self, self._state, member) for member in data]
-        if not self.owner:
-            self.owner = utils.get(members, id=self.owner_id)
+        self.members = members
         return members
 
     @overload
@@ -323,6 +348,8 @@ class Team(Hashable):
         :class:`.Company`
             The created company.
         """
+        from .appinfo import Company
+
         state = self._state
         data = await state.http.create_team_company(self.id, name)
         return Company(data=data)
@@ -378,7 +405,7 @@ class Team(Hashable):
 
         async def strategy(retrieve, before, limit):
             before_id = before.id if before else None
-            data = await self._state.http.get_payments(retrieve, before=before_id)
+            data = await self._state.http.get_team_payouts(self.id, limit=retrieve, before=before_id)
 
             if data:
                 if limit is not None:
@@ -396,7 +423,7 @@ class Team(Hashable):
             if retrieve < 1:
                 return
 
-            data, state, limit = await strategy(retrieve, state, limit)
+            data, before, limit = await strategy(retrieve, before, limit)
 
             # Terminate loop on next iteration; there's no data left after this
             if len(data) < 96:

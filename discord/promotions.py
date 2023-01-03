@@ -25,23 +25,19 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from .enums import GiftStyle, try_enum
-from .flags import GiftFlags, SKUFlags
+from .enums import PaymentSourceType, try_enum
+from .flags import PromotionFlags
 from .mixins import Hashable
-from .store import StoreListing, SubscriptionPlan
 from .subscriptions import SubscriptionTrial
 from .utils import _get_as_snowflake, parse_time, utcnow
 
 if TYPE_CHECKING:
-    from .abc import Snowflake
     from .state import ConnectionState
-    from .user import User
 
 __all__ = (
     'Promotion',
-    'Gift',
     'TrialOffer',
 )
 
@@ -73,7 +69,7 @@ class Promotion(Hashable):
     ----------
     id: :class:`int`
         The promotion ID.
-    trial_id: :class:`int`
+    trial_id: Optional[:class:`int`]
         The trial ID of the inbound promotion, if applicable.
     starts_at: :class:`datetime.datetime`
         When the promotion starts.
@@ -82,8 +78,8 @@ class Promotion(Hashable):
     claimed_at: Optional[:class:`datetime.datetime`]
         When the promotion was claimed.
         Only available for claimed promotions.
-    code: :class:`str`
-        The promotion's claim code.
+    code: Optional[:class:`str`]
+        The promotion's claim code. Only available for claimed promotions.
     outbound_title: :class:`str`
         The title of the outbound promotion.
     outbound_description: :class:`str`
@@ -147,7 +143,10 @@ class Promotion(Hashable):
 
         self.outbound_title: str = promotion['outbound_title']
         self.outbound_description: str = promotion['outbound_redemption_modal_body']
-        self.outbound_link: str = promotion['outbound_redemption_page_link']
+        self.outbound_link: str = promotion.get(
+            'outbound_redemption_page_link',
+            promotion.get('outbound_redemption_url_format', '').replace('{code}', self.code or 'code'),
+        )
         self.outbound_restricted_countries: List[str] = promotion.get('outbound_restricted_countries', [])
         self.inbound_title: Optional[str] = promotion.get('inbound_header_text')
         self.inbound_description: Optional[str] = promotion.get('inbound_body_text')
@@ -156,9 +155,9 @@ class Promotion(Hashable):
         self.terms_and_conditions: str = promotion['outbound_terms_and_conditions']
 
     @property
-    def flags(self) -> SKUFlags:
-        """:class:`SKUFlags`: Returns the promotion's SKU flags."""
-        return SKUFlags._from_value(self._flags)
+    def flags(self) -> PromotionFlags:
+        """:class:`PromotionFlags`: Returns the promotion's flags."""
+        return PromotionFlags._from_value(self._flags)
 
     def is_claimed(self) -> bool:
         """:class:`bool`: Checks if the promotion has been claimed.
@@ -193,191 +192,6 @@ class Promotion(Hashable):
         data = await self._state.http.claim_promotion(self.id)
         self._update(data)
         return data['code']
-
-
-class Gift:
-    """Represents a Discord gift.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two gifts are equal.
-
-        .. describe:: x != y
-
-            Checks if two gifts are not equal.
-
-        .. describe:: hash(x)
-
-            Returns the gift's hash.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    ----------
-    code: :class:`str`
-        The gift's code.
-    expires_at: Optional[:class:`datetime.datetime`]
-        When the gift expires.
-    application_id: :class:`int`
-        The ID of the application that owns the SKU the gift is for.
-    batch_id: Optional[:class:`int`]
-        The ID of the batch the gift is from.
-    sku_id: :class:`int`
-        The ID of the SKU the gift is for.
-    entitlement_branches: List[:class:`int`]
-        A list of entitlements the gift is for.
-    gift_style: Optional[:class:`GiftStyle`]
-        The style of the gift.
-    max_uses: :class:`int`
-        The maximum number of times the gift can be used.
-    uses: :class:`int`
-        The number of times the gift has been used.
-    redeemed: :class:`bool`
-        Whether the user has redeemed the gift.
-    revoked: :class:`bool`
-        Whether the gift has been revoked.
-    store_listing: :class:`StoreListing`
-        The store listing for the SKU the gift is for.
-    promotion: Optional[:class:`Promotion`]
-        The promotion the gift is a part of, if any.
-    subscription_trial: Optional[:class:`SubscriptionTrial`]
-        The subscription trial the gift is a part of, if any.
-    subscription_plan_id: Optional[:class:`int`]
-        The ID of the subscription plan the gift is for, if any.
-    subscription_plan: Optional[:class:`SubscriptionPlan`]
-        The subscription plan the gift is for, if any.
-    user: Optional[:class:`User`]
-        The user who created the gift, if applicable.
-    """
-
-    __slots__ = (
-        'code',
-        'expires_at',
-        'application_id',
-        'batch_id',
-        'sku_id',
-        'entitlement_branches',
-        'gift_style',
-        'max_uses',
-        'uses',
-        'redeemed',
-        'revoked',
-        'store_listing',
-        'promotion',
-        'subscription_trial',
-        'subscription_plan_id',
-        'subscription_plan',
-        'user',
-        '_flags',
-        '_state',
-    )
-
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
-        self._state = state
-        self._update(data)
-
-    def _update(self, data: dict) -> None:
-        state = self._state
-
-        self.code: str = data['code']
-        self.expires_at: Optional[datetime] = parse_time(data.get('expires_at'))
-        self.application_id: int = int(data['application_id'])
-        self.batch_id: Optional[int] = _get_as_snowflake(data, 'batch_id')
-        self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
-        self.sku_id: int = int(data['sku_id'])
-        self.entitlement_branches: List[int] = [int(x) for x in data.get('entitlement_branches', [])]
-        self.gift_style: Optional[GiftStyle] = try_enum(GiftStyle, data['gift_style']) if data.get('gift_style') else None
-        self._flags: int = data.get('flags', 0)
-
-        self.max_uses: int = data.get('max_uses', 0)
-        self.uses: int = data.get('uses', 0)
-        self.redeemed: bool = data.get('redeemed', False)
-        self.revoked: bool = data.get('revoked', False)
-
-        self.store_listing: StoreListing = StoreListing(data=data['store_listing'], state=state)
-        self.promotion: Optional[Promotion] = Promotion(data=data['promotion'], state=state) if 'promotion' in data else None
-        self.subscription_trial: Optional[SubscriptionTrial] = (
-            SubscriptionTrial(data['subscription_trial']) if data.get('subscription_trial') else None
-        )
-        self.subscription_plan: Optional[SubscriptionPlan] = (
-            SubscriptionPlan(data=data['subscription_plan'], state=state) if data.get('subscription_plan') else None
-        )
-        self.user: Optional[User] = self._state.create_user(data['user']) if data.get('user') else None
-
-    def __repr__(self) -> str:
-        return f'<Gift code={self.code!r} sku_id={self.sku_id} uses={self.uses} max_uses={self.max_uses} redeemed={self.redeemed}>'
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Gift) and other.code == self.code
-
-    def __ne__(self, other: Any) -> bool:
-        if isinstance(other, Gift):
-            return other.code != self.code
-        return True
-
-    def __hash__(self) -> int:
-        return hash(self.code)
-
-    @property
-    def id(self) -> str:
-        """:class:`str`: Returns the code portion of the gift."""
-        return self.code
-
-    @property
-    def url(self) -> str:
-        """:class:`str`: Returns the gift's URL."""
-        return f'https://discord.gift/{self.code}'
-
-    @property
-    def remaining_uses(self) -> int:
-        """:class:`int`: Returns the number of remaining uses for the gift."""
-        return self.max_uses - self.uses
-
-    @property
-    def flags(self) -> GiftFlags:
-        """:class:`GiftFlags`: Returns the gift's flags.."""
-        return GiftFlags._from_value(self._flags)
-
-    def is_claimed(self) -> bool:
-        """:class:`bool`: Checks if the gift has been used up."""
-        return self.uses >= self.max_uses if self.max_uses else False
-
-    async def redeem(
-        self,
-        payment_source: Optional[Snowflake] = None,
-        *,
-        channel: Optional[Snowflake] = None,
-        gateway_checkout_context: Optional[str] = None,
-    ):  # -> Entitlement:
-        """|coro|
-
-        Redeems the gift.
-
-        Parameters
-        ----------
-        payment_source: Optional[:class:`PaymentSource`]
-            The payment source to use for the redemption.
-            Only required if the gift's :attr:`flags` have :attr:`GiftFlags.payment_source_required` set to ``True``.
-        channel: Optional[Union[:class:`TextChannel`, :class:`VoiceChannel`, :class:`Thread`, :class:`DMChannel`, :class:`GroupChannel`]]
-            The channel to redeem the gift in. This is usually the channel the gift was sent in.
-            While this is optional, it is recommended to pass this in.
-        gateway_checkout_context: Optional[:class:`str`]
-            The current checkout context.
-
-        Raises
-        ------
-        HTTPException
-            The gift failed to redeem.
-
-        Returns
-        -------
-        :class:`Entitlement`
-            The entitlement that was created from redeeming the gift.
-        """
-        data = await self._state.http.redeem_gift(self.code, payment_source.id if payment_source else None, channel.id if channel else None, gateway_checkout_context)
-        # return Entitlement(data=data, state=self._state)
 
 
 class TrialOffer(Hashable):
@@ -416,9 +230,12 @@ class TrialOffer(Hashable):
         'expires_at',
         'trial_id',
         'trial',
+        '_state',
     )
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+        self._state = state
+
         self.id: int = int(data['id'])
         self.expires_at: datetime = parse_time(data['expires_at'])  # type: ignore # Should always be a datetime
         self.trial_id: int = int(data['trial_id'])
@@ -426,3 +243,57 @@ class TrialOffer(Hashable):
 
     def __repr__(self) -> str:
         return f'<TrialOffer id={self.id} trial={self.trial!r}>'
+
+    async def ack(self) -> None:
+        """|coro|
+
+        Acknowledges the trial offer.
+
+        Raises
+        ------
+        HTTPException
+            Acknowledging the trial offer failed.
+        """
+        await self._state.http.ack_trial_offer(self.id)
+
+
+class PricingPromotion:
+    """Represents a Discord localized pricing promotion.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ----------
+    subscription_plan_id: :class:`int`
+        The ID of the subscription plan the promotion is for.
+    country_code: :class:`str`
+        The country code the promotion applies to.
+    payment_source_types: List[:class:`PaymentSourceType`]
+        The payment source types the promotion is restricted to.
+    amount: :class:`int`
+        The discounted price of the subscription plan.
+    currency: :class:`str`
+        The currency of the discounted price.
+    """
+
+    __slots__ = (
+        'subscription_plan_id',
+        'country_code',
+        'payment_source_types',
+        'amount',
+        'currency',
+    )
+
+    def __init__(self, *, data: dict) -> None:
+        self.subscription_plan_id: int = int(data['plan_id'])
+        self.country_code: str = data['country_code']
+        self.payment_source_types: List[PaymentSourceType] = [
+            try_enum(PaymentSourceType, t) for t in data['payment_source_types']
+        ]
+
+        price = data['price']
+        self.amount: int = price['amount']
+        self.currency: str = price['currency']
+
+    def __repr__(self) -> str:
+        return f'<PricingPromotion plan_id={self.subscription_plan_id} country_code={self.country_code!r} amount={self.amount} currency={self.currency!r}>'

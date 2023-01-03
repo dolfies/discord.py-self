@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 from base64 import b64encode
 import json
+from lib2to3.pgen2.token import OP
 import logging
 from random import choice
 from typing import (
@@ -101,6 +102,7 @@ if TYPE_CHECKING:
         team,
         threads,
         scheduled_event,
+        subscriptions,
         sticker,
         welcome_screen,
     )
@@ -1865,7 +1867,7 @@ class HTTPClient:
         )
 
     def add_members_to_role(
-        self, guild_id: Snowflake, role_id: Snowflake, member_ids: List[Snowflake], *, reason: Optional[str]
+        self, guild_id: Snowflake, role_id: Snowflake, member_ids: Sequence[Snowflake], *, reason: Optional[str]
     ) -> Response[Dict[Snowflake, member.MemberWithUser]]:
         payload = {'member_ids': member_ids}
 
@@ -2277,15 +2279,15 @@ class HTTPClient:
 
     # Applications / Store
 
-    def get_my_applications(self, *, with_team_applications: bool = True) -> Response[List[appinfo.AppInfo]]:
+    def get_my_applications(self, *, with_team_applications: bool = True) -> Response[List[appinfo.Application]]:
         params = {'with_team_applications': str(with_team_applications).lower()}
 
         return self.request(Route('GET', '/applications'), params=params)
 
-    def get_my_application(self, app_id: Snowflake) -> Response[appinfo.AppInfo]:
+    def get_my_application(self, app_id: Snowflake) -> Response[appinfo.Application]:
         return self.request(Route('GET', '/applications/{app_id}', app_id=app_id), super_properties_to_track=True)
 
-    def edit_application(self, app_id: Snowflake, payload: dict) -> Response[appinfo.AppInfo]:
+    def edit_application(self, app_id: Snowflake, payload: dict) -> Response[appinfo.Application]:
         return self.request(
             Route('PATCH', '/applications/{app_id}', app_id=app_id), super_properties_to_track=True, json=payload
         )
@@ -2293,30 +2295,114 @@ class HTTPClient:
     def delete_application(self, app_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/applications/{app_id}/delete', app_id=app_id), super_properties_to_track=True)
 
-    def transfer_application(self, app_id: Snowflake, team_id: Snowflake) -> Response[appinfo.AppInfo]:
+    def transfer_application(self, app_id: Snowflake, team_id: Snowflake) -> Response[appinfo.Application]:
         payload = {'team_id': team_id}
 
         return self.request(
             Route('POST', '/applications/{app_id}/transfer', app_id=app_id), json=payload, super_properties_to_track=True
         )
 
-    def get_partial_application(self, app_id: Snowflake) -> Response[appinfo.PartialAppInfo]:
+    def get_partial_application(self, app_id: Snowflake) -> Response[appinfo.PartialApplication]:
         return self.request(Route('GET', '/oauth2/applications/{app_id}/rpc', app_id=app_id))
 
-    def get_public_application(self, app_id: Snowflake) -> Response[appinfo.PartialAppInfo]:
+    def get_public_application(self, app_id: Snowflake) -> Response[appinfo.PartialApplication]:
         return self.request(Route('GET', '/applications/{app_id}/public', app_id=app_id))
 
-    def get_public_applications(self, app_ids: Sequence[Snowflake]) -> Response[List[appinfo.PartialAppInfo]]:
+    def get_public_applications(self, app_ids: Sequence[Snowflake]) -> Response[List[appinfo.PartialApplication]]:
         return self.request(Route('GET', '/applications/public'), params={'application_ids': app_ids})
 
-    def create_app(self, name: str, team_id: Optional[Snowflake] = None) -> Response[appinfo.AppInfo]:
+    def create_app(self, name: str, team_id: Optional[Snowflake] = None) -> Response[appinfo.Application]:
         payload = {'name': name, team_id: team_id}
 
         return self.request(Route('POST', '/applications'), json=payload)
 
-    def get_app_entitlements(self, app_id: Snowflake):  # TODO: return type
-        r = Route('GET', '/users/@me/applications/{app_id}/entitlements', app_id=app_id)
-        return self.request(r, super_properties_to_track=True)
+    def get_app_entitlements(
+        self,
+        app_id: Snowflake,
+        *,
+        user_id: Optional[Snowflake] = None,
+        sku_ids: Optional[Sequence[Snowflake]] = None,
+        with_payments: bool = False,
+        before: Optional[Snowflake] = None,
+        after: Optional[Snowflake] = None,
+        limit: int = 100,
+    ) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'with_payments': str(with_payments).lower()}
+        if user_id:
+            params['user_id'] = user_id
+        if sku_ids:
+            params['sku_ids'] = sku_ids
+        if before:
+            params['before'] = before
+        if after:
+            params['after'] = after
+        if limit != 100:
+            params['limit'] = limit
+
+        return self.request(Route('GET', '/applications/{app_id}/entitlements', app_id=app_id), params=params)
+
+    def get_app_entitlement(
+        self, app_id: Snowflake, entitlement_id: Snowflake, with_payments: bool = False
+    ) -> Response[dict]:
+        params = {'with_payments': str(with_payments).lower()}
+        return self.request(
+            Route(
+                'GET', '/applications/{app_id}/entitlements/{entitlement_id}', app_id=app_id, entitlement_id=entitlement_id
+            ),
+            params=params,
+        )
+
+    def delete_app_entitlement(self, app_id: Snowflake, entitlement_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route(
+                'DELETE',
+                '/applications/{app_id}/entitlements/{entitlement_id}',
+                app_id=app_id,
+                entitlement_id=entitlement_id,
+            )
+        )
+
+    def consume_app_entitlement(self, app_id: Snowflake, entitlement_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route(
+                'POST',
+                '/applications/{app_id}/entitlements/{entitlement_id}/consume',
+                app_id=app_id,
+                entitlement_id=entitlement_id,
+            )
+        )
+
+    def get_user_app_entitlements(
+        self, app_id: Snowflake, *, sku_ids: Optional[Sequence[Snowflake]] = None, exclude_consumed: bool = True
+    ) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'exclude_consumed': str(exclude_consumed).lower()}
+        if sku_ids:
+            params['sku_ids'] = sku_ids
+        return self.request(Route('GET', '/users/@me/applications/{app_id}/entitlements', app_id=app_id, params=params))
+
+    def get_user_entitlements(
+        self, with_sku: bool = True, with_application: bool = True, entitlement_type: Optional[int] = None
+    ) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'with_sku': str(with_sku).lower(), 'with_application': str(with_application).lower()}
+        if entitlement_type is not None:
+            params['entitlement_type'] = entitlement_type
+
+        return self.request(Route('GET', '/users/@me/entitlements'), params=params)
+
+    def get_giftable_entitlements(
+        self, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None
+    ) -> Response[List[dict]]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+
+        return self.request(Route('GET', '/users/@me/entitlements/gifts'), params=params)
+
+    def get_guild_entitlements(self, guild_id: Snowflake, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'with_sku': str(with_sku).lower(), 'with_application': str(with_application).lower(), 'exclude_deleted': str(exclude_deleted).lower()}
+        return self.request(Route('GET', '/guilds/{guild_id}/entitlements', guild_id=guild_id), params=params)
 
     def get_app_skus(
         self,
@@ -2357,7 +2443,7 @@ class HTTPClient:
             Route('GET', '/store/applications/{app_id}/assets', app_id=app_id), super_properties_to_track=True
         )
 
-    def create_asset(self, app_id: Snowflake, name: str, type: int, image: bytes) -> Response[appinfo.Asset]:
+    def create_asset(self, app_id: Snowflake, name: str, type: int, image: str) -> Response[appinfo.Asset]:
         payload = {'name': name, 'type': type, 'image': image}
 
         return self.request(
@@ -2423,9 +2509,9 @@ class HTTPClient:
         )
 
     def delete_team(self, team_id: Snowflake) -> Response[None]:
-        return self.request(Route('POST', '/teams/{app_id}/delete', team_id=team_id), super_properties_to_track=True)
+        return self.request(Route('POST', '/teams/{team_id}/delete', team_id=team_id), super_properties_to_track=True)
 
-    def get_team_applications(self, team_id: Snowflake) -> Response[List[appinfo.AppInfo]]:
+    def get_team_applications(self, team_id: Snowflake) -> Response[List[appinfo.Application]]:
         return self.request(Route('GET', '/teams/{team_id}/applications', team_id=team_id), super_properties_to_track=True)
 
     def get_team_members(self, team_id: Snowflake) -> Response[List[team.TeamMember]]:
@@ -2453,7 +2539,8 @@ class HTTPClient:
 
     def search_companies(self, query: str) -> Response[List[appinfo.Company]]:
         # This endpoint 204s without a query?
-        data = self.request(Route('GET', '/companies'), params={'query': query}, super_properties_to_track=True)
+        params = {'query': query}
+        data = self.request(Route('GET', '/companies'), params=params, super_properties_to_track=True)
         return data or []
 
     def get_team_payouts(
@@ -2491,8 +2578,167 @@ class HTTPClient:
     def reset_bot_token(self, app_id: Snowflake) -> Response[dict]:
         return self.request(Route('POST', '/applications/{app_id}/bot/reset', app_id=app_id), super_properties_to_track=True)
 
-    def get_detectable_applications(self) -> Response[List[appinfo.PartialAppInfo]]:
+    def get_detectable_applications(self) -> Response[List[appinfo.PartialApplication]]:
         return self.request(Route('GET', '/applications/detectable'))
+
+    def get_guild_applications(
+        self,
+        guild_id: Snowflake,
+        *,
+        type: Optional[int] = None,
+        include_team: bool = False,
+        channel_id: Optional[Snowflake] = None,
+    ) -> Response[List[appinfo.PartialApplication]]:
+        params = {}
+        if type is not None:
+            params['type'] = type
+        if include_team:
+            params['include_team'] = 'true'
+        if channel_id is not None:
+            params['channel_id'] = channel_id
+
+        return self.request(Route('GET', '/guilds/{guild_id}/applications', guild_id=guild_id), params=params)
+
+    def get_app_ticket(self, app_id: Snowflake, test_mode: bool = False) -> Response[appinfo.Ticket]:
+        payload = {'test_mode': test_mode}
+
+        return self.request(Route('POST', '/users/@me/applications/{app_id}/ticket', app_id=app_id), json=payload)
+
+    def get_app_entitlement_ticket(self, app_id: Snowflake, test_mode: bool = False) -> Response[appinfo.Ticket]:
+        payload = {'test_mode': test_mode}
+
+        return self.request(
+            Route('POST', '/users/@me/applications/{app_id}/entitlement-ticket', app_id=app_id), json=payload
+        )
+
+    def get_app_activity_statistics(self, app_id: Snowflake) -> Response[List[appinfo.ActivityStatistics]]:
+        return self.request(Route('GET', '/activities/statistics/applications/{app_id}', app_id=app_id))
+
+    def get_activity_statistics(self) -> Response[List[appinfo.ActivityStatistics]]:
+        return self.request(Route('GET', '/users/@me/activities/statistics/applications'))
+
+    def get_app_manifest_labels(self, app_id: Snowflake) -> Response[List[appinfo.ManifestLabel]]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/manifest-labels', app_id=app_id), super_properties_to_track=True
+        )
+
+    def get_app_branches(self, app_id: Snowflake) -> Response[List[appinfo.Branch]]:
+        return self.request(Route('GET', '/applications/{app_id}/branches', app_id=app_id))
+
+    def create_app_branch(self, app_id: Snowflake, name: str) -> Response[appinfo.Branch]:
+        payload = {'name': name}
+
+        return self.request(Route('POST', '/applications/{app_id}/branches', app_id=app_id), json=payload)
+
+    def delete_app_branch(self, app_id: Snowflake, branch_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route('DELETE', '/applications/{app_id}/branches/{branch_id}', app_id=app_id, branch_id=branch_id)
+        )
+
+    def get_branch_builds(self, app_id: Snowflake, branch_id: Snowflake) -> Response[List[appinfo.Build]]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/branches/{branch_id}/builds', app_id=app_id, branch_id=branch_id)
+        )
+
+    def get_branch_build(self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake) -> Response[appinfo.Build]:
+        return self.request(
+            Route(
+                'GET',
+                '/applications/{app_id}/branches/{branch_id}/builds/{build_id}',
+                app_id=app_id,
+                branch_id=branch_id,
+                build_id=build_id,
+            )
+        )
+
+    def get_latest_branch_build(self, app_id: Snowflake, branch_id: Snowflake) -> Response[appinfo.Build]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/branches/{branch_id}/builds/latest', app_id=app_id, branch_id=branch_id)
+        )
+
+    def get_live_branch_build(
+        self, app_id: Snowflake, branch_id: Snowflake, locale: str, platform: str
+    ) -> Response[appinfo.Build]:
+        params = {'locale': locale, 'platform': platform}
+        return self.request(
+            Route('GET', '/applications/{app_id}/branches/{branch_id}/builds/live', app_id=app_id, branch_id=branch_id),
+            params=params,
+        )
+
+    def get_build_ids(self, branch_ids: Sequence[Snowflake]) -> Response[List[appinfo.Branch]]:
+        payload = {'branch_ids': branch_ids}
+
+        return self.request(Route('POST', '/branches'), json=payload)
+
+    def create_branch_build(self, app_id: Snowflake, branch_id: Snowflake, payload: dict) -> Response[appinfo.CreatedBuild]:
+        return self.request(
+            Route('POST', '/applications/{app_id}/branches/{branch_id}/builds', app_id=app_id, branch_id=branch_id),
+            json=payload,
+        )
+
+    def edit_build(self, app_id: Snowflake, build_id: Snowflake, status: str) -> Response[None]:
+        payload = {'status': status}
+
+        return self.request(
+            Route('PATCH', '/applications/{app_id}/builds/{build_id}', app_id=app_id, build_id=build_id), json=payload
+        )
+
+    def delete_build(self, app_id: Snowflake, build_id: Snowflake) -> Response[None]:
+        return self.request(Route('DELETE', '/applications/{app_id}/builds/{build_id}', app_id=app_id, build_id=build_id))
+
+    def get_branch_build_size(
+        self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake, manifest_ids: Sequence[Snowflake]
+    ) -> Response[appinfo.BranchSize]:
+        payload = {'manifest_ids': manifest_ids}
+
+        return self.request(
+            Route(
+                'POST',
+                '/applications/{app_id}/branches/{branch_id}/builds/{build_id}/size',
+                app_id=app_id,
+                branch_id=branch_id,
+                build_id=build_id,
+            ),
+            json=payload,
+        )
+
+    def get_branch_build_download_signatures(
+        self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake, manifest_label_ids: Sequence[Snowflake]
+    ) -> Response[Dict[str, appinfo.DownloadSignature]]:
+        params = {'branch_id': branch_id, 'build_id': build_id}
+        payload = {'manifest_label_ids': manifest_label_ids}
+
+        return self.request(
+            Route(
+                'POST',
+                '/applications/{app_id}/download-signatures',
+                app_id=app_id,
+            ),
+            params=params,
+            json=payload,
+        )
+
+    def publish_build(self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake):
+        return self.request(
+            Route(
+                'POST',
+                '/applications/{app_id}/branches/{branch_id}/builds/{build_id}/publish',
+                app_id=app_id,
+                branch_id=branch_id,
+                build_id=build_id,
+            )
+        )
+
+    def promote_build(self, app_id: Snowflake, branch_id: Snowflake, target_branch_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route(
+                'PUT',
+                '/applications/{app_id}/branches/{branch_id}/promote/{target_branch_id}',
+                app_id=app_id,
+                branch_id=branch_id,
+                target_branch_id=target_branch_id,
+            )
+        )
 
     def get_store_listing(
         self,
@@ -2728,13 +2974,28 @@ class HTTPClient:
             context_properties=ContextProperties._empty(),
         )
 
-    def get_eula(self, eula_id: Snowflake) -> Response[dict]:
+    def create_sku_discount(self, sku_id: Snowflake, user_id: Snowflake, percent_off: int, ttl: int = 600) -> Response[None]:
+        payload = {'percent_off': percent_off, 'ttl': ttl}
+        return self.request(
+            Route('PUT', '/store/skus/{sku_id}/discounts/{user_id}', sku_id=sku_id, user_id=user_id), json=payload
+        )
+
+    def delete_sku_discount(self, sku_id: Snowflake, user_id: Snowflake) -> Response[None]:
+        return self.request(Route('DELETE', '/store/skus/{sku_id}/discounts/{user_id}', sku_id=sku_id, user_id=user_id))
+
+    def get_eula(self, eula_id: Snowflake) -> Response[appinfo.EULA]:
         return self.request(Route('GET', '/store/eulas/{eula_id}', eula_id=eula_id))
 
-    def get_price_tiers(self) -> Response[List[dict]]:
-        return self.request(Route('GET', '/store/price-tiers'), super_properties_to_track=True)
+    def get_price_tiers(self, type: Optional[int] = None, guild_id: Optional[Snowflake] = None) -> Response[List[int]]:
+        params = {}
+        if type:
+            params['price_tier_type'] = type
+        if guild_id:
+            params['guild_id'] = guild_id
 
-    def get_price_tier(self, price_tier: Snowflake) -> Response[dict]:
+        return self.request(Route('GET', '/store/price-tiers'), params=params, super_properties_to_track=True)
+
+    def get_price_tier(self, price_tier: Snowflake) -> Response[Dict[str, int]]:
         return self.request(
             Route('GET', '/store/price-tiers/{price_tier}', price_tier=price_tier), super_properties_to_track=True
         )
@@ -2747,10 +3008,10 @@ class HTTPClient:
         name_localizations: Optional[Mapping[str, str]] = None,
         description: str,
         description_localizations: Optional[Mapping[str, str]] = None,
-        icon: bytes,
+        icon: str,
         secure: bool,
         secret: bool,
-    ) -> Response[dict]:
+    ) -> Response[appinfo.Achievement]:
         payload = {
             'name': {
                 'default': name,
@@ -2769,15 +3030,15 @@ class HTTPClient:
             Route('POST', '/applications/{app_id}/achievements', app_id=app_id), json=payload, super_properties_to_track=True
         )
 
-    def get_achievements(self, app_id: Snowflake) -> Response[List[dict]]:
+    def get_achievements(self, app_id: Snowflake) -> Response[List[appinfo.Achievement]]:
         return self.request(
             Route('GET', '/applications/{app_id}/achievements', app_id=app_id), super_properties_to_track=True
         )
 
-    def get_my_achievements(self, app_id: Snowflake) -> Response[List[dict]]:
+    def get_my_achievements(self, app_id: Snowflake) -> Response[List[appinfo.Achievement]]:
         return self.request(Route('GET', '/users/@me/applications/{app_id}/achievements', app_id=app_id))
 
-    def get_achievement(self, app_id: Snowflake, achievement_id: Snowflake) -> Response[dict]:
+    def get_achievement(self, app_id: Snowflake, achievement_id: Snowflake) -> Response[appinfo.Achievement]:
         return self.request(
             Route(
                 'GET', '/applications/{app_id}/achievements/{achievement_id}', app_id=app_id, achievement_id=achievement_id
@@ -2785,13 +3046,29 @@ class HTTPClient:
             super_properties_to_track=True,
         )
 
-    def edit_achievement(self, app_id: Snowflake, achievement_id: Snowflake, payload: dict) -> Response[dict]:
+    def edit_achievement(self, app_id: Snowflake, achievement_id: Snowflake, payload: dict) -> Response[appinfo.Achievement]:
         return self.request(
             Route(
                 'PATCH', '/applications/{app_id}/achievements/{achievement_id}', app_id=app_id, achievement_id=achievement_id
             ),
             json=payload,
             super_properties_to_track=True,
+        )
+
+    def update_user_achievement(
+        self, app_id: Snowflake, achievement_id: Snowflake, user_id: Snowflake, percent_complete: int
+    ) -> Response[None]:
+        payload = {'percent_complete': percent_complete}
+
+        return self.request(
+            Route(
+                'PUT',
+                '/users/{user_id}/applications/{app_id}/achievements/{achievement_id}',
+                user_id=user_id,
+                app_id=app_id,
+                achievement_id=achievement_id,
+            ),
+            json=payload,
         )
 
     def delete_achievement(self, app_id: Snowflake, achievement_id: Snowflake) -> Response[None]:
@@ -2804,6 +3081,96 @@ class HTTPClient:
             ),
             super_properties_to_track=True,
         )
+
+    def get_gift_batches(self, app_id: Snowflake) -> Response[List[appinfo.GiftBatch]]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/gift-code-batches', app_id=app_id), super_properties_to_track=True
+        )
+
+    def get_gift_batch_csv(self, app_id: Snowflake, batch_id: Snowflake) -> Response[bytes]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/gift-code-batches/{batch_id}', app_id=app_id, batch_id=batch_id),
+            super_properties_to_track=True,
+        )
+
+    def create_gift_batch(
+        self,
+        app_id: Snowflake,
+        sku_id: Snowflake,
+        amount: int,
+        description: str,
+        *,
+        entitlement_branches: Optional[Sequence[Snowflake]] = None,
+        entitlement_starts_at: Optional[str] = None,
+        entitlement_ends_at: Optional[str] = None,
+    ) -> Response[appinfo.GiftBatch]:
+        payload = {
+            'sku_id': sku_id,
+            'amount': str(amount),
+            'description': description,
+            'entitlement_branches': entitlement_branches or [],
+            'entitlement_starts_at': entitlement_starts_at or '',
+            'entitlement_ends_at': entitlement_ends_at or '',
+        }
+
+        return self.request(
+            Route('POST', '/applications/{app_id}/gift-code-batches', app_id=app_id),
+            json=payload,
+            super_properties_to_track=True,
+        )
+
+    def get_gift(
+        self,
+        code: str,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        with_application: bool = False,
+        with_subscription_plan: bool = True,
+    ) -> Response[dict]:
+        params: Dict[str, Any] = {
+            'with_application': str(with_application).lower(),
+            'with_subscription_plan': str(with_subscription_plan).lower(),
+        }
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+
+        return self.request(Route('GET', '/entitlements/gift-codes/{code}', code=code), params=params)
+
+    def get_sku_gifts(self, sku_id: Snowflake, subscription_plan_id: Optional[Snowflake] = None) -> Response[List[dict]]:
+        params: Dict[str, Any] = {'sku_id': sku_id}
+        if subscription_plan_id:
+            params['subscription_plan_id'] = subscription_plan_id
+
+        return self.request(Route('GET', '/users/@me/entitlements/gift-codes'), params=params)
+
+    def create_gift(
+        self, sku_id: Snowflake, *, subscription_plan_id: Optional[Snowflake] = None, gift_style: Optional[int] = None
+    ) -> Response[dict]:
+        payload: Dict[str, Any] = {'sku_id': sku_id}
+        if subscription_plan_id:
+            payload['subscription_plan_id'] = subscription_plan_id
+        if gift_style:
+            payload['gift_style'] = gift_style
+
+        return self.request(Route('POST', '/users/@me/entitlements/gift-codes'), json=payload)
+
+    def redeem_gift(
+        self,
+        code: str,
+        payment_source_id: Optional[Snowflake] = None,
+        channel_id: Optional[Snowflake] = None,
+        gateway_checkout_context: Optional[str] = None,
+    ) -> Response[dict]:
+        payload: Dict[str, Any] = {'channel_id': channel_id, 'gateway_checkout_context': gateway_checkout_context}
+        if payment_source_id:
+            payload['payment_source_id'] = payment_source_id
+
+        return self.request(Route('POST', '/entitlements/gift-codes/{code}/redeem', code=code), json=payload)
+
+    def delete_gift(self, code: str) -> Response[None]:
+        return self.request(Route('DELETE', '/users/@me/entitlements/gift-codes/{code}', code=code))
 
     # Billing
 
@@ -2821,7 +3188,7 @@ class HTTPClient:
         billing_address: dict,
         billing_address_token: Optional[str] = None,
         return_url: Optional[str] = None,
-        bank: Any = None,
+        bank: Optional[str] = None,
     ) -> Response[dict]:
         payload = {
             'token': token,
@@ -2975,15 +3342,52 @@ class HTTPClient:
             Route('GET', '/users/@me/billing/subscriptions/{subscription_id}/invoices', subscription_id=subscription_id)
         )
 
+    def get_applied_guild_subscriptions(self) -> Response[List[subscriptions.PremiumGuildSubscription]]:
+        return self.request(Route('GET', '/users/@me/guilds/premium/subscriptions'))
+
+    def get_guild_subscriptions(self, guild_id: Snowflake) -> Response[List[subscriptions.PremiumGuildSubscription]]:
+        return self.request(Route('GET', '/guilds/{guild_id}/premium/subscriptions', guild_id=guild_id))
+
+    def delete_guild_subscription(self, guild_id: Snowflake, subscription_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route(
+                'DELETE',
+                '/guilds/{guild_id}/premium/subscriptions/{subscription_id}',
+                guild_id=guild_id,
+                subscription_id=subscription_id,
+            )
+        )
+
+    def get_guild_subscriptions_cooldown(self) -> Response[subscriptions.PremiumGuildSubscriptionCooldown]:
+        return self.request(Route('GET', '/users/@me/guilds/premium/subscriptions/cooldown'))
+
+    def get_guild_subscription_slots(self) -> Response[List[subscriptions.PremiumGuildSubscriptionSlot]]:
+        return self.request(Route('GET', '/users/@me/guilds/premium/subscription-slots'))
+
+    def apply_guild_subscription_slots(
+        self, guild_id: Snowflake, slot_ids: Sequence[Snowflake]
+    ) -> Response[List[subscriptions.PremiumGuildSubscription]]:
+        payload = {'user_premium_guild_subscription_slot_ids': slot_ids}
+
+        return self.request(Route('PUT', '/guilds/{guild_id}/premium/subscriptions', guild_id=guild_id), json=payload)
+
+    def cancel_guild_subscription_slot(self, slot_id: Snowflake) -> Response[subscriptions.PremiumGuildSubscriptionSlot]:
+        return self.request(Route('POST', '/users/@me/guilds/premium/subscription-slots/{slot_id}/cancel', slot_id=slot_id))
+
+    def uncancel_guild_subscription_slot(self, slot_id: Snowflake) -> Response[subscriptions.PremiumGuildSubscriptionSlot]:
+        return self.request(
+            Route('POST', '/users/@me/guilds/premium/subscription-slots/{slot_id}/uncancel', slot_id=slot_id)
+        )
+
     def pay_invoice(
         self,
         subscription_id: Snowflake,
         invoice_id: Snowflake,
-        payment_source_id: Snowflake,
+        payment_source_id: Optional[Snowflake],
         payment_source_token: Optional[str] = None,
         currency: str = 'usd',
         return_url: Optional[str] = None,
-    ):
+    ) -> Response[dict]:
         payload = {
             'payment_source_id': payment_source_id,
             'payment_source_token': payment_source_token,
@@ -3039,37 +3443,11 @@ class HTTPClient:
     def get_trial_offer(self) -> Response[dict]:
         return self.request(Route('GET', '/users/@me/billing/user-trial-offer'))
 
-    def get_gift(
-        self,
-        code: str,
-        country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
-        with_application: bool = False,
-        with_subscription_plan: bool = True,
-    ) -> Response[dict]:
-        params: Dict[str, Any] = {
-            'with_application': str(with_application).lower(),
-            'with_subscription_plan': str(with_subscription_plan).lower(),
-        }
-        if country_code:
-            params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
+    def ack_trial_offer(self, trial_id: Snowflake) -> Response[None]:
+        return self.request(Route('POST', '/users/@me/billing/user-trial-offer/{trial_id}/ack', trial_id=trial_id))
 
-        return self.request(Route('GET', '/entitlements/gift-codes/{code}', code=code), params=params)
-
-    def redeem_gift(
-        self,
-        code: str,
-        payment_source_id: Optional[Snowflake] = None,
-        channel_id: Optional[Snowflake] = None,
-        gateway_checkout_context: Optional[str] = None,
-    ) -> Response[dict]:
-        payload: Dict[str, Any] = {'channel_id': channel_id, 'gateway_checkout_context': gateway_checkout_context}
-        if payment_source_id:
-            payload['payment_source_id'] = payment_source_id
-
-        return self.request(Route('POST', '/entitlements/gift-codes/{code}/redeem', code=code), json=payload)
+    def get_pricing_promotion(self) -> Response[dict]:
+        return self.request(Route('GET', '/users/@me/billing/localized-pricing-promo'))
 
     # Misc
 
@@ -3143,7 +3521,7 @@ class HTTPClient:
 
         return self.request(Route('POST', '/report'), json=payload)
 
-    def get_application_commands(self, app_id):
+    def get_application_commands(self, app_id: Snowflake):
         return self.request(Route('GET', '/applications/{application_id}/commands', application_id=app_id))
 
     def search_application_commands(
@@ -3224,8 +3602,40 @@ class HTTPClient:
 
         return self.request(Route('POST', '/interactions'), json=payload, form=form, files=files)
 
-    def get_country_code(self):
+    def get_country_code(self) -> Response[dict]:
         return self.request(Route('GET', '/users/@me/billing/country-code'))
+
+    def get_library_entries(
+        self, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None
+    ) -> Response[List[dict]]:
+        params = {}
+        if country_code is not None:
+            params['country_code'] = country_code
+        if payment_source_id is not None:
+            params['payment_source_id'] = payment_source_id
+
+        return self.request(Route('GET', '/users/@me/library'), params=params)
+
+    def edit_library_entry(self, app_id: Snowflake, branch_id: Snowflake, payload: dict) -> Response[dict]:
+        return self.request(
+            Route('PATCH', '/users/@me/library/{application_id}/{branch_id}', application_id=app_id, branch_id=branch_id),
+            json=payload,
+        )
+
+    def delete_library_entry(self, app_id: Snowflake, branch_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route('DELETE', '/users/@me/library/{application_id}/{branch_id}', application_id=app_id, branch_id=branch_id)
+        )
+
+    def mark_library_entry_installed(self, app_id: Snowflake, branch_id: Snowflake) -> Response[dict]:
+        return self.request(
+            Route(
+                'POST',
+                '/users/@me/library/{application_id}/{branch_id}/installed',
+                application_id=app_id,
+                branch_id=branch_id,
+            )
+        )
 
     async def get_preferred_voice_regions(self) -> List[dict]:
         async with self.__session.get('https://latency.discord.media/rtc') as resp:

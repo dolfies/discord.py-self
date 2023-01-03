@@ -45,7 +45,10 @@ __all__ = (
     'PaymentSourceFlags',
     'SKUFlags',
     'PaymentFlags',
+    'PromotionFlags',
     'GiftFlags',
+    'LibraryApplicationFlags',
+    'ApplicationDiscoveryFlags',
 )
 
 BF = TypeVar('BF', bound='BaseFlags')
@@ -496,7 +499,7 @@ class PrivateUserFlags(PublicUserFlags):
 
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
-            Note that aliases are not shown.
+            Note that aliases or inherited flags are not shown.
 
     .. note::
         These are only available on your own user flags.
@@ -1113,6 +1116,74 @@ class PaymentFlags(BaseFlags):
 
 
 @fill_with_flags()
+class PromotionFlags(BaseFlags):
+    r"""Wraps up the Discord promotion flags.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two PromotionFlags are equal.
+        .. describe:: x != y
+
+            Checks if two PromotionFlags are not equal.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. This value is a bit array field of a 53-bit integer
+        representing the currently available flags. You should query
+        flags via the properties rather than using this raw value.
+    """
+
+    __slots__ = ()
+
+    @flag_value
+    def unknown_0(self):
+        return 1 << 0
+
+    @flag_value
+    def unknown_1(self):
+        # Possibly one month duration?
+        return 1 << 1
+
+    @flag_value
+    def unknown_2(self):
+        return 1 << 2
+
+    @flag_value
+    def unknown_3(self):
+        return 1 << 3
+
+    @flag_value
+    def unknown_4(self):
+        # Possibly unavailable/ended/inactive
+        # Maybe also direct link
+        # Maybe also available for existing users
+        return 1 << 4
+
+    @flag_value
+    def blocked_ios(self):
+        """:class:`bool`: Returns ``True`` if the promotion is blocked on iOS."""
+        return 1 << 5
+
+    @flag_value
+    def outbound_redeemable_by_trial_users(self):
+        """:class:`bool`: Returns ``True`` if the promotion is redeemable by trial users."""
+        return 1 << 6
+
+
+@fill_with_flags()
 class GiftFlags(BaseFlags):
     r"""Wraps up the Discord payment flags.
 
@@ -1166,3 +1237,181 @@ class GiftFlags(BaseFlags):
     def promotion(self):
         """:class:`bool`: Returns ``True`` if the gift is from a promotion."""
         return 1 << 3
+
+
+@fill_with_flags()
+class LibraryApplicationFlags(BaseFlags):
+    r"""Wraps up the Discord library application flags.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two LibraryApplicationFlags are equal.
+        .. describe:: x != y
+
+            Checks if two LibraryApplicationFlags are not equal.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. This value is a bit array field of a 53-bit integer
+        representing the currently available flags. You should query
+        flags via the properties rather than using this raw value.
+    """
+
+    __slots__ = ()
+
+    @flag_value
+    def hidden(self):
+        """:class:`bool`: Returns ``True`` if the library application is hidden."""
+        return 1 << 0
+
+    @flag_value
+    def private(self):
+        """:class:`bool`: Returns ``True`` if the library application is not shown in playing status."""
+        return 1 << 1
+
+    @flag_value
+    def overlay_disabled(self):
+        """:class:`bool`: Returns ``True`` if the library application has the Discord overlay disabled."""
+        return 1 << 2
+
+    @flag_value
+    def entitled(self):
+        """:class:`bool`: Returns ``True`` if the library application is entitled to the user."""
+        return 1 << 3
+
+    @flag_value
+    def premium(self):
+        """:class:`bool`: Returns ``True`` if the library application is free for premium users."""
+        return 1 << 4
+
+
+@fill_with_flags()
+class ApplicationDiscoveryFlags(BaseFlags):
+    r"""Wraps up the Discord application discovery eligibility flags.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two LibraryApplicationFlags are equal.
+        .. describe:: x != y
+
+            Checks if two LibraryApplicationFlags are not equal.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. This value is a bit array field of a 53-bit integer
+        representing the currently available flags. You should query
+        flags via the properties rather than using this raw value.
+    """
+
+    __slots__ = ()
+
+    @flag_value
+    def verified(self):
+        """:class:`bool`: Returns ``True`` if the application is verified."""
+        return 1 << 0
+
+    @flag_value
+    def tag(self):
+        """:class:`bool`: Returns ``True`` if the application has at least one tag set."""
+        return 1 << 1
+
+    @flag_value
+    def description(self):
+        """:class:`bool`: Returns ``True`` if the application has a description."""
+        return 1 << 2
+
+    @flag_value
+    def terms_of_service(self):
+        """:class:`bool`: Returns ``True`` if the application has a terms of service."""
+        return 1 << 3
+
+    @flag_value
+    def privacy_policy(self):
+        """:class:`bool`: Returns ``True`` if the application has a privacy policy."""
+        return 1 << 4
+
+    @flag_value
+    def install_params(self):
+        """:class:`bool`: Returns ``True`` if the application has a custom install URL or install parameters."""
+        return 1 << 5
+
+    @flag_value
+    def safe_name(self):
+        """:class:`bool`: Returns ``True`` if the application name is safe for work."""
+        return 1 << 6
+
+    @flag_value
+    def safe_description(self):
+        """:class:`bool`: Returns ``True`` if the application description is safe for work."""
+        return 1 << 7
+
+    @flag_value
+    def approved_commands(self):
+        """:class:`bool`: Returns ``True`` if the application has the message content intent approved or utilizes application commands."""
+        return 1 << 8
+
+    @flag_value
+    def support_guild(self):
+        """:class:`bool`: Returns ``True`` if the application has a support guild set."""
+        return 1 << 9
+
+    @flag_value
+    def safe_commands(self):
+        """:class:`bool`: Returns ``True`` if the application's commands are safe for work."""
+        return 1 << 10
+
+    @flag_value
+    def mfa(self):
+        """:class:`bool`: Returns ``True`` if the application's owner has MFA enabled."""
+        return 1 << 11
+
+    @flag_value
+    def safe_directory_overview(self):
+        """:class:`bool`: Returns ``True`` if the application's directory long description is safe for work."""
+        return 1 << 12
+
+    @flag_value
+    def supported_locales(self):
+        """:class:`bool`: Returns ``True`` if the application has at least one supported locale set."""
+        return 1 << 13
+
+    @flag_value
+    def safe_short_description(self):
+        """:class:`bool`: Returns ``True`` if the application's directory short description is safe for work."""
+        return 1 << 14
+
+    @flag_value
+    def safe_role_connections(self):
+        """:class:`bool`: Returns ``True`` if the application's role connections metadata is safe for work."""
+        return 1 << 15
+
+    @flag_value
+    def eligible(self):
+        """:class:`bool`: Returns ``True`` if the application has met all the above criteria and is eligible for discovery."""
+        return 1 << 16

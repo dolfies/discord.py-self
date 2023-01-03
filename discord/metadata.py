@@ -85,6 +85,8 @@ class Metadata:
             self.__dict__[key] = value
 
     def __repr__(self) -> str:
+        if not self.__dict__:
+            return '<Metadata>'
         return f'<Metadata {" ".join(f"{k}={v!r}" for k, v in self.__dict__.items())}>'
 
     def __eq__(self, other: object) -> bool:

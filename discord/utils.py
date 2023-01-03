@@ -147,7 +147,7 @@ if TYPE_CHECKING:
     from .message import Message
     from .template import Template
     from .commands import ApplicationCommand
-    from .promotions import Gift
+    from .entitlements import Gift
 
     class _RequestLike(Protocol):
         headers: Mapping[str, Any]
@@ -598,7 +598,7 @@ def _get_as_snowflake(data: Any, key: str) -> Optional[int]:
         return value and int(value)
 
 
-def _get_mime_type_for_image(data: bytes, with_video: bool = False) -> str:
+def _get_mime_type_for_image(data: bytes, with_video: bool = False, fallback: bool = False) -> str:
     if data.startswith(b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'):
         return 'image/png'
     elif data[0:3] == b'\xff\xd8\xff' or data[6:10] in (b'JFIF', b'Exif'):
@@ -610,6 +610,8 @@ def _get_mime_type_for_image(data: bytes, with_video: bool = False) -> str:
     elif data.startswith(b'\x66\x74\x79\x70\x69\x73\x6F\x6D') and with_video:
         return 'video/mp4'
     else:
+        if fallback:
+            return 'application/octet-stream'
         raise ValueError('Unsupported image type given')
 
 
@@ -628,7 +630,7 @@ def _get_extension_for_mime_type(mime_type: str) -> str:
 
 def _bytes_to_base64_data(data: bytes) -> str:
     fmt = 'data:{mime};base64,{data}'
-    mime = _get_mime_type_for_image(data)
+    mime = _get_mime_type_for_image(data, fallback=True)
     b64 = b64encode(data).decode('ascii')
     return fmt.format(mime=mime, data=b64)
 
@@ -879,7 +881,7 @@ def resolve_gift(code: Union[Gift, str]) -> str:
     :class:`str`
         The gift code.
     """
-    from .promotions import Gift  # circular import
+    from .entitlements import Gift  # circular import
 
     if isinstance(code, Gift):
         return code.code
