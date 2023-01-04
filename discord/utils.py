@@ -639,17 +639,24 @@ def _is_submodule(parent: str, child: str) -> bool:
     return parent == child or child.startswith(parent + '.')
 
 
+def _handle_metadata(obj):
+    try:
+        return dict(obj)
+    except Exception:
+        raise TypeError(f'Type {obj.__class__.__name__} is not JSON serializable')
+
+
 if HAS_ORJSON:
 
     def _to_json(obj: Any) -> str:
-        return orjson.dumps(obj).decode('utf-8')
+        return orjson.dumps(obj, default=_handle_metadata).decode('utf-8')
 
     _from_json = orjson.loads  # type: ignore
 
 else:
 
     def _to_json(obj: Any) -> str:
-        return json.dumps(obj, separators=(',', ':'), ensure_ascii=True)
+        return json.dumps(obj, separators=(',', ':'), ensure_ascii=True, default=_handle_metadata)
 
     _from_json = json.loads
 

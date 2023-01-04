@@ -3624,13 +3624,11 @@ class Guild(Hashable):
 
         Raises
         -------
-        TypeError
-            Less than 1 subscription slot was passed.
         HTTPException
             Applying the premium subscription slots failed.
         """
         if not subscription_slots:
-            raise TypeError('apply_premium_subscription_slots() takes at least 1 argument (0 given)')
+            return []
 
         data = await self._state.http.apply_guild_subscription_slots(self.id, [slot.id for slot in subscription_slots])
         return [PremiumGuildSubscription(state=self._state, data=sub) for sub in data]

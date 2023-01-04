@@ -886,6 +886,7 @@ class ApplicationBuildStatus(Enum):
     invalid = 'INVALID'
     ready = 'READY'
     validating = 'VALIDATING'
+    uploaded = 'UPLOADED'
     uploading = 'UPLOADING'
     created = 'CREATED'
 

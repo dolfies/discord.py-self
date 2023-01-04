@@ -149,8 +149,8 @@ class DownloadSignature(TypedDict):
 
 
 class Build(TypedDict):
-    application_id: Snowflake
-    created_at: str
+    application_id: NotRequired[Snowflake]
+    created_at: NotRequired[str]
     id: Snowflake
     manifests: List[Manifest]
     status: Literal['CREATED', 'INVALID', 'READY']
@@ -161,6 +161,16 @@ class Build(TypedDict):
 class CreatedBuild(TypedDict):
     build: Build
     manifest_uploads: List[Manifest]
+
+
+class BuildFile(TypedDict):
+    id: Snowflake
+    md5_hash: NotRequired[str]
+
+
+class CreatedBuildFile(TypedDict):
+    id: str
+    url: str
 
 
 class ManifestLabel(TypedDict):

@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .asset import Asset, AssetMixin
 from .enums import (
@@ -60,8 +60,9 @@ if TYPE_CHECKING:
 
     from .abc import Snowflake
     from .appinfo import Application, PartialApplication
-    from .entitlements import Gift, GiftBatch
+    from .entitlements import Entitlement, Gift, GiftBatch
     from .guild import Guild
+    from .library import LibraryApplication
     from .state import ConnectionState
     from .types.appinfo import StoreAsset as StoreAssetPayload
     from .types.snowflake import Snowflake as SnowflakeType
@@ -75,6 +76,8 @@ __all__ = (
     'SKUPrice',
     'ContentRating',
     'SKU',
+    'SubscriptionPlanPrices',
+    'SubscriptionPlan',
 )
 
 THE_GAME_AWARDS_WINNERS = (500428425362931713, 451550535720501248, 471376328319303681, 466696214818193408)
@@ -1248,12 +1251,31 @@ class SKU(Hashable):
         data = await self._state.http.edit_sku(self.id, **payload)
         self._update(data)
 
-    async def subscription_plans(self) -> List[SubscriptionPlan]:
+    async def subscription_plans(
+        self,
+        *,
+        country_code: str = MISSING,
+        payment_source: Snowflake = MISSING,
+        include_unpublished: bool = False,
+    ) -> List[SubscriptionPlan]:
         r"""|coro|
 
         Returns a list of :class:`SubscriptionPlan`\s for this SKU.
 
         .. versionadded:: 2.0
+
+        Parameters
+        ----------
+        country_code: :class:`str`
+            The country code to retrieve the subscription plan prices for.
+            Defaults to the country code of the current user.
+        payment_source: :class:`PaymentSource`
+            The specific payment source to retrieve the subscription plan prices for.
+            Defaults to all payment sources of the current user.
+        include_unpublished: :class:`bool`
+            Whether to include unpublished subscription plans.
+
+            If ``True``, then you require access to the application.
 
         Raises
         ------
@@ -1266,7 +1288,12 @@ class SKU(Hashable):
             The subscription plans for this SKU.
         """
         state = self._state
-        data = await state.http.get_store_listing_subscription_plans(self.id)
+        data = await state.http.get_store_listing_subscription_plans(
+            self.id,
+            country_code=country_code if country_code is not MISSING else None,
+            payment_source_id=payment_source.id if payment_source is not MISSING else None,
+            include_unpublished=include_unpublished,
+        )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
     async def store_listings(self, localize: bool = True) -> List[StoreListing]:
@@ -1540,7 +1567,9 @@ class SKU(Hashable):
         data = await self._state.http.get_sku_gifts(self.id, subscription_plan.id if subscription_plan else None)
         return [Gift(data=gift, state=self._state) for gift in data]
 
-    async def create_gift(self, *, subscription_plan: Optional[Snowflake] = None, gift_style: Optional[GiftStyle] = None) -> Gift:
+    async def create_gift(
+        self, *, subscription_plan: Optional[Snowflake] = None, gift_style: Optional[GiftStyle] = None
+    ) -> Gift:
         """|coro|
 
         Creates a gift for this SKU.
@@ -1621,7 +1650,7 @@ class SKU(Hashable):
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
         gateway_checkout_context: Optional[str] = None,
-    ): #-> SKUPurchase:
+    ) -> Tuple[List[Entitlement], List[LibraryApplication], Optional[Gift]]:
         """|coro|
 
         Purchases this SKU.
@@ -1671,13 +1700,14 @@ class SKU(Hashable):
 
         Returns
         -------
-        :class:`SKUPurchase`
-            The purchase that was made.
+        Tuple[List[:class:`Entitlement`], List[:class:`LibraryApplication`], Optional[:class:`Gift`]]
+            The purchased entitlements, the library entries created, and the gift created (if any).
         """
         if not gift and gift_style:
             raise TypeError('gift_style can only be used with gifts')
 
-        data = await self._state.http.purchase_sku(
+        state = self._state
+        data = await state.http.purchase_sku(
             self.id,
             payment_source.id if payment_source else None,
             subscription_plan_id=subscription_plan.id if subscription_plan else None,
@@ -1692,8 +1722,32 @@ class SKU(Hashable):
             gateway_checkout_context=gateway_checkout_context,
         )
 
+        from .entitlements import Entitlement, Gift
+        from .library import LibraryApplication
 
-class SubscriptionPlanPrice:
+        entitlements = [Entitlement(state=state, data=entitlement) for entitlement in data.get('entitlements', [])]
+        library_applications = [LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])]
+        gift_code = data.get('gift_code')
+        if gift_code:
+            # We create fake gift data
+            gift_data = {
+                'code': gift_code,
+                'application_id': self.application_id,
+                'subscription_plan_id': subscription_plan.id if subscription_plan else None,
+                'sku_id': self.id,
+                'gift_style': int(gift_style) if gift_style else None,
+                'max_uses': 1,
+                'uses': 0,
+                'user': state.user._to_minimal_user_json(),  # type: ignore
+            }
+            gift_code = Gift(state=state, data=gift_data)
+            if subscription_plan and isinstance(subscription_plan, SubscriptionPlan):
+                gift_code.subscription_plan = subscription_plan
+
+        return entitlements, library_applications, gift_code
+
+
+class SubscriptionPlanPrices:
     """Represents the different prices for a :class:`SubscriptionPlan`.
 
     .. versionadded:: 2.0
@@ -1760,7 +1814,7 @@ class SubscriptionPlan(Hashable):
         The number of intervals that make up a subscription period.
     tax_inclusive: :class:`bool`
         Whether the subscription plan price is tax inclusive.
-    prices: Dict[:class:`SubscriptionPlanPurchaseType`, :class:`SubscriptionPlanPrice`]
+    prices: Dict[:class:`SubscriptionPlanPurchaseType`, :class:`SubscriptionPlanPrices`]
         The different prices of the subscription plan.
         Not available in some contexts.
     currency: Optional[:class:`str`]
@@ -1819,8 +1873,8 @@ class SubscriptionPlan(Hashable):
         self.interval_count: int = data['interval_count']
         self.tax_inclusive: bool = data['tax_inclusive']
 
-        self.prices: Dict[SubscriptionPlanPurchaseType, SubscriptionPlanPrice] = {
-            try_enum(SubscriptionPlanPurchaseType, int(purchase_type)): SubscriptionPlanPrice(data=price_data)
+        self.prices: Dict[SubscriptionPlanPurchaseType, SubscriptionPlanPrices] = {
+            try_enum(SubscriptionPlanPurchaseType, int(purchase_type)): SubscriptionPlanPrices(data=price_data)
             for purchase_type, price_data in (data.get('prices') or {}).items()
         }
         self.currency: Optional[str] = data.get('currency')
@@ -1939,7 +1993,7 @@ class SubscriptionPlan(Hashable):
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
         gateway_checkout_context: Optional[str] = None,
-    ): #-> SKUPurchase:
+    ) -> Tuple[List[Entitlement], List[LibraryApplication], Optional[Gift]]:
         """|coro|
 
         Purchases this subscription plan.
@@ -1988,12 +2042,13 @@ class SubscriptionPlan(Hashable):
 
         Returns
         -------
-        :class:`SKUPurchase`
-            The purchase that was made.
+        Tuple[List[:class:`Entitlement`], List[:class:`LibraryApplication`], Optional[:class:`Gift`]]
+            The purchased entitlements, the library entries created, and the gift created (if any).
         """
         if not gift and gift_style:
             raise TypeError('gift_style can only be used with gifts')
 
+        state = self._state
         data = await self._state.http.purchase_sku(
             self.sku_id,
             payment_source.id if payment_source else None,
@@ -2008,3 +2063,25 @@ class SubscriptionPlan(Hashable):
             return_url=return_url,
             gateway_checkout_context=gateway_checkout_context,
         )
+
+        from .entitlements import Entitlement, Gift
+        from .library import LibraryApplication
+
+        entitlements = [Entitlement(state=state, data=entitlement) for entitlement in data.get('entitlements', [])]
+        library_applications = [LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])]
+        gift_code = data.get('gift_code')
+        if gift_code:
+            # We create fake gift data
+            gift_data = {
+                'code': gift_code,
+                'subscription_plan_id': self.id,
+                'sku_id': self.sku_id,
+                'gift_style': int(gift_style) if gift_style else None,
+                'max_uses': 1,
+                'uses': 0,
+                'user': state.user._to_minimal_user_json(),  # type: ignore
+            }
+            gift_code = Gift(state=state, data=gift_data)
+            gift_code.subscription_plan = self
+
+        return entitlements, library_applications, gift_code

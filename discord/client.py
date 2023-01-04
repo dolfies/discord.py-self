@@ -2752,8 +2752,6 @@ class Client:
 
         Raises
         -------
-        TypeError
-            Less than 1 ID was passed.
         HTTPException
             Retrieving the applications failed.
 
@@ -2763,7 +2761,7 @@ class Client:
             The public applications.
         """
         if not application_ids:
-            raise TypeError('fetch_public_applications() takes at least 1 argument (0 given)')
+            return []
 
         state = self._connection
         data = await state.http.get_public_applications(application_ids)
@@ -3537,7 +3535,9 @@ class Client:
         data = await state.http.get_library_entries(state.country_code or 'US')
         return [LibraryApplication(state=state, data=d) for d in data]
 
-    async def entitlements(self, *, with_sku: bool = True, with_application: bool = True, entitlement_type: Optional[EntitlementType] = None) -> List[Entitlement]:
+    async def entitlements(
+        self, *, with_sku: bool = True, with_application: bool = True, entitlement_type: Optional[EntitlementType] = None
+    ) -> List[Entitlement]:
         """|coro|
 
         Retrieves all the entitlements for your account.
@@ -3565,7 +3565,11 @@ class Client:
             The entitlements for your account.
         """
         state = self._connection
-        data = await state.http.get_user_entitlements(with_sku=with_sku, with_application=with_application, entitlement_type=int(entitlement_type) if entitlement_type else None)
+        data = await state.http.get_user_entitlements(
+            with_sku=with_sku,
+            with_application=with_application,
+            entitlement_type=int(entitlement_type) if entitlement_type else None,
+        )
         return [Entitlement(state=state, data=d) for d in data]
 
     async def giftable_entitlements(self) -> List[Entitlement]:
@@ -3615,7 +3619,9 @@ class Client:
         List[:class:`Entitlement`]
             The entitlements retrieved.
         """
-        return await self.fetch_entitlements(self._connection.premium_subscriptions_application.id, exclude_consumed=exclude_consumed)
+        return await self.fetch_entitlements(
+            self._connection.premium_subscriptions_application.id, exclude_consumed=exclude_consumed
+        )
 
     async def fetch_entitlements(self, application_id: int, /, *, exclude_consumed: bool = True) -> List[Entitlement]:
         """|coro|
@@ -3867,8 +3873,6 @@ class Client:
 
         Raises
         ------
-        TypeError
-            Less than 1 ID was passed.
         HTTPException
             Retrieving the store listings failed.
 
@@ -3878,7 +3882,7 @@ class Client:
             The retrieved store listings.
         """
         if not application_ids:
-            raise TypeError('fetch_primary_store_listings() takes at least 1 argument (0 given)')
+            return []
 
         state = self._connection
         data = await state.http.get_apps_store_listing(
@@ -3908,7 +3912,15 @@ class Client:
         data = await state.http.get_store_listings_subscription_plans(sku_ids)
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
-    async def fetch_sku_subscription_plans(self, sku_id: int, /) -> List[SubscriptionPlan]:
+    async def fetch_sku_subscription_plans(
+        self,
+        sku_id: int,
+        /,
+        *,
+        country_code: str = MISSING,
+        payment_source: Snowflake = MISSING,
+        include_unpublished: bool = False,
+    ) -> List[SubscriptionPlan]:
         """|coro|
 
         Retrieves all subscription plans for the given SKU ID.
@@ -3919,6 +3931,16 @@ class Client:
         -----------
         sku_id: :class:`int`
             The ID of the SKU to retrieve the subscription plans for.
+        country_code: :class:`str`
+            The country code to retrieve the subscription plan prices for.
+            Defaults to the country code of the current user.
+        payment_source: :class:`.PaymentSource`
+            The specific payment source to retrieve the subscription plan prices for.
+            Defaults to all payment sources of the current user.
+        include_unpublished: :class:`bool`
+            Whether to include unpublished subscription plans.
+
+            If ``True``, then you require access to the application.
 
         Raises
         ------
@@ -3931,10 +3953,21 @@ class Client:
             The subscription plans.
         """
         state = self._connection
-        data = await state.http.get_store_listing_subscription_plans(sku_id)
+        data = await state.http.get_store_listing_subscription_plans(
+            sku_id,
+            country_code=country_code if country_code is not MISSING else None,
+            payment_source_id=payment_source.id if payment_source is not MISSING else None,
+            include_unpublished=include_unpublished,
+        )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
-    async def fetch_skus_subscription_plans(self, *sku_ids: int) -> List[SubscriptionPlan]:
+    async def fetch_skus_subscription_plans(
+        self,
+        *sku_ids: int,
+        country_code: str = MISSING,
+        payment_source: Snowflake = MISSING,
+        include_unpublished: bool = False,
+    ) -> List[SubscriptionPlan]:
         r"""|coro|
 
         Retrieves all subscription plans for the given SKU IDs.
@@ -3945,11 +3978,19 @@ class Client:
         -----------
         \*sku_ids: :class:`int`
             A list of SKU IDs to retrieve the subscription plans for.
+        country_code: :class:`str`
+            The country code to retrieve the subscription plan prices for.
+            Defaults to the country code of the current user.
+        payment_source: :class:`.PaymentSource`
+            The specific payment source to retrieve the subscription plan prices for.
+            Defaults to all payment sources of the current user.
+        include_unpublished: :class:`bool`
+            Whether to include unpublished subscription plans.
+
+            If ``True``, then you require access to the application(s).
 
         Raises
         ------
-        TypeError
-            Less than 1 ID was passed.
         HTTPException
             Retrieving the subscription plans failed.
 
@@ -3959,10 +4000,15 @@ class Client:
             The subscription plans.
         """
         if not sku_ids:
-            raise TypeError('fetch_skus_subscription_plans() takes at least 1 argument (0 given)')
+            return []
 
         state = self._connection
-        data = await state.http.get_store_listings_subscription_plans(sku_ids)
+        data = await state.http.get_store_listings_subscription_plans(
+            sku_ids,
+            country_code=country_code if country_code is not MISSING else None,
+            payment_source_id=payment_source.id if payment_source is not MISSING else None,
+            include_unpublished=include_unpublished,
+        )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
     async def fetch_eula(self, eula_id: int, /) -> EULA:
@@ -4006,8 +4052,6 @@ class Client:
 
         Raises
         ------
-        TypeError
-            Less than 1 ID was passed.
         HTTPException
             Retrieving the live build IDs failed.
 
@@ -4017,7 +4061,7 @@ class Client:
             A mapping of found branch IDs to their live build ID, if any.
         """
         if not branch_ids:
-            raise TypeError('fetch_live_build_ids() takes at least 1 argument (0 given)')
+            return {}
 
         data = await self._connection.http.get_build_ids(branch_ids)
         return {int(b['id']): utils._get_as_snowflake(b, 'live_build_id') for b in data}

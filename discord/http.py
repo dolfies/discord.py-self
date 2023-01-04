@@ -27,9 +27,9 @@ from __future__ import annotations
 import asyncio
 from base64 import b64encode
 import json
-from lib2to3.pgen2.token import OP
 import logging
-from random import choice
+from random import choice, choices
+import string
 from typing import (
     Any,
     ClassVar,
@@ -534,7 +534,7 @@ class HTTPClient:
 
                         # Request was successful so just return the text/json
                         if 300 > response.status >= 200:
-                            _log.debug('%s %s has received %s', method, url, data)
+                            _log.debug('%s %s has received %s.', method, url, data)
                             return data
 
                         # Rate limited
@@ -626,6 +626,58 @@ class HTTPClient:
                 raise Forbidden(resp, 'cannot retrieve asset')
             else:
                 raise HTTPException(resp, 'failed to get asset')
+
+    async def upload_to_cloud(self, url: str, file: Union[File, str], hash: Optional[str] = None) -> Any:
+        response: Optional[aiohttp.ClientResponse] = None
+        data: Optional[Union[Dict[str, Any], str]] = None
+
+        # aiohttp helpfully sets the content type for us,
+        # but Google explodes if we do that; therefore, empty string
+        headers = {'Content-Type': ''}
+        if hash:
+            headers['Content-MD5'] = hash
+
+        for tries in range(5):
+            if isinstance(file, File):
+                file.reset(seek=tries)
+
+            try:
+                async with self.__session.put(url, data=getattr(file, 'fp', file), headers=headers) as response:
+                    _log.debug('PUT %s with %s has returned %s.', url, file, response.status)
+                    data = await json_or_text(response)
+
+                    # Request was successful so just return the text/json
+                    if 300 > response.status >= 200:
+                        _log.debug('PUT %s has received %s.', url, data)
+                        return data
+
+                    # Unconditional retry
+                    if response.status in {500, 502, 504}:
+                        await asyncio.sleep(1 + tries * 2)
+                        continue
+
+                    # Usual error cases
+                    if response.status == 403:
+                        raise Forbidden(response, data)
+                    elif response.status == 404:
+                        raise NotFound(response, data)
+                    elif response.status >= 500:
+                        raise DiscordServerError(response, data)
+                    else:
+                        raise HTTPException(response, data)
+            except OSError as e:
+                # Connection reset by peer
+                if tries < 4 and e.errno in (54, 10054):
+                    await asyncio.sleep(1 + tries * 2)
+                    continue
+                raise
+
+        if response is not None:
+            # We've run out of retries, raise
+            if response.status >= 500:
+                raise DiscordServerError(response, data)
+
+            raise HTTPException(response, data)
 
     # State management
 
@@ -2400,8 +2452,14 @@ class HTTPClient:
 
         return self.request(Route('GET', '/users/@me/entitlements/gifts'), params=params)
 
-    def get_guild_entitlements(self, guild_id: Snowflake, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False) -> Response[List[dict]]:
-        params: Dict[str, Any] = {'with_sku': str(with_sku).lower(), 'with_application': str(with_application).lower(), 'exclude_deleted': str(exclude_deleted).lower()}
+    def get_guild_entitlements(
+        self, guild_id: Snowflake, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False
+    ) -> Response[List[dict]]:
+        params: Dict[str, Any] = {
+            'with_sku': str(with_sku).lower(),
+            'with_application': str(with_application).lower(),
+            'exclude_deleted': str(exclude_deleted).lower(),
+        }
         return self.request(Route('GET', '/guilds/{guild_id}/entitlements', guild_id=guild_id), params=params)
 
     def get_app_skus(
@@ -2718,6 +2776,20 @@ class HTTPClient:
             json=payload,
         )
 
+    def get_build_upload_urls(self, app_id: Snowflake, build_id: Snowflake, files: Sequence[File], hash: bool = True) -> Response[List[appinfo.CreatedBuildFile]]:
+        payload = {'files': []}
+        for file in files:
+            # We create a new ID and set it as the filename
+            id = ''.join(choices(string.ascii_letters + string.digits, k=32)).upper()
+            file.filename = id
+            data = {'id': file.filename}
+            if hash:
+                data['md5_hash'] = file.md5
+
+            payload['files'].append(data)
+
+        return self.request(Route('POST', '/applications/{app_id}/builds/{build_id}/files', app_id=app_id, build_id=build_id), json=payload)
+
     def publish_build(self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake):
         return self.request(
             Route(
@@ -2815,7 +2887,25 @@ class HTTPClient:
 
         return self.request(Route('GET', '/store/published-listings/skus/{sku_id}/subscription-plans', sku_id=sku_id))
 
-    def get_store_listings_subscription_plans(self, sku_ids: Sequence[Snowflake]) -> Response[List[dict]]:
+    def get_store_listings_subscription_plans(
+        self,
+        sku_ids: Sequence[Snowflake],
+        *,
+        country_code: Optional[str] = None,
+        payment_source_id: Optional[Snowflake] = None,
+        include_unpublished: bool = False,
+        revenue_surface: Optional[int] = None,
+    ) -> Response[List[dict]]:
+        params = {}
+        if country_code:
+            params['country_code'] = country_code
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
+        if include_unpublished:
+            params['include_unpublished'] = 'true'
+        if revenue_surface:
+            params['revenue_surface'] = revenue_surface
+
         return self.request(Route('GET', '/store/published-listings/skus/subscription-plans'), params={'sku_ids': sku_ids})
 
     def get_app_store_listings(

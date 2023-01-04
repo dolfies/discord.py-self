@@ -854,23 +854,67 @@ class Manifest(Hashable):
         The ID of the application the manifest is for.
     label_id: :class:`int`
         The ID of the manifest's label.
+    label: Optional[:class:`ManifestLabel`]
+        The manifest's label, if available.
     redistributable_label_ids: List[:class:`int`]
         The label IDs of the manifest's redistributables, if available.
     url: Optional[:class:`str`]
         The URL of the manifest.
     """
 
-    __slots__ = ('id', 'application_id', 'label_id', 'redistributable_label_ids', 'url')
+    __slots__ = ('id', 'application_id', 'label_id', 'label', 'redistributable_label_ids', 'url', '_state')
 
-    def __init__(self, *, data: ManifestPayload, application_id: int) -> None:
+    if TYPE_CHECKING:
+        label_id: int
+        label: Optional[ManifestLabel]
+
+    def __init__(self, *, data: ManifestPayload, state: ConnectionState, application_id: int) -> None:
+        self._state = state
         self.id: int = int(data['id'])
         self.application_id = application_id
-        self.label_id: int = int(data['label']['id'])
         self.redistributable_label_ids: List[int] = [int(r) for r in data.get('redistributable_label_ids', [])]
         self.url: Optional[str] = data.get('url')
 
+        label = ManifestLabel(data=data['label'], application_id=application_id)
+        if isinstance(label, int):
+            self.label_id = label
+            self.label = None
+        else:
+            self.label_id = label.id
+            self.label = label
+
     def __repr__(self) -> str:
         return f'<Manifest id={self.id} application_id={self.application_id} label_id={self.label_id}>'
+
+    async def upload(self, manifest: MetadataObject, /) -> None:
+        """|coro|
+
+        Uploads the manifest object to the manifest.
+
+        .. note::
+
+            This should only be used for builds with a status of :attr:`ApplicationBuildStatus.uploading`.
+
+            Additionally, it requires that :attr:`url` is set to the uploadable URL
+            (populated on uploadable manifest objects returned from :meth:`ApplicationBranch.create_build`).
+
+        Parameters
+        -----------
+        manifest: :class:`Metadata`
+            A dict-like object representing the manifest to upload.
+
+        Raises
+        -------
+        ValueError
+            Upload URL is not set.
+        Forbidden
+            Upload URL invalid.
+        HTTPException
+            Uploading the manifest failed.
+        """
+        if not self.url:
+            raise ValueError('Manifest URL is not set')
+        await self._state.http.upload_to_cloud(self.url, utils._to_json(dict(manifest)))
 
 
 class ApplicationBuild(Hashable):
@@ -916,14 +960,16 @@ class ApplicationBuild(Hashable):
         self._update(data)
 
     def _update(self, data: BuildPayload) -> None:
+        state = self._state
+
         self.id: int = int(data['id'])
-        self.application_id: int = int(data['application_id'])
-        self.created_at: datetime = utils.parse_time(data['created_at'])
+        self.application_id: int = self.branch.application_id
+        self.created_at: datetime = utils.parse_time(data['created_at']) if 'created_at' in data else utils.snowflake_time(self.id)
         self.status: ApplicationBuildStatus = try_enum(ApplicationBuildStatus, data['status'])
         self.source_build_id: Optional[int] = utils._get_as_snowflake(data, 'source_build_id')
         self.version: Optional[str] = data.get('version')
         self.manifests: List[Manifest] = [
-            Manifest(data=m, application_id=self.application_id) for m in data.get('manifests', [])
+            Manifest(data=m, state=state, application_id=self.application_id) for m in data.get('manifests', [])
         ]
 
     def __repr__(self) -> str:
@@ -1024,6 +1070,43 @@ class ApplicationBuild(Hashable):
         """
         await self._state.http.edit_build(self.application_id, self.id, str(status))
         self.status = try_enum(ApplicationBuildStatus, str(status))
+
+    async def upload_files(self, *files: File, hash: bool = True) -> None:
+        r"""|coro|
+
+        Uploads files to the build.
+
+        .. note::
+
+            This should only be used for builds with a status of :attr:`ApplicationBuildStatus.uploading`.
+
+        .. warning::
+
+            This uses the filename as the file ID (so make sure they're unique!) and does not account for chunking.
+
+        Parameters
+        -----------
+        \*files: :class:`discord.File`
+            The files to upload.
+        hash: :class:`bool`
+            Whether to calculate the MD5 hash of the files before upload.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to manage this application.
+        HTTPException
+            Uploading the files failed.
+        """
+        if not files:
+            return
+
+        urls = await self._state.http.get_build_upload_urls(self.application_id, self.id, files, hash)
+        id_files = {f.filename: f for f in files}
+        for url in urls:
+            file = id_files.get(url['id'])
+            if file:
+                await self._state.http.upload_to_cloud(url['url'], file, file.md5 if hash else None)
 
     async def publish(self) -> None:
         """|coro|
@@ -1228,7 +1311,8 @@ class ApplicationBranch(Hashable):
 
     async def create_build(
         self,
-        built_with: str,
+        *,
+        built_with: str = "DISPATCH",
         manifests: Sequence[MetadataObject],
         source_build: Optional[Snowflake] = None,
     ) -> Tuple[ApplicationBuild, List[Manifest]]:
@@ -1265,7 +1349,7 @@ class ApplicationBranch(Hashable):
 
         data = await state.http.create_branch_build(app_id, self.id, payload)
         build = ApplicationBuild(data=data['build'], state=state, branch=self)
-        manifest_uploads = [Manifest(data=m, application_id=app_id) for m in data['manifest_uploads']]
+        manifest_uploads = [Manifest(data=m, state=state, application_id=app_id) for m in data['manifest_uploads']]
         return build, manifest_uploads
 
     async def promote(self, branch: Snowflake, /) -> None:
@@ -2663,6 +2747,36 @@ class Application(PartialApplication):
         app_id = self.id
         data = await state.http.get_app_branches(app_id)
         return [ApplicationBranch(data=branch, state=state, application_id=app_id) for branch in data]
+
+    async def create_branch(self, name: str) -> ApplicationBranch:
+        """|coro|
+
+        Creates a branch for this application.
+
+        .. note::
+
+            The first branch created will always be called ``master``
+            and share the same ID as the application.
+
+        Parameters
+        -----------
+        name: :class:`str`
+            The name of the branch.
+
+        Raises
+        ------
+        HTTPException
+            Creating the branch failed.
+
+        Returns
+        -------
+        :class:`ApplicationBranch`
+            The branch created.
+        """
+        state = self._state
+        app_id = self.id
+        data = await state.http.create_app_branch(app_id, name)
+        return ApplicationBranch(data=data, state=state, application_id=app_id)
 
     async def manifest_labels(self) -> List[ManifestLabel]:
         """|coro|
