@@ -3561,7 +3561,9 @@ class Guild(Hashable):
         if payload:
             await self._state.http.edit_welcome_screen(self.id, payload)
 
-    async def applications(self, *, include_team: bool = False, type: Optional[ApplicationType] = None, channel: Optional[Snowflake] = None) -> List[PartialApplication]:
+    async def applications(
+        self, *, include_team: bool = False, type: Optional[ApplicationType] = None, channel: Optional[Snowflake] = None
+    ) -> List[PartialApplication]:
         """|coro|
 
         Returns the list of applications that are attached to this guild.
@@ -3585,7 +3587,9 @@ class Guild(Hashable):
         List[:class:`PartialApplication`]
             The applications that belong to this guild.
         """
-        data = await self._state.http.get_guild_applications(self.id, include_team=include_team, type=int(type) if type else None, channel_id=channel.id if channel else None)
+        data = await self._state.http.get_guild_applications(
+            self.id, include_team=include_team, type=int(type) if type else None, channel_id=channel.id if channel else None
+        )
         return [PartialApplication(state=self._state, data=app) for app in data]
 
     async def premium_subscriptions(self) -> List[PremiumGuildSubscription]:
@@ -3633,7 +3637,9 @@ class Guild(Hashable):
         data = await self._state.http.apply_guild_subscription_slots(self.id, [slot.id for slot in subscription_slots])
         return [PremiumGuildSubscription(state=self._state, data=sub) for sub in data]
 
-    async def entitlements(self, *, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False) -> List[Entitlement]:
+    async def entitlements(
+        self, *, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False
+    ) -> List[Entitlement]:
         """|coro|
 
         Returns the list of entitlements for this guild.
@@ -3660,7 +3666,9 @@ class Guild(Hashable):
             The guild's entitlements.
         """
         state = self._state
-        data = await state.http.get_guild_entitlements(self.id, with_sku=with_sku, with_application=with_application, exclude_deleted=exclude_deleted)
+        data = await state.http.get_guild_entitlements(
+            self.id, with_sku=with_sku, with_application=with_application, exclude_deleted=exclude_deleted
+        )
         return [Entitlement(state=state, data=d) for d in data]
 
     async def price_tiers(self) -> List[int]:

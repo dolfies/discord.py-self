@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from .types.subscriptions import (
         PremiumGuildSubscription as PremiumGuildSubscriptionPayload,
         PremiumGuildSubscriptionSlot as PremiumGuildSubscriptionSlotPayload,
-        PremiumGuildSubscriptionCooldown as PremiumGuildSubscriptionCooldownPayload
+        PremiumGuildSubscriptionCooldown as PremiumGuildSubscriptionCooldownPayload,
     )
 
 __all__ = (

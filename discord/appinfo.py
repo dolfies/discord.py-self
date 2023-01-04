@@ -964,7 +964,9 @@ class ApplicationBuild(Hashable):
 
         self.id: int = int(data['id'])
         self.application_id: int = self.branch.application_id
-        self.created_at: datetime = utils.parse_time(data['created_at']) if 'created_at' in data else utils.snowflake_time(self.id)
+        self.created_at: datetime = (
+            utils.parse_time(data['created_at']) if 'created_at' in data else utils.snowflake_time(self.id)
+        )
         self.status: ApplicationBuildStatus = try_enum(ApplicationBuildStatus, data['status'])
         self.source_build_id: Optional[int] = utils._get_as_snowflake(data, 'source_build_id')
         self.version: Optional[str] = data.get('version')

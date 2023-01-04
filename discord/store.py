@@ -1726,7 +1726,9 @@ class SKU(Hashable):
         from .library import LibraryApplication
 
         entitlements = [Entitlement(state=state, data=entitlement) for entitlement in data.get('entitlements', [])]
-        library_applications = [LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])]
+        library_applications = [
+            LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])
+        ]
         gift_code = data.get('gift_code')
         if gift_code:
             # We create fake gift data
@@ -2068,7 +2070,9 @@ class SubscriptionPlan(Hashable):
         from .library import LibraryApplication
 
         entitlements = [Entitlement(state=state, data=entitlement) for entitlement in data.get('entitlements', [])]
-        library_applications = [LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])]
+        library_applications = [
+            LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])
+        ]
         gift_code = data.get('gift_code')
         if gift_code:
             # We create fake gift data

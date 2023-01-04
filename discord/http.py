@@ -2776,7 +2776,9 @@ class HTTPClient:
             json=payload,
         )
 
-    def get_build_upload_urls(self, app_id: Snowflake, build_id: Snowflake, files: Sequence[File], hash: bool = True) -> Response[List[appinfo.CreatedBuildFile]]:
+    def get_build_upload_urls(
+        self, app_id: Snowflake, build_id: Snowflake, files: Sequence[File], hash: bool = True
+    ) -> Response[List[appinfo.CreatedBuildFile]]:
         payload = {'files': []}
         for file in files:
             # We create a new ID and set it as the filename
@@ -2788,7 +2790,9 @@ class HTTPClient:
 
             payload['files'].append(data)
 
-        return self.request(Route('POST', '/applications/{app_id}/builds/{build_id}/files', app_id=app_id, build_id=build_id), json=payload)
+        return self.request(
+            Route('POST', '/applications/{app_id}/builds/{build_id}/files', app_id=app_id, build_id=build_id), json=payload
+        )
 
     def publish_build(self, app_id: Snowflake, branch_id: Snowflake, build_id: Snowflake):
         return self.request(

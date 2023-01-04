@@ -97,7 +97,16 @@ class Team(Hashable):
         team's payout account is linked to, if any and available.
     """
 
-    __slots__ = ('_state', 'id', 'name', '_icon', 'owner_id', 'members', 'payout_account_status', 'stripe_connect_account_id')
+    __slots__ = (
+        '_state',
+        'id',
+        'name',
+        '_icon',
+        'owner_id',
+        'members',
+        'payout_account_status',
+        'stripe_connect_account_id',
+    )
 
     def __init__(self, state: ConnectionState, data: TeamPayload):
         self._state: ConnectionState = state
@@ -137,9 +146,7 @@ class Team(Hashable):
                 self.members.append(TeamMember(self, self._state, member))
 
         if 'payout_account_status' in data:
-            self.payout_account_status = try_enum(
-                PayoutAccountStatus, data.get('payout_account_status')
-            )
+            self.payout_account_status = try_enum(PayoutAccountStatus, data.get('payout_account_status'))
         if 'stripe_connect_account_id' in data:
             self.stripe_connect_account_id = data.get('stripe_connect_account_id')
 
