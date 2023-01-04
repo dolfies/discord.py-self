@@ -1082,7 +1082,7 @@ class ApplicationBuild(Hashable):
 
         .. warning::
 
-            This uses the filename as the file ID (so make sure they're unique!) and does not account for chunking.
+            This does not account for chunking large files.
 
         Parameters
         -----------
