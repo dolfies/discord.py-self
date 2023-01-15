@@ -3492,10 +3492,11 @@ class HTTPClient:
     ) -> Response[dict]:
         payload = {
             'payment_source_id': payment_source_id,
-            'payment_source_token': payment_source_token,
-            'currency': currency,
-            'return_url': return_url,
         }
+        if payment_source_id:
+            payload.update({            'payment_source_token': payment_source_token,
+            'currency': currency,
+            'return_url': return_url,})
 
         return self.request(
             Route(

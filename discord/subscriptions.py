@@ -249,7 +249,7 @@ class SubscriptionInvoice(Hashable):
         *,
         payment_source_token: Optional[str] = None,
         return_url: Optional[str] = None,
-    ) -> Subscription:
+    ) -> None:
         """|coro|
 
         Pays the invoice.
@@ -285,7 +285,7 @@ class SubscriptionInvoice(Hashable):
             currency,
             return_url,
         )
-        return Subscription(state=self._state, data=data)
+        self.subscription._update(data)
 
 
 class SubscriptionInvoiceItem(Hashable):
