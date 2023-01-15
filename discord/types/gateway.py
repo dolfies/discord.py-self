@@ -393,3 +393,10 @@ PremiumGuildSubscriptionSlotEvent = PremiumGuildSubscriptionSlot
 
 class RequiredActionEvent(TypedDict):
     required_action: str
+
+
+class BillingPopupBridgeCallbackEvent(TypedDict):
+    payment_source_type: int
+    state: str
+    path: str
+    query: str

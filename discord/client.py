@@ -2767,7 +2767,7 @@ class Client:
         data = await state.http.get_public_applications(application_ids)
         return [PartialApplication(state=state, data=d) for d in data]
 
-    async def teams(self, include_payout_account_status: bool = False) -> List[Team]:
+    async def teams(self, *, with_payout_account_status: bool = False) -> List[Team]:
         """|coro|
 
         Retrieves all the teams you're a part of.
@@ -2776,7 +2776,7 @@ class Client:
 
         Parameters
         -----------
-        include_payout_account_status: :class:`bool`
+        with_payout_account_status: :class:`bool`
             Whether to return the payout account status of the teams.
 
         Raises
@@ -2790,7 +2790,7 @@ class Client:
             The teams you're a part of.
         """
         state = self._connection
-        data = await state.http.get_teams(include_payout_account_status=include_payout_account_status)
+        data = await state.http.get_teams(include_payout_account_status=with_payout_account_status)
         return [Team(state=state, data=d) for d in data]
 
     async def fetch_team(self, team_id: int, /) -> Team:
@@ -3035,7 +3035,7 @@ class Client:
         )
         return PaymentSource(state=state, data=data)
 
-    async def subscriptions(self, limit: Optional[int] = None, include_inactive: bool = False) -> List[Subscription]:
+    async def subscriptions(self, limit: Optional[int] = None, with_inactive: bool = False) -> List[Subscription]:
         """|coro|
 
         Retrieves all the subscriptions on your account.
@@ -3047,7 +3047,7 @@ class Client:
         limit: Optional[:class:`int`]
             The maximum number of subscriptions to retrieve.
             Defaults to all subscriptions.
-        include_inactive: :class:`bool`
+        with_inactive: :class:`bool`
             Whether to include inactive subscriptions.
 
         Raises
@@ -3061,7 +3061,7 @@ class Client:
             Your account's subscriptions.
         """
         state = self._connection
-        data = await state.http.get_subscriptions(limit=limit, include_inactive=include_inactive)
+        data = await state.http.get_subscriptions(limit=limit, include_inactive=with_inactive)
         return [Subscription(state=state, data=d) for d in data]
 
     async def premium_guild_subscriptions(self) -> List[PremiumGuildSubscription]:
@@ -3919,7 +3919,7 @@ class Client:
         *,
         country_code: str = MISSING,
         payment_source: Snowflake = MISSING,
-        include_unpublished: bool = False,
+        with_unpublished: bool = False,
     ) -> List[SubscriptionPlan]:
         """|coro|
 
@@ -3937,7 +3937,7 @@ class Client:
         payment_source: :class:`.PaymentSource`
             The specific payment source to retrieve the subscription plan prices for.
             Defaults to all payment sources of the current user.
-        include_unpublished: :class:`bool`
+        with_unpublished: :class:`bool`
             Whether to include unpublished subscription plans.
 
             If ``True``, then you require access to the application.
@@ -3957,7 +3957,7 @@ class Client:
             sku_id,
             country_code=country_code if country_code is not MISSING else None,
             payment_source_id=payment_source.id if payment_source is not MISSING else None,
-            include_unpublished=include_unpublished,
+            include_unpublished=with_unpublished,
         )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 
@@ -3966,7 +3966,7 @@ class Client:
         *sku_ids: int,
         country_code: str = MISSING,
         payment_source: Snowflake = MISSING,
-        include_unpublished: bool = False,
+        with_unpublished: bool = False,
     ) -> List[SubscriptionPlan]:
         r"""|coro|
 
@@ -3984,7 +3984,7 @@ class Client:
         payment_source: :class:`.PaymentSource`
             The specific payment source to retrieve the subscription plan prices for.
             Defaults to all payment sources of the current user.
-        include_unpublished: :class:`bool`
+        with_unpublished: :class:`bool`
             Whether to include unpublished subscription plans.
 
             If ``True``, then you require access to the application(s).
@@ -4007,7 +4007,7 @@ class Client:
             sku_ids,
             country_code=country_code if country_code is not MISSING else None,
             payment_source_id=payment_source.id if payment_source is not MISSING else None,
-            include_unpublished=include_unpublished,
+            include_unpublished=with_unpublished,
         )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 

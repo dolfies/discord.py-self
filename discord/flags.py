@@ -1042,11 +1042,9 @@ class SKUFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the SKU is a premium sticker pack."""
         return 1 << 4
 
-    # TODO: The below are assumptions
-
     @flag_value
-    def guild_subscription(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a guild subscription. These are subscriptions made to guilds for premium perks."""
+    def guild_role_subscription(self):
+        """:class:`bool`: Returns ``True`` if the SKU is a guild role subscription. These are subscriptions made to guilds for premium perks."""
         return 1 << 5
 
     @flag_value

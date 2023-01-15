@@ -1256,7 +1256,7 @@ class SKU(Hashable):
         *,
         country_code: str = MISSING,
         payment_source: Snowflake = MISSING,
-        include_unpublished: bool = False,
+        with_unpublished: bool = False,
     ) -> List[SubscriptionPlan]:
         r"""|coro|
 
@@ -1272,7 +1272,7 @@ class SKU(Hashable):
         payment_source: :class:`PaymentSource`
             The specific payment source to retrieve the subscription plan prices for.
             Defaults to all payment sources of the current user.
-        include_unpublished: :class:`bool`
+        with_unpublished: :class:`bool`
             Whether to include unpublished subscription plans.
 
             If ``True``, then you require access to the application.
@@ -1292,7 +1292,7 @@ class SKU(Hashable):
             self.id,
             country_code=country_code if country_code is not MISSING else None,
             payment_source_id=payment_source.id if payment_source is not MISSING else None,
-            include_unpublished=include_unpublished,
+            include_unpublished=with_unpublished,
         )
         return [SubscriptionPlan(state=state, data=d) for d in data]
 

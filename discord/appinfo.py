@@ -28,6 +28,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, AsyncIterator, Collection, List, Literal, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import quote
 
+from discord.types.appinfo import ApplicationDiscoverability
+
 from . import utils
 from .asset import Asset, AssetMixin
 from .entitlements import Entitlement, GiftBatch
@@ -2491,12 +2493,14 @@ class Application(PartialApplication):
         self,
         *,
         user: Optional[Snowflake] = None,
+        guild: Optional[Snowflake] = None,
         skus: Optional[List[Snowflake]] = None,
         limit: Optional[int] = 100,
         before: Optional[SnowflakeTime] = None,
         after: Optional[SnowflakeTime] = None,
         oldest_first: bool = MISSING,
         with_payments: bool = False,
+        exclude_ended: bool = False,
     ) -> AsyncIterator[Entitlement]:
         """Returns an :term:`asynchronous iterator` that enables receiving this application's entitlements.
 
@@ -2521,6 +2525,8 @@ class Application(PartialApplication):
         -----------
         user: Optional[:class:`User`]
             The user to retrieve entitlements for.
+        guild: Optional[:class:`Guild`]
+            The guild to retrieve entitlements for.
         skus: Optional[List[:class:`SKU`]]
             The SKUs to retrieve entitlements for.
         limit: Optional[:class:`int`]
@@ -2540,6 +2546,8 @@ class Application(PartialApplication):
             ``after`` is specified, otherwise ``False``.
         with_payments: :class:`bool`
             Whether to include partial payment info in the response.
+        exclude_ended: :class:`bool`
+            Whether to exclude entitlements that have ended.
 
         Raises
         ------
@@ -2561,8 +2569,10 @@ class Application(PartialApplication):
                 limit=retrieve,
                 after=after_id,
                 user_id=user.id if user else None,
+                guild_id=guild.id if guild else None,
                 sku_ids=[sku.id for sku in skus] if skus else None,
                 with_payments=with_payments,
+                exclude_ended=exclude_ended,
             )
 
             if data:
@@ -2580,8 +2590,10 @@ class Application(PartialApplication):
                 limit=retrieve,
                 before=before_id,
                 user_id=user.id if user else None,
+                guild_id=guild.id if guild else None,
                 sku_ids=[sku.id for sku in skus] if skus else None,
                 with_payments=with_payments,
+                exclude_ended=exclude_ended,
             )
             if data:
                 if limit is not None:
@@ -2799,6 +2811,31 @@ class Application(PartialApplication):
         app_id = self.id
         data = await state.http.get_app_manifest_labels(app_id)
         return [ManifestLabel(data=label, application_id=app_id) for label in data]
+
+    async def discoverability(self) -> Tuple[ApplicationDiscoverabilityState, ApplicationDiscoveryFlags]:
+        """|coro|
+
+        Retrieves the discoverability state for this application.
+
+        .. note::
+
+            This method is an API call. For general usage, consider
+            :attr:`discoverability_state` and :attr:`discovery_eligibility_flags` instead.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the discoverability failed.
+
+        Returns
+        -------
+        Tuple[:class:`ApplicationDiscoverabilityState`, :class:`ApplicationDiscoveryFlags`]
+            The discoverability retrieved.
+        """
+        data = await self._state.http.get_app_discoverability(self.id)
+        return try_enum(
+            ApplicationDiscoverabilityState, data['discoverability_state']
+        ), ApplicationDiscoveryFlags._from_value(data['discovery_eligibility_flags'])
 
     async def secret(self) -> str:
         """|coro|

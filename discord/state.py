@@ -62,7 +62,7 @@ from .raw_models import *
 from .member import Member
 from .relationship import Relationship
 from .role import Role
-from .enums import ChannelType, RequiredActionType, Status, try_enum, UnavailableGuildType
+from .enums import ChannelType, PaymentSourceType, RequiredActionType, Status, try_enum, UnavailableGuildType
 from . import utils
 from .flags import MemberCacheFlags
 from .invite import Invite
@@ -1158,6 +1158,9 @@ class ConnectionState:
         achievement['application_id'] = application_id
         model = Achievement(state=self, data=achievement)
         self.dispatch('achievement_update', model, data.get('percent_complete', 0))
+
+    def parse_billing_popup_bridge_callback(self, data: gw.BillingPopupBridgeCallbackEvent) -> None:
+        self.dispatch('billing_popup_bridge_callback', try_enum(PaymentSourceType, data.get('payment_source_type', 0)), data.get('path'), data.get('state'), data.get('query'))
 
     def parse_oauth2_token_revoke(self, data: gw.OAuth2TokenRevokeEvent) -> None:
         if 'access_token' not in data:

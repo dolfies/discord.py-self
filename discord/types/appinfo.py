@@ -65,7 +65,12 @@ class PartialApplication(TypedDict):
     role_connections_verification_url: NotRequired[Optional[str]]
 
 
-class Application(PartialApplication):
+class ApplicationDiscoverability(TypedDict):
+    discoverability_state: int
+    discovery_eligibility_flags: int
+
+
+class Application(PartialApplication, ApplicationDiscoverability):
     bot: NotRequired[PartialUser]
     redirect_uris: List[str]
     interactions_endpoint_url: Optional[str]
@@ -73,8 +78,6 @@ class Application(PartialApplication):
     store_application_state: int
     rpc_application_state: int
     creator_monetization_state: int
-    discoverability_state: int
-    discovery_eligibility_flags: int
 
 
 class Asset(TypedDict):
@@ -153,7 +156,7 @@ class Build(TypedDict):
     created_at: NotRequired[str]
     id: Snowflake
     manifests: List[Manifest]
-    status: Literal['CREATED', 'INVALID', 'READY']
+    status: Literal['CORRUPTED', 'INVALID', 'READY', 'VALIDATING', 'UPLOADED', 'UPLOADING', 'CREATED']
     source_build_id: NotRequired[Optional[Snowflake]]
     version: NotRequired[Optional[str]]
 

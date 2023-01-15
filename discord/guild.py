@@ -3562,7 +3562,7 @@ class Guild(Hashable):
             await self._state.http.edit_welcome_screen(self.id, payload)
 
     async def applications(
-        self, *, include_team: bool = False, type: Optional[ApplicationType] = None, channel: Optional[Snowflake] = None
+        self, *, with_team: bool = False, type: Optional[ApplicationType] = None, channel: Optional[Snowflake] = None
     ) -> List[PartialApplication]:
         """|coro|
 
@@ -3572,7 +3572,7 @@ class Guild(Hashable):
 
         Parameters
         -----------
-        include_team: :class:`bool`
+        with_team: :class:`bool`
             Whether to include the team of the application.
         type: :class:`ApplicationType`
             The type of application to restrict the returned applications to.
@@ -3588,7 +3588,7 @@ class Guild(Hashable):
             The applications that belong to this guild.
         """
         data = await self._state.http.get_guild_applications(
-            self.id, include_team=include_team, type=int(type) if type else None, channel_id=channel.id if channel else None
+            self.id, include_team=with_team, type=int(type) if type else None, channel_id=channel.id if channel else None
         )
         return [PartialApplication(state=self._state, data=app) for app in data]
 

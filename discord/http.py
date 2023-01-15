@@ -2292,6 +2292,9 @@ class HTTPClient:
     def delete_connection(self, type: str, id: str) -> Response[None]:
         return self.request(Route('DELETE', '/users/@me/connections/{type}/{id}', type=type, id=id))
 
+    def get_reddit_connection_subreddits(self, id: str) -> Response[List[dict]]:
+        return self.request(Route('GET', '/users/@me/connections/reddit/{id}/subreddits', id=id))
+
     def authorize_connection(
         self,
         type: str,
@@ -2373,13 +2376,15 @@ class HTTPClient:
         app_id: Snowflake,
         *,
         user_id: Optional[Snowflake] = None,
+        guild_id: Optional[Snowflake] = None,
         sku_ids: Optional[Sequence[Snowflake]] = None,
         with_payments: bool = False,
+        exclude_ended: bool = False,
         before: Optional[Snowflake] = None,
         after: Optional[Snowflake] = None,
         limit: int = 100,
     ) -> Response[List[dict]]:
-        params: Dict[str, Any] = {'with_payments': str(with_payments).lower()}
+        params: Dict[str, Any] = {'with_payments': str(with_payments).lower(), 'exclude_ended': str(exclude_ended).lower()}
         if user_id:
             params['user_id'] = user_id
         if sku_ids:
@@ -2487,6 +2492,9 @@ class HTTPClient:
 
     def create_sku(self, payload: dict):
         return self.request(Route('POST', '/store/skus'), json=payload, super_properties_to_track=True)
+
+    def get_app_discoverability(self, app_id: Snowflake) -> Response[appinfo.ApplicationDiscoverability]:
+        return self.request(Route('GET', '/applications/{app_id}/discoverability-state', app_id=app_id), super_properties_to_track=True)
 
     def get_app_whitelist(self, app_id: Snowflake):
         return self.request(
