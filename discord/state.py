@@ -1160,7 +1160,13 @@ class ConnectionState:
         self.dispatch('achievement_update', model, data.get('percent_complete', 0))
 
     def parse_billing_popup_bridge_callback(self, data: gw.BillingPopupBridgeCallbackEvent) -> None:
-        self.dispatch('billing_popup_bridge_callback', try_enum(PaymentSourceType, data.get('payment_source_type', 0)), data.get('path'), data.get('state'), data.get('query'))
+        self.dispatch(
+            'billing_popup_bridge_callback',
+            try_enum(PaymentSourceType, data.get('payment_source_type', 0)),
+            data.get('path'),
+            data.get('state'),
+            data.get('query'),
+        )
 
     def parse_oauth2_token_revoke(self, data: gw.OAuth2TokenRevokeEvent) -> None:
         if 'access_token' not in data:

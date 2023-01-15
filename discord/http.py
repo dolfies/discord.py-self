@@ -2494,7 +2494,9 @@ class HTTPClient:
         return self.request(Route('POST', '/store/skus'), json=payload, super_properties_to_track=True)
 
     def get_app_discoverability(self, app_id: Snowflake) -> Response[appinfo.ApplicationDiscoverability]:
-        return self.request(Route('GET', '/applications/{app_id}/discoverability-state', app_id=app_id), super_properties_to_track=True)
+        return self.request(
+            Route('GET', '/applications/{app_id}/discoverability-state', app_id=app_id), super_properties_to_track=True
+        )
 
     def get_app_whitelist(self, app_id: Snowflake):
         return self.request(
@@ -3494,9 +3496,13 @@ class HTTPClient:
             'payment_source_id': payment_source_id,
         }
         if payment_source_id:
-            payload.update({            'payment_source_token': payment_source_token,
-            'currency': currency,
-            'return_url': return_url,})
+            payload.update(
+                {
+                    'payment_source_token': payment_source_token,
+                    'currency': currency,
+                    'return_url': return_url,
+                }
+            )
 
         return self.request(
             Route(
