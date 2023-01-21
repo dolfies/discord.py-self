@@ -28,8 +28,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, AsyncIterator, Collection, List, Literal, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import quote
 
-from discord.types.appinfo import ApplicationDiscoverability
-
 from . import utils
 from .asset import Asset, AssetMixin
 from .entitlements import Entitlement, GiftBatch
@@ -40,6 +38,8 @@ from .enums import (
     ApplicationType,
     ApplicationVerificationState,
     Distributor,
+    EmbeddedActivityOrientation,
+    EmbeddedActivityPlatform,
     Locale,
     RPCApplicationState,
     StoreApplicationState,
@@ -74,6 +74,8 @@ if TYPE_CHECKING:
         Branch as BranchPayload,
         Build as BuildPayload,
         Company as CompanyPayload,
+        EmbeddedActivityConfig as EmbeddedActivityConfigPayload,
+        IntegrationApplication as IntegrationApplicationPayload,
         Manifest as ManifestPayload,
         ManifestLabel as ManifestLabelPayload,
         PartialApplication as PartialApplicationPayload,
@@ -94,7 +96,7 @@ __all__ = (
     'ApplicationBranch',
     'PartialApplication',
     'Application',
-    'InteractionApplication',
+    'IntegrationApplication',
 )
 
 MISSING = utils.MISSING
@@ -688,7 +690,7 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     Attributes
     -----------
-    application: Union[:class:`PartialApplication`, :class:`InteractionApplication`]
+    application: Union[:class:`PartialApplication`, :class:`IntegrationApplication`]
         The application that the asset is for.
     id: :class:`int`
         The asset's ID.
@@ -698,10 +700,8 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     __slots__ = ('_state', 'id', 'name', 'type', 'application')
 
-    def __init__(
-        self, *, data: AssetPayload, state: ConnectionState, application: Union[PartialApplication, InteractionApplication]
-    ) -> None:
-        self._state: ConnectionState = state
+    def __init__(self, *, data: AssetPayload, application: Union[PartialApplication, IntegrationApplication]) -> None:
+        self._state: ConnectionState = application._state
         self.application = application
         self.id: int = int(data['id'])
         self.name: str = data['name']
@@ -712,6 +712,12 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     def __str__(self) -> str:
         return self.name
+
+    @classmethod
+    def _from_embedded_activity_config(
+        cls, application: Union[PartialApplication, IntegrationApplication], id: int
+    ) -> ApplicationAsset:
+        return cls(data={'id': id, 'name': '', 'type': 1}, application=application)
 
     @property
     def animated(self) -> bool:
@@ -776,6 +782,89 @@ class ApplicationActivityStatistics:
     def user(self) -> Optional[User]:
         """Optional[:class:`User`]: Returns the user associated with the statistics, if available."""
         return self._state.get_user(self.user_id)
+
+
+class EmbeddedActivityConfig:
+    """Represents an application's embedded activity configuration.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    application: :class:`PartialApplication`
+        The application that the configuration is for.
+    supported_platforms: List[:class:`EmbeddedActivityPlatform`]
+        A list of platforms that the application supports.
+    orientation_lock_state: :class:`EmbeddedActivityOrientation`
+        The mobile orientation lock state of the application.
+    """
+
+    __slots__ = (
+        'application',
+        'supported_platforms',
+        'orientation_lock_state',
+        'premium_tier_level',
+        '_preview_video_asset_id',
+    )
+
+    def __init__(self, *, data: EmbeddedActivityConfigPayload, application: PartialApplication) -> None:
+        self.application: PartialApplication = application
+        self._update(data)
+
+    def _update(self, data: EmbeddedActivityConfigPayload) -> None:
+        self.supported_platforms: List[EmbeddedActivityPlatform] = [
+            try_enum(EmbeddedActivityPlatform, platform) for platform in data.get('supported_platforms', [])
+        ]
+        self.orientation_lock_state: EmbeddedActivityOrientation = try_enum(
+            EmbeddedActivityOrientation, data.get('default_orientation_lock_state', 0)
+        )
+        self.premium_tier_level: int = data.get('activity_premium_tier_level', 0)
+        self._preview_video_asset_id = utils._get_as_snowflake(data, 'preview_video_asset_id')
+
+    @property
+    def preview_video_asset(self) -> Optional[ApplicationAsset]:
+        """Optional[:class:`ApplicationAsset`]: The preview video asset of the embedded activity, if available."""
+        if self._preview_video_asset_id is None:
+            return None
+        app = self.application
+        return ApplicationAsset._from_embedded_activity_config(app, self._preview_video_asset_id)
+
+    async def edit(
+        self,
+        *,
+        supported_platforms: List[EmbeddedActivityPlatform] = MISSING,
+        orientation_lock_state: EmbeddedActivityOrientation = MISSING,
+        preview_video_asset: Optional[Snowflake] = MISSING,
+    ) -> None:
+        """|coro|
+
+        Edits the application's embedded activity configuration.
+
+        Parameters
+        -----------
+        supported_platforms: List[:class:`EmbeddedActivityPlatform`]
+            A list of platforms that the application supports.
+        orientation_lock_state: :class:`EmbeddedActivityOrientation`
+            The mobile orientation lock state of the application.
+        preview_video_asset: Optional[:class:`ApplicationAsset`]
+            The preview video asset of the embedded activity.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to edit this application's configuration.
+        HTTPException
+            Editing the configuration failed.
+        """
+        data = await self.application._state.http.edit_embedded_activity_config(
+            self.application.id,
+            supported_platforms=[str(x) for x in (supported_platforms or [])],
+            orientation_lock_state=int(orientation_lock_state),
+            preview_video_asset_id=(preview_video_asset.id if preview_video_asset else None)
+            if preview_video_asset is not MISSING
+            else None,
+        )
+        self._update(data)
 
 
 class ManifestLabel(Hashable):
@@ -1439,9 +1528,6 @@ class PartialApplication(Hashable):
     max_participants: Optional[:class:`int`]
         The max number of people that can participate in the activity.
         Only available for embedded activities.
-    premium_tier_level: Optional[:class:`int`]
-        The required premium tier level to launch the activity.
-        Only available for embedded activities.
     type: Optional[:class:`ApplicationType`]
         The type of application.
     tags: List[:class:`str`]
@@ -1502,7 +1588,6 @@ class PartialApplication(Hashable):
         'require_code_grant',
         'type',
         'hook',
-        'premium_tier_level',
         'tags',
         'max_participants',
         'overlay',
@@ -1515,6 +1600,7 @@ class PartialApplication(Hashable):
         'third_party_skus',
         'custom_install_url',
         'install_params',
+        'embedded_activity_config',
         'guild_id',
         'primary_sku_id',
         'slug',
@@ -1561,7 +1647,6 @@ class PartialApplication(Hashable):
         self.type: Optional[ApplicationType] = try_enum(ApplicationType, data['type']) if data.get('type') else None
         self.hook: bool = data.get('hook', False)
         self.max_participants: Optional[int] = data.get('max_participants')
-        self.premium_tier_level: Optional[int] = data.get('embedded_activity_config', {}).get('activity_premium_tier_level')
         self.tags: List[str] = data.get('tags', [])
         self.overlay: bool = data.get('overlay', False)
         self.overlay_warn: bool = data.get('overlay_warn', False)
@@ -1575,6 +1660,11 @@ class PartialApplication(Hashable):
         self.custom_install_url: Optional[str] = data.get('custom_install_url')
         self.install_params: Optional[ApplicationInstallParams] = (
             ApplicationInstallParams.from_application(self, params) if params else None
+        )
+        self.embedded_activity_config: Optional[EmbeddedActivityConfig] = (
+            EmbeddedActivityConfig(data=data['embedded_activity_config'], application=self)
+            if 'embedded_activity_config' in data
+            else None
         )
 
         self.public: bool = data.get(
@@ -1666,9 +1756,8 @@ class PartialApplication(Hashable):
         List[:class:`ApplicationAsset`]
             The application's assets.
         """
-        state = self._state
-        data = await state.http.get_app_assets(self.id)
-        return [ApplicationAsset(state=state, data=d, application=self) for d in data]
+        data = await self._state.http.get_app_assets(self.id)
+        return [ApplicationAsset(data=d, application=self) for d in data]
 
     async def published_store_listings(self, *, localize: bool = True) -> List[StoreListing]:
         """|coro|
@@ -1889,6 +1978,9 @@ class Application(PartialApplication):
         The bot attached to the application, if any.
     interactions_endpoint_url: Optional[:class:`str`]
         The URL interactions will be sent to, if set.
+    role_connections_verification_url: Optional[:class:`str`]
+        The application's connection verification URL which will render the application as
+        a verification method in the guild's role verification configuration.
     redirect_uris: List[:class:`str`]
         A list of redirect URIs authorized for this application.
     verification_state: :class:`ApplicationVerificationState`
@@ -1905,6 +1997,7 @@ class Application(PartialApplication):
         'owner',
         'redirect_uris',
         'interactions_endpoint_url',
+        'role_connections_verification_url',
         'bot',
         'verification_state',
         'store_application_state',
@@ -1925,6 +2018,7 @@ class Application(PartialApplication):
 
         self.redirect_uris: List[str] = data.get('redirect_uris', [])
         self.interactions_endpoint_url: Optional[str] = data.get('interactions_endpoint_url')
+        self.role_connections_verification_url: Optional[str] = data.get('role_connections_verification_url')
 
         self.verification_state = try_enum(ApplicationVerificationState, data['verification_state'])
         self.store_application_state = try_enum(StoreApplicationState, data.get('store_application_state', 1))
@@ -2170,9 +2264,8 @@ class Application(PartialApplication):
         :class:`ApplicationAsset`
             The created asset.
         """
-        state = self._state
-        data = await state.http.create_asset(self.id, name, int(type), utils._bytes_to_base64_data(image))
-        return ApplicationAsset(state=state, data=data, application=self)
+        data = await self._state.http.create_asset(self.id, name, int(type), utils._bytes_to_base64_data(image))
+        return ApplicationAsset(data=data, application=self)
 
     async def store_assets(self) -> List[StoreAsset]:
         """|coro|
@@ -2812,7 +2905,7 @@ class Application(PartialApplication):
         data = await state.http.get_app_manifest_labels(app_id)
         return [ManifestLabel(data=label, application_id=app_id) for label in data]
 
-    async def discoverability(self) -> Tuple[ApplicationDiscoverabilityState, ApplicationDiscoveryFlags]:
+    async def fetch_discoverability(self) -> Tuple[ApplicationDiscoverabilityState, ApplicationDiscoveryFlags]:
         """|coro|
 
         Retrieves the discoverability state for this application.
@@ -2837,6 +2930,77 @@ class Application(PartialApplication):
             ApplicationDiscoverabilityState, data['discoverability_state']
         ), ApplicationDiscoveryFlags._from_value(data['discovery_eligibility_flags'])
 
+    async def fetch_embedded_activity_config(self) -> EmbeddedActivityConfig:
+        """|coro|
+
+        Retrieves the embedded activity config for this application.
+
+        .. note::
+
+            This method is an API call. For general usage, consider
+            :attr:`embedded_activity_config` instead.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to fetch the embedded activity config.
+        HTTPException
+            Fetching the embedded activity config failed.
+
+        Returns
+        -------
+        :class:`EmbeddedActivityConfig`
+            The embedded activity config retrieved.
+        """
+        data = await self._state.http.get_embedded_activity_config(self.id)
+        return EmbeddedActivityConfig(data=data, application=self)
+
+    async def edit_embedded_activity_config(
+        self,
+        *,
+        supported_platforms: List[EmbeddedActivityPlatform] = MISSING,
+        orientation_lock_state: EmbeddedActivityOrientation = MISSING,
+        preview_video_asset: Optional[Snowflake] = MISSING,
+    ) -> EmbeddedActivityConfig:
+        """|coro|
+
+        Edits the application's embedded activity configuration.
+
+        Parameters
+        -----------
+        supported_platforms: List[:class:`EmbeddedActivityPlatform`]
+            A list of platforms that the application supports.
+        orientation_lock_state: :class:`EmbeddedActivityOrientation`
+            The mobile orientation lock state of the application.
+        preview_video_asset: Optional[:class:`ApplicationAsset`]
+            The preview video asset of the embedded activity.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to edit this application's configuration.
+        HTTPException
+            Editing the configuration failed.
+
+        Returns
+        --------
+        :class:`EmbeddedActivityConfig`
+            The edited configuration.
+        """
+        data = await self._state.http.edit_embedded_activity_config(
+            self.id,
+            supported_platforms=[str(x) for x in (supported_platforms or [])],
+            orientation_lock_state=int(orientation_lock_state),
+            preview_video_asset_id=(preview_video_asset.id if preview_video_asset else None)
+            if preview_video_asset is not MISSING
+            else None,
+        )
+        if self.embedded_activity_config is not None:
+            self.embedded_activity_config._update(data)
+        else:
+            self.embedded_activity_config = EmbeddedActivityConfig(data=data, application=self)
+        return self.embedded_activity_config
+
     async def secret(self) -> str:
         """|coro|
 
@@ -2860,8 +3024,8 @@ class Application(PartialApplication):
         return data['secret']
 
 
-class InteractionApplication(Hashable):
-    """Represents a very partial application received in interaction contexts.
+class IntegrationApplication(Hashable):
+    """Represents a very partial application received in integration/interaction contexts.
 
     .. container:: operations
 
@@ -2898,28 +3062,32 @@ class InteractionApplication(Hashable):
     primary_sku_id: Optional[:class:`int`]
         The application's primary SKU ID, if any.
         This is usually the ID of the game SKU if the application is a game.
+    role_connections_verification_url: Optional[:class:`str`]
+        The application's connection verification URL which will render the application as
+        a verification method in the guild's role verification configuration.
     """
 
     __slots__ = (
         '_state',
         'id',
         'name',
+        'bot',
         'description',
+        'type',
+        'primary_sku_id',
+        'role_connections_verification_url',
         '_icon',
         '_cover_image',
-        'primary_sku_id',
-        'type',
-        'bot',
     )
 
-    def __init__(self, *, state: ConnectionState, data: dict):
+    def __init__(self, *, state: ConnectionState, data: IntegrationApplicationPayload):
         self._state: ConnectionState = state
         self._update(data)
 
     def __str__(self) -> str:
         return self.name
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: IntegrationApplicationPayload) -> None:
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.description: str = data.get('description') or ''
@@ -2927,11 +3095,12 @@ class InteractionApplication(Hashable):
 
         self._icon: Optional[str] = data.get('icon')
         self._cover_image: Optional[str] = data.get('cover_image')
-        self.bot: Optional[User] = self._state.create_user(data['bot']) if data.get('bot') else None
+        self.bot: Optional[User] = self._state.create_user(data['bot']) if 'bot' in data else None
         self.primary_sku_id: Optional[int] = utils._get_as_snowflake(data, 'primary_sku_id')
+        self.role_connections_verification_url: Optional[str] = data.get('role_connections_verification_url')
 
     def __repr__(self) -> str:
-        return f'<InteractionApplication id={self.id} name={self.name!r}>'
+        return f'<IntegrationApplication id={self.id} name={self.name!r}>'
 
     @property
     def icon(self) -> Optional[Asset]:
@@ -2968,9 +3137,8 @@ class InteractionApplication(Hashable):
         List[:class:`ApplicationAsset`]
             The application's assets.
         """
-        state = self._state
-        data = await state.http.get_app_assets(self.id)
-        return [ApplicationAsset(state=state, data=d, application=self) for d in data]
+        data = await self._state.http.get_app_assets(self.id)
+        return [ApplicationAsset(data=d, application=self) for d in data]
 
     async def published_store_listings(self, *, localize: bool = True) -> List[StoreListing]:
         """|coro|

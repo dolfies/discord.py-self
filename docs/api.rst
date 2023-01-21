@@ -4266,11 +4266,6 @@ Application
 .. autoclass:: PartialApplication()
     :members:
 
-.. attributetable:: InteractionApplication
-
-.. autoclass:: InteractionApplication()
-    :members:
-
 .. attributetable:: ApplicationProfile
 
 .. autoclass:: ApplicationProfile()

@@ -32,18 +32,30 @@ from .team import Team
 from .user import PartialUser
 
 
-class PartialApplication(TypedDict):
-    owner: NotRequired[PartialUser]  # Not actually ever present in partial app
-    team: NotRequired[Team]
+class BaseApplication(TypedDict):
     id: Snowflake
     name: str
-    verify_key: str
+    description: str
     icon: Optional[str]
+    cover_image: NotRequired[Optional[str]]
+    type: Optional[int]
+    primary_sku_id: NotRequired[Snowflake]
+    summary: NotRequired[Literal['']]
+
+
+class IntegrationApplication(BaseApplication):
+    bot: NotRequired[PartialUser]
+    role_connections_verification_url: NotRequired[Optional[str]]
+
+
+class PartialApplication(BaseApplication):
+    owner: NotRequired[PartialUser]  # Not actually ever present in partial app
+    team: NotRequired[Team]
+    verify_key: str
     description: str
     cover_image: NotRequired[Optional[str]]
     flags: NotRequired[int]
     rpc_origins: NotRequired[List[str]]
-    type: Optional[int]
     hook: NotRequired[bool]
     overlay: NotRequired[bool]
     overlay_compatibility_hook: NotRequired[bool]
@@ -61,8 +73,7 @@ class PartialApplication(TypedDict):
     publishers: NotRequired[List[Company]]
     aliases: NotRequired[List[str]]
     eula_id: NotRequired[Snowflake]
-    summary: NotRequired[Literal['']]
-    role_connections_verification_url: NotRequired[Optional[str]]
+    embedded_activity_config: NotRequired[EmbeddedActivityConfig]
 
 
 class ApplicationDiscoverability(TypedDict):
@@ -70,14 +81,14 @@ class ApplicationDiscoverability(TypedDict):
     discovery_eligibility_flags: int
 
 
-class Application(PartialApplication, ApplicationDiscoverability):
-    bot: NotRequired[PartialUser]
+class Application(PartialApplication, IntegrationApplication, ApplicationDiscoverability):
     redirect_uris: List[str]
     interactions_endpoint_url: Optional[str]
     verification_state: int
     store_application_state: int
     rpc_application_state: int
     creator_monetization_state: int
+    role_connections_verification_url: NotRequired[Optional[str]]
 
 
 class Asset(TypedDict):
@@ -195,3 +206,9 @@ class ActivityStatistics(TypedDict):
     total_duration: int
     total_discord_sku_duration: NotRequired[int]
     last_played_at: str
+
+
+class EmbeddedActivityConfig(TypedDict):
+    supported_platforms: List[Literal['web', 'android', 'ios']]
+    default_orientation_lock_state: Literal[1, 2, 3]
+    activity_preview_video_asset_id: NotRequired[Optional[Snowflake]]

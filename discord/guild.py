@@ -2350,10 +2350,10 @@ class Guild(Hashable):
 
         return Template(state=self._state, data=data)
 
-    async def create_integration(self, *, type: IntegrationType, id: int) -> None:
+    async def create_integration(self, *, type: IntegrationType, id: int, reason: Optional[str] = None) -> None:
         """|coro|
 
-        Attaches an integration to the guild.
+        Attaches an integration to the guild. This "enables" an existing integration.
 
         You must have the :attr:`~Permissions.manage_guild` permission to
         do this.
@@ -2366,6 +2366,10 @@ class Guild(Hashable):
             The integration type (e.g. Twitch).
         id: :class:`int`
             The integration ID.
+        reason: Optional[:class:`str`]
+            The reason for creating this integration. Shows up on the audit log.
+
+            .. versionadded:: 2.0
 
         Raises
         -------
@@ -2374,7 +2378,7 @@ class Guild(Hashable):
         HTTPException
             The account could not be found.
         """
-        await self._state.http.create_integration(self.id, type, id)
+        await self._state.http.create_integration(self.id, type, id, reason=reason)
 
     async def integrations(self, *, with_applications=True) -> List[Integration]:
         """|coro|

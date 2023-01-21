@@ -77,7 +77,7 @@ from .permissions import Permissions, PermissionOverwrite
 from .member import _ClientStatus
 from .modal import Modal
 from .member import VoiceState
-from .appinfo import InteractionApplication, PartialApplication, Achievement
+from .appinfo import IntegrationApplication, PartialApplication, Achievement
 from .connections import Connection
 from .payments import Payment
 from .entitlements import Entitlement, Gift
@@ -96,7 +96,7 @@ if TYPE_CHECKING:
 
     from .types.snowflake import Snowflake
     from .types.activity import Activity as ActivityPayload
-    from .types.appinfo import Achievement as AchievementPayload
+    from .types.appinfo import Achievement as AchievementPayload, IntegrationApplication as IntegrationApplicationPayload
     from .types.channel import DMChannel as DMChannelPayload
     from .types.user import User as UserPayload, PartialUser as PartialUserPayload
     from .types.emoji import Emoji as EmojiPayload, PartialEmoji as PartialEmojiPayload
@@ -2416,8 +2416,8 @@ class ConnectionState:
     def create_message(self, *, channel: MessageableChannel, data: MessagePayload) -> Message:
         return Message(state=self, channel=channel, data=data)
 
-    def create_interaction_application(self, data: dict) -> InteractionApplication:
-        return InteractionApplication(state=self, data=data)
+    def create_integration_application(self, data: IntegrationApplicationPayload) -> IntegrationApplication:
+        return IntegrationApplication(state=self, data=data)
 
     def default_guild_settings(self, guild_id: Optional[int]) -> GuildSettings:
         return GuildSettings(data={'guild_id': guild_id}, state=self)

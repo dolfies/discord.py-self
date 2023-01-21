@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .guild import Guild
     from .abc import GuildChannel, PrivateChannel, Snowflake
+    from .channel import GroupChannel
     from .user import User
     from .appinfo import PartialApplication
     from .message import Message
@@ -359,7 +360,7 @@ class Invite(Hashable):
 
         .. versionadded:: 2.0
 
-    channel: Optional[Union[:class:`abc.GuildChannel`, :class:`Object`, :class:`PartialInviteChannel`]]
+    channel: Optional[Union[:class:`abc.GuildChannel`, :class:`GroupChannel`, :class:`Object`, :class:`PartialInviteChannel`]]
         The channel the invite is for. Can be ``None`` if not a guild invite.
     target_type: :class:`InviteTarget`
         The type of target for the voice channel invite.
@@ -440,7 +441,7 @@ class Invite(Hashable):
         state: ConnectionState,
         data: InvitePayload,
         guild: Optional[Union[PartialInviteGuild, Guild]] = None,
-        channel: Optional[Union[PartialInviteChannel, GuildChannel]] = None,
+        channel: Optional[Union[PartialInviteChannel, GuildChannel, GroupChannel]] = None,
         welcome_screen: Optional[WelcomeScreen] = None,
     ):
         self._state: ConnectionState = state

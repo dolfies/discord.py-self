@@ -734,13 +734,19 @@ class HTTPClient:
 
         return self.request(Route('POST', '/users/@me/channels'), json=payload, context_properties=props)
 
-    def add_group_recipient(self, channel_id: Snowflake, user_id: Snowflake):  # TODO: return typings
-        r = Route('PUT', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id)
-        return self.request(r)
+    def add_group_recipient(self, channel_id: Snowflake, user_id: Snowflake, nick: Optional[str] = None) -> Response[None]:
+        payload = None
+        if nick:
+            payload = {'nick': nick}
 
-    def remove_group_recipient(self, channel_id: Snowflake, user_id: Snowflake):  # TODO: return typings
-        r = Route('DELETE', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id)
-        return self.request(r)
+        return self.request(
+            Route('PUT', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id), json=payload
+        )
+
+    def remove_group_recipient(self, channel_id: Snowflake, user_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route('DELETE', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id)
+        )
 
     def get_private_channels(self) -> Response[List[Union[channel.DMChannel, channel.GroupDMChannel]]]:
         return self.request(Route('GET', '/users/@me/channels'))
@@ -1666,26 +1672,33 @@ class HTTPClient:
 
         return self.request(r, params=params)
 
-    def create_integration(self, guild_id: Snowflake, type: integration.IntegrationType, id: int) -> Response[None]:
-        r = Route('POST', '/guilds/{guild_id}/integrations', guild_id=guild_id)
+    def create_integration(
+        self, guild_id: Snowflake, type: integration.IntegrationType, id: int, *, reason: Optional[str] = None
+    ) -> Response[None]:
         payload = {
             'type': type,
             'id': id,
         }
 
-        return self.request(r, json=payload)
+        return self.request(Route('POST', '/guilds/{guild_id}/integrations', guild_id=guild_id), json=payload, reason=reason)
 
     def edit_integration(self, guild_id: Snowflake, integration_id: Snowflake, **payload: Any) -> Response[None]:
-        r = Route(
-            'PATCH', '/guilds/{guild_id}/integrations/{integration_id}', guild_id=guild_id, integration_id=integration_id
+        return self.request(
+            Route(
+                'PATCH', '/guilds/{guild_id}/integrations/{integration_id}', guild_id=guild_id, integration_id=integration_id
+            ),
+            json=payload,
         )
-        return self.request(r, json=payload)
 
     def sync_integration(self, guild_id: Snowflake, integration_id: Snowflake) -> Response[None]:
-        r = Route(
-            'POST', '/guilds/{guild_id}/integrations/{integration_id}/sync', guild_id=guild_id, integration_id=integration_id
+        return self.request(
+            Route(
+                'POST',
+                '/guilds/{guild_id}/integrations/{integration_id}/sync',
+                guild_id=guild_id,
+                integration_id=integration_id,
+            )
         )
-        return self.request(r)
 
     def delete_integration(
         self, guild_id: Snowflake, integration_id: Snowflake, *, reason: Optional[str] = None
@@ -2387,6 +2400,8 @@ class HTTPClient:
         params: Dict[str, Any] = {'with_payments': str(with_payments).lower(), 'exclude_ended': str(exclude_ended).lower()}
         if user_id:
             params['user_id'] = user_id
+        if guild_id:
+            params['guild_id'] = guild_id
         if sku_ids:
             params['sku_ids'] = sku_ids
         if before:
@@ -2496,6 +2511,33 @@ class HTTPClient:
     def get_app_discoverability(self, app_id: Snowflake) -> Response[appinfo.ApplicationDiscoverability]:
         return self.request(
             Route('GET', '/applications/{app_id}/discoverability-state', app_id=app_id), super_properties_to_track=True
+        )
+
+    def get_embedded_activity_config(self, app_id: Snowflake) -> Response[appinfo.EmbeddedActivityConfig]:
+        return self.request(
+            Route('GET', '/applications/{app_id}/embedded-activity-config', app_id=app_id), super_properties_to_track=True
+        )
+
+    def edit_embedded_activity_config(
+        self,
+        app_id: Snowflake,
+        *,
+        supported_platforms: Optional[List[str]] = None,
+        orientation_lock_state: Optional[int] = None,
+        preview_video_asset_id: Optional[Snowflake] = MISSING,
+    ) -> Response[appinfo.EmbeddedActivityConfig]:
+        payload = {}
+        if supported_platforms is not None:
+            payload['supported_platforms'] = supported_platforms
+        if orientation_lock_state is not None:
+            payload['default_orientation_lock_state'] = orientation_lock_state
+        if preview_video_asset_id is not MISSING:
+            payload['activity_preview_video_asset_id'] = preview_video_asset_id
+
+        return self.request(
+            Route('PATCH', '/applications/{app_id}/embedded-activity-config', app_id=app_id),
+            json=payload,
+            super_properties_to_track=True,
         )
 
     def get_app_whitelist(self, app_id: Snowflake):

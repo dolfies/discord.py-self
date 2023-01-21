@@ -85,6 +85,8 @@ __all__ = (
     'ScheduledEventStatus',
     'ScheduledEventEntityType',
     'ApplicationType',
+    'EmbeddedActivityPlatform',
+    'EmbeddedActivityOrientation',
     'ConnectionType',
     'ConnectionLinkType',
     'PaymentSourceType',
@@ -676,6 +678,9 @@ class ExpireBehaviour(Enum):
     remove_role = 0
     kick = 1
 
+    def __int__(self) -> int:
+        return self.value
+
 
 ExpireBehavior = ExpireBehaviour
 
@@ -899,6 +904,24 @@ class ApplicationType(Enum):
     music = 2
     ticketed_events = 3
     guild_role_subscriptions = 4
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class EmbeddedActivityPlatform(Enum):
+    web = 'web'
+    ios = 'ios'
+    android = 'android'
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class EmbeddedActivityOrientation(Enum):
+    unlocked = 1
+    portrait = 2
+    landscape = 3
 
     def __int__(self) -> int:
         return self.value
