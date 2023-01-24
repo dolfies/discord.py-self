@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
     from .abc import Snowflake
     from .state import ConnectionState
+    from .guild import Guild
 
 __all__ = (
     'Subscription',
@@ -564,9 +565,14 @@ class Subscription(Hashable):
         """
         return self.canceled_at
 
+    @property
+    def guild(self) -> Optional[Guild]:
+        """:class:`Guild`: The guild the subscription's entitlements apply to, if applicable."""
+        return self._state._get_guild(self.metadata.guild_id)
+
     def is_active(self) -> bool:
         """:class:`bool`: Indicates if the subscription is currently active and providing perks."""
-        return self.status not in (SubscriptionStatus.unpaid, SubscriptionStatus.ended, SubscriptionStatus.account_hold)
+        return self.status not in (SubscriptionStatus.unpaid, SubscriptionStatus.ended, SubscriptionStatus.account_hold, SubscriptionStatus.inactive)
 
     def is_trial(self) -> bool:
         """:class:`bool`: Indicates if the subscription is a trial."""

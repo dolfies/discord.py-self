@@ -1358,7 +1358,7 @@ class ApplicationBranch(Hashable):
         self.live_build_id = build_id = utils._get_as_snowflake(branch, 'live_build_id')
         return build_id
 
-    async def live_build(self, locale: Locale, platform: str) -> ApplicationBuild:
+    async def live_build(self, *, locale: Locale = MISSING, platform: str) -> ApplicationBuild:
         """|coro|
 
         Retrieves the live build of the branch.
@@ -1415,8 +1415,6 @@ class ApplicationBranch(Hashable):
 
         Parameters
         -----------
-        built_with: :class:`str`
-            The tool used to create the build.
         manifests: List[:class:`Metadata`]
             A list of dict-like objects representing the manifests.
         source_build: Optional[:class:`ApplicationBuild`]

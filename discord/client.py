@@ -3166,6 +3166,7 @@ class Client:
         renewal: bool = False,
         code: Optional[str] = None,
         metadata: Optional[MetadataObject] = None,
+        guild: Optional[Snowflake] = None,
     ) -> SubscriptionInvoice:
         """|coro|
 
@@ -3177,7 +3178,7 @@ class Client:
 
         Parameters
         ----------
-        items: List[:class:`SubscriptionItem`]
+        items: List[:class:`.SubscriptionItem`]
             The items the previewed subscription should have.
         payment_source: Optional[:class:`.PaymentSource`]
             The payment source the previewed subscription should be paid with.
@@ -3191,8 +3192,10 @@ class Client:
             Whether the previewed subscription should be a renewal.
         code: Optional[:class:`str`]
             Unknown.
-        metadata: Optional[:class:`Metadata`]
+        metadata: Optional[:class:`.Metadata`]
             Extra metadata about the subscription.
+        guild: Optional[:class:`.Guild`]
+            The guild the previewed subscription's entitlements should be applied to.
 
         Raises
         ------
@@ -3201,10 +3204,14 @@ class Client:
 
         Returns
         -------
-        :class:`SubscriptionInvoice`
+        :class:`.SubscriptionInvoice`
             The previewed invoice.
         """
         state = self._connection
+
+        metadata = dict(metadata) if metadata else {}
+        if guild:
+            metadata['guild_id'] = str(guild.id)
         data = await state.http.preview_subscriptions_update(
             [item.to_dict(False) for item in items],
             currency,
@@ -3213,7 +3220,7 @@ class Client:
             apply_entitlements=apply_entitlements,
             renewal=renewal,
             code=code,
-            metadata=dict(metadata) if metadata else None,
+            metadata=metadata if metadata else None,
         )
         return SubscriptionInvoice(None, data=data, state=state)
 
@@ -3230,6 +3237,7 @@ class Client:
         gateway_checkout_context: Optional[str] = None,
         code: Optional[str] = None,
         metadata: Optional[MetadataObject] = None,
+        guild: Optional[Snowflake] = None,
     ) -> Subscription:
         """|coro|
 
@@ -3257,8 +3265,10 @@ class Client:
             The current checkout context.
         code: Optional[:class:`str`]
             Unknown.
-        metadata: Optional[:class:`Metadata`]
+        metadata: Optional[:class:`.Metadata`]
             Extra metadata about the subscription.
+        guild: Optional[:class:`.Guild`]
+            The guild the subscription's entitlements should be applied to.
 
         Raises
         -------
@@ -3271,6 +3281,10 @@ class Client:
             The newly-created subscription.
         """
         state = self._connection
+
+        metadata = dict(metadata) if metadata else {}
+        if guild:
+            metadata['guild_id'] = str(guild.id)
         data = await state.http.create_subscription(
             [i.to_dict(False) for i in items],
             payment_source.id,
@@ -3281,7 +3295,7 @@ class Client:
             purchase_token=purchase_token,
             gateway_checkout_context=gateway_checkout_context,
             code=code,
-            metadata=dict(metadata) if metadata else None,
+            metadata=metadata if metadata else None,
         )
         return Subscription(state=state, data=data)
 
