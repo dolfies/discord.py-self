@@ -142,7 +142,7 @@ class ApplicationProfile(Hashable):
         A list of the IDs of the application's popular commands.
     primary_sku_id: Optional[:class:`int`]
         The application's primary SKU ID, if any.
-        This is usually the ID of the game SKU if the application is a game.
+        This can be an application's game SKU, subscription SKU, etc.
     custom_install_url: Optional[:class:`str`]
         The custom URL to use for authorizing the application, if specified.
     install_params: Optional[:class:`ApplicationInstallParams`]

@@ -1538,7 +1538,10 @@ class PartialApplication(Hashable):
         The ID of the guild the application is attached to, if any.
     primary_sku_id: Optional[:class:`int`]
         The application's primary SKU ID, if any.
-        This is usually the ID of the game SKU if the application is a game.
+        This can be an application's game SKU, subscription SKU, etc.
+    store_listing_sku_id: Optional[:class:`int`]
+        The application's store listing SKU ID, if any.
+        If exists, this SKU ID should be used for checks.
     slug: Optional[:class:`str`]
         The slug for the application's primary SKU, if any.
     eula_id: Optional[:class:`int`]
@@ -1603,6 +1606,7 @@ class PartialApplication(Hashable):
         'embedded_activity_config',
         'guild_id',
         'primary_sku_id',
+        'store_listing_sku_id',
         'slug',
         'eula_id',
         'owner',
@@ -1653,6 +1657,7 @@ class PartialApplication(Hashable):
         self.overlay_compatibility_hook: bool = data.get('overlay_compatibility_hook', False)
         self.guild_id: Optional[int] = utils._get_as_snowflake(data, 'guild_id')
         self.primary_sku_id: Optional[int] = utils._get_as_snowflake(data, 'primary_sku_id')
+        self.store_listing_sku_id: Optional[int] = utils._get_as_snowflake(data, 'store_listing_sku_id')
         self.slug: Optional[str] = data.get('slug')
         self.eula_id: Optional[int] = utils._get_as_snowflake(data, 'eula_id')
 
@@ -1740,6 +1745,12 @@ class PartialApplication(Hashable):
         """:class:`str`: The URL to the primary SKU of the application, if any."""
         if self.primary_sku_id:
             return f'https://discord.com/store/skus/{self.primary_sku_id}/{self.slug or "unknown"}'
+
+    @property
+    def store_listing_sku_url(self) -> Optional[str]:
+        """:class:`str`: The URL to the store listing SKU of the application, if any."""
+        if self.store_listing_sku_id:
+            return f'https://discord.com/store/skus/{self.store_listing_sku_id}/{self.slug or "unknown"}'
 
     async def assets(self) -> List[ApplicationAsset]:
         """|coro|
@@ -2349,7 +2360,6 @@ class Application(PartialApplication):
         """|coro|
 
         Retrieves the primary SKU for this application if it exists.
-        This is usually the game SKU if the application is a game.
 
         Parameters
         -----------
@@ -2375,6 +2385,38 @@ class Application(PartialApplication):
         state = self._state
         data = await self._state.http.get_sku(
             self.primary_sku_id, country_code=state.country_code or 'US', localize=localize
+        )
+        return SKU(data=data, state=state, application=self)
+
+    async def store_listing_sku(self, *, localize: bool = True) -> Optional[SKU]:
+        """|coro|
+
+        Retrieves the store listing SKU for this application if it exists.
+
+        Parameters
+        -----------
+        localize: :class:`bool`
+            Whether to localize the SKU name and description to the current user's locale.
+            If ``False`` then all localizations are returned.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to fetch SKUs.
+        HTTPException
+            Fetching the SKUs failed.
+
+        Returns
+        --------
+        Optional[:class:`SKU`]
+            The store listing SKU retrieved.
+        """
+        if not self.store_listing_sku_id:
+            return None
+
+        state = self._state
+        data = await self._state.http.get_sku(
+            self.store_listing_sku_id, country_code=state.country_code or 'US', localize=localize
         )
         return SKU(data=data, state=state, application=self)
 
@@ -3061,7 +3103,7 @@ class IntegrationApplication(Hashable):
         The type of application.
     primary_sku_id: Optional[:class:`int`]
         The application's primary SKU ID, if any.
-        This is usually the ID of the game SKU if the application is a game.
+        This can be an application's game SKU, subscription SKU, etc.
     role_connections_verification_url: Optional[:class:`str`]
         The application's connection verification URL which will render the application as
         a verification method in the guild's role verification configuration.
