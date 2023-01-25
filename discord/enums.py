@@ -1265,6 +1265,91 @@ class ContentRatingAgency(Enum):
     pegi = 2
 
 
+class ESRBRating(Enum):
+    everyone = 1
+    everyone_ten_plus = 2
+    teen = 3
+    mature = 4
+    adults_only = 5
+    rating_pending = 6
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class PEGIRating(Enum):
+    three = 1
+    seven = 2
+    twelve = 3
+    sixteen = 4
+    eighteen = 5
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class ESRBContentDescriptor(Enum):
+    alcohol_reference = 1
+    animated_blood = 2
+    blood = 3
+    blood_and_gore = 4
+    cartoon_violence = 5
+    comic_mischief = 6
+    crude_humor = 7
+    drug_reference = 8
+    fantasy_violence = 9
+    intense_violence = 10
+    language = 11
+    lyrics = 12
+    mature_humor = 13
+    nudity = 14
+    partial_nudity = 15
+    real_gambling = 16
+    sexual_content = 17
+    sexual_themes = 18
+    sexual_violence = 19
+    simulated_gambling = 20
+    strong_language = 21
+    strong_lyrics = 22
+    strong_sexual_content = 23
+    suggestive_themes = 24
+    tobacco_reference = 25
+    use_of_alcohol = 26
+    use_of_drugs = 27
+    use_of_tobacco = 28
+    violence = 29
+    violent_references = 30
+    in_game_purchases = 31
+    users_interact = 32
+    shares_location = 33
+    unrestricted_internet = 34
+    mild_blood = 35
+    mild_cartoon_violence = 36
+    mild_fantasy_violence = 37
+    mild_language = 38
+    mild_lyrics = 39
+    mild_sexual_themes = 40
+    mild_suggestive_themes = 41
+    mild_violence = 42
+    animated_violence = 43
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class PEGIContentDescriptor(Enum):
+    violence = 1
+    bad_language = 2
+    fear = 3
+    gambling = 4
+    sex = 5
+    drugs = 6
+    discrimination = 7
+
+    def __int__(self) -> int:
+        return self.value
+
+
 class Distributor(Enum):
     discord = 'discord'
     steam = 'steam'

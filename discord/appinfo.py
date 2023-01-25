@@ -50,7 +50,7 @@ from .flags import ApplicationDiscoveryFlags, ApplicationFlags
 from .mixins import Hashable
 from .object import OLDEST_OBJECT, Object
 from .permissions import Permissions
-from .store import SKU, StoreAsset, StoreListing
+from .store import SKU, StoreAsset, StoreListing, SystemRequirements
 from .team import Team
 from .user import User
 from .utils import _bytes_to_base64_data, _parse_localizations
@@ -2436,6 +2436,7 @@ class Application(PartialApplication):
         locales: Optional[Collection[Locale]] = None,
         genres: Optional[Collection[SKUGenre]] = None,
         content_ratings: Optional[Collection[ContentRating]] = None,
+        system_requirements: Optional[Collection[SystemRequirements]] = None,
         release_date: Optional[date] = None,
         bundled_skus: Optional[Sequence[Snowflake]] = None,
         manifest_labels: Optional[Sequence[Snowflake]] = None,
@@ -2476,6 +2477,10 @@ class Application(PartialApplication):
             A list of locales supported by the SKU.
         genres: Optional[List[:class:`SKUGenre`]]
             A list of genres of the SKU.
+        content_ratings: Optional[List[:class:`ContentRating`]]
+            A list of content ratings of the SKU.
+        system_requirements: Optional[List[:class:`SystemRequirements`]]
+            A list of system requirements of the SKU.
         release_date: Optional[:class:`date`]
             The release date of the SKU.
         bundled_skus: Optional[List[:class:`SKU`]]
@@ -2526,6 +2531,10 @@ class Application(PartialApplication):
         if content_ratings:
             payload['content_ratings'] = {
                 content_rating.agency: content_rating.to_dict() for content_rating in content_ratings
+            }
+        if system_requirements:
+            payload['system_requirements'] = {
+                system_requirement.os: system_requirement.to_dict() for system_requirement in system_requirements
             }
         if release_date is not None:
             payload['release_date'] = release_date.isoformat()

@@ -30,9 +30,13 @@ from typing import TYPE_CHECKING, Any, Collection, Dict, List, Mapping, Optional
 from .asset import Asset, AssetMixin
 from .enums import (
     ContentRatingAgency,
+    ESRBContentDescriptor,
+    ESRBRating,
     GiftStyle,
     Locale,
     OperatingSystem,
+    PEGIContentDescriptor,
+    PEGIRating,
     PremiumType,
     SKUAccessLevel,
     SKUFeature,
@@ -57,6 +61,7 @@ from .utils import (
 
 if TYPE_CHECKING:
     from datetime import date
+    from typing_extensions import Self
 
     from .abc import Snowflake
     from .appinfo import Application, PartialApplication
@@ -304,103 +309,232 @@ class SystemRequirements:
         Any extra notes on minimum requirements.
     recommended_notes: Optional[:class:`str`]
         Any extra notes on recommended requirements.
-
-    The non-prefixed properties on this class prefer the requirements values and fall back to the minimum requirements.
     """
+
+    if TYPE_CHECKING:
+        os: OperatingSystem
+        minimum_ram: Optional[int]
+        recommended_ram: Optional[int]
+        minimum_disk: Optional[int]
+        recommended_disk: Optional[int]
+        minimum_os_version: Optional[str]
+        minimum_os_version_localizations: Dict[Locale, str]
+        recommended_os_version: Optional[str]
+        recommended_os_version_localizations: Dict[Locale, str]
+        minimum_cpu: Optional[str]
+        minimum_cpu_localizations: Dict[Locale, str]
+        recommended_cpu: Optional[str]
+        recommended_cpu_localizations: Dict[Locale, str]
+        minimum_gpu: Optional[str]
+        minimum_gpu_localizations: Dict[Locale, str]
+        recommended_gpu: Optional[str]
+        recommended_gpu_localizations: Dict[Locale, str]
+        minimum_sound_card: Optional[str]
+        minimum_sound_card_localizations: Dict[Locale, str]
+        recommended_sound_card: Optional[str]
+        recommended_sound_card_localizations: Dict[Locale, str]
+        minimum_directx: Optional[str]
+        minimum_directx_localizations: Dict[Locale, str]
+        recommended_directx: Optional[str]
+        recommended_directx_localizations: Dict[Locale, str]
+        minimum_network: Optional[str]
+        minimum_network_localizations: Dict[Locale, str]
+        recommended_network: Optional[str]
+        recommended_network_localizations: Dict[Locale, str]
+        minimum_notes: Optional[str]
+        minimum_notes_localizations: Dict[Locale, str]
+        recommended_notes: Optional[str]
+        recommended_notes_localizations: Dict[Locale, str]
 
     __slots__ = (
         'os',
-        'minimum_os_version',
-        'recommended_os_version',
-        'minimum_cpu',
-        'recommended_cpu',
-        'minimum_gpu',
-        'recommended_gpu',
         'minimum_ram',
         'recommended_ram',
         'minimum_disk',
         'recommended_disk',
+        'minimum_os_version',
+        'minimum_os_version_localizations',
+        'recommended_os_version',
+        'recommended_os_version_localizations',
+        'minimum_cpu',
+        'minimum_cpu_localizations',
+        'recommended_cpu',
+        'recommended_cpu_localizations',
+        'minimum_gpu',
+        'minimum_gpu_localizations',
+        'recommended_gpu',
+        'recommended_gpu_localizations',
         'minimum_sound_card',
+        'minimum_sound_card_localizations',
         'recommended_sound_card',
+        'recommended_sound_card_localizations',
         'minimum_directx',
+        'minimum_directx_localizations',
         'recommended_directx',
+        'recommended_directx_localizations',
         'minimum_network',
+        'minimum_network_localizations',
         'recommended_network',
+        'recommended_network_localizations',
         'minimum_notes',
+        'minimum_notes_localizations',
         'recommended_notes',
+        'recommended_notes_localizations',
     )
 
-    def __init__(self, os: OperatingSystem, data: dict) -> None:
-        minimum = data['minimum']
-        recommended = data.get('recommended', minimum)
+    def __init__(
+        self,
+        os: OperatingSystem,
+        *,
+        minimum_ram: Optional[int] = None,
+        recommended_ram: Optional[int] = None,
+        minimum_disk: Optional[int] = None,
+        recommended_disk: Optional[int] = None,
+        minimum_os_version: Optional[str] = None,
+        minimum_os_version_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_os_version: Optional[str] = None,
+        recommended_os_version_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_cpu: Optional[str] = None,
+        minimum_cpu_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_cpu: Optional[str] = None,
+        recommended_cpu_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_gpu: Optional[str] = None,
+        minimum_gpu_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_gpu: Optional[str] = None,
+        recommended_gpu_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_sound_card: Optional[str] = None,
+        minimum_sound_card_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_sound_card: Optional[str] = None,
+        recommended_sound_card_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_directx: Optional[str] = None,
+        minimum_directx_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_directx: Optional[str] = None,
+        recommended_directx_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_network: Optional[str] = None,
+        minimum_network_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_network: Optional[str] = None,
+        recommended_network_localizations: Optional[Dict[Locale, str]] = None,
+        minimum_notes: Optional[str] = None,
+        minimum_notes_localizations: Optional[Dict[Locale, str]] = None,
+        recommended_notes: Optional[str] = None,
+        recommended_notes_localizations: Optional[Dict[Locale, str]] = None,
+    ) -> None:
+        self.os = os
+        self.minimum_ram = minimum_ram
+        self.recommended_ram = recommended_ram
+        self.minimum_disk = minimum_disk
+        self.recommended_disk = recommended_disk
+        self.minimum_os_version = minimum_os_version
+        self.minimum_os_version_localizations = minimum_os_version_localizations or {}
+        self.recommended_os_version = recommended_os_version
+        self.recommended_os_version_localizations = recommended_os_version_localizations or {}
+        self.minimum_cpu = minimum_cpu
+        self.minimum_cpu_localizations = minimum_cpu_localizations or {}
+        self.recommended_cpu = recommended_cpu
+        self.recommended_cpu_localizations = recommended_cpu_localizations or {}
+        self.minimum_gpu = minimum_gpu
+        self.minimum_gpu_localizations = minimum_gpu_localizations or {}
+        self.recommended_gpu = recommended_gpu
+        self.recommended_gpu_localizations = recommended_gpu_localizations or {}
+        self.minimum_sound_card = minimum_sound_card
+        self.minimum_sound_card_localizations = minimum_sound_card_localizations or {}
+        self.recommended_sound_card = recommended_sound_card
+        self.recommended_sound_card_localizations = recommended_sound_card_localizations or {}
+        self.minimum_directx = minimum_directx
+        self.minimum_directx_localizations = minimum_directx_localizations or {}
+        self.recommended_directx = recommended_directx
+        self.recommended_directx_localizations = recommended_directx_localizations or {}
+        self.minimum_network = minimum_network
+        self.minimum_network_localizations = minimum_network_localizations or {}
+        self.recommended_network = recommended_network
+        self.recommended_network_localizations = recommended_network_localizations or {}
+        self.minimum_notes = minimum_notes
+        self.minimum_notes_localizations = minimum_notes_localizations or {}
+        self.recommended_notes = recommended_notes
+        self.recommended_notes_localizations = recommended_notes_localizations or {}
 
-        self.os: OperatingSystem = os
-        self.minimum_os_version: str = minimum['operating_system_version']
-        self.recommended_os_version: str = recommended['operating_system_version']
-        self.minimum_cpu: str = minimum['cpu']
-        self.recommended_cpu: str = recommended['cpu']
-        self.minimum_gpu: str = minimum['gpu']
-        self.recommended_gpu: str = recommended['gpu']
-        self.minimum_ram: int = minimum['ram']
-        self.recommended_ram: int = recommended['ram']
-        self.minimum_disk: int = minimum['disk']
-        self.recommended_disk: int = recommended['disk']
-        self.minimum_sound_card: Optional[str] = minimum.get('sound_card')
-        self.recommended_sound_card: Optional[str] = recommended.get('sound_card')
-        self.minimum_directx: Optional[str] = minimum['directx']
-        self.recommended_directx: Optional[str] = recommended['directx']
-        self.minimum_network: Optional[str] = minimum['network']
-        self.recommended_network: Optional[str] = recommended['network']
-        self.minimum_notes: Optional[str] = minimum.get('notes')
-        self.recommended_notes: Optional[str] = recommended.get('notes')
+    @classmethod
+    def from_dict(cls, os: OperatingSystem, data: dict) -> Self:
+        minimum = data['minimum']
+        recommended = data.get('recommended', {})
+
+        minimum_os_version, minimum_os_version_localizations = _parse_localizations(
+            minimum, 'operating_system_version'
+        )
+        recommended_os_version, recommended_os_version_localizations = _parse_localizations(
+            recommended, 'operating_system_version'
+        )
+        minimum_cpu, minimum_cpu_localizations = _parse_localizations(minimum, 'cpu')
+        recommended_cpu, recommended_cpu_localizations = _parse_localizations(recommended, 'cpu')
+        minimum_gpu, minimum_gpu_localizations = _parse_localizations(minimum, 'gpu')
+        recommended_gpu, recommended_gpu_localizations = _parse_localizations(recommended, 'gpu')
+        minimum_sound_card, minimum_sound_card_localizations = _parse_localizations(minimum, 'sound_card')
+        recommended_sound_card, recommended_sound_card_localizations = _parse_localizations(
+            recommended, 'sound_card'
+        )
+        minimum_directx, minimum_directx_localizations = _parse_localizations(minimum, 'directx')
+        recommended_directx, recommended_directx_localizations = _parse_localizations(recommended, 'directx')
+        minimum_network, minimum_network_localizations = _parse_localizations(minimum, 'network')
+        recommended_network, recommended_network_localizations = _parse_localizations(recommended, 'network')
+        minimum_notes, minimum_notes_localizations = _parse_localizations(minimum, 'notes')
+        recommended_notes, recommended_notes_localizations = _parse_localizations(recommended, 'notes')
+
+        return cls(
+            os,
+            minimum_ram = minimum.get('ram'),
+            recommended_ram = recommended.get('ram'),
+            minimum_disk = minimum.get('disk'),
+            recommended_disk = recommended.get('disk'),
+            minimum_os_version = minimum_os_version,
+            minimum_os_version_localizations = minimum_os_version_localizations,
+            recommended_os_version = recommended_os_version,
+            recommended_os_version_localizations = recommended_os_version_localizations,
+            minimum_cpu = minimum_cpu,
+            minimum_cpu_localizations = minimum_cpu_localizations,
+            recommended_cpu = recommended_cpu,
+            recommended_cpu_localizations = recommended_cpu_localizations,
+            minimum_gpu = minimum_gpu,
+            minimum_gpu_localizations = minimum_gpu_localizations,
+            recommended_gpu = recommended_gpu,
+            recommended_gpu_localizations = recommended_gpu_localizations,
+            minimum_sound_card = minimum_sound_card,
+            minimum_sound_card_localizations = minimum_sound_card_localizations,
+            recommended_sound_card = recommended_sound_card,
+            recommended_sound_card_localizations = recommended_sound_card_localizations,
+            minimum_directx = minimum_directx,
+            minimum_directx_localizations = minimum_directx_localizations,
+            recommended_directx = recommended_directx,
+            recommended_directx_localizations = recommended_directx_localizations,
+            minimum_network = minimum_network,
+            minimum_network_localizations = minimum_network_localizations,
+            recommended_network = recommended_network,
+            recommended_network_localizations = recommended_network_localizations,
+            minimum_notes = minimum_notes,
+            minimum_notes_localizations = minimum_notes_localizations,
+            recommended_notes = recommended_notes,
+            recommended_notes_localizations = recommended_notes_localizations,
+        )
 
     def __repr__(self) -> str:
-        return f'<SystemRequirements os={self.os!r} cpu={self.cpu!r} gpu={self.gpu!r} ram={self.ram} disk={self.disk}>'
+        return f'<SystemRequirements os={self.os!r}>'
 
-    @property
-    def os_version(self) -> str:
-        """:class:`str`: The recommended operating system version."""
-        return self.recommended_os_version
+    def to_dict(self) -> dict:
+        minimum = {}
+        recommended = {}
+        for key in self.__slots__:
+            if key.endswith('_localizations'):
+                continue
 
-    @property
-    def cpu(self) -> str:
-        """:class:`str`: The recommended CPU."""
-        return self.recommended_cpu
+            value = getattr(self, key)
+            localizations = getattr(self, f'{key}_localizations', None)
+            if value or localizations:
+                data = value if localizations is None else {'default': value, 'localizations': {str(k): v for k, v in localizations.items()}}
+                if key.startswith('minimum_'):
+                    minimum[key[8:]] = data
+                elif key.startswith('recommended_'):
+                    recommended[key[12:]] = data
 
-    @property
-    def gpu(self) -> str:
-        """:class:`str`: The recommended GPU."""
-        return self.recommended_gpu
-
-    @property
-    def ram(self) -> int:
-        """:class:`int`: The recommended RAM."""
-        return self.recommended_ram
-
-    @property
-    def disk(self) -> int:
-        """:class:`int`: The recommended disk space."""
-        return self.recommended_disk
-
-    @property
-    def sound_card(self) -> Optional[str]:
-        """Optional[:class:`str`]: The recommended sound card."""
-        return self.recommended_sound_card or self.minimum_sound_card
-
-    @property
-    def directx(self) -> Optional[str]:
-        """Optional[:class:`str`]: The recommended DirectX version."""
-        return self.recommended_directx or self.minimum_directx
-
-    @property
-    def network(self) -> Optional[str]:
-        """Optional[:class:`str`]: The recommended network connection."""
-        return self.recommended_network or self.minimum_network
-
-    @property
-    def notes(self) -> Optional[str]:
-        """Optional[:class:`str`]: Extra requirement notes."""
-        return self.recommended_notes or self.minimum_notes
+        return {'minimum': minimum, 'recommended': recommended}
 
 
 class StoreListing(Hashable):
@@ -800,38 +934,53 @@ class ContentRating:
     -----------
     agency: :class:`ContentRatingAgency`
         The agency that rated the content.
-    rating: :class:`int`
+    rating: Union[:class:`ESRBRating`, :class:`PEGIRating`]
         The rating of the content.
-    descriptors: List[:class:`int`]
+    descriptors: Union[List[:class:`ESRBContentDescriptor`], List[:class:`PEGIContentDescriptor`]
         Extra descriptors for the content rating.
     """
 
+    _AGENCY_MAP = {
+        ContentRatingAgency.esrb: (ESRBRating, ESRBContentDescriptor),
+        ContentRatingAgency.pegi: (PEGIRating, PEGIContentDescriptor),
+    }
+
     __slots__ = ('agency', 'rating', 'descriptors')
 
-    def __init__(self, *, agency: ContentRatingAgency, rating: int, descriptors: List[int]) -> None:
+    def __init__(
+        self,
+        *,
+        agency: ContentRatingAgency,
+        rating: Union[ESRBRating, PEGIRating],
+        descriptors: Union[Collection[ESRBContentDescriptor], Collection[PEGIContentDescriptor]],
+    ) -> None:
         self.agency = agency
-        self.rating = rating
-        self.descriptors = descriptors
+
+        ratingcls, descriptorcls = self._AGENCY_MAP[agency]
+        self.rating: Union[ESRBRating, PEGIRating] = try_enum(ratingcls, int(rating))
+        self.descriptors: Union[List[ESRBContentDescriptor], List[PEGIContentDescriptor]] = [
+            try_enum(descriptorcls, int(descriptor)) for descriptor in descriptors
+        ]
 
     @classmethod
-    def from_data(cls, data: dict, agency: int) -> ContentRating:
+    def from_dict(cls, data: dict, agency: int) -> ContentRating:
         return cls(
             agency=try_enum(ContentRatingAgency, agency),
-            rating=data.get('rating', 0),
+            rating=data.get('rating', 1),
             descriptors=data.get('descriptors', []),
         )
 
     @classmethod
-    def from_datas(cls, datas: Optional[dict]) -> List[ContentRating]:
+    def from_dicts(cls, datas: Optional[dict]) -> List[ContentRating]:
         if not datas:
             return []
-        return [cls.from_data(data, int(agency)) for agency, data in datas.items()]
+        return [cls.from_dict(data, int(agency)) for agency, data in datas.items()]
 
     def __repr__(self) -> str:
         return f'<ContentRating agency={self.agency!r} rating={self.rating}>'
 
     def to_dict(self) -> dict:
-        return {'rating': self.rating, 'descriptors': self.descriptors}
+        return {'rating': int(self.rating), 'descriptors': [int(descriptor) for descriptor in self.descriptors]}
 
 
 class SKU(Hashable):
@@ -910,8 +1059,8 @@ class SKU(Hashable):
     content_ratings: List[:class:`ContentRating`]
         The content ratings of the SKU, if any.
         For public SKUs, only the rating of your region is returned.
-    system_requirements: Dict[:class:`OperatingSystem`, :class:`SystemRequirements`]
-        A dict of the system requirements of the SKU by operating system, if any.
+    system_requirements: List[:class:`SystemRequirements`]
+        The system requirements of the SKU by operating system, if any.
     release_date: Optional[:class:`datetime.date`]
         The date that the SKU will released, if any.
     preorder_release_date: Optional[:class:`datetime.date`]
@@ -1042,15 +1191,14 @@ class SKU(Hashable):
         self.genres: List[SKUGenre] = [try_enum(SKUGenre, genre) for genre in data.get('genres', [])]
         self.available_regions: Optional[List[str]] = data.get('available_regions')
         self.content_ratings: List[ContentRating] = (
-            [ContentRating.from_data(data['content_rating'], data['content_rating_agency'])]
+            [ContentRating.from_dict(data['content_rating'], data['content_rating_agency'])]
             if data.get('content_rating')
-            else ContentRating.from_datas(data.get('content_ratings'))
+            else ContentRating.from_dicts(data.get('content_ratings'))
         )
-        # TODO: This is localized :(
-        # self.system_requirements: Dict[OperatingSystem, SystemRequirements] = {
-        #     try_enum(OperatingSystem, int(os)): SystemRequirements(try_enum(OperatingSystem, int(os)), reqs)
-        #     for os, reqs in data.get('system_requirements', {}).items()
-        # }
+        self.system_requirements: List[SystemRequirements] = [
+            SystemRequirements.from_dict(try_enum(OperatingSystem, int(os)), reqs)
+            for os, reqs in data.get('system_requirements', {}).items()
+        ]
 
         self.release_date: Optional[date] = parse_date(data.get('release_date'))
         self.preorder_release_date: Optional[date] = parse_date(data.get('preorder_approximate_release_date'))
@@ -1117,7 +1265,7 @@ class SKU(Hashable):
     @property
     def supported_operating_systems(self) -> List[OperatingSystem]:
         """List[:class:`OperatingSystem`]: A list of supported operating systems."""
-        return list(self.system_requirements.keys()) if self.system_requirements else [OperatingSystem.windows]
+        return [reqs.os for reqs in self.system_requirements] or [OperatingSystem.windows]
 
     async def edit(
         self,
@@ -1136,6 +1284,7 @@ class SKU(Hashable):
         locales: Collection[Locale] = MISSING,
         genres: Collection[SKUGenre] = MISSING,
         content_ratings: Collection[ContentRating] = MISSING,
+        system_requirements: Collection[SystemRequirements] = MISSING,
         release_date: Optional[date] = MISSING,
         bundled_skus: Sequence[Snowflake] = MISSING,
         manifest_labels: Sequence[Snowflake] = MISSING,
@@ -1178,6 +1327,10 @@ class SKU(Hashable):
             A list of locales supported by the SKU.
         genres: List[:class:`SKUGenre`]
             A list of genres of the SKU.
+        content_ratings: List[:class:`ContentRating`]
+            A list of content ratings of the SKU.
+        system_requirements: List[:class:`SystemRequirements`]
+            A list of system requirements of the SKU.
         release_date: Optional[:class:`date`]
             The release date of the SKU.
         bundled_skus: List[:class:`SKU`]
@@ -1239,6 +1392,12 @@ class SKU(Hashable):
             payload['content_ratings'] = (
                 {content_rating.agency: content_rating.to_dict() for content_rating in content_ratings}
                 if content_ratings
+                else {}
+            )
+        if system_requirements is not MISSING:
+            payload['system_requirements'] = (
+                {system_requirement.os: system_requirement.to_dict() for system_requirement in system_requirements}
+                if system_requirements
                 else {}
             )
         if release_date is not MISSING:
