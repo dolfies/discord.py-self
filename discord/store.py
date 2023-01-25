@@ -458,9 +458,7 @@ class SystemRequirements:
         minimum = data['minimum']
         recommended = data.get('recommended', {})
 
-        minimum_os_version, minimum_os_version_localizations = _parse_localizations(
-            minimum, 'operating_system_version'
-        )
+        minimum_os_version, minimum_os_version_localizations = _parse_localizations(minimum, 'operating_system_version')
         recommended_os_version, recommended_os_version_localizations = _parse_localizations(
             recommended, 'operating_system_version'
         )
@@ -469,9 +467,7 @@ class SystemRequirements:
         minimum_gpu, minimum_gpu_localizations = _parse_localizations(minimum, 'gpu')
         recommended_gpu, recommended_gpu_localizations = _parse_localizations(recommended, 'gpu')
         minimum_sound_card, minimum_sound_card_localizations = _parse_localizations(minimum, 'sound_card')
-        recommended_sound_card, recommended_sound_card_localizations = _parse_localizations(
-            recommended, 'sound_card'
-        )
+        recommended_sound_card, recommended_sound_card_localizations = _parse_localizations(recommended, 'sound_card')
         minimum_directx, minimum_directx_localizations = _parse_localizations(minimum, 'directx')
         recommended_directx, recommended_directx_localizations = _parse_localizations(recommended, 'directx')
         minimum_network, minimum_network_localizations = _parse_localizations(minimum, 'network')
@@ -481,38 +477,38 @@ class SystemRequirements:
 
         return cls(
             os,
-            minimum_ram = minimum.get('ram'),
-            recommended_ram = recommended.get('ram'),
-            minimum_disk = minimum.get('disk'),
-            recommended_disk = recommended.get('disk'),
-            minimum_os_version = minimum_os_version,
-            minimum_os_version_localizations = minimum_os_version_localizations,
-            recommended_os_version = recommended_os_version,
-            recommended_os_version_localizations = recommended_os_version_localizations,
-            minimum_cpu = minimum_cpu,
-            minimum_cpu_localizations = minimum_cpu_localizations,
-            recommended_cpu = recommended_cpu,
-            recommended_cpu_localizations = recommended_cpu_localizations,
-            minimum_gpu = minimum_gpu,
-            minimum_gpu_localizations = minimum_gpu_localizations,
-            recommended_gpu = recommended_gpu,
-            recommended_gpu_localizations = recommended_gpu_localizations,
-            minimum_sound_card = minimum_sound_card,
-            minimum_sound_card_localizations = minimum_sound_card_localizations,
-            recommended_sound_card = recommended_sound_card,
-            recommended_sound_card_localizations = recommended_sound_card_localizations,
-            minimum_directx = minimum_directx,
-            minimum_directx_localizations = minimum_directx_localizations,
-            recommended_directx = recommended_directx,
-            recommended_directx_localizations = recommended_directx_localizations,
-            minimum_network = minimum_network,
-            minimum_network_localizations = minimum_network_localizations,
-            recommended_network = recommended_network,
-            recommended_network_localizations = recommended_network_localizations,
-            minimum_notes = minimum_notes,
-            minimum_notes_localizations = minimum_notes_localizations,
-            recommended_notes = recommended_notes,
-            recommended_notes_localizations = recommended_notes_localizations,
+            minimum_ram=minimum.get('ram'),
+            recommended_ram=recommended.get('ram'),
+            minimum_disk=minimum.get('disk'),
+            recommended_disk=recommended.get('disk'),
+            minimum_os_version=minimum_os_version,
+            minimum_os_version_localizations=minimum_os_version_localizations,
+            recommended_os_version=recommended_os_version,
+            recommended_os_version_localizations=recommended_os_version_localizations,
+            minimum_cpu=minimum_cpu,
+            minimum_cpu_localizations=minimum_cpu_localizations,
+            recommended_cpu=recommended_cpu,
+            recommended_cpu_localizations=recommended_cpu_localizations,
+            minimum_gpu=minimum_gpu,
+            minimum_gpu_localizations=minimum_gpu_localizations,
+            recommended_gpu=recommended_gpu,
+            recommended_gpu_localizations=recommended_gpu_localizations,
+            minimum_sound_card=minimum_sound_card,
+            minimum_sound_card_localizations=minimum_sound_card_localizations,
+            recommended_sound_card=recommended_sound_card,
+            recommended_sound_card_localizations=recommended_sound_card_localizations,
+            minimum_directx=minimum_directx,
+            minimum_directx_localizations=minimum_directx_localizations,
+            recommended_directx=recommended_directx,
+            recommended_directx_localizations=recommended_directx_localizations,
+            minimum_network=minimum_network,
+            minimum_network_localizations=minimum_network_localizations,
+            recommended_network=recommended_network,
+            recommended_network_localizations=recommended_network_localizations,
+            minimum_notes=minimum_notes,
+            minimum_notes_localizations=minimum_notes_localizations,
+            recommended_notes=recommended_notes,
+            recommended_notes_localizations=recommended_notes_localizations,
         )
 
     def __repr__(self) -> str:
@@ -528,7 +524,11 @@ class SystemRequirements:
             value = getattr(self, key)
             localizations = getattr(self, f'{key}_localizations', None)
             if value or localizations:
-                data = value if localizations is None else {'default': value, 'localizations': {str(k): v for k, v in localizations.items()}}
+                data = (
+                    value
+                    if localizations is None
+                    else {'default': value, 'localizations': {str(k): v for k, v in localizations.items()}}
+                )
                 if key.startswith('minimum_'):
                     minimum[key[8:]] = data
                 elif key.startswith('recommended_'):

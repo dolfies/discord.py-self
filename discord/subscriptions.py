@@ -572,7 +572,12 @@ class Subscription(Hashable):
 
     def is_active(self) -> bool:
         """:class:`bool`: Indicates if the subscription is currently active and providing perks."""
-        return self.status not in (SubscriptionStatus.unpaid, SubscriptionStatus.ended, SubscriptionStatus.account_hold, SubscriptionStatus.inactive)
+        return self.status not in (
+            SubscriptionStatus.unpaid,
+            SubscriptionStatus.ended,
+            SubscriptionStatus.account_hold,
+            SubscriptionStatus.inactive,
+        )
 
     def is_trial(self) -> bool:
         """:class:`bool`: Indicates if the subscription is a trial."""
