@@ -34,7 +34,7 @@ from .enums import (
 )
 from .flags import PaymentSourceFlags
 from .mixins import Hashable
-from .utils import MISSING, _get_as_snowflake
+from .utils import MISSING
 
 if TYPE_CHECKING:
     from datetime import date
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 __all__ = (
     'BillingAddress',
     'PaymentSource',
+    'PremiumUsage',
 )
 
 
@@ -335,3 +336,42 @@ class PaymentSource(Hashable):
             Deleting the payment source failed.
         """
         await self._state.http.delete_payment_source(self.id)
+
+
+class PremiumUsage:
+    """Represents the usage of a user's premium perks.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ----------
+    sticker_sends: :class:`int`
+        The number of premium sticker sends.
+    animated_emojis: :class:`int`
+        The number of animated emojis used.
+    global_emojis: :class:`int`
+        The number of global emojis used.
+    large_uploads: :class:`int`
+        The number of large uploads made.
+    hd_streams: :class:`int`
+        The number of HD streams.
+    hd_hours_streamed: :class:`int`
+        The number of hours streamed in HD.
+    """
+
+    __slots__ = (
+        'sticker_sends',
+        'animated_emojis',
+        'global_emojis',
+        'large_uploads'
+        'hd_streams',
+        'hd_hours_streamed',
+    )
+
+    def __init__(self, *, data: dict) -> None:
+        self.sticker_sends: int = data['nitro_sticker_sends']['value']
+        self.animated_emojis: int = data['total_animated_emojis']['value']
+        self.global_emojis: int = data['total_global_emojis']['value']
+        self.large_uploads: int = data['total_large_uploads']['value']
+        self.hd_streams: int = data['total_hd_streams']['value']
+        self.hd_hours_streamed: int = data['hd_hours_streamed']['value']

@@ -80,7 +80,7 @@ from .connections import Connection
 from .team import Team
 from .member import _ClientStatus
 from .handlers import CaptchaHandler
-from .billing import PaymentSource
+from .billing import PaymentSource, PremiumUsage
 from .subscriptions import Subscription, SubscriptionItem, SubscriptionInvoice
 from .payments import Payment
 from .promotions import PricingPromotion, Promotion, TrialOffer
@@ -4124,3 +4124,23 @@ class Client:
             The retrieved price tier mapping.
         """
         return await self._connection.http.get_price_tier(price_tier)
+
+    async def premium_usage(self) -> PremiumUsage:
+        """|coro|
+
+        Retrieves the usage of the premium perks on your account.
+
+        .. versionadded:: 2.0
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the premium usage failed.
+
+        Returns
+        -------
+        :class:`.PremiumUsage`
+            The premium usage.
+        """
+        data = await self._connection.http.get_premium_usage()
+        return PremiumUsage(data=data)

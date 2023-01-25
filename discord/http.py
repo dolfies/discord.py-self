@@ -3600,6 +3600,9 @@ class HTTPClient:
     def get_pricing_promotion(self) -> Response[dict]:
         return self.request(Route('GET', '/users/@me/billing/localized-pricing-promo'))
 
+    def get_premium_usage(self) -> Response[dict]:
+        return self.request(Route('GET', '/users/@me/premium-usage'))
+
     # Misc
 
     async def get_gateway(self, *, encoding: str = 'json', zlib: bool = True) -> str:
