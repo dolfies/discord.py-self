@@ -42,7 +42,7 @@ __all__ = (
     'ActivityType',
     'NotificationLevel',
     'HighlightLevel',
-    'TeamMembershipState',
+    'ApplicationMembershipState',
     'PayoutAccountStatus',
     'PayoutStatus',
     'PayoutReportType',
@@ -629,7 +629,7 @@ class PremiumType(Enum):
             return cls.nitro_basic
 
 
-class TeamMembershipState(Enum, comparable=True):
+class ApplicationMembershipState(Enum, comparable=True):
     invited = 1
     accepted = 2
 

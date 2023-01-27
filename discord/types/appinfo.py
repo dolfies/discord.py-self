@@ -91,6 +91,11 @@ class Application(PartialApplication, IntegrationApplication, ApplicationDiscove
     role_connections_verification_url: NotRequired[Optional[str]]
 
 
+class WhitelistedUser(TypedDict):
+    user: PartialUser
+    state: Literal[1, 2]
+
+
 class Asset(TypedDict):
     id: Snowflake
     name: str

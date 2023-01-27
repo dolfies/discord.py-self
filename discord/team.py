@@ -29,11 +29,11 @@ from typing import TYPE_CHECKING, AsyncIterator, List, Optional, Union, overload
 
 from . import utils
 from .asset import Asset
-from .enums import PayoutAccountStatus, PayoutReportType, PayoutStatus, TeamMembershipState, try_enum
+from .enums import ApplicationMembershipState, PayoutAccountStatus, PayoutReportType, PayoutStatus, try_enum
 from .metadata import Metadata
 from .mixins import Hashable
 from .object import Object
-from .user import _UserTag, User
+from .user import User, _UserTag
 
 if TYPE_CHECKING:
     from datetime import date
@@ -313,7 +313,7 @@ class Team(Hashable):
 
         Returns
         -------
-        :class:`.TeamMember`
+        :class:`TeamMember`
             The new member.
         """
         username: str
@@ -330,8 +330,7 @@ class Team(Hashable):
 
         state = self._state
         data = await state.http.invite_team_member(self.id, username, discrim)
-        member = TeamMember(self, state, data)
-        return member
+        return TeamMember(self, state, data)
 
     async def create_company(self, name: str, /) -> Company:
         """|coro|
@@ -481,7 +480,7 @@ class TeamMember(User):
     -------------
     team: :class:`Team`
         The team that the member is from.
-    membership_state: :class:`TeamMembershipState`
+    membership_state: :class:`ApplicationMembershipState`
         The membership state of the member (i.e. invited or accepted)
     permissions: List[:class:`str`]
         The permissions of the team member. This is always "*".
@@ -491,8 +490,8 @@ class TeamMember(User):
 
     def __init__(self, team: Team, state: ConnectionState, data: TeamMemberPayload):
         self.team: Team = team
-        self.membership_state: TeamMembershipState = try_enum(TeamMembershipState, data['membership_state'])
-        self.permissions: List[str] = data['permissions']
+        self.membership_state: ApplicationMembershipState = try_enum(ApplicationMembershipState, data['membership_state'])
+        self.permissions: List[str] = data.get('permissions', ['*'])
         super().__init__(state=state, data=data['user'])
 
     def __repr__(self) -> str:

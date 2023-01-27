@@ -25,7 +25,19 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Collection, List, Literal, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Collection,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    overload,
+)
 from urllib.parse import quote
 
 from . import utils
@@ -35,6 +47,7 @@ from .enums import (
     ApplicationAssetType,
     ApplicationBuildStatus,
     ApplicationDiscoverabilityState,
+    ApplicationMembershipState,
     ApplicationType,
     ApplicationVerificationState,
     Distributor,
@@ -52,7 +65,7 @@ from .object import OLDEST_OBJECT, Object
 from .permissions import Permissions
 from .store import SKU, StoreAsset, StoreListing, SystemRequirements
 from .team import Team
-from .user import User
+from .user import User, _UserTag
 from .utils import _bytes_to_base64_data, _parse_localizations
 
 if TYPE_CHECKING:
@@ -79,6 +92,7 @@ if TYPE_CHECKING:
         Manifest as ManifestPayload,
         ManifestLabel as ManifestLabelPayload,
         PartialApplication as PartialApplicationPayload,
+        WhitelistedUser as WhitelistedUserPayload,
     )
     from .types.user import PartialUser as PartialUserPayload
 
@@ -1477,6 +1491,63 @@ class ApplicationBranch(Hashable):
         await self._state.http.delete_app_branch(self.application_id, self.id)
 
 
+class ApplicationTester(User):
+    """Represents a user whitelisted for an application.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two testers are equal.
+
+        .. describe:: x != y
+
+            Checks if two testers are not equal.
+
+        .. describe:: hash(x)
+
+            Return the tester's hash.
+
+        .. describe:: str(x)
+
+            Returns the tester's name with discriminator.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -------------
+    application: :class:`Application`
+        The application the tester is whitelisted for.
+    state: :class:`ApplicationMembershipState`
+        The state of the tester (i.e. invited or accepted)
+    """
+
+    __slots__ = ('application', 'state')
+
+    def __init__(self, application: Application, state: ConnectionState, data: WhitelistedUserPayload):
+        self.application: Application = application
+        self.state: ApplicationMembershipState = try_enum(ApplicationMembershipState, data['state'])
+        super().__init__(state=state, data=data['user'])
+
+    def __repr__(self) -> str:
+        return (
+            f'<{self.__class__.__name__} id={self.id} name={self.name!r} '
+            f'discriminator={self.discriminator!r} state={self.state!r}>'
+        )
+
+    async def remove(self) -> None:
+        """|coro|
+
+        Removes the user from the whitelist.
+
+        Raises
+        -------
+        HTTPException
+            Removing the user failed.
+        """
+        await self._state.http.delete_app_whitelist(self.application.id, self.id)
+
+
 class PartialApplication(Hashable):
     """Represents a partial Application.
 
@@ -2246,6 +2317,94 @@ class Application(PartialApplication):
         data = await state.http.get_my_application(self.id)
         self._update(data)
         return self.bot  # type: ignore
+
+    async def whitelisted(self) -> List[ApplicationTester]:
+        """|coro|
+
+        Retrieves the list of whitelisted users (testers) for this application.
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to fetch the testers.
+        HTTPException
+            Fetching the testers failed.
+
+        Returns
+        -------
+        List[:class:`ApplicationTester`]
+            The testers for this application.
+        """
+        state = self._state
+        data = await state.http.get_app_whitelisted(self.id)
+        return [ApplicationTester(self, state, user) for user in data]
+
+    @overload
+    async def whitelist(self, user: _UserTag, /) -> ApplicationTester:
+        ...
+
+    @overload
+    async def whitelist(self, user: str, /) -> ApplicationTester:
+        ...
+
+    @overload
+    async def whitelist(self, username: str, discriminator: str, /) -> ApplicationTester:
+        ...
+
+    async def whitelist(self, *args: Union[_UserTag, str]) -> ApplicationTester:
+        """|coro|
+
+        Whitelists a user (adds a tester) for this application.
+
+        This function can be used in multiple ways.
+
+        .. code-block:: python
+
+            # Passing a user object:
+            await app.whitelist(user)
+
+            # Passing a stringified user:
+            await app.whitelist('Jake#0001')
+
+            # Passing a username and discriminator:
+            await app.whitelist('Jake', '0001')
+
+        Parameters
+        -----------
+        user: Union[:class:`User`, :class:`str`]
+            The user to whitelist.
+        username: :class:`str`
+            The username of the user to whitelist.
+        discriminator: :class:`str`
+            The discriminator of the user to whitelist.
+
+        Raises
+        -------
+        HTTPException
+            Inviting the user failed.
+        TypeError
+            More than 2 parameters or less than 1 parameter were passed.
+
+        Returns
+        -------
+        :class:`ApplicationTester`
+            The new whitelisted user.
+        """
+        username: str
+        discrim: str
+        if len(args) == 1:
+            user = args[0]
+            if isinstance(user, _UserTag):
+                user = str(user)
+            username, discrim = user.split('#')
+        elif len(args) == 2:
+            username, discrim = args  # type: ignore
+        else:
+            raise TypeError(f'invite_member() takes 1 or 2 arguments but {len(args)} were given')
+
+        state = self._state
+        data = await state.http.invite_team_member(self.id, username, discrim)
+        return ApplicationTester(self, state, data)
 
     async def create_asset(
         self, name: str, image: bytes, *, type: ApplicationAssetType = ApplicationAssetType.one

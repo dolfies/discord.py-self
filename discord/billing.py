@@ -363,7 +363,7 @@ class PremiumUsage:
         'sticker_sends',
         'animated_emojis',
         'global_emojis',
-        'large_uploads'
+        'large_uploads',
         'hd_streams',
         'hd_hours_streamed',
     )

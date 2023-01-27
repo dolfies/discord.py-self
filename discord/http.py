@@ -2281,14 +2281,14 @@ class HTTPClient:
 
         return self.request(r, **kwargs)
 
-    def send_friend_request(self, username, discriminator) -> Response[None]:
+    def send_friend_request(self, username: str, discriminator: Snowflake) -> Response[None]:
         r = Route('POST', '/users/@me/relationships')
         props = choice((ContextProperties._from_add_friend_page, ContextProperties._from_group_dm))()  # Friends, Group DM
         payload = {'username': username, 'discriminator': int(discriminator)}
 
         return self.request(r, json=payload, context_properties=props)
 
-    def edit_relationship(self, user_id, **payload):  # TODO: return type
+    def edit_relationship(self, user_id: Snowflake, **payload) -> Response[None]:
         return self.request(Route('PATCH', '/users/@me/relationships/{user_id}', user_id=user_id), json=payload)
 
     # Connections
@@ -2540,9 +2540,24 @@ class HTTPClient:
             super_properties_to_track=True,
         )
 
-    def get_app_whitelist(self, app_id: Snowflake):
+    def get_app_whitelisted(self, app_id: Snowflake) -> Response[List[appinfo.WhitelistedUser]]:
         return self.request(
             Route('GET', '/oauth2/applications/{app_id}/allowlist', app_id=app_id), super_properties_to_track=True
+        )
+
+    def add_app_whitelist(self, app_id: Snowflake, username: str, discriminator: str) -> Response[appinfo.WhitelistedUser]:
+        payload = {'username': username, 'discriminator': discriminator}
+
+        return self.request(
+            Route('POST', '/oauth2/applications/{app_id}/allowlist', app_id=app_id),
+            json=payload,
+            super_properties_to_track=True,
+        )
+
+    def delete_app_whitelist(self, app_id: Snowflake, user_id: Snowflake):
+        return self.request(
+            Route('DELETE', '/oauth2/applications/{app_id}/allowlist/{user_id}', app_id=app_id, user_id=user_id),
+            super_properties_to_track=True,
         )
 
     def get_app_assets(self, app_id: Snowflake) -> Response[List[appinfo.Asset]]:

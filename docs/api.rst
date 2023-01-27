@@ -2446,11 +2446,15 @@ of :class:`enum.Enum`.
 
         The action is the update of something.
 
-.. class:: TeamMembershipState
+.. class:: ApplicationMembershipState
 
-    Represents the membership state of a :class:`TeamMember`.
+    Represents the membership state of a :class:`TeamMember` or :class:`ApplicationTester`.
 
     .. versionadded:: 1.3
+
+    .. versionchanged:: 2.0
+
+        Renamed from ``TeamMembershipState``.
 
     .. container:: operations
 
@@ -2477,11 +2481,11 @@ of :class:`enum.Enum`.
 
     .. attribute:: invited
 
-        Represents an invited member.
+        Represents an invited user.
 
     .. attribute:: accepted
 
-        Represents a member currently in the team.
+        Represents a user that has accepted the given invite.
 
 .. class:: ApplicationType
 
