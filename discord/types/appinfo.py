@@ -217,3 +217,12 @@ class EmbeddedActivityConfig(TypedDict):
     supported_platforms: List[Literal['web', 'android', 'ios']]
     default_orientation_lock_state: Literal[1, 2, 3]
     activity_preview_video_asset_id: NotRequired[Optional[Snowflake]]
+
+
+class ActiveDeveloperWebhook(TypedDict):
+    channel_id: Snowflake
+    webhook_id: Snowflake
+
+
+class ActiveDeveloperResponse(TypedDict):
+    follower: ActiveDeveloperWebhook

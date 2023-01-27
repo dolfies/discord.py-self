@@ -3618,6 +3618,11 @@ class HTTPClient:
     def get_premium_usage(self) -> Response[dict]:
         return self.request(Route('GET', '/users/@me/premium-usage'))
 
+    def enroll_active_developer(self, application_id: Snowflake, channel_id: Snowflake) -> Response[appinfo.ActiveDeveloperResponse]:
+        payload = {'application_id': application_id, 'channel_id': channel_id}
+
+        return self.request(Route('POST', '/developers/active-program'), json=payload, super_properties_to_track=True)
+
     # Misc
 
     async def get_gateway(self, *, encoding: str = 'json', zlib: bool = True) -> str:

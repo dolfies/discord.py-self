@@ -4144,3 +4144,30 @@ class Client:
         """
         data = await self._connection.http.get_premium_usage()
         return PremiumUsage(data=data)
+
+    async def join_active_developer_program(self, *, application: Snowflake, channel: Snowflake) -> int:
+        """|coro|
+
+        Joins the current user to the active developer program.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        application: :class:`.Application`
+            The application to join the active developer program with.
+        channel: :class:`.TextChannel`
+            The channel to add the developer program webhook to.
+
+        Raises
+        -------
+        HTTPException
+            Joining the active developer program failed.
+
+        Returns
+        -------
+        :class:`int`
+            The created webhook ID.
+        """
+        data = await self._connection.http.enroll_active_developer(application.id, channel.id)
+        return int(data['follower']['webhook_id'])
