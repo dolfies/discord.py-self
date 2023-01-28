@@ -222,7 +222,7 @@ class LibraryApplication:
         """
         state = self._state
         data = await state.http.get_activity_statistics()
-        app = find(lambda a: _get_as_snowflake(data, 'application_id') == self.application.id, data)
+        app = find(lambda a: _get_as_snowflake(a, 'application_id') == self.application.id, data)
         return ApplicationActivityStatistics(
             data=app
             or {'application_id': self.application.id, 'total_duration': 0, 'last_played_at': '1970-01-01T00:00:00+00:00'},
@@ -245,6 +245,8 @@ class LibraryApplication:
         """|coro|
 
         Edits the library entry.
+
+        All parameters are optional.
 
         Parameters
         -----------

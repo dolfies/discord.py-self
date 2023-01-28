@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 __all__ = (
     'Promotion',
     'TrialOffer',
+    'PricingPromotion',
 )
 
 

@@ -101,13 +101,17 @@ __all__ = (
     'EULA',
     'Achievement',
     'ThirdPartySKU',
+    'EmbeddedActivityConfig',
     'ApplicationBot',
     'ApplicationExecutable',
     'ApplicationInstallParams',
     'ApplicationAsset',
     'ApplicationActivityStatistics',
+    'ManifestLabel',
+    'Manifest',
     'ApplicationBuild',
     'ApplicationBranch',
+    'ApplicationTester',
     'PartialApplication',
     'Application',
     'IntegrationApplication',
@@ -423,6 +427,89 @@ class ThirdPartySKU:
 
     def __repr__(self) -> str:
         return f'<ThirdPartySKU distributor={self.distributor!r} id={self.id!r} sku_id={self.sku_id!r}>'
+
+
+class EmbeddedActivityConfig:
+    """Represents an application's embedded activity configuration.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    -----------
+    application: :class:`PartialApplication`
+        The application that the configuration is for.
+    supported_platforms: List[:class:`EmbeddedActivityPlatform`]
+        A list of platforms that the application supports.
+    orientation_lock_state: :class:`EmbeddedActivityOrientation`
+        The mobile orientation lock state of the application.
+    """
+
+    __slots__ = (
+        'application',
+        'supported_platforms',
+        'orientation_lock_state',
+        'premium_tier_level',
+        '_preview_video_asset_id',
+    )
+
+    def __init__(self, *, data: EmbeddedActivityConfigPayload, application: PartialApplication) -> None:
+        self.application: PartialApplication = application
+        self._update(data)
+
+    def _update(self, data: EmbeddedActivityConfigPayload) -> None:
+        self.supported_platforms: List[EmbeddedActivityPlatform] = [
+            try_enum(EmbeddedActivityPlatform, platform) for platform in data.get('supported_platforms', [])
+        ]
+        self.orientation_lock_state: EmbeddedActivityOrientation = try_enum(
+            EmbeddedActivityOrientation, data.get('default_orientation_lock_state', 0)
+        )
+        self.premium_tier_level: int = data.get('activity_premium_tier_level', 0)
+        self._preview_video_asset_id = utils._get_as_snowflake(data, 'preview_video_asset_id')
+
+    @property
+    def preview_video_asset(self) -> Optional[ApplicationAsset]:
+        """Optional[:class:`ApplicationAsset`]: The preview video asset of the embedded activity, if available."""
+        if self._preview_video_asset_id is None:
+            return None
+        app = self.application
+        return ApplicationAsset._from_embedded_activity_config(app, self._preview_video_asset_id)
+
+    async def edit(
+        self,
+        *,
+        supported_platforms: List[EmbeddedActivityPlatform] = MISSING,
+        orientation_lock_state: EmbeddedActivityOrientation = MISSING,
+        preview_video_asset: Optional[Snowflake] = MISSING,
+    ) -> None:
+        """|coro|
+
+        Edits the application's embedded activity configuration.
+
+        Parameters
+        -----------
+        supported_platforms: List[:class:`EmbeddedActivityPlatform`]
+            A list of platforms that the application supports.
+        orientation_lock_state: :class:`EmbeddedActivityOrientation`
+            The mobile orientation lock state of the application.
+        preview_video_asset: Optional[:class:`ApplicationAsset`]
+            The preview video asset of the embedded activity.
+
+        Raises
+        -------
+        Forbidden
+            You are not allowed to edit this application's configuration.
+        HTTPException
+            Editing the configuration failed.
+        """
+        data = await self.application._state.http.edit_embedded_activity_config(
+            self.application.id,
+            supported_platforms=[str(x) for x in (supported_platforms or [])],
+            orientation_lock_state=int(orientation_lock_state),
+            preview_video_asset_id=(preview_video_asset.id if preview_video_asset else None)
+            if preview_video_asset is not MISSING
+            else None,
+        )
+        self._update(data)
 
 
 class ApplicationBot(User):
@@ -796,89 +883,6 @@ class ApplicationActivityStatistics:
     def user(self) -> Optional[User]:
         """Optional[:class:`User`]: Returns the user associated with the statistics, if available."""
         return self._state.get_user(self.user_id)
-
-
-class EmbeddedActivityConfig:
-    """Represents an application's embedded activity configuration.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    -----------
-    application: :class:`PartialApplication`
-        The application that the configuration is for.
-    supported_platforms: List[:class:`EmbeddedActivityPlatform`]
-        A list of platforms that the application supports.
-    orientation_lock_state: :class:`EmbeddedActivityOrientation`
-        The mobile orientation lock state of the application.
-    """
-
-    __slots__ = (
-        'application',
-        'supported_platforms',
-        'orientation_lock_state',
-        'premium_tier_level',
-        '_preview_video_asset_id',
-    )
-
-    def __init__(self, *, data: EmbeddedActivityConfigPayload, application: PartialApplication) -> None:
-        self.application: PartialApplication = application
-        self._update(data)
-
-    def _update(self, data: EmbeddedActivityConfigPayload) -> None:
-        self.supported_platforms: List[EmbeddedActivityPlatform] = [
-            try_enum(EmbeddedActivityPlatform, platform) for platform in data.get('supported_platforms', [])
-        ]
-        self.orientation_lock_state: EmbeddedActivityOrientation = try_enum(
-            EmbeddedActivityOrientation, data.get('default_orientation_lock_state', 0)
-        )
-        self.premium_tier_level: int = data.get('activity_premium_tier_level', 0)
-        self._preview_video_asset_id = utils._get_as_snowflake(data, 'preview_video_asset_id')
-
-    @property
-    def preview_video_asset(self) -> Optional[ApplicationAsset]:
-        """Optional[:class:`ApplicationAsset`]: The preview video asset of the embedded activity, if available."""
-        if self._preview_video_asset_id is None:
-            return None
-        app = self.application
-        return ApplicationAsset._from_embedded_activity_config(app, self._preview_video_asset_id)
-
-    async def edit(
-        self,
-        *,
-        supported_platforms: List[EmbeddedActivityPlatform] = MISSING,
-        orientation_lock_state: EmbeddedActivityOrientation = MISSING,
-        preview_video_asset: Optional[Snowflake] = MISSING,
-    ) -> None:
-        """|coro|
-
-        Edits the application's embedded activity configuration.
-
-        Parameters
-        -----------
-        supported_platforms: List[:class:`EmbeddedActivityPlatform`]
-            A list of platforms that the application supports.
-        orientation_lock_state: :class:`EmbeddedActivityOrientation`
-            The mobile orientation lock state of the application.
-        preview_video_asset: Optional[:class:`ApplicationAsset`]
-            The preview video asset of the embedded activity.
-
-        Raises
-        -------
-        Forbidden
-            You are not allowed to edit this application's configuration.
-        HTTPException
-            Editing the configuration failed.
-        """
-        data = await self.application._state.http.edit_embedded_activity_config(
-            self.application.id,
-            supported_platforms=[str(x) for x in (supported_platforms or [])],
-            orientation_lock_state=int(orientation_lock_state),
-            preview_video_asset_id=(preview_video_asset.id if preview_video_asset else None)
-            if preview_video_asset is not MISSING
-            else None,
-        )
-        self._update(data)
 
 
 class ManifestLabel(Hashable):

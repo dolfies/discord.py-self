@@ -39,7 +39,7 @@ from .enums import (
 )
 from .metadata import Metadata
 from .mixins import Hashable
-from .utils import MISSING, _get_as_snowflake, parse_time, snowflake_time
+from .utils import MISSING, _get_as_snowflake, parse_time, snowflake_time, utcnow
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -570,14 +570,44 @@ class Subscription(Hashable):
         """:class:`Guild`: The guild the subscription's entitlements apply to, if applicable."""
         return self._state._get_guild(self.metadata.guild_id)
 
+    @property
+    def grace_period(self) -> int:
+        """:class:`int`: How many days past the renewal date the user has available to pay outstanding invoices.
+
+        .. note::
+
+            This is a static value and does not change based on the subscription's status.
+            For that, see :attr:`remaining`.
+        """
+        return 7 if self.payment_source_id else 3
+
+    @property
+    def remaining(self) -> timedelta:
+        """:class:`datetime.timedelta`: The remaining time until the subscription ends."""
+        if self.status in (SubscriptionStatus.active, SubscriptionStatus.cancelled):
+            return self.current_period_end - utcnow()
+        elif self.status == SubscriptionStatus.past_due:
+            if self.payment_gateway == PaymentGateway.google and self.metadata.google_grace_period_expires_date:
+                return self.metadata.google_grace_period_expires_date - utcnow()
+            return (self.current_period_start + timedelta(days=self.grace_period)) - utcnow()
+        elif self.status == SubscriptionStatus.account_hold:
+            # Max hold time is 30 days
+            return (self.current_period_start + timedelta(days=30)) - utcnow()
+        return timedelta()
+
+    @property
+    def trial_remaining(self) -> timedelta:
+        """:class:`datetime.timedelta`: The remaining time until the trial applied to the subscription ends."""
+        if not self.trial_id:
+            return timedelta()
+        if not self.trial_ends_at:
+            # Infinite trial?
+            return self.remaining
+        return self.trial_ends_at - utcnow()
+
     def is_active(self) -> bool:
         """:class:`bool`: Indicates if the subscription is currently active and providing perks."""
-        return self.status not in (
-            SubscriptionStatus.unpaid,
-            SubscriptionStatus.ended,
-            SubscriptionStatus.account_hold,
-            SubscriptionStatus.inactive,
-        )
+        return self.remaining > timedelta()
 
     def is_trial(self) -> bool:
         """:class:`bool`: Indicates if the subscription is a trial."""
@@ -595,6 +625,8 @@ class Subscription(Hashable):
         """|coro|
 
         Edits the subscription.
+
+        All parameters are optional.
 
         Attributes
         ----------
