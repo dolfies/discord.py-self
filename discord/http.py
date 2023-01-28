@@ -3623,6 +3623,9 @@ class HTTPClient:
 
         return self.request(Route('POST', '/developers/active-program'), json=payload, super_properties_to_track=True)
 
+    def unenroll_active_developer(self) -> Response[None]:
+        return self.request(Route('DELETE', '/developers/active-program'), super_properties_to_track=True)
+
     # Misc
 
     async def get_gateway(self, *, encoding: str = 'json', zlib: bool = True) -> str:

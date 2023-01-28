@@ -4171,3 +4171,18 @@ class Client:
         """
         data = await self._connection.http.enroll_active_developer(application.id, channel.id)
         return int(data['follower']['webhook_id'])
+
+    async def leave_active_developer_program(self) -> None:
+        """|coro|
+
+        Leaves the current user from the active developer program.
+        This does not remove the created webhook.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Leaving the active developer program failed.
+        """
+        await self._connection.http.unenroll_active_developer()
