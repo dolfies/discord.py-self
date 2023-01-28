@@ -330,7 +330,9 @@ class Team(Hashable):
 
         state = self._state
         data = await state.http.invite_team_member(self.id, username, discrim)
-        return TeamMember(self, state, data)
+        member = TeamMember(self, state, data)
+        self.members.append(member)
+        return member
 
     async def create_company(self, name: str, /) -> Company:
         """|coro|
