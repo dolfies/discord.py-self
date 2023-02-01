@@ -2710,7 +2710,7 @@ class Client:
         data = await state.http.get_partial_application(application_id)
         return PartialApplication(state=state, data=data)
 
-    async def fetch_public_application(self, application_id: int, /) -> PartialApplication:
+    async def fetch_public_application(self, application_id: int, /, *, with_guild: bool = False) -> PartialApplication:
         """|coro|
 
         Retrieves the public application with the given ID.
@@ -2721,6 +2721,8 @@ class Client:
         -----------
         application_id: :class:`int`
             The ID of the public application to fetch.
+        with_guild: :class:`bool`
+            Whether to include the public guild of the application.
 
         Raises
         -------
@@ -2735,7 +2737,7 @@ class Client:
             The retrieved application.
         """
         state = self._connection
-        data = await state.http.get_public_application(application_id)
+        data = await state.http.get_public_application(application_id, with_guild=with_guild)
         return PartialApplication(state=state, data=data)
 
     async def fetch_public_applications(self, *application_ids: int) -> List[PartialApplication]:
@@ -3526,7 +3528,8 @@ class Client:
         state = self._connection
         data = await state.http.get_pricing_promotion()
         state.country_code = data['country_code']
-        return PricingPromotion(data=data['localized_pricing_promo']) if data.get('localized_pricing_promo') else None
+        if data['localized_pricing_promo'] is not None:
+            return PricingPromotion(data=data['localized_pricing_promo'])
 
     async def library(self) -> List[LibraryApplication]:
         """|coro|

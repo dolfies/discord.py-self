@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import Dict, List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired
 
+from .guild import PartialGuild
 from .snowflake import Snowflake
 from .team import Team
 from .user import PartialUser
@@ -74,6 +75,7 @@ class PartialApplication(BaseApplication):
     aliases: NotRequired[List[str]]
     eula_id: NotRequired[Snowflake]
     embedded_activity_config: NotRequired[EmbeddedActivityConfig]
+    guild: NotRequired[PartialGuild]
 
 
 class ApplicationDiscoverability(TypedDict):
@@ -134,16 +136,6 @@ class BaseAchievement(TypedDict):
 
 class Achievement(BaseAchievement):
     application_id: Snowflake
-
-
-class GiftBatch(TypedDict):
-    id: Snowflake
-    sku_id: Snowflake
-    amount: int
-    description: str
-    entitlement_branches: List[Snowflake]
-    entitlement_starts_at: NotRequired[str]
-    entitlement_ends_at: NotRequired[str]
 
 
 class Ticket(TypedDict):

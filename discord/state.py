@@ -1177,7 +1177,7 @@ class ConnectionState:
         self.auth_session_id = auth_session_id = data['auth_session_id_hash']
         self.dispatch('auth_session_change', auth_session_id)
 
-    def parse_payment_update(self, data: dict) -> None:
+    def parse_payment_update(self, data: gw.PaymentUpdateEvent) -> None:
         id = int(data['id'])
         payment = self.pending_payments.get(id)
         if payment is not None:
@@ -1187,7 +1187,7 @@ class ConnectionState:
 
         self.dispatch('payment_update', payment)
 
-    def parse_library_application_update(self, data: dict) -> None:
+    def parse_library_application_update(self, data: gw.LibraryApplicationUpdateEvent) -> None:
         entry = LibraryApplication(state=self, data=data)
         self.dispatch('library_application_update', entry)
 
@@ -1232,24 +1232,26 @@ class ConnectionState:
         client._client_activities = client_activities
         client._session_count = len(data)
 
-    def parse_entitlement_create(self, data: dict) -> None:
+    def parse_entitlement_create(self, data: gw.EntitlementEvent) -> None:
         entitlement = Entitlement(state=self, data=data)
         self.dispatch('entitlement_create', entitlement)
 
-    def parse_entitlement_update(self, data: dict) -> None:
+    def parse_entitlement_update(self, data: gw.EntitlementEvent) -> None:
         entitlement = Entitlement(state=self, data=data)
         self.dispatch('entitlement_update', entitlement)
 
-    def parse_entitlement_delete(self, data: dict) -> None:
+    def parse_entitlement_delete(self, data: gw.EntitlementEvent) -> None:
         entitlement = Entitlement(state=self, data=data)
         self.dispatch('entitlement_delete', entitlement)
 
-    def parse_gift_code_create(self, data: dict) -> None:
-        gift = Gift(state=self, data=data)
+    def parse_gift_code_create(self, data: gw.GiftCreateEvent) -> None:
+        # Should be fine:tm:
+        gift = Gift(state=self, data=data)  # type: ignore
         self.dispatch('gift_create', gift)
 
-    def parse_gift_code_update(self, data: dict) -> None:
-        gift = Gift(state=self, data=data)
+    def parse_gift_code_update(self, data: gw.GiftUpdateEvent) -> None:
+        # Should be fine:tm:
+        gift = Gift(state=self, data=data)  # type: ignore
         self.dispatch('gift_update', gift)
 
     def parse_invite_create(self, data: gw.InviteCreateEvent) -> None:

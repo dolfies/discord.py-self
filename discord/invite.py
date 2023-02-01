@@ -558,7 +558,7 @@ class Invite(Hashable):
     def _resolve_channel(
         self,
         data: Optional[InviteChannelPayload],
-        channel: Optional[Union[PartialInviteChannel, GuildChannel]] = None,
+        channel: Optional[Union[PartialInviteChannel, GuildChannel, GroupChannel]] = None,
     ) -> Optional[InviteChannelType]:
         if channel is not None:
             return channel

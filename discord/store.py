@@ -70,7 +70,23 @@ if TYPE_CHECKING:
     from .library import LibraryApplication
     from .state import ConnectionState
     from .types.appinfo import StoreAsset as StoreAssetPayload
+    from .types.entitlements import Gift as GiftPayload
     from .types.snowflake import Snowflake as SnowflakeType
+    from .types.store import (
+        SKU as SKUPayload,
+        CarouselItem as CarouselItemPayload,
+        ContentRating as ContentRatingPayload,
+        SKUPrice as SKUPricePayload,
+        StoreListing as StoreListingPayload,
+        StoreNote as StoreNotePayload,
+        SystemRequirements as SystemRequirementsPayload,
+    )
+    from .types.subscriptions import (
+        PartialSubscriptionPlan as PartialSubscriptionPlanPayload,
+        SubscriptionPlan as SubscriptionPlanPayload,
+        SubscriptionPrice as SubscriptionPricePayload,
+        SubscriptionPrices as SubscriptionPricesPayload,
+    )
     from .user import User
 
 __all__ = (
@@ -147,14 +163,17 @@ class StoreAsset(AssetMixin, Hashable):
         return cls(data=data, state=state, parent=parent)
 
     @classmethod
-    def _from_carousel_item(cls, *, data: dict, state: ConnectionState, store_listing: StoreListing) -> StoreAsset:
+    def _from_carousel_item(
+        cls, *, data: CarouselItemPayload, state: ConnectionState, store_listing: StoreListing
+    ) -> StoreAsset:
         asset_id = _get_as_snowflake(data, 'asset_id')
         if asset_id:
             return get(store_listing.assets, id=asset_id) or StoreAsset._from_id(
                 id=asset_id, state=state, parent=store_listing
             )
         else:
-            return cls._from_id(id=data['youtube_video_id'], mime_type='video/youtube', state=state, parent=store_listing)
+            # One or the other must be present
+            return cls._from_id(id=data['youtube_video_id'], mime_type='video/youtube', state=state, parent=store_listing)  # type: ignore
 
     def __repr__(self) -> str:
         return f'<ApplicationAsset id={self.id} height={self.height} width={self.width}>'
@@ -253,8 +272,8 @@ class StoreNote:
 
     __slots__ = ('user', 'content')
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
-        self.user: Optional[User] = state.create_user(data['user']) if data.get('user') else None
+    def __init__(self, *, data: StoreNotePayload, state: ConnectionState) -> None:
+        self.user: Optional[User] = state.create_user(data['user']) if data.get('user') else None  # type: ignore
         self.content: str = data['content']
 
     def __repr__(self) -> str:
@@ -454,8 +473,8 @@ class SystemRequirements:
         self.recommended_notes_localizations = recommended_notes_localizations or {}
 
     @classmethod
-    def from_dict(cls, os: OperatingSystem, data: dict) -> Self:
-        minimum = data['minimum']
+    def from_dict(cls, os: OperatingSystem, data: SystemRequirementsPayload) -> Self:
+        minimum = data.get('minimum', {})
         recommended = data.get('recommended', {})
 
         minimum_os_version, minimum_os_version_localizations = _parse_localizations(minimum, 'operating_system_version')
@@ -647,7 +666,9 @@ class StoreListing(Hashable):
         tagline: Optional[str]
         tagline_localizations: Dict[Locale, str]
 
-    def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
+    def __init__(
+        self, *, data: StoreListingPayload, state: ConnectionState, application: Optional[PartialApplication] = None
+    ) -> None:
         self._state = state
         self._update(data, application=application)
 
@@ -657,7 +678,7 @@ class StoreListing(Hashable):
     def __repr__(self) -> str:
         return f'<StoreListing id={self.id} summary={self.summary!r} sku={self.sku!r}>'
 
-    def _update(self, data: dict, application: Optional[PartialApplication] = None) -> None:
+    def _update(self, data: StoreListingPayload, application: Optional[PartialApplication] = None) -> None:
         from .guild import Guild
 
         state = self._state
@@ -666,16 +687,16 @@ class StoreListing(Hashable):
         self.description, self.description_localizations = _parse_localizations(data, 'description')
         self.tagline, self.tagline_localizations = _parse_localizations(data, 'tagline')
 
-        self.id: int = data['id']
+        self.id: int = int(data['id'])
         self.flavor: Optional[str] = data.get('flavor_text')
         self.sku: SKU = SKU(data=data['sku'], state=state, application=application)
         self.child_skus: List[SKU] = [SKU(data=sku, state=state) for sku in data.get('child_skus', [])]
         self.alternative_skus: List[SKU] = [SKU(data=sku, state=state) for sku in data.get('alternative_skus', [])]
         self.entitlement_branch_id: Optional[int] = _get_as_snowflake(data, 'entitlement_branch_id')
-        self.guild: Optional[Guild] = Guild(data=data['guild'], state=state) if data.get('guild') else None
+        self.guild: Optional[Guild] = Guild(data=data['guild'], state=state) if 'guild' in data else None
         self.published: bool = data.get('published', True)
         self.staff_note: Optional[StoreNote] = (
-            StoreNote(data=data['staff_notes'], state=state) if data.get('staff_notes') else None
+            StoreNote(data=data['staff_notes'], state=state) if 'staff_notes' in data else None
         )
 
         self.assets: List[StoreAsset] = [
@@ -686,22 +707,22 @@ class StoreListing(Hashable):
             for asset in data.get('carousel_items', [])
         ]
         self.preview_video: Optional[StoreAsset] = (
-            StoreAsset(data=data['preview_video'], state=state, parent=self) if data.get('preview_video') else None
+            StoreAsset(data=data['preview_video'], state=state, parent=self) if 'preview_video' in data else None
         )
         self.header_background: Optional[StoreAsset] = (
-            StoreAsset(data=data['header_background'], state=state, parent=self) if data.get('header_background') else None
+            StoreAsset(data=data['header_background'], state=state, parent=self) if 'header_background' in data else None
         )
         self.hero_background: Optional[StoreAsset] = (
-            StoreAsset(data=data['hero_background'], state=state, parent=self) if data.get('hero_background') else None
+            StoreAsset(data=data['hero_background'], state=state, parent=self) if 'hero_background' in data else None
         )
         self.hero_video: Optional[StoreAsset] = (
-            StoreAsset(data=data['hero_video'], state=state, parent=self) if data.get('hero_video') else None
+            StoreAsset(data=data['hero_video'], state=state, parent=self) if 'hero_video' in data else None
         )
         self.box_art: Optional[StoreAsset] = (
-            StoreAsset(data=data['box_art'], state=state, parent=self) if data.get('box_art') else None
+            StoreAsset(data=data['box_art'], state=state, parent=self) if 'box_art' in data else None
         )
         self.thumbnail: Optional[StoreAsset] = (
-            StoreAsset(data=data['thumbnail'], state=state, parent=self) if data.get('thumbnail') else None
+            StoreAsset(data=data['thumbnail'], state=state, parent=self) if 'thumbnail' in data else None
         )
         self.header_logo_light: Optional[StoreAsset] = (
             StoreAsset(data=data['header_logo_light_theme'], state=state, parent=self)
@@ -887,7 +908,7 @@ class SKUPrice:
 
     __slots__ = ('currency', 'amount', 'sale_amount', 'sale_percentage', 'premium', 'exponent')
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: Union[SKUPricePayload, SubscriptionPricePayload]) -> None:
         self.currency: str = data.get('currency', 'usd')
         self.amount: int = data.get('amount', 0)
         self.sale_amount: Optional[int] = data.get('sale_amount')
@@ -896,8 +917,12 @@ class SKUPrice:
         self.exponent: Optional[int] = data.get('exponent')
 
     @classmethod
-    def from_private(cls, data: dict) -> SKUPrice:
-        payload = {'currency': 'usd', 'amount': data.get('price_tier') or 0, 'sale_amount': data.get('sale_price_tier')}
+    def from_private(cls, data: SKUPayload) -> SKUPrice:
+        payload: SKUPricePayload = {
+            'currency': 'usd',
+            'amount': data.get('price_tier') or 0,
+            'sale_amount': data.get('sale_price_tier'),
+        }
         if payload['sale_amount'] is not None:
             payload['sale_percentage'] = int((1 - (payload['sale_amount'] / payload['amount'])) * 100)
         return cls(payload)
@@ -963,11 +988,11 @@ class ContentRating:
         ]
 
     @classmethod
-    def from_dict(cls, data: dict, agency: int) -> ContentRating:
+    def from_dict(cls, data: ContentRatingPayload, agency: int) -> ContentRating:
         return cls(
             agency=try_enum(ContentRatingAgency, agency),
-            rating=data.get('rating', 1),
-            descriptors=data.get('descriptors', []),
+            rating=data.get('rating', 1),  # type: ignore # Faked
+            descriptors=data.get('descriptors', []),  # type: ignore # Faked
         )
 
     @classmethod
@@ -1132,7 +1157,9 @@ class SKU(Hashable):
         legal_notice: Optional[str]
         legal_notice_localizations: Dict[Locale, str]
 
-    def __init__(self, *, data: dict, state: ConnectionState, application: Optional[PartialApplication] = None) -> None:
+    def __init__(
+        self, *, data: SKUPayload, state: ConnectionState, application: Optional[PartialApplication] = None
+    ) -> None:
         self._state = state
         self.application = application
         self._update(data)
@@ -1143,7 +1170,7 @@ class SKU(Hashable):
     def __repr__(self) -> str:
         return f'<SKU id={self.id} name={self.name!r} type={self.type!r}>'
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: SKUPayload) -> None:
         from .appinfo import PartialApplication
 
         state = self._state
@@ -1152,14 +1179,14 @@ class SKU(Hashable):
         self.summary, self.summary_localizations = _parse_localizations(data, 'summary')
         self.legal_notice, self.legal_notice_localizations = _parse_localizations(data, 'legal_notice')
 
-        self.id: int = data['id']
+        self.id: int = int(data['id'])
         self.type: SKUType = try_enum(SKUType, data['type'])
         self.slug: str = data['slug']
         self.dependent_sku_id: Optional[int] = _get_as_snowflake(data, 'dependent_sku_id')
         self.application_id: int = int(data['application_id'])
         self.application: Optional[PartialApplication] = (
             PartialApplication(data=data['application'], state=state)
-            if data.get('application')
+            if 'application' in data
             else (
                 state.premium_subscriptions_application
                 if self.application_id == state.premium_subscriptions_application.id
@@ -1175,12 +1202,12 @@ class SKU(Hashable):
         # Unfortunately, in both cases, the `price` field may just be missing if there is no price set
 
         self.price_tier: Optional[int] = data.get('price_tier')
-        self.price_overrides: Dict[str, int] = data.get('price') or {}
+        self.price_overrides: Dict[str, int] = data.get('price') or {}  # type: ignore
         self.sale_price_tier: Optional[int] = data.get('sale_price_tier')
         self.sale_price_overrides: Dict[str, int] = data.get('sale_price') or {}
 
         if self.price_overrides and any(x in self.price_overrides for x in ('amount', 'currency')):
-            self.price: SKUPrice = SKUPrice(data['price'])
+            self.price: SKUPrice = SKUPrice(data['price'])  # type: ignore
             self.price_overrides = {}
         else:
             self.price = SKUPrice.from_private(data)
@@ -1192,7 +1219,7 @@ class SKU(Hashable):
         self.available_regions: Optional[List[str]] = data.get('available_regions')
         self.content_ratings: List[ContentRating] = (
             [ContentRating.from_dict(data['content_rating'], data['content_rating_agency'])]
-            if data.get('content_rating')
+            if 'content_rating' in data and 'content_rating_agency' in data
             else ContentRating.from_dicts(data.get('content_ratings'))
         )
         self.system_requirements: List[SystemRequirements] = [
@@ -1889,23 +1916,24 @@ class SKU(Hashable):
             LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])
         ]
         gift_code = data.get('gift_code')
+        gift_ = None
         if gift_code:
             # We create fake gift data
-            gift_data = {
+            gift_data: GiftPayload = {
                 'code': gift_code,
                 'application_id': self.application_id,
                 'subscription_plan_id': subscription_plan.id if subscription_plan else None,
                 'sku_id': self.id,
-                'gift_style': int(gift_style) if gift_style else None,
+                'gift_style': int(gift_style) if gift_style else None,  # type: ignore # Enum is identical
                 'max_uses': 1,
                 'uses': 0,
                 'user': state.user._to_minimal_user_json(),  # type: ignore
             }
-            gift_code = Gift(state=state, data=gift_data)
+            gift_ = Gift(state=state, data=gift_data)
             if subscription_plan and isinstance(subscription_plan, SubscriptionPlan):
-                gift_code.subscription_plan = subscription_plan
+                gift_.subscription_plan = subscription_plan
 
-        return entitlements, library_applications, gift_code
+        return entitlements, library_applications, gift_
 
 
 class SubscriptionPlanPrices:
@@ -1923,7 +1951,7 @@ class SubscriptionPlanPrices:
         A mapping of payment source IDs to the prices for that payment source.
     """
 
-    def __init__(self, data: dict):
+    def __init__(self, data: SubscriptionPricesPayload):
         country_prices = data.get('country_prices') or {}
         payment_source_prices = data.get('payment_source_prices') or {}
 
@@ -2022,11 +2050,13 @@ class SubscriptionPlan(Hashable):
         '_state',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(
+        self, *, data: Union[PartialSubscriptionPlanPayload, SubscriptionPlanPayload], state: ConnectionState
+    ) -> None:
         self._state = state
         self._update(data)
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: Union[PartialSubscriptionPlanPayload, SubscriptionPlanPayload]) -> None:
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.sku_id: int = int(data['sku_id'])
@@ -2233,18 +2263,19 @@ class SubscriptionPlan(Hashable):
             LibraryApplication(state=state, data=application) for application in data.get('library_applications', [])
         ]
         gift_code = data.get('gift_code')
+        gift_ = None
         if gift_code:
             # We create fake gift data
-            gift_data = {
+            gift_data: GiftPayload = {
                 'code': gift_code,
                 'subscription_plan_id': self.id,
                 'sku_id': self.sku_id,
-                'gift_style': int(gift_style) if gift_style else None,
+                'gift_style': int(gift_style) if gift_style else None,  # type: ignore # Enum is identical
                 'max_uses': 1,
                 'uses': 0,
                 'user': state.user._to_minimal_user_json(),  # type: ignore
             }
-            gift_code = Gift(state=state, data=gift_data)
-            gift_code.subscription_plan = self
+            gift_ = Gift(state=state, data=gift_data)
+            gift_.subscription_plan = self
 
-        return entitlements, library_applications, gift_code
+        return entitlements, library_applications, gift_

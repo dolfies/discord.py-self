@@ -39,6 +39,8 @@ if TYPE_CHECKING:
     from .asset import Asset
     from .state import ConnectionState
     from .types.appinfo import Branch as BranchPayload
+    from .types.library import LibraryApplication as LibraryApplicationPayload
+    from .types.store import PartialSKU as PartialSKUPayload
 
 __all__ = (
     'LibrarySKU',
@@ -87,7 +89,7 @@ class LibrarySKU(Hashable):
         'premium',
     )
 
-    def __init__(self, data: dict):
+    def __init__(self, data: PartialSKUPayload):
         self.id: int = int(data['id'])
         self.type: SKUType = try_enum(SKUType, data['type'])
         self.preorder_release_date: Optional[date] = parse_date(data.get('preorder_approximate_release_date'))
@@ -151,14 +153,14 @@ class LibraryApplication:
         '_state',
     )
 
-    def __init__(self, *, state: ConnectionState, data: dict):
+    def __init__(self, *, state: ConnectionState, data: LibraryApplicationPayload):
         self._state = state
         self._update(data)
 
-    def _update(self, data: dict):
+    def _update(self, data: LibraryApplicationPayload):
         state = self._state
 
-        self.created_at: datetime = parse_time(data['created_at'])  # type: ignore
+        self.created_at: datetime = parse_time(data['created_at'])
         self.application: PartialApplication = PartialApplication(state=state, data=data['application'])
         self.sku_id: int = int(data['sku_id'])
         self.sku: LibrarySKU = LibrarySKU(data=data['sku'])

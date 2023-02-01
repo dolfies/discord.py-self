@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from .enums import PaymentSourceType, try_enum
 from .flags import PromotionFlags
@@ -35,6 +35,12 @@ from .utils import _get_as_snowflake, parse_time, utcnow
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+    from .types.promotions import (
+        ClaimedPromotion as ClaimedPromotionPayload,
+        Promotion as PromotionPayload,
+        TrialOffer as TrialOfferPayload,
+        PricingPromotion as PricingPromotionPayload,
+    )
 
 __all__ = (
     'Promotion',
@@ -121,7 +127,7 @@ class Promotion(Hashable):
         '_state',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: Union[PromotionPayload, ClaimedPromotionPayload], state: ConnectionState) -> None:
         self._state = state
         self._update(data)
 
@@ -131,13 +137,13 @@ class Promotion(Hashable):
     def __repr__(self) -> str:
         return f'<Promotion id={self.id} title={self.outbound_title!r}>'
 
-    def _update(self, data: dict) -> None:
-        promotion = data.get('promotion', data)
+    def _update(self, data: Union[PromotionPayload, ClaimedPromotionPayload]) -> None:
+        promotion: PromotionPayload = data.get('promotion', data)  # type: ignore
 
         self.id: int = int(promotion['id'])
         self.trial_id: Optional[int] = _get_as_snowflake(promotion, 'trial_id')
-        self.starts_at: datetime = parse_time(promotion['start_date'])  # type: ignore # Should always be a datetime
-        self.ends_at: datetime = parse_time(promotion['end_date'])  # type: ignore # Should always be a datetime
+        self.starts_at: datetime = parse_time(promotion['start_date'])
+        self.ends_at: datetime = parse_time(promotion['end_date'])
         self.claimed_at: Optional[datetime] = parse_time(data.get('claimed_at'))
         self.code: Optional[str] = data.get('code')
         self._flags: int = promotion.get('flags', 0)
@@ -146,7 +152,7 @@ class Promotion(Hashable):
         self.outbound_description: str = promotion['outbound_redemption_modal_body']
         self.outbound_link: str = promotion.get(
             'outbound_redemption_page_link',
-            promotion.get('outbound_redemption_url_format', '').replace('{code}', self.code or 'code'),
+            promotion.get('outbound_redemption_url_format', '').replace('{code}', self.code or '{code}'),
         )
         self.outbound_restricted_countries: List[str] = promotion.get('outbound_restricted_countries', [])
         self.inbound_title: Optional[str] = promotion.get('inbound_header_text')
@@ -234,11 +240,11 @@ class TrialOffer(Hashable):
         '_state',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: TrialOfferPayload, state: ConnectionState) -> None:
         self._state = state
 
         self.id: int = int(data['id'])
-        self.expires_at: datetime = parse_time(data['expires_at'])  # type: ignore # Should always be a datetime
+        self.expires_at: datetime = parse_time(data['expires_at'])
         self.trial_id: int = int(data['trial_id'])
         self.trial: SubscriptionTrial = SubscriptionTrial(data['subscription_trial'])
 
@@ -285,7 +291,7 @@ class PricingPromotion:
         'currency',
     )
 
-    def __init__(self, *, data: dict) -> None:
+    def __init__(self, *, data: PricingPromotionPayload) -> None:
         self.subscription_plan_id: int = int(data['plan_id'])
         self.country_code: str = data['country_code']
         self.payment_source_types: List[PaymentSourceType] = [

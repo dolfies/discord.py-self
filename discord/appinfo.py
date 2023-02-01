@@ -286,8 +286,8 @@ class Achievement(Hashable):
         self.secret: bool = data.get('secret', False)
         self._icon = data.get('icon', data.get('icon_hash'))
 
-        self.name, self.name_localizations = _parse_localizations(data, 'name')  # type: ignore # Yes it is a dict
-        self.description, self.description_localizations = _parse_localizations(data, 'description')  # type: ignore # Yes it is a dict
+        self.name, self.name_localizations = _parse_localizations(data, 'name')
+        self.description, self.description_localizations = _parse_localizations(data, 'description')
 
     def __repr__(self) -> str:
         return f'<Achievement id={self.id} name={self.name!r}>'
@@ -1684,6 +1684,7 @@ class PartialApplication(Hashable):
         'eula_id',
         'owner',
         'team',
+        '_guild',
     )
 
     if TYPE_CHECKING:
@@ -1698,6 +1699,8 @@ class PartialApplication(Hashable):
         return self.name
 
     def _update(self, data: PartialApplicationPayload) -> None:
+        state = self._state
+
         self.id: int = int(data['id'])
         self.name: str = data['name']
         self.description: str = data['description']
@@ -1756,11 +1759,11 @@ class PartialApplication(Hashable):
 
         existing = getattr(self, 'owner', None)
         owner = data.get('owner')
-        self.owner = self._state.create_user(owner) if owner else existing
+        self.owner = state.create_user(owner) if owner else existing
 
         existing = getattr(self, 'team', None)
         team = data.get('team')
-        self.team = Team(state=self._state, data=team) if team else existing
+        self.team = Team(state=state, data=team) if team else existing
 
         if self.team and not self.owner:
             # We can create a team user from the team data
@@ -1772,7 +1775,13 @@ class PartialApplication(Hashable):
                 'discriminator': '0000',
                 'avatar': None,
             }
-            self.owner = self._state.create_user(payload)
+            self.owner = state.create_user(payload)
+
+        self._guild: Optional[Guild] = None
+        if 'guild' in data:
+            from .guild import Guild
+
+            self._guild = Guild(state=state, data=data['guild'])
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__} id={self.id} name={self.name!r} description={self.description!r}>'
@@ -1809,11 +1818,6 @@ class PartialApplication(Hashable):
         return self.custom_install_url or self.install_params.url if self.install_params else None
 
     @property
-    def guild(self) -> Optional[Guild]:
-        """Optional[:class:`Guild`]: The guild linked to the application, if any and available."""
-        return self._state._get_guild(self.guild_id)
-
-    @property
     def primary_sku_url(self) -> Optional[str]:
         """:class:`str`: The URL to the primary SKU of the application, if any."""
         if self.primary_sku_id:
@@ -1824,6 +1828,11 @@ class PartialApplication(Hashable):
         """:class:`str`: The URL to the store listing SKU of the application, if any."""
         if self.store_listing_sku_id:
             return f'https://discord.com/store/skus/{self.store_listing_sku_id}/{self.slug or "unknown"}'
+
+    @property
+    def guild(self) -> Optional[Guild]:
+        """Optional[:class:`Guild`]: The guild linked to the application, if any and available."""
+        return self._state._get_guild(self.guild_id) or self._guild
 
     async def assets(self) -> List[ApplicationAsset]:
         """|coro|

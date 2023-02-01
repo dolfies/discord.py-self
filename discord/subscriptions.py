@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from .billing import PaymentSource
 from .enums import (
@@ -45,16 +45,26 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .abc import Snowflake
-    from .state import ConnectionState
     from .guild import Guild
+    from .state import ConnectionState
+    from .types.subscriptions import (
+        SubscriptionDiscount as SubscriptionDiscountPayload,
+        SubscriptionInvoice as SubscriptionInvoicePayload,
+        SubscriptionInvoiceItem as SubscriptionInvoiceItemPayload,
+        SubscriptionItem as SubscriptionItemPayload,
+        SubscriptionRenewalMutations as SubscriptionRenewalMutationsPayload,
+        PartialSubscription as PartialSubscriptionPayload,
+        Subscription as SubscriptionPayload,
+        SubscriptionTrial as SubscriptionTrialPayload,
+    )
 
 __all__ = (
-    'Subscription',
     'SubscriptionItem',
-    'SubscriptionInvoice',
-    'SubscriptionInvoiceItem',
-    'SubscriptionRenewalMutations',
     'SubscriptionDiscount',
+    'SubscriptionInvoiceItem',
+    'SubscriptionInvoice',
+    'SubscriptionRenewalMutations',
+    'Subscription',
     'SubscriptionTrial',
 )
 
@@ -106,7 +116,7 @@ class SubscriptionItem(Hashable):
         return self.quantity
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: SubscriptionItemPayload) -> Self:
         return cls(id=int(data['id']), plan_id=int(data['plan_id']), quantity=int(data.get('quantity', 1)))
 
     def to_dict(self, with_id: bool = True) -> dict:
@@ -141,7 +151,7 @@ class SubscriptionDiscount:
 
     __slots__ = ('type', 'amount')
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: SubscriptionDiscountPayload) -> None:
         self.type: SubscriptionDiscountType = try_enum(SubscriptionDiscountType, data['type'])
         self.amount: int = data['amount']
 
@@ -150,6 +160,78 @@ class SubscriptionDiscount:
 
     def __int__(self) -> int:
         return self.amount
+
+
+class SubscriptionInvoiceItem(Hashable):
+    """Represents an invoice item.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two invoice items are equal.
+
+        .. describe:: x != y
+
+            Checks if two invoice items are not equal.
+
+        .. describe:: hash(x)
+
+            Returns the invoice's hash.
+
+        .. describe:: len(x)
+
+            Returns the quantity of the invoice item.
+
+    .. versionadded:: 2.0
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the invoice item.
+    quantity: :class:`int`
+        How many of the item have been/are being purchased.
+    amount: :class:`int`
+        The price of the item. This includes discounts.
+    proration: :class:`bool`
+        Whether the item is prorated.
+    plan_id: :class:`int`
+        The ID of the subscription plan the item represents.
+    plan_price: :class:`int`
+        The price of the subscription plan the item represents. This does not include discounts.
+    discounts: List[:class:`SubscriptionDiscount`]
+        A list of discounts applied to the item.
+    """
+
+    __slots__ = ('id', 'quantity', 'amount', 'proration', 'plan_id', 'plan_price', 'discounts')
+
+    def __init__(self, data: SubscriptionInvoiceItemPayload) -> None:
+        self.id: int = int(data['id'])
+        self.quantity: int = data['quantity']
+        self.amount: int = data['amount']
+        self.proration: bool = data.get('proration', False)
+        self.plan_id: int = int(data['subscription_plan_id'])
+        self.plan_price: int = data['subscription_plan_price']
+        self.discounts: List[SubscriptionDiscount] = [SubscriptionDiscount(d) for d in data['discounts']]
+
+    def __repr__(self) -> str:
+        return f'<SubscriptionInvoiceItem id={self.id} quantity={self.quantity} amount={self.amount}>'
+
+    def __len__(self) -> int:
+        return self.quantity
+
+    @property
+    def savings(self) -> int:
+        """:class:`int`: The total amount of discounts on the invoice item."""
+        return self.plan_price - self.amount
+
+    def is_discounted(self) -> bool:
+        """:class:`bool`: Indicates if the invoice item has a discount."""
+        return bool(self.discounts)
+
+    def is_trial(self) -> bool:
+        """:class:`bool`: Indicates if the invoice item is a trial."""
+        return not self.amount or any(discount.type is SubscriptionDiscountType.premium_trial for discount in self.discounts)
 
 
 class SubscriptionInvoice(Hashable):
@@ -212,12 +294,14 @@ class SubscriptionInvoice(Hashable):
         'current_period_end',
     )
 
-    def __init__(self, subscription: Optional[Subscription], *, data: dict, state: ConnectionState) -> None:
+    def __init__(
+        self, subscription: Optional[Subscription], *, data: SubscriptionInvoicePayload, state: ConnectionState
+    ) -> None:
         self._state = state
         self.subscription = subscription
         self._update(data)
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: SubscriptionInvoicePayload) -> None:
         self.id: int = int(data['id'])
         self.status: Optional[SubscriptionInvoiceStatus] = (
             try_enum(SubscriptionInvoiceStatus, data['status']) if 'status' in data else None
@@ -289,78 +373,6 @@ class SubscriptionInvoice(Hashable):
         self.subscription._update(data)
 
 
-class SubscriptionInvoiceItem(Hashable):
-    """Represents an invoice item.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two invoice items are equal.
-
-        .. describe:: x != y
-
-            Checks if two invoice items are not equal.
-
-        .. describe:: hash(x)
-
-            Returns the invoice's hash.
-
-        .. describe:: len(x)
-
-            Returns the quantity of the invoice item.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    ----------
-    id: :class:`int`
-        The ID of the invoice item.
-    quantity: :class:`int`
-        How many of the item have been/are being purchased.
-    amount: :class:`int`
-        The price of the item. This includes discounts.
-    proration: :class:`bool`
-        Whether the item is prorated.
-    plan_id: :class:`int`
-        The ID of the subscription plan the item represents.
-    plan_price: :class:`int`
-        The price of the subscription plan the item represents. This does not include discounts.
-    discounts: List[:class:`SubscriptionDiscount`]
-        A list of discounts applied to the item.
-    """
-
-    __slots__ = ('id', 'quantity', 'amount', 'proration', 'plan_id', 'plan_price', 'discounts')
-
-    def __init__(self, data: dict) -> None:
-        self.id: int = int(data['id'])
-        self.quantity: int = data['quantity']
-        self.amount: int = data['amount']
-        self.proration: bool = data.get('proration', False)
-        self.plan_id: int = int(data['subscription_plan_id'])
-        self.plan_price: int = data['subscription_plan_price']
-        self.discounts: List[SubscriptionDiscount] = [SubscriptionDiscount(d) for d in data['discounts']]
-
-    def __repr__(self) -> str:
-        return f'<SubscriptionInvoiceItem id={self.id} quantity={self.quantity} amount={self.amount}>'
-
-    def __len__(self) -> int:
-        return self.quantity
-
-    @property
-    def savings(self) -> int:
-        """:class:`int`: The total amount of discounts on the invoice item."""
-        return self.plan_price - self.amount
-
-    def is_discounted(self) -> bool:
-        """:class:`bool`: Indicates if the invoice item has a discount."""
-        return bool(self.discounts)
-
-    def is_trial(self) -> bool:
-        """:class:`bool`: Indicates if the invoice item is a trial."""
-        return not self.amount or any(discount.type is SubscriptionDiscountType.premium_trial for discount in self.discounts)
-
-
 class SubscriptionRenewalMutations:
     """Represents a subscription renewal mutation.
 
@@ -389,10 +401,10 @@ class SubscriptionRenewalMutations:
 
     __slots__ = ('payment_gateway_plan_id', 'items')
 
-    def __init__(self, data: dict) -> None:
+    def __init__(self, data: SubscriptionRenewalMutationsPayload) -> None:
         self.payment_gateway_plan_id: Optional[str] = data.get('payment_gateway_plan_id')
         self.items: Optional[List[SubscriptionItem]] = (
-            [SubscriptionItem.from_dict(item) for item in data['items']] if data.get('items') is not None else None
+            [SubscriptionItem.from_dict(item) for item in data['items']] if 'items' in data else None
         )
 
     def __repr__(self) -> str:
@@ -507,7 +519,7 @@ class Subscription(Hashable):
         'latest_invoice',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: Union[PartialSubscriptionPayload, SubscriptionPayload], state: ConnectionState) -> None:
         self._state = state
         self._update(data)
 
@@ -520,11 +532,11 @@ class Subscription(Hashable):
     def __bool__(self) -> bool:
         return self.is_active()
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: PartialSubscriptionPayload) -> None:
         self.id: int = int(data['id'])
         self.type: SubscriptionType = try_enum(SubscriptionType, data['type'])
         self.status: Optional[SubscriptionStatus] = (
-            try_enum(SubscriptionStatus, data['status']) if 'status' in data else None
+            try_enum(SubscriptionStatus, data['status']) if 'status' in data else None  # type: ignore # ???
         )
         self.payment_gateway: Optional[PaymentGateway] = (
             try_enum(PaymentGateway, data['payment_gateway']) if 'payment_gateway' in data else None
@@ -543,17 +555,17 @@ class Subscription(Hashable):
         self.created_at: datetime = parse_time(data.get('created_at')) or snowflake_time(self.id)
         self.canceled_at: Optional[datetime] = parse_time(data.get('canceled_at'))
 
-        self.current_period_start: datetime = parse_time(data['current_period_start'])  # type: ignore # Should always be a datetime
-        self.current_period_end: datetime = parse_time(data['current_period_end'])  # type: ignore # Should always be a datetime
+        self.current_period_start: datetime = parse_time(data['current_period_start'])
+        self.current_period_end: datetime = parse_time(data['current_period_end'])
         self.trial_ends_at: Optional[datetime] = parse_time(data.get('trial_ends_at'))
         self.streak_started_at: Optional[datetime] = parse_time(data.get('streak_started_at'))
 
         metadata = data.get('metadata') or {}
-        self.ended_at: Optional[datetime] = parse_time(metadata.pop('ended_at', None))
+        self.ended_at: Optional[datetime] = parse_time(metadata.get('ended_at', None))
         self.metadata: Metadata = Metadata(metadata)
 
         self.latest_invoice: Optional[SubscriptionInvoice] = (
-            SubscriptionInvoice(self, data=data['latest_invoice'], state=self._state) if 'latest_invoice' in data else None
+            SubscriptionInvoice(self, data=data['latest_invoice'], state=self._state) if 'latest_invoice' in data else None  # type: ignore # ???
         )
 
     @property
@@ -829,7 +841,7 @@ class SubscriptionTrial(Hashable):
         SubscriptionInterval.year: 365,
     }
 
-    def __init__(self, data: dict):
+    def __init__(self, data: SubscriptionTrialPayload):
         self.id: int = int(data['id'])
         self.interval: SubscriptionInterval = try_enum(SubscriptionInterval, data['interval'])
         self.interval_count: int = data['interval_count']

@@ -1049,7 +1049,9 @@ class SKUFlags(BaseFlags):
 
     @flag_value
     def premium_subscription(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a Discord premium subscription or related first-party product. These are subscriptions like Nitro and Server Boosts."""
+        """:class:`bool`: Returns ``True`` if the SKU is a Discord premium subscription or related first-party product.
+        These are subscriptions like Nitro and Server Boosts. These are the only giftable subscriptions.
+        """
         return 1 << 6
 
     @flag_value

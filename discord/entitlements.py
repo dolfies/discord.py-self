@@ -41,7 +41,11 @@ if TYPE_CHECKING:
     from .abc import Snowflake
     from .guild import Guild
     from .state import ConnectionState
-    from .types.appinfo import GiftBatch as GiftBatchPayload
+    from .types.entitlements import (
+        Entitlement as EntitlementPayload,
+        Gift as GiftPayload,
+        GiftBatch as GiftBatchPayload,
+    )
     from .user import User
 
 __all__ = (
@@ -148,11 +152,11 @@ class Entitlement(Hashable):
         '_state',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState):
+    def __init__(self, *, data: EntitlementPayload, state: ConnectionState):
         self._state = state
         self._update(data)
 
-    def _update(self, data: dict):
+    def _update(self, data: EntitlementPayload):
         state = self._state
 
         self.id: int = int(data['id'])
@@ -176,11 +180,11 @@ class Entitlement(Hashable):
 
         self.subscription_id: Optional[int] = _get_as_snowflake(data, 'subscription_id')
         self.subscription_plan: Optional[SubscriptionPlan] = (
-            SubscriptionPlan(data=data['subscription_plan'], state=state) if data.get('subscription_plan') else None
+            SubscriptionPlan(data=data['subscription_plan'], state=state) if 'subscription_plan' in data else None
         )
-        self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if data.get('sku') else None
+        self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if 'sku' in data else None
         self.payment: Optional[EntitlementPayment] = (
-            EntitlementPayment(data=data['payment'], entitlement=self) if data.get('payment') else None
+            EntitlementPayment(data=data['payment'], entitlement=self) if 'payment' in data else None
         )
 
     def __repr__(self) -> str:
@@ -379,11 +383,11 @@ class Gift:
         '_state',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: GiftPayload, state: ConnectionState) -> None:
         self._state = state
         self._update(data)
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: GiftPayload) -> None:
         state = self._state
 
         self.code: str = data['code']
@@ -393,7 +397,7 @@ class Gift:
         self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'subscription_plan_id')
         self.sku_id: int = int(data['sku_id'])
         self.entitlement_branches: List[int] = [int(x) for x in data.get('entitlement_branches', [])]
-        self.gift_style: Optional[GiftStyle] = try_enum(GiftStyle, data['gift_style']) if data.get('gift_style') else None
+        self.gift_style: Optional[GiftStyle] = try_enum(GiftStyle, data['gift_style']) if data.get('gift_style') else None  # type: ignore
         self._flags: int = data.get('flags', 0)
 
         self.max_uses: int = data.get('max_uses', 0)
@@ -405,16 +409,16 @@ class Gift:
         self.channel_id: Optional[int] = _get_as_snowflake(data, 'channel_id')
 
         self.store_listing: Optional[StoreListing] = (
-            StoreListing(data=data['store_listing'], state=state) if data.get('store_listing') else None
+            StoreListing(data=data['store_listing'], state=state) if 'store_listing' in data else None
         )
         self.promotion: Optional[Promotion] = Promotion(data=data['promotion'], state=state) if 'promotion' in data else None
         self.subscription_trial: Optional[SubscriptionTrial] = (
-            SubscriptionTrial(data['subscription_trial']) if data.get('subscription_trial') else None
+            SubscriptionTrial(data['subscription_trial']) if 'subscription_trial' in data else None
         )
         self.subscription_plan: Optional[SubscriptionPlan] = (
-            SubscriptionPlan(data=data['subscription_plan'], state=state) if data.get('subscription_plan') else None
+            SubscriptionPlan(data=data['subscription_plan'], state=state) if 'subscription_plan' in data else None
         )
-        self.user: Optional[User] = self._state.create_user(data['user']) if data.get('user') else None
+        self.user: Optional[User] = self._state.create_user(data['user']) if 'user' in data else None
 
     def __repr__(self) -> str:
         return f'<Gift code={self.code!r} sku_id={self.sku_id} uses={self.uses} max_uses={self.max_uses} redeemed={self.redeemed}>'

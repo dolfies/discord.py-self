@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from .billing import PaymentSource
 from .enums import (
@@ -43,6 +43,10 @@ from .utils import _get_as_snowflake, parse_time
 if TYPE_CHECKING:
     from .entitlements import Entitlement
     from .state import ConnectionState
+    from .types.payments import (
+        PartialPayment as PartialPaymentPayload,
+        Payment as PaymentPayload,
+    )
 
 __all__ = (
     'Payment',
@@ -142,11 +146,11 @@ class Payment(Hashable):
         '_state',
     )
 
-    def __init__(self, *, data: Dict[str, Any], state: ConnectionState):
+    def __init__(self, *, data: PaymentPayload, state: ConnectionState):
         self._state: ConnectionState = state
         self._update(data)
 
-    def _update(self, data: Dict[str, Any]) -> None:
+    def _update(self, data: PaymentPayload) -> None:
         state = self._state
 
         self.id: int = int(data['id'])
@@ -157,25 +161,29 @@ class Payment(Hashable):
         self.currency: str = data.get('currency', 'usd')
         self.description: str = data['description']
         self.status: PaymentStatus = try_enum(PaymentStatus, data['status'])
-        self.created_at: datetime = parse_time(data['created_at'])  # type: ignore # Should always be a datetime
-        self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if data.get('sku') else None
+        self.created_at: datetime = parse_time(data['created_at'])
+        self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if 'sku' in data else None
         self.sku_id: Optional[int] = _get_as_snowflake(data, 'sku_id')
         self.sku_price: Optional[int] = data.get('sku_price')
         self.subscription_plan_id: Optional[int] = _get_as_snowflake(data, 'sku_subscription_plan_id')
-        self.subscription: Optional[Subscription] = (
-            Subscription(data=data['subscription'], state=state) if data.get('subscription') else None
-        )
-        self.payment_source: Optional[PaymentSource] = (
-            PaymentSource(data=data['payment_source'], state=state) if data.get('payment_source') else None
-        )
         self.payment_gateway: Optional[PaymentGateway] = (
-            try_enum(PaymentGateway, data['payment_gateway']) if data.get('payment_gateway') else None
+            try_enum(PaymentGateway, data['payment_gateway']) if 'payment_gateway' in data else None
         )
         self.payment_gateway_payment_id: Optional[str] = data.get('payment_gateway_payment_id')
         self.invoice_url: Optional[str] = data.get('downloadable_invoice')
         self.refund_invoices_urls: List[str] = data.get('downloadable_refund_invoices', [])
         self.refund_disqualification_reasons: List[str] = data.get('premium_refund_disqualification_reasons', [])
         self._flags: int = data.get('flags', 0)
+
+        # The subscription object does not include the payment source ID
+        self.payment_source: Optional[PaymentSource] = (
+            PaymentSource(data=data['payment_source'], state=state) if 'payment_source' in data else None
+        )
+        if 'subscription' in data and self.payment_source:
+            data['subscription']['payment_source_id'] = self.payment_source.id  # type: ignore
+        self.subscription: Optional[Subscription] = (
+            Subscription(data=data['subscription'], state=state) if 'subscription' in data else None
+        )
 
     def __repr__(self) -> str:
         return f'<Payment id={self.id} amount={self.amount} currency={self.currency} status={self.status}>'
@@ -270,7 +278,7 @@ class EntitlementPayment(Hashable):
 
     __slots__ = ('entitlement', 'id', 'amount', 'tax', 'tax_inclusive', 'currency')
 
-    def __init__(self, *, data: Dict[str, Any], entitlement: Entitlement):
+    def __init__(self, *, data: PartialPaymentPayload, entitlement: Entitlement):
         self.entitlement = entitlement
         self.id: int = int(data['id'])
         self.amount: int = data['amount']

@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from .enums import (
     PaymentGateway,
@@ -41,6 +41,12 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .state import ConnectionState
+    from .types.billing import (
+        BillingAddress as BillingAddressPayload,
+        PartialPaymentSource as PartialPaymentSourcePayload,
+        PaymentSource as PaymentSourcePayload,
+        PremiumUsage as PremiumUsagePayload,
+    )
 
 __all__ = (
     'BillingAddress',
@@ -125,7 +131,7 @@ class BillingAddress:
         return hash(self.to_dict())
 
     @classmethod
-    def from_dict(cls, data: dict, state: ConnectionState) -> Self:
+    def from_dict(cls, data: BillingAddressPayload, state: ConnectionState) -> Self:
         address = '\n'.join(filter(None, (data['line_1'], data.get('line_2'))))
         return cls(
             _state=state,
@@ -251,20 +257,20 @@ class PaymentSource(Hashable):
         '_flags',
     )
 
-    def __init__(self, *, data: dict, state: ConnectionState) -> None:
+    def __init__(self, *, data: Union[PaymentSourcePayload, PartialPaymentSourcePayload], state: ConnectionState) -> None:
         self._state = state
         self._update(data)
 
     def __repr__(self) -> str:
         return f'<PaymentSource id={self.id} type={self.type!r} country={self.country!r}>'
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: Union[PaymentSourcePayload, PartialPaymentSourcePayload]) -> None:
         self.id: int = int(data['id'])
         self.brand: Optional[str] = data.get('brand')
         self.country: Optional[str] = data.get('country')
         self.partial_card_number: Optional[str] = data.get('last_4')
         self.billing_address: Optional[BillingAddress] = (
-            BillingAddress.from_dict(data['billing_address'], state=self._state) if data.get('billing_address') else None
+            BillingAddress.from_dict(data['billing_address'], state=self._state) if 'billing_address' in data else None  # type: ignore # ???
         )
 
         self.type: PaymentSourceType = try_enum(PaymentSourceType, data['type'])
@@ -368,7 +374,7 @@ class PremiumUsage:
         'hd_hours_streamed',
     )
 
-    def __init__(self, *, data: dict) -> None:
+    def __init__(self, *, data: PremiumUsagePayload) -> None:
         self.sticker_sends: int = data['nitro_sticker_sends']['value']
         self.animated_emojis: int = data['total_animated_emojis']['value']
         self.global_emojis: int = data['total_global_emojis']['value']

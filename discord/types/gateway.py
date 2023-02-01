@@ -44,6 +44,9 @@ from .threads import Thread, ThreadMember
 from .scheduled_event import GuildScheduledEvent
 from .channel import DMChannel, GroupDMChannel
 from .subscriptions import PremiumGuildSubscriptionSlot
+from .payments import Payment
+from .entitlements import Entitlement, GatewayGift
+from .library import LibraryApplication
 
 
 PresenceUpdateEvent = PartialPresenceUpdate
@@ -73,7 +76,7 @@ class ReadyEvent(ResumedEvent):
     geo_ordered_rtc_regions: List[str]
     guilds: List[Guild]
     merged_members: List[List[MemberWithUser]]
-    pending_payments: NotRequired[List[dict]]
+    pending_payments: NotRequired[List[Payment]]
     private_channels: List[Union[DMChannel, GroupDMChannel]]
     relationships: List[dict]
     required_action: NotRequired[str]
@@ -400,3 +403,12 @@ class BillingPopupBridgeCallbackEvent(TypedDict):
     state: str
     path: str
     query: str
+
+
+PaymentUpdateEvent = Payment
+
+GiftCreateEvent = GiftUpdateEvent = GatewayGift
+
+EntitlementEvent = Entitlement
+
+LibraryApplicationUpdateEvent = LibraryApplication
