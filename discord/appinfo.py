@@ -879,9 +879,7 @@ class ApplicationActivityStatistics:
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
-        self.updated_at: datetime = (
-            utils.parse_time(data.get('last_played_at', data.get('updated_at'))) or utils.utcnow()
-        )
+        self.updated_at: datetime = utils.parse_time(data.get('last_played_at', data.get('updated_at'))) or utils.utcnow()
 
     def __repr__(self) -> str:
         return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.updated_at!r}>'
