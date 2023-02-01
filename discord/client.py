@@ -2907,7 +2907,7 @@ class Client:
         data = await state.http.search_companies(query)
         return [Company(data=d) for d in data]
 
-    async def application_activity_statistics(self) -> List[ApplicationActivityStatistics]:
+    async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
         """|coro|
 
         Retrieves the available activity usage statistics for your owned applications.
@@ -2926,6 +2926,27 @@ class Client:
         """
         state = self._connection
         data = await state.http.get_activity_statistics()
+        return [ApplicationActivityStatistics(state=state, data=d) for d in data]
+
+    async def relationship_activity_statistics(self) -> List[ApplicationActivityStatistics]:
+        """|coro|
+
+        Retrieves the available activity usage statistics for your relationships' owned applications.
+
+        .. versionadded:: 2.0
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the statistics failed.
+
+        Returns
+        -------
+        List[:class:`.ApplicationActivityStatistics`]
+            The activity statistics.
+        """
+        state = self._connection
+        data = await state.http.get_global_activity_statistics()
         return [ApplicationActivityStatistics(state=state, data=d) for d in data]
 
     async def payment_sources(self) -> List[PaymentSource]:

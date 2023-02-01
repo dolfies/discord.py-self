@@ -2749,6 +2749,9 @@ class HTTPClient:
     def get_activity_statistics(self) -> Response[List[appinfo.ActivityStatistics]]:
         return self.request(Route('GET', '/users/@me/activities/statistics/applications'))
 
+    def get_global_activity_statistics(self) -> Response[List[appinfo.GlobalActivityStatistics]]:
+        return self.request(Route('GET', '/activities'))
+
     def get_app_manifest_labels(self, app_id: Snowflake) -> Response[List[appinfo.ManifestLabel]]:
         return self.request(
             Route('GET', '/applications/{app_id}/manifest-labels', app_id=app_id), super_properties_to_track=True

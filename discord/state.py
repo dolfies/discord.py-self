@@ -1164,8 +1164,8 @@ class ConnectionState:
             'billing_popup_bridge_callback',
             try_enum(PaymentSourceType, data.get('payment_source_type', 0)),
             data.get('path'),
-            data.get('state'),
             data.get('query'),
+            data.get('state'),
         )
 
     def parse_oauth2_token_revoke(self, data: gw.OAuth2TokenRevokeEvent) -> None:

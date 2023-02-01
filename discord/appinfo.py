@@ -88,6 +88,7 @@ if TYPE_CHECKING:
         Build as BuildPayload,
         Company as CompanyPayload,
         EmbeddedActivityConfig as EmbeddedActivityConfigPayload,
+        GlobalActivityStatistics as GlobalActivityStatisticsPayload,
         IntegrationApplication as IntegrationApplicationPayload,
         Manifest as ManifestPayload,
         ManifestLabel as ManifestLabelPayload,
@@ -860,29 +861,49 @@ class ApplicationActivityStatistics:
         How long the user has ever played the game in seconds.
     sku_duration: :class:`int`
         How long the user has ever played the game on Discord in seconds.
-    last_played_at: :class:`datetime.datetime`
+    updated_at: :class:`datetime.datetime`
         When the user last played the game.
     """
 
-    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'last_played_at', '_state')
+    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'updated_at', '_state')
 
     def __init__(
-        self, *, data: ActivityStatisticsPayload, state: ConnectionState, application_id: Optional[int] = None
+        self,
+        *,
+        data: Union[ActivityStatisticsPayload, GlobalActivityStatisticsPayload],
+        state: ConnectionState,
+        application_id: Optional[int] = None,
     ) -> None:
         self._state = state
         self.application_id = application_id or int(data['application_id'])  # type: ignore
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
-        self.duration: int = data['total_duration']
+        self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
-        self.last_played_at: datetime = utils.parse_time(data['last_played_at'])
+        self.updated_at: datetime = (
+            utils.parse_time(data.get('last_played_at', data.get('updated_at'))) or utils.utcnow()
+        )
 
     def __repr__(self) -> str:
-        return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.last_played_at!r}>'
+        return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.updated_at!r}>'
 
     @property
     def user(self) -> Optional[User]:
         """Optional[:class:`User`]: Returns the user associated with the statistics, if available."""
         return self._state.get_user(self.user_id)
+
+    async def application(self) -> PartialApplication:
+        """|coro|
+
+        Returns the application associated with the statistics.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the application failed.
+        """
+        state = self._state
+        data = await state.http.get_partial_application(self.application_id)
+        return PartialApplication(state=state, data=data)
 
 
 class ManifestLabel(Hashable):

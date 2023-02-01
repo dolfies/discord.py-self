@@ -205,6 +205,13 @@ class ActivityStatistics(TypedDict):
     last_played_at: str
 
 
+class GlobalActivityStatistics(TypedDict):
+    application_id: Snowflake
+    user_id: Snowflake
+    duration: int
+    updated_at: str
+
+
 class EmbeddedActivityConfig(TypedDict):
     supported_platforms: List[Literal['web', 'android', 'ios']]
     default_orientation_lock_state: Literal[1, 2, 3]
