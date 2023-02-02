@@ -1356,7 +1356,9 @@ async def _get_user_agent(session: ClientSession) -> str:
         return response[0]
     except asyncio.TimeoutError:
         _log.critical('Could not fetch user-agent. Falling back to hardcoded value...')
-        return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
+        return (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
+        )
 
 
 def _get_browser_version(user_agent: str) -> str:
