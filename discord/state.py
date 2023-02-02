@@ -1468,7 +1468,7 @@ class ConnectionState:
                 continue
 
             # channel will be the correct type here
-            message = Message(channel=channel, data=message, state=self)
+            message = Message(channel=channel, data=message, state=self)  # type: ignore
             if self._messages is not None:
                 self._messages.append(message)
 
