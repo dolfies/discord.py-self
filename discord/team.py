@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 __all__ = (
     'Team',
     'TeamMember',
+    'TeamPayout',
 )
 
 MISSING = utils.MISSING
@@ -172,7 +173,7 @@ class Team(Hashable):
 
     @property
     def owner(self) -> Optional[TeamMember]:
-        """Optional[:class:`TeamMember:`]: The team's owner, if available."""
+        """Optional[:class:`TeamMember`]: The team's owner, if available."""
         return utils.get(self.members, id=self.owner_id)
 
     async def edit(

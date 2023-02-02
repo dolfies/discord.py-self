@@ -243,11 +243,11 @@ class Achievement(Hashable):
         The achievement's ID.
     name: :class:`str`
         The achievement's name.
-    name_localizations: Dict[:class:`locale`, :class:`str`]
+    name_localizations: Dict[:class:`Locale`, :class:`str`]
         The achievement's name localized to other languages, if available.
     description: :class:`str`
         The achievement's description.
-    description_localizations: Dict[:class:`locale`, :class:`str`]
+    description_localizations: Dict[:class:`Locale`, :class:`str`]
         The achievement's description localized to other languages, if available.
     application_id: :class:`int`
         The application ID that the achievement belongs to.
@@ -322,11 +322,11 @@ class Achievement(Hashable):
         -----------
         name: :class:`str`
             The achievement's name.
-        name_localizations: Dict[:class:`locale`, :class:`str`]
+        name_localizations: Dict[:class:`Locale`, :class:`str`]
             The achievement's name localized to other languages.
         description: :class:`str`
             The achievement's description.
-        description_localizations: Dict[:class:`locale`, :class:`str`]
+        description_localizations: Dict[:class:`Locale`, :class:`str`]
             The achievement's description localized to other languages.
         icon: :class:`bytes`
             A :term:`py:bytes-like object` representing the new icon.
@@ -1046,7 +1046,7 @@ class Manifest(Hashable):
 
 
 class ApplicationBuild(Hashable):
-    """Represents a build of an application branch.
+    """Represents a build of an :class:`ApplicationBranch`.
 
     .. container:: operations
 
@@ -1652,6 +1652,8 @@ class PartialApplication(Hashable):
         The custom URL to use for authorizing the application, if specified.
     install_params: Optional[:class:`ApplicationInstallParams`]
         The parameters to use for authorizing the application, if specified.
+    embedded_activity_config: Optional[:class:`EmbeddedActivityConfig`]
+        The application's embedded activity configuration, if any.
     owner: Optional[:class:`User`]
         The application owner. This may be a team user account.
 
@@ -2050,7 +2052,7 @@ class PartialApplication(Hashable):
 
         Returns
         --------
-        List[:class:`ActivityStatistics`]
+        List[:class:`ApplicationActivityStatistics`]
             The statistics retrieved.
         """
         state = self._state
@@ -2672,7 +2674,7 @@ class Application(PartialApplication):
             A list of content ratings of the SKU.
         system_requirements: Optional[List[:class:`SystemRequirements`]]
             A list of system requirements of the SKU.
-        release_date: Optional[:class:`date`]
+        release_date: Optional[:class:`datetime.date`]
             The release date of the SKU.
         bundled_skus: Optional[List[:class:`SKU`]]
             A list SKUs that are bundled with this SKU.
@@ -3173,12 +3175,12 @@ class Application(PartialApplication):
     async def fetch_embedded_activity_config(self) -> EmbeddedActivityConfig:
         """|coro|
 
-        Retrieves the embedded activity config for this application.
+        Retrieves the embedded activity configuration for this application.
 
         .. note::
 
             This method is an API call. For general usage, consider
-            :attr:`embedded_activity_config` instead.
+            :attr:`PartialApplication.embedded_activity_config` instead.
 
         Raises
         ------
@@ -3510,7 +3512,7 @@ class IntegrationApplication(Hashable):
 
         Returns
         --------
-        List[:class:`ActivityStatistics`]
+        List[:class:`ApplicationActivityStatistics`]
             The statistics retrieved.
         """
         state = self._state

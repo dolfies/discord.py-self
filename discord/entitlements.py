@@ -569,9 +569,9 @@ class GiftBatch(Hashable):
         The description of the gift batch.
     entitlement_branches: List[:class:`int`]
         The entitlement branches the gift batch is for.
-    entitlement_starts_at: Optional[:class:`datetime`]
+    entitlement_starts_at: Optional[:class:`datetime.datetime`]
         When the entitlement is valid from.
-    entitlement_ends_at: Optional[:class:`datetime`]
+    entitlement_ends_at: Optional[:class:`datetime.datetime`]
         When the entitlement is valid until.
     """
 

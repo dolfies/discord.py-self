@@ -1144,7 +1144,7 @@ class Client:
         .. note::
 
             To retrieve standard stickers, use :meth:`.fetch_sticker`.
-            or :meth:`.fetch_sticker_packs`.
+            or :meth:`.sticker_packs`.
 
         Returns
         --------
@@ -3484,7 +3484,7 @@ class Client:
         -----------
         claimed: :class:`bool`
             Whether to only retrieve claimed promotions.
-            These will have :attr:`Promotion.claimed_at` and :attr:`Promotion.code` set.
+            These will have :attr:`.Promotion.claimed_at` and :attr:`.Promotion.code` set.
 
         Raises
         -------
@@ -3654,7 +3654,7 @@ class Client:
 
         Returns
         --------
-        List[:class:`Entitlement`]
+        List[:class:`.Entitlement`]
             The entitlements retrieved.
         """
         return await self.fetch_entitlements(
@@ -3680,7 +3680,7 @@ class Client:
 
         Returns
         --------
-        List[:class:`Entitlement`]
+        List[:class:`.Entitlement`]
             The entitlements retrieved.
         """
         state = self._connection

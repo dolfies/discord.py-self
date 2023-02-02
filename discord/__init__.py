@@ -54,6 +54,7 @@ from .metadata import *
 from .modal import *
 from .object import *
 from .partial_emoji import *
+from .payments import *
 from .permissions import *
 from .player import *
 from .profile import *

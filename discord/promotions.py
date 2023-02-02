@@ -169,7 +169,7 @@ class Promotion(Hashable):
     def is_claimed(self) -> bool:
         """:class:`bool`: Checks if the promotion has been claimed.
 
-        Only accurate if the promotion was fetched from :meth:`Client.claimed_promotions` or :meth:`claim` was just called.
+        Only accurate if the promotion was fetched from :meth:`Client.promotions` with ``claimed`` set to ``True`` or :meth:`claim` was just called.
         """
         return self.claimed_at is not None
 
@@ -224,7 +224,7 @@ class TrialOffer(Hashable):
     ----------
     id: :class:`int`
         The ID of the trial offer.
-    expires_at: :class:`datetime`
+    expires_at: :class:`datetime.datetime`
         When the trial offer expires.
     trial_id: :class:`int`
         The ID of the trial.

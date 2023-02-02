@@ -285,7 +285,7 @@ class StreamIntegration(Integration):
 
         Disables the integration.
 
-        This is an alias of :meth:`delete`.
+        This is an alias of :meth:`Integration.delete`.
 
         You must have the :attr:`~Permissions.manage_guild` permission to
         do this.

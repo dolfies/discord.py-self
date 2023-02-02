@@ -1011,7 +1011,7 @@ class ContentRating:
 class SKU(Hashable):
     """Represents a store SKU.
 
-        .. container:: operations
+    .. container:: operations
 
         .. describe:: x == y
 
@@ -1358,7 +1358,7 @@ class SKU(Hashable):
             A list of content ratings of the SKU.
         system_requirements: List[:class:`SystemRequirements`]
             A list of system requirements of the SKU.
-        release_date: Optional[:class:`date`]
+        release_date: Optional[:class:`datetime.date`]
             The release date of the SKU.
         bundled_skus: List[:class:`SKU`]
             A list SKUs that are bundled with this SKU.
@@ -1764,7 +1764,7 @@ class SKU(Hashable):
 
         Parameters
         -----------
-        subscription_plan: Optional[:class:`Snowflake`]
+        subscription_plan: Optional[:class:`SubscriptionPlan`]
             The subscription plan to gift.
         gift_style: Optional[:class:`GiftStyle`]
             The style of the gift.
@@ -1800,9 +1800,9 @@ class SKU(Hashable):
 
         Parameters
         ----------
-        payment_source: :class:`Snowflake`
+        payment_source: :class:`PaymentSource`
             The payment source to use for the purchase.
-        subscription_plan: Optional[:class:`Snowflake`]
+        subscription_plan: Optional[:class:`SubscriptionPlan`]
             The subscription plan being purchased.
         test_mode: :class:`bool`
             Whether to preview the purchase in test mode.
@@ -2153,7 +2153,7 @@ class SubscriptionPlan(Hashable):
 
         Parameters
         ----------
-        payment_source: :class:`Snowflake`
+        payment_source: :class:`PaymentSource`
             The payment source to use for the purchase.
         test_mode: :class:`bool`
             Whether to preview the purchase in test mode.

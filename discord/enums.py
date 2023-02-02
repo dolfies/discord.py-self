@@ -887,13 +887,13 @@ class ApplicationDiscoverabilityState(Enum, comparable=True):
 
 
 class ApplicationBuildStatus(Enum):
-    corrupted = 'CORRUPTED'
-    invalid = 'INVALID'
-    ready = 'READY'
-    validating = 'VALIDATING'
-    uploaded = 'UPLOADED'
-    uploading = 'UPLOADING'
     created = 'CREATED'
+    uploading = 'UPLOADING'
+    uploaded = 'UPLOADED'
+    invalid = 'INVALID'
+    validating = 'VALIDATING'
+    corrupted = 'CORRUPTED'
+    ready = 'READY'
 
     def __str__(self) -> str:
         return self.value
@@ -1053,9 +1053,9 @@ class PaymentSourceType(Enum):
     sofort = 4
     przzelewy24 = 5
     sepa_debit = 6
-    paysafe_card = 7
+    paysafecard = 7
     gcash = 8
-    grabpay_my = 9
+    grabpay = 9
     momo_wallet = 10
     venmo = 11
     gopay_wallet = 12
@@ -1072,6 +1072,7 @@ class PaymentGateway(Enum):
     apple = 3
     google = 4
     adyen = 5
+    apple_pay = 6
 
     def __int__(self) -> int:
         return self.value
@@ -1083,7 +1084,7 @@ class SubscriptionType(Enum):
     application = 3
 
 
-class SubscriptionStatus(Enum, comparable=True):
+class SubscriptionStatus(Enum):
     unpaid = 0
     active = 1
     past_due = 2
@@ -1097,7 +1098,7 @@ class SubscriptionStatus(Enum, comparable=True):
         return self.value
 
 
-class SubscriptionInvoiceStatus(Enum):
+class SubscriptionInvoiceStatus(Enum, comparable=True):
     open = 1
     paid = 2
     void = 3
@@ -1155,7 +1156,7 @@ class SKUType(Enum):
         return self.value
 
 
-class SKUAccessLevel(Enum):
+class SKUAccessLevel(Enum, comparable=True):
     full = 1
     early_access = 2
     vip_access = 3

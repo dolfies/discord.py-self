@@ -640,7 +640,7 @@ class Subscription(Hashable):
 
         All parameters are optional.
 
-        Attributes
+        Parameters
         ----------
         items: List[:class:`SubscriptionItem`]
             The new subscription items to use.

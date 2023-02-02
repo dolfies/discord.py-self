@@ -220,8 +220,6 @@ class PaymentSource(Hashable):
         The type of the payment source.
     payment_gateway: :class:`PaymentGateway`
         The payment gateway of the payment source.
-    flags: :class:`PaymentSourceFlags`
-        The flags of the payment source.
     default: :class:`bool`
         Whether the payment source is the default payment source.
     invalid: :class:`bool`
