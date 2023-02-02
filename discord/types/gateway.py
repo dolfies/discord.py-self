@@ -215,6 +215,7 @@ class ThreadListSyncEvent(TypedDict):
     threads: List[Thread]
     members: List[ThreadMember]
     channel_ids: NotRequired[List[Snowflake]]
+    most_recent_messages: List[Message]
 
 
 class ThreadMemberUpdate(ThreadMember):
