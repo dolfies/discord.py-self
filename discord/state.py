@@ -1020,7 +1020,7 @@ class ConnectionState:
         # Extras
         self.analytics_token = data.get('analytics_token')
         self.preferred_regions = data.get('geo_ordered_rtc_regions', ['us-central'])
-        self.settings = UserSettings(data=data.get('user_settings', {}), state=self)
+        self.settings = UserSettings(self, data.get('user_settings_proto', ''))
         self.guild_settings = {
             utils._get_as_snowflake(entry, 'guild_id'): GuildSettings(data=entry, state=self)
             for entry in data.get('user_guild_settings', {}).get('entries', [])

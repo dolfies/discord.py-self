@@ -121,3 +121,7 @@ class Relationship(TypedDict):
     user: PartialUser
     nickname: Optional[str]
     since: NotRequired[str]
+
+
+class ProtoSettings(TypedDict):
+    settings: str

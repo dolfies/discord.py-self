@@ -3350,31 +3350,6 @@ of :class:`enum.Enum`.
 
         Don't scan any direct messages.
 
-.. class:: FriendFlags
-
-    Represents the options found in ``Settings > Privacy & Safety > Who Can Add You As A Friend``
-    in the Discord client.
-
-    .. attribute:: noone
-
-        This allows no-one to add you as a friend.
-
-    .. attribute:: mutual_guilds
-
-        This allows guild members to add you as a friend.
-
-    .. attribute:: mutual_friends
-
-        This allows friends of friends to add you as a friend.
-
-    .. attribute:: guild_and_friends
-
-        This is a superset of :attr:`mutual_guilds` and :attr:`mutual_friends`.
-
-    .. attribute:: everyone
-
-        This allows everyone to add you as a friend.
-
 .. class:: PremiumType
 
     Represents the user's Discord Nitro subscription type.
@@ -5813,9 +5788,9 @@ Relationship
 Settings
 ~~~~~~~~
 
-.. attributetable:: UserSettings
+.. attributetable:: LegacyUserSettings
 
-.. autoclass:: UserSettings()
+.. autoclass:: LegacyUserSettings()
     :members:
 
 .. attributetable:: GuildSettings
