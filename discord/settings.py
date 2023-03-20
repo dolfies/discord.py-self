@@ -30,7 +30,7 @@ import struct
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type, Union, overload
 
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.json_format import MessageToDict, ParseDict
 from discord_protos import PreloadedUserSettings#, FrecencyUserSettings
 
 from .activity import CustomActivity
@@ -89,6 +89,10 @@ class _ProtoSettings:
 
     # I honestly wish I didn't have to vomit properties everywhere like this,
     # but unfortunately it's probably the best way to do it
+    # The discord-protos library is maintained seperately, so any changes
+    # to the protobufs will have to be reflected here;
+    # this is why I'm keeping the `settings` attribute public
+    # I love protobufs :blobcatcozystars:
 
     def __init__(self, state: ConnectionState, data: str):
         self._state: ConnectionState = state
@@ -99,16 +103,28 @@ class _ProtoSettings:
 
     def _update(self, data: str, *, partial: bool = False):
         if partial:
-            self.settings.MergeFromString(base64.b64decode(data))
+            self.merge_from_base64(data)
         else:
-            self.settings = self.PROTOBUF_CLS().FromString(base64.b64decode(data))
+            self.from_base64(data)
 
     def _get_guild(self, id: int, /) -> Union[Guild, Object]:
         return self._state._get_guild(int(id)) or Object(id=int(id))
 
-    @property
-    def _json(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         return MessageToDict(self.settings, including_default_value_fields=True, preserving_proto_field_name=True)
+
+    def dict_to_base64(self, data: Dict[str, Any]):
+        message = ParseDict(data, self.PROTOBUF_CLS())
+        return base64.b64encode(message.SerializeToString()).decode('ascii')
+
+    def from_base64(self, data: str):
+        self.settings = self.PROTOBUF_CLS().FromString(base64.b64decode(data))
+
+    def merge_from_base64(self, data: str):
+        self.settings.MergeFromString(base64.b64decode(data))
+
+    def to_base64(self) -> str:
+        return base64.b64encode(self.settings.SerializeToString()).decode('ascii')
 
 
 class UserSettings(_ProtoSettings):
@@ -130,7 +146,12 @@ class UserSettings(_ProtoSettings):
     def __init__(self, *args):
         super().__init__(*args)
         if self.client_version < self.SUPPORTED_CLIENT_VERSION:
-            _log.info('PreloadedUserSettings client version is outdated, migration needed. Unexpected behaviour may occur.')
+            # Migrations are mostly for client state, but we'll throw a debug log anyway
+            _log.debug('PreloadedUserSettings client version is outdated, migration needed. Unexpected behaviour may occur.')
+        if self.server_version > self.SUPPORTED_SERVER_VERSION:
+            # At the time of writing, the server version is not provided (so it's always 0)
+            # The client does not use the field at all, so there probably won't be any server-side migrations anytime soon
+            _log.debug('PreloadedUserSettings server version is newer than supported. Unexpected behaviour may occur.')
 
     @property
     def data_version(self) -> int:
@@ -171,7 +192,13 @@ class UserSettings(_ProtoSettings):
 
     @property
     def dismissed_contents(self) -> Tuple[int, ...]:
-        """Tuple[:class:`int`]: A list of enum values representing dismissable content in the app."""
+        """Tuple[:class:`int`]: A list of enum values representing dismissable content in the app.
+
+        .. note::
+
+            For now, this just returns the raw values without converting to a proper enum,
+            as the enum values change too often to be viably maintained.
+        """
         contents = self.settings.user_content.dismissed_contents
         return struct.unpack(f'>{len(contents)}B', contents)
 
@@ -576,7 +603,7 @@ class UserSettings(_ProtoSettings):
 
 
 class GuildFolder:
-    """Represents a guild folder
+    """Represents a guild folder.
 
     .. container:: operations
 
@@ -747,7 +774,13 @@ class GuildProgress:
 
     @property
     def dismissed_contents(self) -> Tuple[int, ...]:
-        """Tuple[:class:`int`]: A list of enum values representing dismissable content in the app."""
+        """Tuple[:class:`int`]: A list of enum values representing per-guild dismissable content in the app.
+
+        .. note::
+
+            For now, this just returns the raw values without converting to a proper enum,
+            as the enum values change too often to be viably maintained.
+        """
         contents = self._dismissed_contents
         return struct.unpack(f'>{len(contents)}B', contents)
 
@@ -778,7 +811,7 @@ class GuildProgress:
         recents_dismissed_at: :class:`datetime.datetime`
             When the guild recents were last dismissed.
         dismissed_contents: Sequence[:class:`int`]
-            A list of enum values representing dismissable content in the app.
+            A list of enum values representing per-guild dismissable content in the app.
         collapsed_channels: List[:class:`abc.Snowflake`]
             A list of guild channels that are collapsed in the inbox.
         """
