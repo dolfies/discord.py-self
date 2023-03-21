@@ -2595,7 +2595,7 @@ class Client:
 
         custom_activity = kwargs.pop('custom_activity', MISSING)
         if custom_activity is not MISSING:
-            payload['custom_status'] = custom_activity and custom_activity.to_settings_dict()
+            payload['custom_status'] = custom_activity and custom_activity.to_legacy_settings_dict()
 
         theme = kwargs.pop('theme', None)
         if theme:

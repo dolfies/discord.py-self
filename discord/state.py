@@ -70,6 +70,7 @@ from .enums import (
     Status,
     try_enum,
     UnavailableGuildType,
+    UserSettingsType,
 )
 from . import utils
 from .flags import MemberCacheFlags
@@ -1229,12 +1230,28 @@ class ConnectionState:
         if self.user:
             self.user._full_update(data)
 
-    def parse_user_settings_update(self, data) -> None:
-        new_settings = self.settings
-        old_settings = copy.copy(new_settings)
-        new_settings._update(data)  # type: ignore
-        self.dispatch('settings_update', old_settings, new_settings)
-        self.dispatch('internal_settings_update', old_settings, new_settings)
+    # def parse_user_settings_update(self, data) -> None:
+    #     new_settings = self.settings
+    #     old_settings = copy.copy(new_settings)
+    #     new_settings._update(data)
+    #     self.dispatch('settings_update', old_settings, new_settings)
+    #     self.dispatch('internal_settings_update', old_settings, new_settings)
+
+    def parse_user_settings_proto_update(self, data: gw.ProtoSettingsEvent):
+        type = UserSettingsType(data['settings']['type'])
+        if type == UserSettingsType.preloaded_user_settings:
+            settings = self.settings
+            if settings:
+                old_settings = UserSettings._copy(settings)
+                settings._update(data['settings']['proto'], partial=data.get('partial', False))
+                self.dispatch('settings_update', old_settings, settings)
+                self.dispatch('internal_settings_update', old_settings, settings)
+        elif type == UserSettingsType.frecency_user_settings:
+            ...
+        elif type == UserSettingsType.test_settings:
+            _log.debug('Received test settings proto update. Data: %s', data['settings']['proto'])
+        else:
+            _log.warning('Unknown user settings proto type: %s', type.value)
 
     def parse_user_guild_settings_update(self, data) -> None:
         guild_id = utils._get_as_snowflake(data, 'guild_id')

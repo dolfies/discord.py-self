@@ -3702,7 +3702,7 @@ class HTTPClient:
     def get_proto_settings(self, type: int) -> Response[user.ProtoSettings]:
         return self.request(Route('GET', '/users/@me/settings-proto/{type}', type=type))
 
-    def edit_proto_settings(self, type: int, settings: str, required_data_version: Optional[int] = None) -> Response[None]:
+    def edit_proto_settings(self, type: int, settings: str, required_data_version: Optional[int] = None) -> Response[user.ProtoSettings]:
         payload: Dict[str, Snowflake] = {'settings': settings}
         if required_data_version is not None:
             # The required data version of the proto is set to the last known version when an offline edit is made

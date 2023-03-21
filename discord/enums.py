@@ -27,6 +27,8 @@ import types
 from collections import namedtuple
 from typing import Any, ClassVar, Dict, List, Optional, TYPE_CHECKING, Tuple, Type, TypeVar, Iterator, Mapping
 
+from discord_protos import UserSettingsType as UserSettingsType
+
 __all__ = (
     'Enum',
     'ChannelType',
@@ -319,17 +321,26 @@ class UserContentFilter(Enum):
     non_friends = 1
     all_messages = 2
 
+    def __int__(self) -> int:
+        return self.value
+
 
 class StickerAnimationOptions(Enum):
     always = 0
     on_interaction = 1
     never = 2
 
+    def __int__(self) -> int:
+        return self.value
+
 
 class SpoilerRenderOptions(Enum):
     always = 'ALWAYS'
     on_click = 'ON_CLICK'
     if_moderator = 'IF_MODERATOR'
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class InboxTab(Enum):
@@ -338,6 +349,9 @@ class InboxTab(Enum):
     unreads = 2
     todos = 3
     for_you = 4
+
+    def __int__(self) -> int:
+        return self.value
 
 
 class EmojiPickerSection(Enum):
@@ -353,10 +367,16 @@ class EmojiPickerSection(Enum):
     symbols = 'symbols'
     flags = 'flags'
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class StickerPickerSection(Enum):
     favorite = 'FAVORITE'
     recent = 'RECENT'
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class Theme(Enum):

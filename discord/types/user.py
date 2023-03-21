@@ -125,3 +125,6 @@ class Relationship(TypedDict):
 
 class ProtoSettings(TypedDict):
     settings: str
+
+
+ProtoSettingsType = Literal[1, 2, 3]

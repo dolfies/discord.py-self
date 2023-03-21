@@ -857,17 +857,32 @@ class CustomActivity(BaseActivity):
             o['emoji'] = self.emoji.to_dict()
         return o  # type: ignore
 
-    def to_settings_dict(self) -> Dict[str, Any]:
+    def to_legacy_settings_dict(self) -> Dict[str, Any]:
         o: Dict[str, Optional[Union[str, int]]] = {}
 
-        if text := self.name:
-            o['text'] = text
-        if emoji := self.emoji:
+        if self.name:
+            o['text'] = self.name
+        if self.emoji:
+            emoji = self.emoji
             o['emoji_name'] = emoji.name
             if emoji.id:
                 o['emoji_id'] = emoji.id
-        if (expiry := self.expires_at) is not None:
-            o['expires_at'] = expiry.isoformat()
+        if self.expires_at is not None:
+            o['expires_at'] = self.expires_at.isoformat()
+        return o
+
+    def to_settings_dict(self) -> Dict[str, Any]:
+        o: Dict[str, Optional[Union[str, int]]] = {}
+
+        if self.name:
+            o['text'] = self.name
+        if self.emoji:
+            emoji = self.emoji
+            o['emoji_name'] = emoji.name
+            if emoji.id:
+                o['emoji_id'] = emoji.id
+        if self.expires_at is not None:
+            o['expires_at_ms'] = int(self.expires_at.timestamp() * 1000)
         return o
 
     def __eq__(self, other: object) -> bool:

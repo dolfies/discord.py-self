@@ -51,7 +51,7 @@ from .enums import (
 )
 from .flags import FriendDiscoveryFlags, FriendSourceFlags, HubProgressFlags, OnboardingProgressFlags
 from .object import Object
-from .utils import MISSING, _get_as_snowflake, parse_time, parse_timestamp, utcnow, find
+from .utils import MISSING, _get_as_snowflake, _ocast, parse_time, parse_timestamp, utcnow, find
 
 if TYPE_CHECKING:
     from google.protobuf.message import Message
@@ -101,19 +101,37 @@ class _ProtoSettings:
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}>'
 
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self.settings == other.settings
+        return False
+
+    def __ne__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self.settings != other.settings
+        return True
+
     def _update(self, data: str, *, partial: bool = False):
         if partial:
             self.merge_from_base64(data)
         else:
             self.from_base64(data)
 
+    @classmethod
+    def _copy(cls, self: Self, /) -> Self:
+        new = cls.__new__(cls)
+        new._state = self._state
+        new.settings = cls.PROTOBUF_CLS()
+        new.settings.CopyFrom(self.settings)
+        return new
+
     def _get_guild(self, id: int, /) -> Union[Guild, Object]:
         return self._state._get_guild(int(id)) or Object(id=int(id))
 
-    def to_dict(self) -> Dict[str, Any]:
-        return MessageToDict(self.settings, including_default_value_fields=True, preserving_proto_field_name=True)
+    def to_dict(self, *, with_defaults: bool = False) -> Dict[str, Any]:
+        return MessageToDict(self.settings, including_default_value_fields=with_defaults, preserving_proto_field_name=True, use_integers_for_enums=True)
 
-    def dict_to_base64(self, data: Dict[str, Any]):
+    def dict_to_base64(self, data: Dict[str, Any]) -> str:
         message = ParseDict(data, self.PROTOBUF_CLS())
         return base64.b64encode(message.SerializeToString()).decode('ascii')
 
@@ -357,6 +375,8 @@ class UserSettings(_ProtoSettings):
         """:class:`bool`: Whether to use the legacy chat input over the new rich input."""
         return self.settings.text_and_images.use_legacy_chat_input.value
 
+    # Notifications Settings
+
     @property
     def in_app_notifications(self) -> bool:
         """:class:`bool`: Whether to show notifications directly in the app."""
@@ -576,10 +596,24 @@ class UserSettings(_ProtoSettings):
         """:class:`bool`: Whether to automatically redirect to guild home for guilds that have not been accessed in a while."""
         return not self.settings.communities.disable_home_auto_nav.value
 
-    async def edit(self, ) -> Self:
-        """|coro|
+    async def edit(self, *, require_version: Union[bool, int] = False, **kwargs) -> Self:
+        r"""|coro|
 
         Edits the current user's settings.
+
+        .. note::
+
+            Settings subsections are not idempotently updated. This means if you change one setting in a subsection\* on an outdated
+            instance of :class:`UserSettings` then the other settings in that subsection\* will be reset to the value of the instance.
+
+            When operating on the cached user settings (i.e. :attr:`Client.settings`), this should not be an issue. However, if you
+            are operating on a fetched instance, consider using the ``require_version`` parameter to ensure you don't overwrite
+            newer settings.
+
+            Any field may be explicitly set to ``MISSING`` to reset it to the default value.
+
+            \* A subsection is a group of settings that are stored in the same top-level protobuf message.
+            Examples include Privacy, Text and Images, Voice and Video, etc.
 
         .. note::
 
@@ -597,9 +631,165 @@ class UserSettings(_ProtoSettings):
         Returns
         -------
         :class:`UserSettings`
-            The edited settings.
+            The edited settings. Note that this is a new instance and not the same as the cached instance as mentioned above.
         """
-        ...
+        # As noted above, entire sections MUST be sent, or they will be reset to default values
+        # Conversely, we want to omit fields that the user requests to be set to default (by explicitly passing MISSING)
+        # For this, we then remove fields set to MISSING from the payload in the payload construction at the end
+
+        inbox = {}
+        if 'inbox_tab' in kwargs:
+            inbox['current_tab'] = _ocast(kwargs.pop('inbox_tab'), int)
+        if 'inbox_tutorial_viewed' in kwargs:
+            inbox['viewed_tutorial'] = kwargs.pop('inbox_tutorial_viewed')
+
+        guilds = {}
+        if 'guild_progress_settings' in kwargs and kwargs['guild_progress_settings'] is not MISSING:
+            guilds['guilds'] = {guild.guild_id: guild.to_dict() for guild in kwargs.pop('guild_progress_settings')} if kwargs['guild_progress_settings'] is not MISSING else MISSING
+
+        user_content = {}
+        if 'dismissed_contents' in kwargs:
+            contents = kwargs.pop('dismissed_contents')
+            user_content['dismissed_contents'] = struct.pack(f'>{len(contents)}B', *contents) if contents is not MISSING else MISSING
+        if 'last_dismissed_promotion_start_date' in kwargs:
+            user_content['last_dismissed_outbound_promotion_start_date'] = kwargs.pop('last_dismissed_promotion_start_date').isoformat() if kwargs['last_dismissed_promotion_start_date'] is not MISSING else MISSING
+        if 'nitro_basic_modal_dismissed_at' in kwargs:
+            user_content['premium_tier_0_modal_dismissed_at'] = kwargs.pop('nitro_basic_modal_dismissed_at').isoformat() if kwargs['nitro_basic_modal_dismissed_at'] is not MISSING else MISSING
+
+        voice_and_video = {}
+        if 'soundboard_volume' in kwargs:
+            voice_and_video['soundboard_settings'] = {'volume': kwargs.pop('soundboard_volume')} if kwargs['soundboard_volume'] is not MISSING else {}
+        for field in ('afk_timeout', 'always_preview_video', 'native_phone_integration_enabled', 'stream_notifications_enabled'):
+            if field in kwargs:
+                voice_and_video[field] = kwargs.pop(field)
+
+        text_and_images = {}
+        if 'diversity_surrogate' in kwargs:
+            text_and_images['diversity_surrogate'] = kwargs.pop('diversity_surrogate') or '' if kwargs['diversity_surrogate'] is not MISSING else MISSING
+        if 'render_spoilers' in kwargs:
+            text_and_images['render_spoilers'] = _ocast(kwargs.pop('render_spoilers'), str)
+        if 'collapsed_emoji_picker_sections' in kwargs:
+            text_and_images['emoji_picker_collapsed_sections'] = [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_emoji_picker_sections')] if kwargs['collapsed_emoji_picker_sections'] is not MISSING else MISSING
+        if 'collapsed_sticker_picker_sections' in kwargs:
+            text_and_images['sticker_picker_collapsed_sections'] = [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_sticker_picker_sections')] if kwargs['collapsed_sticker_picker_sections'] is not MISSING else MISSING
+        if 'animate_emojis' in kwargs:
+            text_and_images['animate_emoji'] = kwargs.pop('animate_emojis')
+        if 'animate_stickers' in kwargs:
+            text_and_images['animate_stickers'] = _ocast(kwargs.pop('animate_stickers'), int)
+        if 'explicit_content_filter' in kwargs:
+            text_and_images['explicit_content_filter'] = _ocast(kwargs.pop('explicit_content_filter'), int)
+        if 'show_expression_suggestions' in kwargs:
+            text_and_images['expression_suggestions_enabled'] = kwargs.pop('show_expression_suggestions')
+        for field in ('use_thread_sidebar', 'view_image_descriptions', 'show_command_suggestions', 'inline_attachment_media', 'inline_embed_media', 'gif_auto_play', 'render_embeds', 'render_reactions', 'enable_tts_command', 'message_display_compact', 'view_nsfw_guilds', 'convert_emoticons', 'view_nsfw_commands', 'use_legacy_chat_input', 'use_rich_chat_input'):
+            if field in kwargs:
+                text_and_images[field] = kwargs.pop(field)
+
+        notifications = {}
+        if 'in_app_notifications' in kwargs:
+            notifications['show_in_app_notifications'] = kwargs.pop('in_app_notifications')
+        if 'send_stream_notifications' in kwargs:
+            notifications['notify_friends_on_go_live'] = kwargs.pop('send_stream_notifications')
+        for field in ('notification_center_acked_before_id',):
+            if field in kwargs:
+                notifications[field] = kwargs.pop(field)
+
+        privacy = {}
+        if 'allow_activity_friend_joins' in kwargs:
+            privacy['allow_activity_party_privacy_friends'] = kwargs.pop('allow_activity_friend_joins')
+        if 'allow_activity_voice_channel_joins' in kwargs:
+            privacy['allow_activity_party_privacy_voice_channel'] = kwargs.pop('allow_activity_voice_channel_joins')
+        if 'friend_source_flags' in kwargs:
+            privacy['friend_source_flags'] = kwargs.pop('friend_source_flags').value if kwargs['friend_source_flags'] is not MISSING else MISSING
+        if 'friend_discovery_flags' in kwargs:
+            privacy['friend_discovery_flags'] = kwargs.pop('friend_discovery_flags').value if kwargs['friend_discovery_flags'] is not MISSING else MISSING
+        if 'drops' in kwargs:
+            privacy['drops_opted_out'] = not kwargs.pop('drops') if kwargs['drops'] is not MISSING else MISSING
+        if 'non_spam_retraining' in kwargs:
+            privacy['non_spam_retraining_opt_in'] = kwargs.pop('non_spam_retraining') if kwargs['non_spam_retraining'] not in {None, MISSING} else MISSING
+        for field in ('restricted_guilds', 'default_guilds_restricted', 'allow_accessibility_detection', 'detect_platform_accounts', 'passwordless', 'contact_sync_enabled', 'activity_restricted_guilds', 'default_guilds_activity_restricted', 'activity_joining_restricted_guilds', 'message_request_restricted_guilds', 'default_message_request_restricted'):
+            if field in kwargs:
+                if field.endswith('_guilds'):
+                    privacy[field.replace('_guilds', '_guild_ids')] = [g.id for g in kwargs.pop(field)]
+                privacy[field] = kwargs.pop(field)
+
+        debug = {}
+        for field in ('rtc_panel_show_voice_states',):
+            if field in kwargs:
+                debug[field] = kwargs.pop(field)
+
+        game_library = {}
+        for field in ('install_shortcut_desktop', 'install_shortcut_start_menu', 'disable_games_tab'):
+            if field in kwargs:
+                game_library[field] = kwargs.pop(field)
+
+        status = {}
+        if 'status' in kwargs:
+            status['status'] = _ocast(kwargs.pop('status'), str)
+        if 'custom_activity' in kwargs:
+            status['custom_status'] = kwargs.pop('custom_activity').to_settings_dict()
+        for field in ('show_current_game',):
+            if field in kwargs:
+                status[field] = kwargs.pop(field)
+
+        localization = {}
+        if 'locale' in kwargs:
+            localization['locale'] = _ocast(kwargs.pop('locale'), str)
+        for field in ('timezone_offset',):
+            if field in kwargs:
+                localization[field] = kwargs.pop(field)
+
+        appearance = {}
+        if 'theme' in kwargs:
+            appearance['theme'] = _ocast(kwargs.pop('theme'), int)
+        if 'client_theme' in kwargs:
+            provided: tuple = kwargs.pop('client_theme')
+            client_theme_settings = {} if provided is not MISSING else MISSING
+            if provided and provided[0] is not MISSING:
+                client_theme_settings['primary_color'] = provided[0]
+            if len(provided) > 1 and provided[1] is not MISSING:
+                client_theme_settings['background_gradient_preset_id'] = provided[1]
+            if len(provided) > 2 and provided[2] is not MISSING:
+                client_theme_settings['background_gradient_angle'] = float(provided[2])
+            appearance['client_theme_settings'] = client_theme_settings
+        if 'disable_mobile_redesign' in kwargs:
+            appearance['mobile_redesign_disabled'] = kwargs.pop('disable_mobile_redesign')
+        for field in ('developer_mode',):
+            if field in kwargs:
+                appearance[field] = kwargs.pop(field)
+
+        guild_folders = {}
+        if 'guild_folders' in kwargs:
+            guild_folders['folders'] = [f.to_dict() for f in kwargs.pop('guild_folders')] if kwargs['guild_folders'] is not MISSING else MISSING
+        if 'guild_positions' in kwargs:
+            guild_folders['guild_positions'] = [g.id for g in kwargs.pop('guild_positions')] if kwargs['guild_positions'] is not MISSING else MISSING
+
+        audio_context_settings = {}
+        if 'user_audio_settings' in kwargs:
+            audio_context_settings['user'] = {s.id: s.to_dict() for s in kwargs.pop('user_audio_settings')} if kwargs['user_audio_settings'] is not MISSING else MISSING
+        if 'stream_audio_settings' in kwargs:
+            audio_context_settings['stream'] = {s.id: s.to_dict() for s in kwargs.pop('stream_audio_settings')} if kwargs['stream_audio_settings'] is not MISSING else MISSING
+
+        communities = {}
+        if 'home_auto_navigation' in kwargs:
+            communities['disable_home_auto_nav'] = not kwargs.pop('home_auto_navigation') if kwargs['home_auto_navigation'] is not MISSING else MISSING
+
+        # Now, we do the actual patching
+        existing = self.to_dict()
+        payload = {}
+        for subsetting in ('inbox', 'guilds', 'user_content', 'voice_and_video', 'text_and_images', 'notifications', 'privacy', 'debug', 'game_library', 'status', 'localization', 'appearance', 'guild_folders', 'audio_context_settings', 'communities'):
+            subsetting_dict = locals()[subsetting]
+            if subsetting_dict:
+                original = existing.get(subsetting, {})
+                original.update(subsetting_dict)
+                for k, v in original.items():
+                    if v is MISSING:
+                        del original[k]
+                payload[subsetting] = original
+
+        state = self._state
+        require_version = self.data_version if require_version == True else require_version
+        ret = await state.http.edit_proto_settings(1, self.dict_to_base64(payload), require_version or None)
+        return UserSettings(state, ret['settings'])
 
 
 class GuildFolder:
@@ -673,6 +863,17 @@ class GuildFolder:
 
     def _get_guild(self, id, /) -> Union[Guild, Object]:
         return self._state._get_guild(int(id)) or Object(id=int(id))
+
+    def to_dict(self) -> dict:
+        ret = {}
+        if self.id is not None:
+            ret['id'] = self.id
+        if self.name is not None:
+            ret['name'] = self.name
+        if self._colour is not None:
+            ret['color'] = self._colour
+        ret['guild_ids'] = self._guild_ids
+        return ret
 
     @property
     def guilds(self) -> List[Union[Guild, Object]]:
@@ -750,13 +951,23 @@ class GuildProgress:
         self._collapsed_channel_ids = [channel_id for channel_id, settings in data.channels.items() if settings.collapsed_in_inbox]
         return self
 
+    def _get_channel(self, id: int, /) -> Union[GuildChannel, Object]:
+        return self.guild.get_channel(int(id)) or Object(id=int(id)) if self.guild is not None else Object(id=int(id))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'hub_progress': self._hub_progress,
+            'guild_onboarding_progress': self._onboarding_progress,
+            'guild_recents_dismissed_at': self.recents_dismissed_at.isoformat() if self.recents_dismissed_at is not None else None,
+            'dismissed_guild_content': self._dismissed_contents,
+            'collapsed_channels': self.collapsed_channels,
+            'channels': {id: {'collapsed_in_inbox': True} for id in self._collapsed_channel_ids},
+        }
+
     @property
     def guild(self) -> Optional[Guild]:
         """Optional[:class:`Guild`]: The guild this progress belongs to. ``None`` if state is not attached."""
         return self._state._get_guild(self.guild_id) if self._state is not None else None
-
-    def _get_channel(self, id: int, /) -> Union[GuildChannel, Object]:
-        return self.guild.get_channel(int(id)) or Object(id=int(id)) if self.guild is not None else Object(id=int(id))
 
     @property
     def hub_progress(self) -> HubProgressFlags:
