@@ -388,7 +388,7 @@ class Theme(Enum):
         return cls.light if value == 2 else cls.dark
 
     def to_int(self) -> int:
-        return 2 if self is self.light else 1
+        return 2 if self is Theme.light else 1
 
     def __int__(self) -> int:
         return self.to_int()

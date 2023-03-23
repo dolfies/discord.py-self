@@ -28,7 +28,7 @@ import base64
 from datetime import datetime, timezone
 import struct
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type, Union, overload
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Optional, Sequence, Tuple, Type, Union, overload
 
 from google.protobuf.json_format import MessageToDict, ParseDict
 from discord_protos import PreloadedUserSettings#, FrecencyUserSettings
@@ -126,7 +126,8 @@ class _ProtoSettings:
         return new
 
     def _get_guild(self, id: int, /) -> Union[Guild, Object]:
-        return self._state._get_guild(int(id)) or Object(id=int(id))
+        id = int(id)
+        return self._state._get_guild(id) or Object(id=id)
 
     def to_dict(self, *, with_defaults: bool = False) -> Dict[str, Any]:
         return MessageToDict(self.settings, including_default_value_fields=with_defaults, preserving_proto_field_name=True, use_integers_for_enums=True)
@@ -245,7 +246,7 @@ class UserSettings(_ProtoSettings):
 
     @property
     def afk_timeout(self) -> int:
-        """:class:`int`: How long (in seconds) the user needs to be AFK until Discord sends push notifications to your mobile device."""
+        """:class:`int`: How long (in seconds) the user needs to be AFK until Discord sends push notifications to mobile devices (30-600)."""
         return self.settings.voice_and_video.afk_timeout.value or 600
 
     @property
@@ -422,17 +423,17 @@ class UserSettings(_ProtoSettings):
     @property
     def detect_platform_accounts(self) -> bool:
         """:class:`bool`: Whether to automatically detect accounts from services like Steam and Blizzard when you open the Discord client."""
-        return self.settings.privacy.detect_platform_accounts if self.settings.privacy.HasField('detect_platform_accounts') else True
+        return self.settings.privacy.detect_platform_accounts.value if self.settings.privacy.HasField('detect_platform_accounts') else True
 
     @property
     def passwordless(self) -> bool:
         """:class:`bool`: Whether to enable passwordless login."""
-        return self.settings.privacy.passwordless if self.settings.privacy.HasField('passwordless') else True
+        return self.settings.privacy.passwordless.value if self.settings.privacy.HasField('passwordless') else True
 
     @property
     def contact_sync_enabled(self) -> bool:
         """:class:`bool`: Whether to enable the contact sync on Discord mobile."""
-        return self.settings.privacy.contact_sync_enabled
+        return self.settings.privacy.contact_sync_enabled.value
 
     @property
     def friend_source_flags(self) -> FriendSourceFlags:
@@ -484,7 +485,7 @@ class UserSettings(_ProtoSettings):
     @property
     def rtc_panel_show_voice_states(self) -> bool:
         """:class:`bool`: Whether to show voice states in the RTC panel."""
-        return self.settings.debug.rtc_panel_show_voice_states
+        return self.settings.debug.rtc_panel_show_voice_states.value
 
     # Game Library Settings
 
@@ -596,7 +597,90 @@ class UserSettings(_ProtoSettings):
         """:class:`bool`: Whether to automatically redirect to guild home for guilds that have not been accessed in a while."""
         return not self.settings.communities.disable_home_auto_nav.value
 
-    async def edit(self, *, require_version: Union[bool, int] = False, **kwargs) -> Self:
+    @overload
+    async def edit(self) -> Self:
+        ...
+
+    @overload
+    async def edit(
+        self,
+        *,
+        require_version: Union[bool, int] = False,
+        inbox_tab: InboxTab = ...,
+        inbox_tutorial_viewed: bool = ...,
+        guild_progress_settings: Sequence[GuildProgress] = ...,
+        dismissed_contents: Sequence[int] = ...,
+        last_dismissed_promotion_start_date: datetime = ...,
+        nitro_basic_modal_dismissed_at: datetime = ...,
+        soundboard_volume: float = ...,
+        afk_timeout: int = ...,
+        always_preview_video: bool = ...,
+        native_phone_integration_enabled: bool = ...,
+        stream_notifications_enabled: bool = ...,
+        diversity_surrogate: Optional[str] = ...,
+        render_spoilers: SpoilerRenderOptions = ...,
+        collapsed_emoji_picker_sections: Sequence[Union[EmojiPickerSection, Snowflake]],
+        collapsed_sticker_picker_sections: Sequence[Union[StickerPickerSection, Snowflake]],
+        animate_emojis: bool = ...,
+        animate_stickers: StickerAnimationOptions = ...,
+        explicit_content_filter: UserContentFilter = ...,
+        show_expression_suggestions: bool = ..., 
+        use_thread_sidebar: bool = ...,
+        view_image_descriptions: bool = ...,
+        show_command_suggestions: bool = ...,
+        inline_attachment_media: bool = ...,
+        inline_embed_media: bool = ...,
+        gif_auto_play: bool = ...,
+        render_embeds: bool = ...,
+        render_reactions: bool = ...,
+        enable_tts_command: bool = ...,
+        message_display_compact: bool = ...,
+        view_nsfw_guilds: bool = ...,
+        convert_emoticons: bool = ...,
+        view_nsfw_commands: bool = ...,
+        use_legacy_chat_input: bool = ...,
+        in_app_notifications: bool = ...,
+        send_stream_notifications: bool = ...,
+        notification_center_acked_before_id: int = ...,
+        allow_activity_friend_joins: bool = ...,
+        allow_activity_voice_channel_joins: bool = ...,
+        friend_source_flags: FriendSourceFlags = ...,
+        friend_discovery_flags: FriendDiscoveryFlags = ...,
+        drops: bool = ...,
+        non_spam_retraining: Optional[bool] = ...,
+        restricted_guilds: Sequence[Snowflake] = ...,
+        default_guilds_restricted: bool = ...,
+        allow_accessibility_detection: bool = ...,
+        detect_platform_accounts: bool = ...,
+        passwordless: bool = ...,
+        contact_sync_enabled: bool = ...,
+        activity_restricted_guilds: Sequence[Snowflake] = ...,
+        default_guilds_activity_restricted: bool = ...,
+        activity_joining_restricted_guilds: Sequence[Snowflake] = ...,
+        message_request_restricted_guilds: Sequence[Snowflake] = ...,
+        default_message_request_restricted: bool = ...,
+        rtc_panel_show_voice_states: bool = ...,
+        install_shortcut_desktop: bool = ...,
+        install_shortcut_start_menu: bool = ...,
+        disable_games_tab: bool = ...,
+        status: Status = ...,
+        custom_activity: Optional[CustomActivity] = ...,
+        show_current_game: bool = ...,
+        locale: Locale = ...,
+        timezone_offset: int = ...,
+        theme: Theme = ...,
+        client_theme: Optional[Tuple[int, int, float]] = ...,
+        disable_mobile_redesign: bool = ...,
+        developer_mode: bool = ...,
+        guild_folders: Sequence[GuildFolder] = ...,
+        guild_positions: Sequence[Snowflake] = ...,
+        user_audio_settings: Collection[AudioContext] = ...,
+        stream_audio_settings: Collection[AudioContext] = ...,
+        home_auto_navigation: bool = ...,
+    ) -> Self:
+        ...
+
+    async def edit(self, *, require_version: Union[bool, int] = False, **kwargs: Any) -> Self:
         r"""|coro|
 
         Edits the current user's settings.
@@ -623,10 +707,20 @@ class UserSettings(_ProtoSettings):
             Automated actions (such as migrations or frecency updates) should be delayed by 30 seconds and batched.
             Daily actions (things that change often and are not meaningful, such as emoji frencency) should be delayed by 1 day and batched.
 
+        Parameters
+        ----------
+        require_version: Union[:class:`bool`, :class:`int`]
+            Whether to require the current version of the settings to be the same as the provided version.
+            If this is ``True`` then the current version is used.
+        \*\*kwargs
+            The settings to edit. Refer to the :class:`UserSettings` properties for the valid fields. Unknown fields are ignored.
+
         Raises
         ------
         HTTPException
             Editing the settings failed.
+        TypeError
+            At least one setting it required.
 
         Returns
         -------
@@ -636,6 +730,9 @@ class UserSettings(_ProtoSettings):
         # As noted above, entire sections MUST be sent, or they will be reset to default values
         # Conversely, we want to omit fields that the user requests to be set to default (by explicitly passing MISSING)
         # For this, we then remove fields set to MISSING from the payload in the payload construction at the end
+
+        if not kwargs:
+            raise TypeError('edit() missing at least 1 required keyword-only argument')
 
         inbox = {}
         if 'inbox_tab' in kwargs:
@@ -710,7 +807,8 @@ class UserSettings(_ProtoSettings):
             if field in kwargs:
                 if field.endswith('_guilds'):
                     privacy[field.replace('_guilds', '_guild_ids')] = [g.id for g in kwargs.pop(field)]
-                privacy[field] = kwargs.pop(field)
+                else:
+                    privacy[field] = kwargs.pop(field)
 
         debug = {}
         for field in ('rtc_panel_show_voice_states',):
@@ -726,7 +824,7 @@ class UserSettings(_ProtoSettings):
         if 'status' in kwargs:
             status['status'] = _ocast(kwargs.pop('status'), str)
         if 'custom_activity' in kwargs:
-            status['custom_status'] = kwargs.pop('custom_activity').to_settings_dict()
+            status['custom_status'] = kwargs.pop('custom_activity').to_settings_dict() if kwargs['custom_activity'] not in {MISSING, None} else MISSING
         for field in ('show_current_game',):
             if field in kwargs:
                 status[field] = kwargs.pop(field)
@@ -744,13 +842,14 @@ class UserSettings(_ProtoSettings):
         if 'client_theme' in kwargs:
             provided: tuple = kwargs.pop('client_theme')
             client_theme_settings = {} if provided is not MISSING else MISSING
-            if provided and provided[0] is not MISSING:
-                client_theme_settings['primary_color'] = provided[0]
-            if len(provided) > 1 and provided[1] is not MISSING:
-                client_theme_settings['background_gradient_preset_id'] = provided[1]
-            if len(provided) > 2 and provided[2] is not MISSING:
-                client_theme_settings['background_gradient_angle'] = float(provided[2])
-            appearance['client_theme_settings'] = client_theme_settings
+            if provided:
+                if provided[0] is not MISSING:
+                    client_theme_settings['primary_color'] = provided[0]
+                if len(provided) > 1 and provided[1] is not MISSING:
+                    client_theme_settings['background_gradient_preset_id'] = provided[1]
+                if len(provided) > 2 and provided[2] is not MISSING:
+                    client_theme_settings['background_gradient_angle'] = float(provided[2])
+                appearance['client_theme_settings'] = client_theme_settings
         if 'disable_mobile_redesign' in kwargs:
             appearance['mobile_redesign_disabled'] = kwargs.pop('disable_mobile_redesign')
         for field in ('developer_mode',):
@@ -781,7 +880,7 @@ class UserSettings(_ProtoSettings):
             if subsetting_dict:
                 original = existing.get(subsetting, {})
                 original.update(subsetting_dict)
-                for k, v in original.items():
+                for k, v in dict(original).items():
                     if v is MISSING:
                         del original[k]
                 payload[subsetting] = original
@@ -827,12 +926,12 @@ class GuildFolder:
 
     __slots__ = ('_state', 'id', 'name', '_colour', '_guild_ids')
 
-    def __init__(self, *, data, state: ConnectionState) -> None:
-        self._state = state
-        self.id: Optional[int] = _get_as_snowflake(data, 'id')
-        self.name: Optional[str] = data.get('name')
-        self._colour: Optional[int] = data['color']
-        self._guild_ids: List[int] = [int(guild_id) for guild_id in data['guild_ids']]
+    def __init__(self, *, id: Optional[int] = None, name: Optional[str] = None, colour: Optional[Colour] = None, guilds: Sequence[Snowflake] = MISSING):
+        self._state: Optional[ConnectionState] = None
+        self.id: Optional[int] = id
+        self.name: Optional[str] = name
+        self._colour: Optional[int] = colour.value if colour else None
+        self._guild_ids: List[int] = [guild.id for guild in guilds] if guilds else []
 
     def __str__(self) -> str:
         return self.name or ', '.join(guild.name for guild in [guild for guild in self.guilds if isinstance(guild, Guild)])
@@ -842,6 +941,16 @@ class GuildFolder:
 
     def __len__(self) -> int:
         return len(self._guild_ids)
+
+    @classmethod
+    def _from_legacy_settings(cls, *, data: Dict[str, Any], state: ConnectionState) -> Self:
+        self = cls.__new__(cls)
+        self._state = state
+        self.id = _get_as_snowflake(data, 'id')
+        self.name = data.get('name')
+        self._colour = data['color']
+        self._guild_ids = [int(guild_id) for guild_id in data['guild_ids']]
+        return self
 
     @classmethod
     def _from_settings(cls, *, data: Any, state: ConnectionState) -> Self:
@@ -862,7 +971,8 @@ class GuildFolder:
         return self
 
     def _get_guild(self, id, /) -> Union[Guild, Object]:
-        return self._state._get_guild(int(id)) or Object(id=int(id))
+        id = int(id)
+        return self._state._get_guild(id) or Object(id=id) if self._state else Object(id=id)
 
     def to_dict(self) -> dict:
         ret = {}
@@ -872,7 +982,7 @@ class GuildFolder:
             ret['name'] = self.name
         if self._colour is not None:
             ret['color'] = self._colour
-        ret['guild_ids'] = self._guild_ids
+        ret['guild_ids'] = [str(guild_id) for guild_id in self._guild_ids]
         return ret
 
     @property
@@ -952,7 +1062,8 @@ class GuildProgress:
         return self
 
     def _get_channel(self, id: int, /) -> Union[GuildChannel, Object]:
-        return self.guild.get_channel(int(id)) or Object(id=int(id)) if self.guild is not None else Object(id=int(id))
+        id = int(id)
+        return self.guild.get_channel(id) or Object(id=id) if self.guild is not None else Object(id=id)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -960,7 +1071,6 @@ class GuildProgress:
             'guild_onboarding_progress': self._onboarding_progress,
             'guild_recents_dismissed_at': self.recents_dismissed_at.isoformat() if self.recents_dismissed_at is not None else None,
             'dismissed_guild_content': self._dismissed_contents,
-            'collapsed_channels': self.collapsed_channels,
             'channels': {id: {'collapsed_in_inbox': True} for id in self._collapsed_channel_ids},
         }
 
@@ -1111,7 +1221,7 @@ class LegacyUserSettings:
     ----------
     afk_timeout: :class:`int`
         How long (in seconds) the user needs to be AFK until Discord
-        sends push notifications to your mobile device.
+        sends push notifications to mobile devices (30-600).
     allow_accessibility_detection: :class:`bool`
         Whether to allow Discord to track screen reader usage.
     animate_emojis: :class:`bool`
@@ -1193,7 +1303,8 @@ class LegacyUserSettings:
         return '<LegacyUserSettings>'
 
     def _get_guild(self, id: int, /) -> Union[Guild, Object]:
-        return self._state._get_guild(int(id)) or Object(id=int(id))
+        id = int(id)
+        return self._state._get_guild(id) or Object(id=id)
 
     def _update(self, data: Dict[str, Any]) -> None:
         RAW_VALUES = {
@@ -1249,7 +1360,7 @@ class LegacyUserSettings:
             .. versionadded:: 2.0
         afk_timeout: :class:`int`
             How long (in seconds) the user needs to be AFK until Discord
-            sends push notifications to your mobile device.
+            sends push notifications to mobile device (30-600).
         allow_accessibility_detection: :class:`bool`
             Whether to allow Discord to track screen reader usage.
         animate_emojis: :class:`bool`
@@ -1377,7 +1488,7 @@ class LegacyUserSettings:
     def guild_folders(self) -> List[GuildFolder]:
         """List[:class:`GuildFolder`]: A list of guild folders."""
         state = self._state
-        return [GuildFolder(data=folder, state=state) for folder in getattr(self, '_guild_folders', [])]
+        return [GuildFolder._from_legacy_settings(data=folder, state=state) for folder in getattr(self, '_guild_folders', [])]
 
     @property
     def guild_positions(self) -> List[Union[Guild, Object]]:

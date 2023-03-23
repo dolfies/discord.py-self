@@ -552,21 +552,21 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def on_internal_settings_update(self, old_settings, new_settings):
+    async def on_internal_settings_update(self, old_settings: UserSettings, new_settings: UserSettings):
         if not self._sync_presences:
             return
 
         if (
             old_settings is not None
-            and old_settings._status == new_settings._status
-            and old_settings._custom_status == new_settings._custom_status
+            and old_settings.status == new_settings.status
+            and old_settings.custom_activity == new_settings.custom_activity
         ):
             return  # Nothing changed
 
         status = new_settings.status
         activities = [a for a in self.activities if a.type != ActivityType.custom]
-        if (activity := new_settings.custom_activity) is not None:
-            activities.append(activity)
+        if new_settings.custom_activity is not None:
+            activities.append(new_settings.custom_activity)
 
         await self.change_presence(status=status, activities=activities, edit_settings=False)
 
