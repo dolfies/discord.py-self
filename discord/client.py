@@ -1438,7 +1438,7 @@ class Client:
             if custom_activity != getattr(self.settings, 'custom_activity', None):
                 payload['custom_activity'] = custom_activity
             if payload:
-                await self.edit_legacy_settings(**payload) 
+                await self.edit_legacy_settings(**payload)
 
     async def change_voice_state(
         self,

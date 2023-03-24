@@ -31,7 +31,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Collection, Dict, List, Optional, Sequence, Tuple, Type, Union, overload
 
 from google.protobuf.json_format import MessageToDict, ParseDict
-from discord_protos import PreloadedUserSettings#, FrecencyUserSettings
+from discord_protos import PreloadedUserSettings  # , FrecencyUserSettings
 
 from .activity import CustomActivity
 from .colour import Colour
@@ -130,7 +130,12 @@ class _ProtoSettings:
         return self._state._get_guild(id) or Object(id=id)
 
     def to_dict(self, *, with_defaults: bool = False) -> Dict[str, Any]:
-        return MessageToDict(self.settings, including_default_value_fields=with_defaults, preserving_proto_field_name=True, use_integers_for_enums=True)
+        return MessageToDict(
+            self.settings,
+            including_default_value_fields=with_defaults,
+            preserving_proto_field_name=True,
+            use_integers_for_enums=True,
+        )
 
     def dict_to_base64(self, data: Dict[str, Any]) -> str:
         message = ParseDict(data, self.PROTOBUF_CLS())
@@ -205,7 +210,10 @@ class UserSettings(_ProtoSettings):
     def guild_progress_settings(self) -> List[GuildProgress]:
         """List[:class:`GuildProgress`]: A list of guild progress settings."""
         state = self._state
-        return [GuildProgress._from_settings(guild_id, data=settings, state=state) for guild_id, settings in self.settings.guilds.guilds.items()]
+        return [
+            GuildProgress._from_settings(guild_id, data=settings, state=state)
+            for guild_id, settings in self.settings.guilds.guilds.items()
+        ]
 
     # User Content Settings
 
@@ -229,7 +237,11 @@ class UserSettings(_ProtoSettings):
     @property
     def nitro_basic_modal_dismissed_at(self) -> Optional[datetime]:
         """Optional[:class:`datetime.datetime`]: The date the Nitro Basic modal was dismissed."""
-        return self.settings.user_content.premium_tier_0_modal_dismissed_at.ToDatetime(tzinfo=timezone.utc) if self.settings.user_content.HasField('premium_tier_0_modal_dismissed_at') else None
+        return (
+            self.settings.user_content.premium_tier_0_modal_dismissed_at.ToDatetime(tzinfo=timezone.utc)
+            if self.settings.user_content.HasField('premium_tier_0_modal_dismissed_at')
+            else None
+        )
 
     # Voice and Video Settings
 
@@ -252,17 +264,29 @@ class UserSettings(_ProtoSettings):
     @property
     def stream_notifications_enabled(self) -> bool:
         """:class:`bool`: Whether stream notifications for friends will be received."""
-        return self.settings.voice_and_video.stream_notifications_enabled.value if self.settings.voice_and_video.HasField('stream_notifications_enabled') else True
+        return (
+            self.settings.voice_and_video.stream_notifications_enabled.value
+            if self.settings.voice_and_video.HasField('stream_notifications_enabled')
+            else True
+        )
 
     @property
     def native_phone_integration_enabled(self) -> bool:
         """:class:`bool`: Whether to enable the Discord mobile Callkit."""
-        return self.settings.voice_and_video.native_phone_integration_enabled.value if self.settings.voice_and_video.HasField('native_phone_integration_enabled') else True
+        return (
+            self.settings.voice_and_video.native_phone_integration_enabled.value
+            if self.settings.voice_and_video.HasField('native_phone_integration_enabled')
+            else True
+        )
 
     @property
     def soundboard_volume(self) -> float:
         """:class:`float`: The volume of the soundboard (0-100)."""
-        return self.settings.voice_and_video.soundboard_settings.volume if self.settings.voice_and_video.HasField('soundboard_settings') else 100.0
+        return (
+            self.settings.voice_and_video.soundboard_settings.volume
+            if self.settings.voice_and_video.HasField('soundboard_settings')
+            else 100.0
+        )
 
     # Text and Images Settings
 
@@ -274,7 +298,11 @@ class UserSettings(_ProtoSettings):
     @property
     def use_thread_sidebar(self) -> bool:
         """:class:`bool`: Whether to open threads in split view."""
-        return self.settings.text_and_images.use_thread_sidebar.value if self.settings.text_and_images.HasField('use_thread_sidebar') else True
+        return (
+            self.settings.text_and_images.use_thread_sidebar.value
+            if self.settings.text_and_images.HasField('use_thread_sidebar')
+            else True
+        )
 
     @property
     def render_spoilers(self) -> SpoilerRenderOptions:
@@ -284,12 +312,18 @@ class UserSettings(_ProtoSettings):
     @property
     def collapsed_emoji_picker_sections(self) -> Tuple[Union[EmojiPickerSection, Guild, Object], ...]:
         """Tuple[Union[:class:`EmojiPickerSection`, :class:`Guild`, :class:`Object`]]: A list of emoji picker sections (including guild IDs) that are collapsed."""
-        return tuple(self._get_guild(section) if section.isdigit() else try_enum(EmojiPickerSection, section) for section in self.settings.text_and_images.emoji_picker_collapsed_sections)
+        return tuple(
+            self._get_guild(section) if section.isdigit() else try_enum(EmojiPickerSection, section)
+            for section in self.settings.text_and_images.emoji_picker_collapsed_sections
+        )
 
     @property
     def collapsed_sticker_picker_sections(self) -> Tuple[Union[StickerPickerSection, Guild, Object], ...]:
         """Tuple[Union[:class:`StickerPickerSection`, :class:`Guild`, :class:`Object`]]: A list of sticker picker sections (including guild and sticker pack IDs) that are collapsed."""
-        return tuple(self._get_guild(section) if section.isdigit() else try_enum(StickerPickerSection, section) for section in self.settings.text_and_images.sticker_picker_collapsed_sections)
+        return tuple(
+            self._get_guild(section) if section.isdigit() else try_enum(StickerPickerSection, section)
+            for section in self.settings.text_and_images.sticker_picker_collapsed_sections
+        )
 
     @property
     def view_image_descriptions(self) -> bool:
@@ -299,37 +333,65 @@ class UserSettings(_ProtoSettings):
     @property
     def show_command_suggestions(self) -> bool:
         """:class:`bool`: Whether to show application command suggestions in-chat."""
-        return self.settings.text_and_images.show_command_suggestions.value if self.settings.text_and_images.HasField('show_command_suggestions') else True
+        return (
+            self.settings.text_and_images.show_command_suggestions.value
+            if self.settings.text_and_images.HasField('show_command_suggestions')
+            else True
+        )
 
     @property
     def inline_attachment_media(self) -> bool:
         """:class:`bool`: Whether to display attachments when they are uploaded in chat."""
-        return self.settings.text_and_images.inline_attachment_media.value if self.settings.text_and_images.HasField('inline_attachment_media') else True
+        return (
+            self.settings.text_and_images.inline_attachment_media.value
+            if self.settings.text_and_images.HasField('inline_attachment_media')
+            else True
+        )
 
     @property
     def inline_embed_media(self) -> bool:
         """:class:`bool`: Whether to display videos and images from links posted in chat."""
-        return self.settings.text_and_images.inline_embed_media.value if self.settings.text_and_images.HasField('inline_embed_media') else True
+        return (
+            self.settings.text_and_images.inline_embed_media.value
+            if self.settings.text_and_images.HasField('inline_embed_media')
+            else True
+        )
 
     @property
     def gif_auto_play(self) -> bool:
         """:class:`bool`: Whether to automatically play GIFs that are in the chat.."""
-        return self.settings.text_and_images.gif_auto_play.value if self.settings.text_and_images.HasField('gif_auto_play') else True
+        return (
+            self.settings.text_and_images.gif_auto_play.value
+            if self.settings.text_and_images.HasField('gif_auto_play')
+            else True
+        )
 
     @property
     def render_embeds(self) -> bool:
         """:class:`bool`: Whether to render embeds that are sent in the chat."""
-        return self.settings.text_and_images.render_embeds.value if self.settings.text_and_images.HasField('render_embeds') else True
+        return (
+            self.settings.text_and_images.render_embeds.value
+            if self.settings.text_and_images.HasField('render_embeds')
+            else True
+        )
 
     @property
     def render_reactions(self) -> bool:
         """:class:`bool`: Whether to render reactions that are added to messages."""
-        return self.settings.text_and_images.render_reactions.value if self.settings.text_and_images.HasField('render_reactions') else True
+        return (
+            self.settings.text_and_images.render_reactions.value
+            if self.settings.text_and_images.HasField('render_reactions')
+            else True
+        )
 
     @property
     def animate_emojis(self) -> bool:
         """:class:`bool`: Whether to animate emojis in the chat."""
-        return self.settings.text_and_images.animate_emoji.value if self.settings.text_and_images.HasField('animate_emoji') else True
+        return (
+            self.settings.text_and_images.animate_emoji.value
+            if self.settings.text_and_images.HasField('animate_emoji')
+            else True
+        )
 
     @property
     def animate_stickers(self) -> StickerAnimationOptions:
@@ -339,7 +401,11 @@ class UserSettings(_ProtoSettings):
     @property
     def enable_tts_command(self) -> bool:
         """:class:`bool`: Whether to allow TTS messages to be played/sent."""
-        return self.settings.text_and_images.enable_tts_command.value if self.settings.text_and_images.HasField('enable_tts_command') else True
+        return (
+            self.settings.text_and_images.enable_tts_command.value
+            if self.settings.text_and_images.HasField('enable_tts_command')
+            else True
+        )
 
     @property
     def message_display_compact(self) -> bool:
@@ -349,7 +415,12 @@ class UserSettings(_ProtoSettings):
     @property
     def explicit_content_filter(self) -> UserContentFilter:
         """:class:`UserContentFilter`: The filter for explicit content in all messages."""
-        return try_enum(UserContentFilter, self.settings.text_and_images.explicit_content_filter.value if self.settings.text_and_images.HasField('explicit_content_filter') else 1)
+        return try_enum(
+            UserContentFilter,
+            self.settings.text_and_images.explicit_content_filter.value
+            if self.settings.text_and_images.HasField('explicit_content_filter')
+            else 1,
+        )
 
     @property
     def view_nsfw_guilds(self) -> bool:
@@ -359,12 +430,20 @@ class UserSettings(_ProtoSettings):
     @property
     def convert_emoticons(self) -> bool:
         """:class:`bool`:  Whether to automatically convert emoticons into emojis (e.g. :-) -> 😃)."""
-        return self.settings.text_and_images.convert_emoticons.value if self.settings.text_and_images.HasField('convert_emoticons') else True
+        return (
+            self.settings.text_and_images.convert_emoticons.value
+            if self.settings.text_and_images.HasField('convert_emoticons')
+            else True
+        )
 
     @property
     def show_expression_suggestions(self) -> bool:
         """:class:`bool`: Whether to show expression (emoji/sticker/soundboard) suggestions in-chat."""
-        return self.settings.text_and_images.expression_suggestions_enabled.value if self.settings.text_and_images.HasField('expression_suggestions_enabled') else True
+        return (
+            self.settings.text_and_images.expression_suggestions_enabled.value
+            if self.settings.text_and_images.HasField('expression_suggestions_enabled')
+            else True
+        )
 
     @property
     def view_nsfw_commands(self) -> bool:
@@ -381,7 +460,11 @@ class UserSettings(_ProtoSettings):
     @property
     def in_app_notifications(self) -> bool:
         """:class:`bool`: Whether to show notifications directly in the app."""
-        return self.settings.notifications.show_in_app_notifications.value if self.settings.notifications.HasField('show_in_app_notifications') else True
+        return (
+            self.settings.notifications.show_in_app_notifications.value
+            if self.settings.notifications.HasField('show_in_app_notifications')
+            else True
+        )
 
     @property
     def send_stream_notifications(self) -> bool:
@@ -398,12 +481,20 @@ class UserSettings(_ProtoSettings):
     @property
     def allow_activity_friend_joins(self) -> bool:
         """:class:`bool`: Whether to allow friends to join your activity without sending a request."""
-        return self.settings.privacy.allow_activity_party_privacy_friends.value if self.settings.privacy.HasField('allow_activity_party_privacy_friends') else True
+        return (
+            self.settings.privacy.allow_activity_party_privacy_friends.value
+            if self.settings.privacy.HasField('allow_activity_party_privacy_friends')
+            else True
+        )
 
     @property
     def allow_activity_voice_channel_joins(self) -> bool:
         """:class:`bool`: Whether to allow people in the same voice channel as you to join your activity without sending a request. Does not apply to Community guilds."""
-        return self.settings.privacy.allow_activity_party_privacy_voice_channel.value if self.settings.privacy.HasField('allow_activity_party_privacy_voice_channel') else True
+        return (
+            self.settings.privacy.allow_activity_party_privacy_voice_channel.value
+            if self.settings.privacy.HasField('allow_activity_party_privacy_voice_channel')
+            else True
+        )
 
     @property
     def restricted_guilds(self) -> List[Union[Guild, Object]]:
@@ -423,7 +514,11 @@ class UserSettings(_ProtoSettings):
     @property
     def detect_platform_accounts(self) -> bool:
         """:class:`bool`: Whether to automatically detect accounts from services like Steam and Blizzard when you open the Discord client."""
-        return self.settings.privacy.detect_platform_accounts.value if self.settings.privacy.HasField('detect_platform_accounts') else True
+        return (
+            self.settings.privacy.detect_platform_accounts.value
+            if self.settings.privacy.HasField('detect_platform_accounts')
+            else True
+        )
 
     @property
     def passwordless(self) -> bool:
@@ -438,7 +533,11 @@ class UserSettings(_ProtoSettings):
     @property
     def friend_source_flags(self) -> FriendSourceFlags:
         """:class:`FriendSourceFlags`: Who can add you as a friend."""
-        return FriendSourceFlags._from_value(self.settings.privacy.friend_source_flags.value) if self.settings.privacy.HasField('friend_source_flags') else FriendSourceFlags.all()
+        return (
+            FriendSourceFlags._from_value(self.settings.privacy.friend_source_flags.value)
+            if self.settings.privacy.HasField('friend_source_flags')
+            else FriendSourceFlags.all()
+        )
 
     @property
     def friend_discovery_flags(self) -> FriendDiscoveryFlags:
@@ -458,7 +557,7 @@ class UserSettings(_ProtoSettings):
     @property
     def activity_joining_restricted_guilds(self) -> List[Union[Guild, Object]]:
         """List[Union[:class:`Guild`, :class:`Object`]]: A list of guilds that will not be able to join your current activity."""
-        return list(map(self._get_guild, self.settings.privacy.activity_joining_restricted_guild_ids))    
+        return list(map(self._get_guild, self.settings.privacy.activity_joining_restricted_guild_ids))
 
     @property
     def message_request_restricted_guilds(self) -> List[Union[Guild, Object]]:
@@ -478,7 +577,11 @@ class UserSettings(_ProtoSettings):
     @property
     def non_spam_retraining(self) -> Optional[bool]:
         """Optional[:class:`bool`]: Whether to help improve Discord spam models when marking messages as non-spam; staff only."""
-        return self.settings.privacy.non_spam_retraining_opt_in.value if self.settings.privacy.HasField('non_spam_retraining_opt_in') else None
+        return (
+            self.settings.privacy.non_spam_retraining_opt_in.value
+            if self.settings.privacy.HasField('non_spam_retraining_opt_in')
+            else None
+        )
 
     # Debug Settings
 
@@ -497,7 +600,11 @@ class UserSettings(_ProtoSettings):
     @property
     def install_shortcut_start_menu(self) -> bool:
         """:class:`bool`: Whether to install a start menu shortcut for games."""
-        return self.settings.game_library.install_shortcut_start_menu.value if self.settings.game_library.HasField('install_shortcut_start_menu') else True
+        return (
+            self.settings.game_library.install_shortcut_start_menu.value
+            if self.settings.game_library.HasField('install_shortcut_start_menu')
+            else True
+        )
 
     @property
     def disable_games_tab(self) -> bool:
@@ -514,7 +621,11 @@ class UserSettings(_ProtoSettings):
     @property
     def custom_activity(self) -> Optional[CustomActivity]:
         """:class:`CustomActivity`: The set custom activity."""
-        return CustomActivity._from_settings(data=self.settings.status.custom_status, state=self._state) if self.settings.status.HasField('custom_status') else None
+        return (
+            CustomActivity._from_settings(data=self.settings.status.custom_status, state=self._state)
+            if self.settings.status.HasField('custom_status')
+            else None
+        )
 
     @property
     def show_current_game(self) -> bool:
@@ -544,10 +655,14 @@ class UserSettings(_ProtoSettings):
     def client_theme(self) -> Optional[Tuple[int, int, float]]:
         """Optional[Tuple[:class:`int`, :class:`int`, :class:`float`]]: The client theme settings, in order of primary color, gradient preset, and gradient angle."""
         return (
-            self.settings.appearance.client_theme_settings.primary_color.value,
-            self.settings.appearance.client_theme_settings.background_gradient_preset_id.value,
-            self.settings.appearance.client_theme_settings.background_gradient_angle.value
-        ) if self.settings.appearance.HasField('client_theme_settings') else None
+            (
+                self.settings.appearance.client_theme_settings.primary_color.value,
+                self.settings.appearance.client_theme_settings.background_gradient_preset_id.value,
+                self.settings.appearance.client_theme_settings.background_gradient_angle.value,
+            )
+            if self.settings.appearance.HasField('client_theme_settings')
+            else None
+        )
 
     @property
     def developer_mode(self) -> bool:
@@ -582,13 +697,19 @@ class UserSettings(_ProtoSettings):
     def user_audio_settings(self) -> List[AudioContext]:
         """List[:class:`AudioContext`]: A list of audio context settings for users."""
         state = self._state
-        return [AudioContext._from_settings(user_id, data=data, state=state) for user_id, data in self.settings.audio_context_settings.user.items()]
+        return [
+            AudioContext._from_settings(user_id, data=data, state=state)
+            for user_id, data in self.settings.audio_context_settings.user.items()
+        ]
 
     @property
     def stream_audio_settings(self) -> List[AudioContext]:
         """List[:class:`AudioContext`]: A list of audio context settings for streams."""
         state = self._state
-        return [AudioContext._from_settings(stream_id, data=data, state=state) for stream_id, data in self.settings.audio_context_settings.stream.items()]
+        return [
+            AudioContext._from_settings(stream_id, data=data, state=state)
+            for stream_id, data in self.settings.audio_context_settings.stream.items()
+        ]
 
     # Communities Settings
 
@@ -624,7 +745,7 @@ class UserSettings(_ProtoSettings):
         animate_emojis: bool = ...,
         animate_stickers: StickerAnimationOptions = ...,
         explicit_content_filter: UserContentFilter = ...,
-        show_expression_suggestions: bool = ..., 
+        show_expression_suggestions: bool = ...,
         use_thread_sidebar: bool = ...,
         view_image_descriptions: bool = ...,
         show_command_suggestions: bool = ...,
@@ -742,33 +863,64 @@ class UserSettings(_ProtoSettings):
 
         guilds = {}
         if 'guild_progress_settings' in kwargs and kwargs['guild_progress_settings'] is not MISSING:
-            guilds['guilds'] = {guild.guild_id: guild.to_dict() for guild in kwargs.pop('guild_progress_settings')} if kwargs['guild_progress_settings'] is not MISSING else MISSING
+            guilds['guilds'] = (
+                {guild.guild_id: guild.to_dict() for guild in kwargs.pop('guild_progress_settings')}
+                if kwargs['guild_progress_settings'] is not MISSING
+                else MISSING
+            )
 
         user_content = {}
         if 'dismissed_contents' in kwargs:
             contents = kwargs.pop('dismissed_contents')
-            user_content['dismissed_contents'] = struct.pack(f'>{len(contents)}B', *contents) if contents is not MISSING else MISSING
+            user_content['dismissed_contents'] = (
+                struct.pack(f'>{len(contents)}B', *contents) if contents is not MISSING else MISSING
+            )
         if 'last_dismissed_promotion_start_date' in kwargs:
-            user_content['last_dismissed_outbound_promotion_start_date'] = kwargs.pop('last_dismissed_promotion_start_date').isoformat() if kwargs['last_dismissed_promotion_start_date'] is not MISSING else MISSING
+            user_content['last_dismissed_outbound_promotion_start_date'] = (
+                kwargs.pop('last_dismissed_promotion_start_date').isoformat()
+                if kwargs['last_dismissed_promotion_start_date'] is not MISSING
+                else MISSING
+            )
         if 'nitro_basic_modal_dismissed_at' in kwargs:
-            user_content['premium_tier_0_modal_dismissed_at'] = kwargs.pop('nitro_basic_modal_dismissed_at').isoformat() if kwargs['nitro_basic_modal_dismissed_at'] is not MISSING else MISSING
+            user_content['premium_tier_0_modal_dismissed_at'] = (
+                kwargs.pop('nitro_basic_modal_dismissed_at').isoformat()
+                if kwargs['nitro_basic_modal_dismissed_at'] is not MISSING
+                else MISSING
+            )
 
         voice_and_video = {}
         if 'soundboard_volume' in kwargs:
-            voice_and_video['soundboard_settings'] = {'volume': kwargs.pop('soundboard_volume')} if kwargs['soundboard_volume'] is not MISSING else {}
-        for field in ('afk_timeout', 'always_preview_video', 'native_phone_integration_enabled', 'stream_notifications_enabled'):
+            voice_and_video['soundboard_settings'] = (
+                {'volume': kwargs.pop('soundboard_volume')} if kwargs['soundboard_volume'] is not MISSING else {}
+            )
+        for field in (
+            'afk_timeout',
+            'always_preview_video',
+            'native_phone_integration_enabled',
+            'stream_notifications_enabled',
+        ):
             if field in kwargs:
                 voice_and_video[field] = kwargs.pop(field)
 
         text_and_images = {}
         if 'diversity_surrogate' in kwargs:
-            text_and_images['diversity_surrogate'] = kwargs.pop('diversity_surrogate') or '' if kwargs['diversity_surrogate'] is not MISSING else MISSING
+            text_and_images['diversity_surrogate'] = (
+                kwargs.pop('diversity_surrogate') or '' if kwargs['diversity_surrogate'] is not MISSING else MISSING
+            )
         if 'render_spoilers' in kwargs:
             text_and_images['render_spoilers'] = _ocast(kwargs.pop('render_spoilers'), str)
         if 'collapsed_emoji_picker_sections' in kwargs:
-            text_and_images['emoji_picker_collapsed_sections'] = [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_emoji_picker_sections')] if kwargs['collapsed_emoji_picker_sections'] is not MISSING else MISSING
+            text_and_images['emoji_picker_collapsed_sections'] = (
+                [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_emoji_picker_sections')]
+                if kwargs['collapsed_emoji_picker_sections'] is not MISSING
+                else MISSING
+            )
         if 'collapsed_sticker_picker_sections' in kwargs:
-            text_and_images['sticker_picker_collapsed_sections'] = [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_sticker_picker_sections')] if kwargs['collapsed_sticker_picker_sections'] is not MISSING else MISSING
+            text_and_images['sticker_picker_collapsed_sections'] = (
+                [str(getattr(x, 'id', x)) for x in kwargs.pop('collapsed_sticker_picker_sections')]
+                if kwargs['collapsed_sticker_picker_sections'] is not MISSING
+                else MISSING
+            )
         if 'animate_emojis' in kwargs:
             text_and_images['animate_emoji'] = kwargs.pop('animate_emojis')
         if 'animate_stickers' in kwargs:
@@ -777,7 +929,23 @@ class UserSettings(_ProtoSettings):
             text_and_images['explicit_content_filter'] = _ocast(kwargs.pop('explicit_content_filter'), int)
         if 'show_expression_suggestions' in kwargs:
             text_and_images['expression_suggestions_enabled'] = kwargs.pop('show_expression_suggestions')
-        for field in ('use_thread_sidebar', 'view_image_descriptions', 'show_command_suggestions', 'inline_attachment_media', 'inline_embed_media', 'gif_auto_play', 'render_embeds', 'render_reactions', 'enable_tts_command', 'message_display_compact', 'view_nsfw_guilds', 'convert_emoticons', 'view_nsfw_commands', 'use_legacy_chat_input', 'use_rich_chat_input'):
+        for field in (
+            'use_thread_sidebar',
+            'view_image_descriptions',
+            'show_command_suggestions',
+            'inline_attachment_media',
+            'inline_embed_media',
+            'gif_auto_play',
+            'render_embeds',
+            'render_reactions',
+            'enable_tts_command',
+            'message_display_compact',
+            'view_nsfw_guilds',
+            'convert_emoticons',
+            'view_nsfw_commands',
+            'use_legacy_chat_input',
+            'use_rich_chat_input',
+        ):
             if field in kwargs:
                 text_and_images[field] = kwargs.pop(field)
 
@@ -796,14 +964,32 @@ class UserSettings(_ProtoSettings):
         if 'allow_activity_voice_channel_joins' in kwargs:
             privacy['allow_activity_party_privacy_voice_channel'] = kwargs.pop('allow_activity_voice_channel_joins')
         if 'friend_source_flags' in kwargs:
-            privacy['friend_source_flags'] = kwargs.pop('friend_source_flags').value if kwargs['friend_source_flags'] is not MISSING else MISSING
+            privacy['friend_source_flags'] = (
+                kwargs.pop('friend_source_flags').value if kwargs['friend_source_flags'] is not MISSING else MISSING
+            )
         if 'friend_discovery_flags' in kwargs:
-            privacy['friend_discovery_flags'] = kwargs.pop('friend_discovery_flags').value if kwargs['friend_discovery_flags'] is not MISSING else MISSING
+            privacy['friend_discovery_flags'] = (
+                kwargs.pop('friend_discovery_flags').value if kwargs['friend_discovery_flags'] is not MISSING else MISSING
+            )
         if 'drops' in kwargs:
             privacy['drops_opted_out'] = not kwargs.pop('drops') if kwargs['drops'] is not MISSING else MISSING
         if 'non_spam_retraining' in kwargs:
-            privacy['non_spam_retraining_opt_in'] = kwargs.pop('non_spam_retraining') if kwargs['non_spam_retraining'] not in {None, MISSING} else MISSING
-        for field in ('restricted_guilds', 'default_guilds_restricted', 'allow_accessibility_detection', 'detect_platform_accounts', 'passwordless', 'contact_sync_enabled', 'activity_restricted_guilds', 'default_guilds_activity_restricted', 'activity_joining_restricted_guilds', 'message_request_restricted_guilds', 'default_message_request_restricted'):
+            privacy['non_spam_retraining_opt_in'] = (
+                kwargs.pop('non_spam_retraining') if kwargs['non_spam_retraining'] not in {None, MISSING} else MISSING
+            )
+        for field in (
+            'restricted_guilds',
+            'default_guilds_restricted',
+            'allow_accessibility_detection',
+            'detect_platform_accounts',
+            'passwordless',
+            'contact_sync_enabled',
+            'activity_restricted_guilds',
+            'default_guilds_activity_restricted',
+            'activity_joining_restricted_guilds',
+            'message_request_restricted_guilds',
+            'default_message_request_restricted',
+        ):
             if field in kwargs:
                 if field.endswith('_guilds'):
                     privacy[field.replace('_guilds', '_guild_ids')] = [g.id for g in kwargs.pop(field)]
@@ -824,7 +1010,11 @@ class UserSettings(_ProtoSettings):
         if 'status' in kwargs:
             status['status'] = _ocast(kwargs.pop('status'), str)
         if 'custom_activity' in kwargs:
-            status['custom_status'] = kwargs.pop('custom_activity').to_settings_dict() if kwargs['custom_activity'] not in {MISSING, None} else MISSING
+            status['custom_status'] = (
+                kwargs.pop('custom_activity').to_settings_dict()
+                if kwargs['custom_activity'] not in {MISSING, None}
+                else MISSING
+            )
         for field in ('show_current_game',):
             if field in kwargs:
                 status[field] = kwargs.pop(field)
@@ -858,24 +1048,54 @@ class UserSettings(_ProtoSettings):
 
         guild_folders = {}
         if 'guild_folders' in kwargs:
-            guild_folders['folders'] = [f.to_dict() for f in kwargs.pop('guild_folders')] if kwargs['guild_folders'] is not MISSING else MISSING
+            guild_folders['folders'] = (
+                [f.to_dict() for f in kwargs.pop('guild_folders')] if kwargs['guild_folders'] is not MISSING else MISSING
+            )
         if 'guild_positions' in kwargs:
-            guild_folders['guild_positions'] = [g.id for g in kwargs.pop('guild_positions')] if kwargs['guild_positions'] is not MISSING else MISSING
+            guild_folders['guild_positions'] = (
+                [g.id for g in kwargs.pop('guild_positions')] if kwargs['guild_positions'] is not MISSING else MISSING
+            )
 
         audio_context_settings = {}
         if 'user_audio_settings' in kwargs:
-            audio_context_settings['user'] = {s.id: s.to_dict() for s in kwargs.pop('user_audio_settings')} if kwargs['user_audio_settings'] is not MISSING else MISSING
+            audio_context_settings['user'] = (
+                {s.id: s.to_dict() for s in kwargs.pop('user_audio_settings')}
+                if kwargs['user_audio_settings'] is not MISSING
+                else MISSING
+            )
         if 'stream_audio_settings' in kwargs:
-            audio_context_settings['stream'] = {s.id: s.to_dict() for s in kwargs.pop('stream_audio_settings')} if kwargs['stream_audio_settings'] is not MISSING else MISSING
+            audio_context_settings['stream'] = (
+                {s.id: s.to_dict() for s in kwargs.pop('stream_audio_settings')}
+                if kwargs['stream_audio_settings'] is not MISSING
+                else MISSING
+            )
 
         communities = {}
         if 'home_auto_navigation' in kwargs:
-            communities['disable_home_auto_nav'] = not kwargs.pop('home_auto_navigation') if kwargs['home_auto_navigation'] is not MISSING else MISSING
+            communities['disable_home_auto_nav'] = (
+                not kwargs.pop('home_auto_navigation') if kwargs['home_auto_navigation'] is not MISSING else MISSING
+            )
 
         # Now, we do the actual patching
         existing = self.to_dict()
         payload = {}
-        for subsetting in ('inbox', 'guilds', 'user_content', 'voice_and_video', 'text_and_images', 'notifications', 'privacy', 'debug', 'game_library', 'status', 'localization', 'appearance', 'guild_folders', 'audio_context_settings', 'communities'):
+        for subsetting in (
+            'inbox',
+            'guilds',
+            'user_content',
+            'voice_and_video',
+            'text_and_images',
+            'notifications',
+            'privacy',
+            'debug',
+            'game_library',
+            'status',
+            'localization',
+            'appearance',
+            'guild_folders',
+            'audio_context_settings',
+            'communities',
+        ):
             subsetting_dict = locals()[subsetting]
             if subsetting_dict:
                 original = existing.get(subsetting, {})
@@ -928,7 +1148,14 @@ class GuildFolder:
 
     __slots__ = ('_state', 'id', 'name', '_colour', '_guild_ids')
 
-    def __init__(self, *, id: Optional[int] = None, name: Optional[str] = None, colour: Optional[Colour] = None, guilds: Sequence[Snowflake] = MISSING):
+    def __init__(
+        self,
+        *,
+        id: Optional[int] = None,
+        name: Optional[str] = None,
+        colour: Optional[Colour] = None,
+        guilds: Sequence[Snowflake] = MISSING,
+    ):
         self._state: Optional[ConnectionState] = None
         self.id: Optional[int] = id
         self.name: Optional[str] = name
@@ -1135,9 +1362,26 @@ class GuildProgress:
         When the guild recents were last dismissed.
     """
 
-    __slots__ = ('guild_id', '_hub_progress', '_onboarding_progress', 'recents_dismissed_at', '_dismissed_contents', '_collapsed_channel_ids', '_state')
+    __slots__ = (
+        'guild_id',
+        '_hub_progress',
+        '_onboarding_progress',
+        'recents_dismissed_at',
+        '_dismissed_contents',
+        '_collapsed_channel_ids',
+        '_state',
+    )
 
-    def __init__(self, guild_id: int, *, hub_progress: HubProgressFlags, onboarding_progress: OnboardingProgressFlags, recents_dismissed_at: Optional[datetime] = None, dismissed_contents: Sequence[int] = MISSING, collapsed_channels: List[Snowflake] = MISSING) -> None:
+    def __init__(
+        self,
+        guild_id: int,
+        *,
+        hub_progress: HubProgressFlags,
+        onboarding_progress: OnboardingProgressFlags,
+        recents_dismissed_at: Optional[datetime] = None,
+        dismissed_contents: Sequence[int] = MISSING,
+        collapsed_channels: List[Snowflake] = MISSING,
+    ) -> None:
         self._state: Optional[ConnectionState] = None
         self.guild_id = guild_id
         self._hub_progress = hub_progress.value
@@ -1170,9 +1414,15 @@ class GuildProgress:
         self.guild_id = guild_id
         self._hub_progress = data.hub_progress
         self._onboarding_progress = data.guild_onboarding_progress
-        self.recents_dismissed_at = data.guild_recents_dismissed_at.ToDatetime(tzinfo=timezone.utc) if data.HasField('guild_recents_dismissed_at') else None
+        self.recents_dismissed_at = (
+            data.guild_recents_dismissed_at.ToDatetime(tzinfo=timezone.utc)
+            if data.HasField('guild_recents_dismissed_at')
+            else None
+        )
         self._dismissed_contents = data.dismissed_guild_content
-        self._collapsed_channel_ids = [channel_id for channel_id, settings in data.channels.items() if settings.collapsed_in_inbox]
+        self._collapsed_channel_ids = [
+            channel_id for channel_id, settings in data.channels.items() if settings.collapsed_in_inbox
+        ]
         return self
 
     def _get_channel(self, id: int, /) -> Union[GuildChannel, Object]:
@@ -1602,7 +1852,9 @@ class LegacyUserSettings:
     def guild_folders(self) -> List[GuildFolder]:
         """List[:class:`GuildFolder`]: A list of guild folders."""
         state = self._state
-        return [GuildFolder._from_legacy_settings(data=folder, state=state) for folder in getattr(self, '_guild_folders', [])]
+        return [
+            GuildFolder._from_legacy_settings(data=folder, state=state) for folder in getattr(self, '_guild_folders', [])
+        ]
 
     @property
     def guild_positions(self) -> List[Union[Guild, Object]]:
