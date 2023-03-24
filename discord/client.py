@@ -2499,7 +2499,7 @@ class Client:
 
         Returns
         --------
-        :class:`LegacyUserSettings`
+        :class:`.LegacyUserSettings`
             The current settings for your account.
         """
         state = self._connection

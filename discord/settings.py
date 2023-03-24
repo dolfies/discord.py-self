@@ -429,7 +429,7 @@ class UserSettings(_ProtoSettings):
 
     @property
     def convert_emoticons(self) -> bool:
-        """:class:`bool`:  Whether to automatically convert emoticons into emojis (e.g. :-) -> 😃)."""
+        r""":class:`bool`: Whether to automatically convert emoticons into emojis (e.g. ``:)`` -> 😃)."""
         return (
             self.settings.text_and_images.convert_emoticons.value
             if self.settings.text_and_images.HasField('convert_emoticons')
@@ -1593,7 +1593,7 @@ class LegacyUserSettings:
     contact_sync_enabled: :class:`bool`
         Whether to enable the contact sync on Discord mobile.
     convert_emoticons: :class:`bool`
-        Whether to automatically convert emoticons into emojis (e.g. :-) -> 😃).
+        Whether to automatically convert emoticons into emojis (e.g. :) -> 😃).
     default_guilds_restricted: :class:`bool`
         Whether to automatically disable DMs between you and
         members of new guilds you join.
@@ -1714,11 +1714,11 @@ class LegacyUserSettings:
 
         Parameters
         ----------
-        activity_restricted_guilds: List[:class:`abc.Snowflake`]
+        activity_restricted_guilds: List[:class:`~discord.abc.Snowflake`]
             A list of guilds that your current activity will not be shown in.
 
             .. versionadded:: 2.0
-        activity_joining_restricted_guilds: List[:class:`abc.Snowflake`]
+        activity_joining_restricted_guilds: List[:class:`~discord.abc.Snowflake`]
             A list of guilds that will not be able to join your current activity.
 
             .. versionadded:: 2.0
@@ -1729,12 +1729,12 @@ class LegacyUserSettings:
             Whether to allow Discord to track screen reader usage.
         animate_emojis: :class:`bool`
             Whether to animate emojis in the chat.
-        animate_stickers: :class:`StickerAnimationOptions`
+        animate_stickers: :class:`.StickerAnimationOptions`
             Whether to animate stickers in the chat.
         contact_sync_enabled: :class:`bool`
             Whether to enable the contact sync on Discord mobile.
         convert_emoticons: :class:`bool`
-            Whether to automatically convert emoticons into emojis (e.g. :-) -> 😃).
+            Whether to automatically convert emoticons into emojis (e.g. :) -> 😃).
         default_guilds_restricted: :class:`bool`
             Whether to automatically disable DMs between you and
             members of new guilds you join.
@@ -1747,22 +1747,22 @@ class LegacyUserSettings:
             Whether to disable the showing of the Games tab.
         enable_tts_command: :class:`bool`
             Whether to allow TTS messages to be played/sent.
-        explicit_content_filter: :class:`UserContentFilter`
+        explicit_content_filter: :class:`.UserContentFilter`
             The filter for explicit content in all messages.
-        friend_source_flags: :class:`FriendSourceFlags`
+        friend_source_flags: :class:`.FriendSourceFlags`
             Who can add you as a friend.
-        friend_discovery_flags: :class:`FriendDiscoveryFlags`
+        friend_discovery_flags: :class:`.FriendDiscoveryFlags`
             How you get recommended friends.
         gif_auto_play: :class:`bool`
             Whether to automatically play GIFs that are in the chat.
-        guild_positions: List[:class:`abc.Snowflake`]
+        guild_positions: List[:class:`~discord.abc.Snowflake`]
             A list of guilds in order of the guild/guild icons that are on
             the left hand side of the UI.
         inline_attachment_media: :class:`bool`
             Whether to display attachments when they are uploaded in chat.
         inline_embed_media: :class:`bool`
             Whether to display videos and images from links posted in chat.
-        locale: :class:`Locale`
+        locale: :class:`.Locale`
             The :rfc:`3066` language identifier of the locale to use for the language
             of the Discord client.
         message_display_compact: :class:`bool`
@@ -1776,13 +1776,13 @@ class LegacyUserSettings:
             Whether to render embeds that are sent in the chat.
         render_reactions: :class:`bool`
             Whether to render reactions that are added to messages.
-        restricted_guilds: List[:class:`abc.Snowflake`]
+        restricted_guilds: List[:class:`~discord.abc.Snowflake`]
             A list of guilds that you will not receive DMs from.
         show_current_game: :class:`bool`
             Whether to display the game that you are currently playing.
         stream_notifications_enabled: :class:`bool`
             Whether stream notifications for friends will be received.
-        theme: :class:`Theme`
+        theme: :class:`.Theme`
             The overall theme of the Discord UI.
         timezone_offset: :class:`int`
             The timezone offset to use.
