@@ -619,7 +619,7 @@ class ClientUser(BaseUser):
     @property
     def locale(self) -> Locale:
         """:class:`Locale`: The IETF language tag used to identify the language the user is using."""
-        return self.settings.locale if self.settings else try_enum(Locale, self._locale)
+        return self._state.settings.locale if self._state.settings else try_enum(Locale, self._locale)
 
     @property
     def premium(self) -> bool:

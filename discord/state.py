@@ -48,6 +48,8 @@ import weakref
 import inspect
 from math import ceil
 
+from discord_protos import UserSettingsType
+
 from .errors import ClientException, InvalidData, NotFound
 from .guild import CommandCounts, Guild
 from .activity import BaseActivity, create_activity, Session
@@ -70,7 +72,6 @@ from .enums import (
     Status,
     try_enum,
     UnavailableGuildType,
-    UserSettingsType,
 )
 from . import utils
 from .flags import MemberCacheFlags
