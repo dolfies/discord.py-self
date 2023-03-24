@@ -727,6 +727,7 @@ class UserSettings(_ProtoSettings):
         self,
         *,
         require_version: Union[bool, int] = False,
+        client_version: int = ...,
         inbox_tab: InboxTab = ...,
         inbox_tutorial_viewed: bool = ...,
         guild_progress_settings: Sequence[GuildProgress] = ...,
@@ -854,6 +855,12 @@ class UserSettings(_ProtoSettings):
 
         if not kwargs:
             raise TypeError('edit() missing at least 1 required keyword-only argument')
+
+        # Only client_version should ever really be sent
+        versions = {}
+        for field in ('data_version', 'client_version', 'server_version'):
+            if field in kwargs:
+                versions[field] = kwargs.pop(field)
 
         inbox = {}
         if 'inbox_tab' in kwargs:
@@ -1080,6 +1087,7 @@ class UserSettings(_ProtoSettings):
         existing = self.to_dict()
         payload = {}
         for subsetting in (
+            'versions',
             'inbox',
             'guilds',
             'user_content',
