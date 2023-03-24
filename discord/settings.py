@@ -720,7 +720,7 @@ class UserSettings(_ProtoSettings):
         HTTPException
             Editing the settings failed.
         TypeError
-            At least one setting it required.
+            At least one setting is required to edit.
 
         Returns
         -------
@@ -894,6 +894,8 @@ class UserSettings(_ProtoSettings):
 class GuildFolder:
     """Represents a guild folder.
 
+    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
+
     .. container:: operations
 
         .. describe:: str(x)
@@ -948,7 +950,7 @@ class GuildFolder:
         self._state = state
         self.id = _get_as_snowflake(data, 'id')
         self.name = data.get('name')
-        self._colour = data['color']
+        self._colour = data.get('color')
         self._guild_ids = [int(guild_id) for guild_id in data['guild_ids']]
         return self
 
@@ -985,31 +987,143 @@ class GuildFolder:
         ret['guild_ids'] = [str(guild_id) for guild_id in self._guild_ids]
         return ret
 
+    def copy(self) -> Self:
+        """Returns a shallow copy of the folder."""
+        return self.__class__._from_legacy_settings(data=self.to_dict(), state=self._state)  # type: ignore
+
+    def add_guild(self, guild: Snowflake) -> Self:
+        """Adds a guild to the folder.
+
+        This function returns the class instance to allow for fluent-style
+        chaining.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        guild: :class:`abc.Snowflake`
+            The guild to add to the folder.
+        """
+        self._guild_ids.append(guild.id)
+        return self
+
+    def insert_guild_at(self, index: int, guild: Snowflake) -> Self:
+        """Inserts a guild before a specified index to the folder.
+
+        This function returns the class instance to allow for fluent-style
+        chaining.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        index: :class:`int`
+            The index of where to insert the field.
+        guild: :class:`abc.Snowflake`
+            The guild to add to the folder.
+        """
+        self._guild_ids.insert(index, guild.id)
+        return self
+
+    def clear_guilds(self) -> None:
+        """Removes all guilds from this folder.
+
+        .. versionadded:: 2.0
+        """
+        self._guild_ids.clear()
+
+    def remove_guild(self, index: int) -> None:
+        """Removes a guild at a specified index.
+
+        If the index is invalid or out of bounds then the error is
+        silently swallowed.
+
+        .. note::
+
+            When deleting a field by index, the index of the other fields
+            shift to fill the gap just like a regular list.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        index: :class:`int`
+            The index of the field to remove.
+        """
+        try:
+            del self._guild_ids[index]
+        except IndexError:
+            pass
+
+    def set_guild_at(self, index: int, guild: Snowflake) -> Self:
+        """Modifies a guild to the guild object.
+
+        The index must point to a valid pre-existing guild.
+
+        This function returns the class instance to allow for fluent-style
+        chaining.
+
+        .. versionadded:: 2.0
+
+        Parameters
+        -----------
+        index: :class:`int`
+            The index of the field to modify.
+        guild: :class:`abc.Snowflake`
+            The guild to add to the folder.
+
+        Raises
+        -------
+        IndexError
+            An invalid index was provided.
+        """
+        self._guild_ids[index] = guild.id
+
+        try:
+            self._guild_ids[index] = guild.id
+        except (TypeError, IndexError):
+            raise IndexError('field index out of range')
+        return self
+
     @property
     def guilds(self) -> List[Union[Guild, Object]]:
-        """List[Union[:class:`Guild`, :class:`Object`]]: The guilds in the folder."""
+        """List[Union[:class:`Guild`, :class:`Object`]]: The guilds in the folder. Always :class:`Object` if state is not attached."""
         return [self._get_guild(guild_id) for guild_id in self._guild_ids]
+
+    @guilds.setter
+    def guilds(self, value: Sequence[Snowflake]) -> None:
+        self._guild_ids = [guild.id for guild in value]
 
     @property
     def colour(self) -> Optional[Colour]:
-        """Optional[:class:`Colour`] The colour of the folder.
+        """Optional[:class:`Colour`]: The colour code of the folder. There is an alias for this named :attr:`colour`."""
+        return Colour(self._colour) if self._colour is not None else None
 
-        There is an alias for this called :attr:`color`.
-        """
-        colour = self._colour
-        return Colour(colour) if colour is not None else None
+    @colour.setter
+    def colour(self, value: Optional[Union[int, Colour]]) -> None:
+        if value is None:
+            self._colour = None
+        elif isinstance(value, Colour):
+            self._colour = value.value
+        elif isinstance(value, int):
+            self._colour = value
+        else:
+            raise TypeError(f'Expected discord.Colour, int, or None but received {value.__class__.__name__} instead.')
 
     @property
     def color(self) -> Optional[Colour]:
-        """Optional[:class:`Colour`] The color of the folder.
-
-        This is an alias for :attr:`colour`.
-        """
+        """Optional[:class:`Colour`]: The colour code of the folder. There is an alias for this named :attr:`colour`."""
         return self.colour
+
+    @color.setter
+    def color(self, value: Optional[Union[int, Colour]]) -> None:
+        self.colour = value
 
 
 class GuildProgress:
     """Represents a guild's settings revolving around upsells, promotions, and feature progress.
+
+    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
 
     .. versionadded:: 2.0
 
@@ -1023,14 +1137,14 @@ class GuildProgress:
 
     __slots__ = ('guild_id', '_hub_progress', '_onboarding_progress', 'recents_dismissed_at', '_dismissed_contents', '_collapsed_channel_ids', '_state')
 
-    def __init__(self, guild_id: int, *, hub_progress: HubProgressFlags, onboarding_progress: OnboardingProgressFlags, recents_dismissed_at: datetime, dismissed_contents: Sequence[int], collapsed_channels: List[Snowflake]) -> None:
+    def __init__(self, guild_id: int, *, hub_progress: HubProgressFlags, onboarding_progress: OnboardingProgressFlags, recents_dismissed_at: Optional[datetime] = None, dismissed_contents: Sequence[int] = MISSING, collapsed_channels: List[Snowflake] = MISSING) -> None:
         self._state: Optional[ConnectionState] = None
         self.guild_id = guild_id
         self._hub_progress = hub_progress.value
         self._onboarding_progress = onboarding_progress.value
         self.recents_dismissed_at: Optional[datetime] = recents_dismissed_at
-        self._dismissed_contents = self._pack_dismissed_contents(dismissed_contents)
-        self._collapsed_channel_ids = [channel.id for channel in collapsed_channels]
+        self._dismissed_contents = self._pack_dismissed_contents(dismissed_contents or [])
+        self._collapsed_channel_ids = [channel.id for channel in collapsed_channels] or []
 
     @classmethod
     def _from_settings(cls, guild_id: int, *, data: Any, state: ConnectionState) -> Self:
@@ -1066,13 +1180,21 @@ class GuildProgress:
         return self.guild.get_channel(id) or Object(id=id) if self.guild is not None else Object(id=id)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data = {
             'hub_progress': self._hub_progress,
             'guild_onboarding_progress': self._onboarding_progress,
-            'guild_recents_dismissed_at': self.recents_dismissed_at.isoformat() if self.recents_dismissed_at is not None else None,
             'dismissed_guild_content': self._dismissed_contents,
             'channels': {id: {'collapsed_in_inbox': True} for id in self._collapsed_channel_ids},
         }
+        if self.recents_dismissed_at is not None:
+            data['guild_recents_dismissed_at'] = self.recents_dismissed_at.isoformat()
+        return data
+
+    def copy(self) -> Self:
+        """Returns a shallow copy of the progress settings."""
+        cls = self.__class__(self.guild_id, hub_progress=self.hub_progress, onboarding_progress=self.onboarding_progress, recents_dismissed_at=self.recents_dismissed_at, dismissed_contents=self.dismissed_contents, collapsed_channels=self.collapsed_channels)  # type: ignore
+        cls._state = self._state
+        return cls
 
     @property
     def guild(self) -> Optional[Guild]:
@@ -1084,10 +1206,18 @@ class GuildProgress:
         """:class:`HubProgressFlags`: The hub's usage and feature progress."""
         return HubProgressFlags._from_value(self._hub_progress)
 
+    @hub_progress.setter
+    def hub_progress(self, value: HubProgressFlags) -> None:
+        self._hub_progress = value.value
+
     @property
     def onboarding_progress(self) -> OnboardingProgressFlags:
         """:class:`OnboardingProgressFlags`: The guild's onboarding usage and feature progress."""
         return OnboardingProgressFlags._from_value(self._onboarding_progress)
+
+    @onboarding_progress.setter
+    def onboarding_progress(self, value: OnboardingProgressFlags) -> None:
+        self._onboarding_progress = value.value
 
     @staticmethod
     def _pack_dismissed_contents(contents: Sequence[int]) -> bytes:
@@ -1105,42 +1235,24 @@ class GuildProgress:
         contents = self._dismissed_contents
         return struct.unpack(f'>{len(contents)}B', contents)
 
+    @dismissed_contents.setter
+    def dismissed_contents(self, value: Sequence[int]) -> None:
+        self._dismissed_contents = self._pack_dismissed_contents(value)
+
     @property
     def collapsed_channels(self) -> List[Union[GuildChannel, Object]]:
-        """List[Union[:class:`abc.GuildChannel`, :class:`Object`]]: A list of guild channels that are collapsed in the inbox."""
+        """List[Union[:class:`abc.GuildChannel`, :class:`Object`]]: A list of guild channels that are collapsed in the inbox. Always :class:`Object` if state is not attached."""
         return list(map(self._get_channel, self._collapsed_channel_ids))
 
-    async def edit(
-        self,
-        *,
-        hub_progress: HubProgressFlags = MISSING,
-        onboarding_progress: OnboardingProgressFlags = MISSING,
-        recents_dismissed_at: datetime = MISSING,
-        dismissed_contents: Sequence[int] = MISSING,
-        collapsed_channels: List[Snowflake] = MISSING,
-    ) -> None:
-        """|coro|
-
-        Edits the guild's progress settings.
-
-        Parameters
-        ----------
-        hub_progress: :class:`HubProgressFlags`
-            The hub's usage and feature progress.
-        onboarding_progress: :class:`OnboardingProgressFlags`
-            The guild's onboarding usage and feature progress.
-        recents_dismissed_at: :class:`datetime.datetime`
-            When the guild recents were last dismissed.
-        dismissed_contents: Sequence[:class:`int`]
-            A list of enum values representing per-guild dismissable content in the app.
-        collapsed_channels: List[:class:`abc.Snowflake`]
-            A list of guild channels that are collapsed in the inbox.
-        """
-        ...
+    @collapsed_channels.setter
+    def collapsed_channels(self, value: Sequence[Snowflake]) -> None:
+        self._collapsed_channel_ids = [channel.id for channel in value]
 
 
 class AudioContext:
     """Represents saved audio settings for a user or stream.
+
+    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
 
     .. versionadded:: 2.0
 
@@ -1182,24 +1294,26 @@ class AudioContext:
         self.modified_at = parse_timestamp(data.modified_at)
         return self
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the object to a dictionary."""
+        return {
+            'user_id': self.user_id,
+            'muted': self.muted,
+            'volume': self.volume,
+            'modified_at': self.modified_at.isoformat(),
+        }
+
+    def copy(self) -> Self:
+        """Returns a shallow copy of the audio context."""
+        cls = self.__class__(self.user_id, muted=self.muted, volume=self.volume)
+        cls.modified_at = self.modified_at
+        cls._state = self._state
+        return cls
+
     @property
     def user(self) -> Optional[User]:
         """Optional[:class:`User`]: The user the settings are for. ``None`` if state is not attached."""
         return self._state.get_user(self.user_id) if self._state is not None else None
-
-    async def edit(self, *, muted: bool = MISSING, volume: float = MISSING) -> None:
-        """|coro|
-
-        Edits the audio settings.
-
-        Parameters
-        ----------
-        muted: :class:`bool`
-            Whether to mute the user or stream.
-        volume: :class:`float`
-            The volume of the user or stream (0-100).
-        """
-        ...
 
 
 class LegacyUserSettings:
