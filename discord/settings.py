@@ -641,7 +641,7 @@ class UserSettings(_ProtoSettings):
 
     @property
     def timezone_offset(self) -> int:
-        """:class:`int`: The timezone offset to use."""
+        """:class:`int`: The timezone offset from UTC to use (in minutes)."""
         return self.settings.localization.timezone_offset.value
 
     # Appearance Settings
@@ -1634,7 +1634,7 @@ class LegacyUserSettings:
     stream_notifications_enabled: :class:`bool`
         Whether stream notifications for friends will be received.
     timezone_offset: :class:`int`
-        The timezone offset to use.
+        The timezone offset from UTC to use (in minutes).
     view_nsfw_commands: :class:`bool`
         Whether to show NSFW application commands in DMs.
 
