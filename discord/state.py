@@ -2722,6 +2722,12 @@ class ConnectionState:
             if channel is not None:
                 return channel
 
+    def _get_or_create_partial_messageable(self, id: Optional[int]) -> Optional[Union[Channel, Thread]]:
+        if id is None:
+            return None
+
+        return self.get_channel(id) or PartialMessageable(state=self, id=id)
+
     def create_message(
         self,
         *,
