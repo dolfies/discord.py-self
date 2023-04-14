@@ -100,6 +100,7 @@ if TYPE_CHECKING:
         payments,
         profile,
         promotions,
+        read_state,
         template,
         role,
         user,
@@ -1104,20 +1105,20 @@ class HTTPClient:
     def send_typing(self, channel_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
 
-    async def ack_message(self, channel_id: Snowflake, message_id: Snowflake):  # TODO: response type (simple)
+    async def ack_message(self, channel_id: Snowflake, message_id: Snowflake, *, manual: bool = False, mention_count: int = 0) -> Optional[str]:
         r = Route('POST', '/channels/{channel_id}/messages/{message_id}/ack', channel_id=channel_id, message_id=message_id)
-        payload = {'token': self.ack_token}
+        payload = {}
+        if manual:
+            payload['manual'] = True
+            payload['mention_count'] = mention_count
+        else:
+            payload['token'] = self.ack_token
 
-        data = await self.request(r, json=payload)
-        self.ack_token = data['token']
+        data: read_state.AcknowledgementToken = await self.request(r, json=payload)
+        self.ack_token = token = data['token']
+        return token
 
-    def unack_message(self, channel_id: Snowflake, message_id: Snowflake, *, mention_count: int = 0) -> Response[None]:
-        r = Route('POST', '/channels/{channel_id}/messages/{message_id}/ack', channel_id=channel_id, message_id=message_id)
-        payload = {'manual': True, 'mention_count': mention_count}
-
-        return self.request(r, json=payload)
-
-    def ack_messages(self, read_states) -> Response[None]:  # TODO: type and implement
+    def ack_bulk(self, read_states) -> Response[None]:  # TODO: type and implement
         payload = {'read_states': read_states}
 
         return self.request(Route('POST', '/read-states/ack-bulk'), json=payload)
@@ -1125,8 +1126,10 @@ class HTTPClient:
     def ack_guild(self, guild_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/guilds/{guild_id}/ack', guild_id=guild_id))
 
-    def unack_something(self, channel_id: Snowflake) -> Response[None]:  # TODO: research
-        return self.request(Route('DELETE', '/channels/{channel_id}/messages/ack', channel_id=channel_id))
+    def delete_read_state(self, channel_id: Snowflake, type: int) -> Response[None]:
+        payload = {'version': 2, 'read_state_type': type}
+
+        return self.request(Route('DELETE', '/channels/{channel_id}/messages/ack', channel_id=channel_id), json=payload)
 
     def delete_message(
         self, channel_id: Snowflake, message_id: Snowflake, *, reason: Optional[str] = None
