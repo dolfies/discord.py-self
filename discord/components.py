@@ -138,6 +138,12 @@ class ActionRow(Component):
         """:class:`ComponentType`: The type of component."""
         return ComponentType.action_row
 
+    def to_dict(self) -> dict:
+        return {
+            'type': self.type.value,
+            'components': [c.to_dict() for c in self.children],
+        }
+
 
 class Button(Component):
     """Represents a button from the Discord Bot UI Kit.
