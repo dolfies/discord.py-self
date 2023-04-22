@@ -1827,6 +1827,22 @@ class Message(PartialMessage, Hashable):
         self.guild = new_guild
         self.channel = new_channel  # type: ignore # Not all "GuildChannel" are messageable at the moment
 
+    def _is_self_mentioned(self) -> bool:
+        state = self._state
+        guild = self.guild
+        channel = self.channel
+        settings = guild.notification_settings if guild else state.client.notification_settings
+
+        if channel.type in (ChannelType.private, ChannelType.group) and not settings.muted and not channel.notification_settings.muted:  # type: ignore
+            return True
+        if state.user in self.mentions:
+            return True
+        if self.mention_everyone and not settings.suppress_everyone:
+            return True
+        if guild and guild.me and not settings.suppress_roles and guild.me.mentioned_in(self):
+            return True
+        return False
+
     @utils.cached_slot_property('_cs_raw_mentions')
     def raw_mentions(self) -> List[int]:
         """List[:class:`int`]: A property that returns an array of user IDs matched with

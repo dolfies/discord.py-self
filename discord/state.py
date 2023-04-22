@@ -67,6 +67,7 @@ from .relationship import Relationship, FriendSuggestion
 from .role import Role
 from .enums import (
     ChannelType,
+    MessageType,
     PaymentSourceType,
     ReadStateType,
     RelationshipType,
@@ -1108,13 +1109,21 @@ class ConnectionState:
             self._messages.append(message)
         if message.call is not None:
             self._call_message_cache[message.id] = message
+        if channel:
+            channel.last_message_id = message.id  # type: ignore
+
         if message.author.id == self.self_id:
             # Implicitly mark our own messages as read
             read_state = self.get_read_state(channel.id)
             read_state.last_acked_id = message.id
-
-        if channel:
-            channel.last_message_id = message.id  # type: ignore
+        if (
+            not message.author.is_blocked()
+            and not (channel.type == ChannelType.group and message.type == MessageType.recipient_remove)
+            and message._is_self_mentioned()
+        ):
+            # Increment mention count for the channel
+            read_state = self.get_read_state(channel.id)
+            read_state.badge_count += 1
 
     def parse_message_delete(self, data: gw.MessageDeleteEvent) -> None:
         raw = RawMessageDeleteEvent(data)
@@ -2915,7 +2924,9 @@ class ConnectionState:
     def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[True]) -> Optional[ReadState]:
         ...
 
-    def get_read_state(self, id: int, type: ReadStateType = ReadStateType.channel, *, if_exists: bool = False) -> Optional[ReadState]:
+    def get_read_state(
+        self, id: int, type: ReadStateType = ReadStateType.channel, *, if_exists: bool = False
+    ) -> Optional[ReadState]:
         try:
             return self._read_states[type.value][id]
         except KeyError:

@@ -1129,9 +1129,7 @@ class HTTPClient:
         )
 
     def ack_user_feature(self, type: int, entity_id: Snowflake) -> Response[read_state.AcknowledgementToken]:
-        return self.request(
-            Route('POST', '/users/@me/{type}/{entity_id}/ack', type=type, entity_id=entity_id), json={}
-        )
+        return self.request(Route('POST', '/users/@me/{type}/{entity_id}/ack', type=type, entity_id=entity_id), json={})
 
     def ack_bulk(self, read_states: List[read_state.BulkReadState]) -> Response[None]:
         payload = {'read_states': read_states}

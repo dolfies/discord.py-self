@@ -40,9 +40,11 @@ if TYPE_CHECKING:
     from .user import ClientUser
     from .types.read_state import ReadState as ReadStatePayload
 
+# fmt: off
 __all__ = (
     'ReadState',
 )
+# fmt: on
 
 
 class ReadState:
@@ -157,7 +159,7 @@ class ReadState:
             return 0
 
         if self.type == ReadStateType.channel:
-            return resource.last_message_id or 0 # type: ignore
+            return resource.last_message_id or 0  # type: ignore
         elif self.type == ReadStateType.scheduled_events:
             return max(resource.scheduled_events, key=lambda e: e.id).id  # type: ignore
         return 0
