@@ -1372,6 +1372,14 @@ class ConnectionState:
         self.required_action = required_action
         self.dispatch('required_action_update', required_action)
 
+    def parse_user_non_channel_ack(self, data: gw.NonChannelAckEvent) -> None:
+        self.read_state_version = data.get('version', self.read_state_version)
+
+        raw = RawNonChannelAckEvent(data)
+        read_state = self.get_read_state(self.self_id, raw.type)  # type: ignore
+        read_state.last_acked_id = int(data['entity_id'])
+        self.dispatch('non_channel_ack', raw)
+
     def parse_user_connections_update(self, data: Union[gw.ConnectionEvent, gw.PartialConnectionEvent]) -> None:
         self.dispatch('connections_update')
 
@@ -2360,6 +2368,24 @@ class ConnectionState:
 
         self._remove_guild(guild)
         self.dispatch('guild_remove', guild)
+
+    def parse_guild_feature_ack(self, data: gw.NonChannelAckEvent) -> None:
+        self.read_state_version = data.get('version', self.read_state_version)
+        guild = self._get_guild(int(data['resource_id']))
+        if guild is None:
+            _log.debug('GUILD_FEATURE_ACK referencing an unknown guild ID: %s. Discarding.', data['resource_id'])
+            return
+
+        raw = RawGuildFeatureAckEvent(data, self)
+        read_state = self.get_read_state(guild.id, raw.type)
+        read_state.last_acked_id = int(data['entity_id'])
+        self.dispatch('guild_feature_ack', raw)
+
+        # Rich events here
+        if read_state.type == ReadStateType.scheduled_events:
+            event = guild.get_scheduled_event(read_state.last_acked_id)
+            if event is not None:
+                self.dispatch('scheduled_event_ack', event)
 
     def parse_guild_ban_add(self, data: gw.GuildBanAddEvent) -> None:
         guild = self._get_guild(int(data['guild_id']))
