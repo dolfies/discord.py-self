@@ -242,10 +242,17 @@ class ChannelPinsAckEvent(TypedDict):
 class MessageAckEvent(TypedDict):
     channel_id: Snowflake
     message_id: Snowflake
-    version: int
     manual: NotRequired[bool]
     mention_count: NotRequired[int]
     ack_type: NotRequired[ReadStateType]
+    version: int
+
+
+class NonChannelAckEvent(TypedDict):
+    entity_id: Snowflake
+    resource_id: Snowflake
+    ack_type: int
+    version: int
 
 
 class ThreadCreateEvent(Thread, total=False):

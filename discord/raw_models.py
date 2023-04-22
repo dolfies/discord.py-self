@@ -30,6 +30,7 @@ from .enums import ChannelType, try_enum
 
 if TYPE_CHECKING:
     from .types.gateway import (
+        MessageAckEvent,
         MessageDeleteEvent,
         MessageDeleteBulkEvent as BulkMessageDeleteEvent,
         MessageReactionAddEvent,
@@ -59,6 +60,7 @@ __all__ = (
     'RawIntegrationDeleteEvent',
     'RawThreadDeleteEvent',
     'RawThreadMembersUpdate',
+    'RawMessageAckEvent',
 )
 
 
@@ -342,3 +344,32 @@ class RawThreadMembersUpdate(_RawReprMixin):
         self.guild_id: int = int(data['guild_id'])
         self.member_count: int = int(data['member_count'])
         self.data: ThreadMembersUpdate = data
+
+
+class RawMessageAckEvent(_RawReprMixin):
+    """Represents the event payload for a :func:`on_raw_message_ack` event.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    ------------
+    channel_id: :class:`int`
+        The channel ID of the read state.
+    message_id: :class:`int`
+        The message ID that was acknowledged.
+    cached_message: Optional[:class:`Message`]
+        The cached message, if found in the internal message cache.
+    manual: :class:`bool`
+        Whether the read state was manually set to this message.
+    mention_count: :class:`int`
+        The new mention count for the read state.
+    """
+
+    __slots__ = ('message_id', 'channel_id', 'cached_message', 'manual', 'mention_count')
+
+    def __init__(self, data: MessageAckEvent) -> None:
+        self.message_id: int = int(data['message_id'])
+        self.channel_id: int = int(data['channel_id'])
+        self.cached_message: Optional[Message] = None
+        self.manual: bool = data.get('manual', False)
+        self.mention_count: int = data.get('mention_count', 0)

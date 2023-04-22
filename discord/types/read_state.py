@@ -40,6 +40,14 @@ class ReadState(TypedDict):
     last_pin_timestamp: NotRequired[str]
     mention_count: NotRequired[int]
     badge_count: NotRequired[int]
+    flags: NotRequired[int]
+    # last_viewed: NotRequired[Optional[str]]
+
+
+class BulkReadState(TypedDict):
+    channel_id: Snowflake
+    message_id: Snowflake
+    read_state_type: ReadStateType
 
 
 class AcknowledgementToken(TypedDict):
