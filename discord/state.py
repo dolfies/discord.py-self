@@ -1375,10 +1375,10 @@ class ConnectionState:
     def parse_user_non_channel_ack(self, data: gw.NonChannelAckEvent) -> None:
         self.read_state_version = data.get('version', self.read_state_version)
 
-        raw = RawNonChannelAckEvent(data)
+        raw = RawUserFeatureAckEvent(data)
         read_state = self.get_read_state(self.self_id, raw.type)  # type: ignore
         read_state.last_acked_id = int(data['entity_id'])
-        self.dispatch('non_channel_ack', raw)
+        self.dispatch('user_feature_ack', raw)
 
     def parse_user_connections_update(self, data: Union[gw.ConnectionEvent, gw.PartialConnectionEvent]) -> None:
         self.dispatch('connections_update')
@@ -1648,7 +1648,7 @@ class ConnectionState:
 
         read_state = self.get_read_state(channel_id)
         last_pin = utils.parse_time(data.get('last_pin'))
-        read_state.ack_pin_timestamp = last_pin
+        read_state.acked_pin_timestamp = last_pin
 
         if channel.guild is None:
             self.dispatch('private_channel_pins_ack', channel, last_pin)

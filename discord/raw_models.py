@@ -64,7 +64,7 @@ __all__ = (
     'RawThreadDeleteEvent',
     'RawThreadMembersUpdate',
     'RawMessageAckEvent',
-    'RawNonChannelAckEvent',
+    'RawUserFeatureAckEvent',
     'RawGuildFeatureAckEvent',
 )
 
@@ -380,7 +380,7 @@ class RawMessageAckEvent(_RawReprMixin):
         self.mention_count: int = data.get('mention_count', 0)
 
 
-class RawNonChannelAckEvent(_RawReprMixin):
+class RawUserFeatureAckEvent(_RawReprMixin):
     """Represents the event payload for a :func:`on_non_channel_ack` event.
 
     .. versionadded:: 2.1
@@ -400,7 +400,7 @@ class RawNonChannelAckEvent(_RawReprMixin):
         self.entity_id: int = int(data['entity_id'])
 
 
-class RawGuildFeatureAckEvent(RawNonChannelAckEvent):
+class RawGuildFeatureAckEvent(RawUserFeatureAckEvent):
     """Represents the event payload for a :func:`on_guild_feature_ack` event.
 
     .. versionadded:: 2.1

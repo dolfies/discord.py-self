@@ -141,7 +141,7 @@ class ReadState:
         state = self._state
 
         if self.type == ReadStateType.channel:
-            return state._get_or_create_partial_messageable(self.id)
+            return state._get_or_create_partial_messageable(self.id)  # type: ignore
         elif self.type in (ReadStateType.scheduled_events, ReadStateType.guild_home, ReadStateType.onboarding):
             return state._get_or_create_unavailable_guild(self.id)
         elif self.type == ReadStateType.notification_center and self.id == state.self_id:

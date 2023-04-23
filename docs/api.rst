@@ -453,6 +453,17 @@ Client
     :param action: The action required. If ``None``, then no further action is required.
     :type action: Optional[:class:`RequiredActionType`]
 
+.. function:: on_user_feature_ack(payload)
+
+    Called when a user-specific feature is acknowledged.
+
+    This is a purposefully low-level event. Richer events are dispatched separately.
+
+    .. versionadded:: 2.1
+
+    :param payload: The raw event payload data.
+    :type payload: :class:`RawUserFeatureAckEvent`
+
 Billing
 ~~~~~~~
 
@@ -879,6 +890,17 @@ Guilds
     :param invite: The invite that was deleted.
     :type invite: :class:`Invite`
 
+.. function:: on_guild_feature_ack(payload)
+
+    Called when a :class:`Guild` feature is acknowledged.
+
+    This is a purposefully low-level event. Richer events such as
+    :func:`on_scheduled_event_ack` are dispatched separately.
+
+    .. versionadded:: 2.1
+
+    :param payload: The raw event payload data.
+    :type payload: :class:`RawGuildFeatureAckEvent`
 
 Integrations
 ~~~~~~~~~~~~~
@@ -1123,6 +1145,21 @@ Messages
     :param messages: The messages that have been deleted.
     :type messages: List[:class:`Message`]
 
+.. function:: on_message_ack(message, manual)
+
+    Called when a message is marked as read. If the message is not found in the
+    internal message cache, or the message ID is not real, then this event will not be called.
+
+    If this occurs increase the :class:`max_messages <Client>` parameter
+    or use the :func:`on_raw_message_ack` event instead.
+
+    .. versionadded:: 2.1
+
+    :param message: The message that has been marked as read.
+    :type message: :class:`Message`
+    :param manual: Whether the channel read state was manually set to this message.
+    :type manual: :class:`bool`
+
 .. function:: on_raw_message_edit(payload)
 
     Called when a message is edited. Unlike :func:`on_message_edit`, this is called
@@ -1166,6 +1203,19 @@ Messages
 
     :param payload: The raw event payload data.
     :type payload: :class:`RawBulkMessageDeleteEvent`
+
+.. function:: on_raw_message_ack(payload)
+
+    Called when a message is marked as read. Unlike :func:`on_message_ack`, this is
+    called regardless of the message being in the internal message cache or not.
+
+    If the message is found in the message cache,
+    it can be accessed via :attr:`RawMessageAckEvent.cached_message`
+
+    .. versionadded:: 2.1
+
+    :param payload: The raw event payload data.
+    :type payload: :class:`RawMessageAckEvent`
 
 .. function:: on_recent_mention_delete(message)
 
@@ -1361,6 +1411,15 @@ Scheduled Events
     :type event: :class:`ScheduledEvent`
     :param user_id: The ID of the user that was added or removed.
     :type user_id: :class:`int`
+
+.. function:: on_scheduled_event_ack(event)
+
+    Called when a scheduled event is marked as read.
+
+    .. versionadded:: 2.1
+
+    :param event: The scheduled event that was marked as read.
+    :type event: :class:`ScheduledEvent`
 
 Stages
 ~~~~~~~
@@ -6854,6 +6913,14 @@ Metadata
     :members:
     :inherited-members:
 
+ReadState
+~~~~~~~~~
+
+.. attributetable:: ReadState
+
+.. autoclass:: ReadState()
+    :members:
+
 Asset
 ~~~~~
 
@@ -7467,6 +7534,21 @@ RawEvent
 .. attributetable:: RawThreadDeleteEvent
 
 .. autoclass:: RawThreadDeleteEvent()
+    :members:
+
+.. attributetable:: RawMessageAckEvent
+
+.. autoclass:: RawMessageAckEvent()
+    :members:
+
+.. attributetable:: RawUserFeatureAckEvent
+
+.. autoclass:: RawUserFeatureAckEvent()
+    :members:
+
+.. attributetable:: RawGuildFeatureAckEvent
+
+.. autoclass:: RawGuildFeatureAckEvent()
     :members:
 
 .. _discord_api_data:
