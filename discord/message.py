@@ -1966,9 +1966,7 @@ class Message(PartialMessage, Hashable):
         .. versionadded:: 2.1
         """
         read_state = self._state.get_read_state(self.channel.id)
-        if read_state.last_acked_id and read_state.last_acked_id >= self.id:
-            return True
-        return False
+        return read_state.last_acked_id >= self.id if read_state.last_acked_id else False
 
     @utils.cached_slot_property('_cs_system_content')
     def system_content(self) -> str:

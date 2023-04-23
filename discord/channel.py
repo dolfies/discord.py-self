@@ -350,6 +350,14 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
         """
         return self.read_state.last_pin_timestamp
 
+    @property
+    def mention_count(self) -> int:
+        """:class:`int`: Returns how many unread mentions the user has in this channel.
+
+        .. versionadded:: 2.1
+        """
+        return self.read_state.badge_count
+
     @overload
     async def edit(self) -> Optional[TextChannel]:
         ...
@@ -1121,6 +1129,14 @@ class VocalGuildChannel(discord.abc.Messageable, discord.abc.Connectable, discor
         .. versionadded:: 2.1
         """
         return self.read_state.last_pin_timestamp
+
+    @property
+    def mention_count(self) -> int:
+        """:class:`int`: Returns how many unread mentions the user has in this channel.
+
+        .. versionadded:: 2.1
+        """
+        return self.read_state.badge_count
 
     def get_partial_message(self, message_id: int, /) -> PartialMessage:
         """Creates a :class:`PartialMessage` from the message ID.
@@ -3099,6 +3115,14 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         return self.read_state.last_pin_timestamp
 
     @property
+    def mention_count(self) -> int:
+        """:class:`int`: Returns how many unread mentions the user has in this channel.
+
+        .. versionadded:: 2.1
+        """
+        return self.read_state.badge_count
+
+    @property
     def requested_at(self) -> Optional[datetime.datetime]:
         """Optional[:class:`datetime.datetime`]: Returns the message request's creation time in UTC, if applicable.
 
@@ -3551,6 +3575,14 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         .. versionadded:: 2.1
         """
         return self.read_state.last_pin_timestamp
+
+    @property
+    def mention_count(self) -> int:
+        """:class:`int`: Returns how many unread mentions the user has in this channel.
+
+        .. versionadded:: 2.1
+        """
+        return self.read_state.badge_count
 
     def permissions_for(self, obj: Snowflake, /) -> Permissions:
         """Handles permission resolution for a :class:`User`.

@@ -384,6 +384,14 @@ class Thread(Messageable, Hashable):
         return self.read_state.last_pin_timestamp
 
     @property
+    def mention_count(self) -> int:
+        """:class:`int`: Returns how many unread mentions the user has in this channel.
+
+        .. versionadded:: 2.1
+        """
+        return self.read_state.badge_count
+
+    @property
     def category(self) -> Optional[CategoryChannel]:
         """The category channel the parent channel belongs to, if applicable.
 

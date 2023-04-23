@@ -190,9 +190,7 @@ class ScheduledEvent(Hashable):
         .. versionadded:: 2.1
         """
         read_state = self._state.get_read_state(self.guild_id, ReadStateType.scheduled_events)
-        if read_state.last_acked_id and read_state.last_acked_id >= self.id:
-            return True
-        return False
+        return read_state.last_acked_id >= self.id if read_state.last_acked_id else False
 
     async def __modify_status(self, status: EventStatus, reason: Optional[str], /) -> ScheduledEvent:
         payload = {'status': status.value}
