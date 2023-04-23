@@ -5600,7 +5600,6 @@ of :class:`enum.Enum`.
 
         The rule will timeout a user.
 
-
 .. class:: ForumLayoutType
 
     Represents how a forum's posts are layed out in the client.
@@ -5619,7 +5618,6 @@ of :class:`enum.Enum`.
 
         Displays posts as a collection of tiles.
 
-
 .. class:: ForumOrderType
 
     Represents how a forum's posts are sorted in the client.
@@ -5633,6 +5631,32 @@ of :class:`enum.Enum`.
     .. attribute:: creation_date
 
         Sort forum posts by creation time (from most recent to oldest).
+
+.. class:: ReadStateType
+
+    Represents the type of a read state.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: channel
+
+        Represents a regular, channel-bound read state for messages.
+
+    .. attribute:: scheduled_events
+
+        Represents a guild-bound read state for scheduled events. Only one exists per guild.
+
+    .. attribute:: notification_center
+
+        Represents a global read state for the notification center. Only one exists.
+
+    .. attribute:: guild_home
+
+        Represents a guild-bound read state for guild home. Only one exists per guild.
+
+    .. attribute:: onboarding
+
+        Represents a guild-bound read state for guild onboarding. Only one exists per guild.
 
 
 .. _discord-api-audit-logs:

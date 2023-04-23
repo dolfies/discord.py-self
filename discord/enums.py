@@ -113,6 +113,7 @@ __all__ = (
     'AutoModRuleActionType',
     'ForumLayoutType',
     'ForumOrderType',
+    'ReadStateType',
 )
 
 if TYPE_CHECKING:
