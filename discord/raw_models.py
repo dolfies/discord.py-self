@@ -381,7 +381,7 @@ class RawMessageAckEvent(_RawReprMixin):
 
 
 class RawUserFeatureAckEvent(_RawReprMixin):
-    """Represents the event payload for a :func:`on_non_channel_ack` event.
+    """Represents the event payload for a :func:`on_user_feature_ack` event.
 
     .. versionadded:: 2.1
 
