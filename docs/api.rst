@@ -1153,6 +1153,11 @@ Messages
     If this occurs increase the :class:`max_messages <Client>` parameter
     or use the :func:`on_raw_message_ack` event instead.
 
+    .. note::
+
+        Messages sent by the current user are automatically marked as read,
+        but this event will not dispatch.
+
     .. versionadded:: 2.1
 
     :param message: The message that has been marked as read.
@@ -1415,6 +1420,11 @@ Scheduled Events
 .. function:: on_scheduled_event_ack(event)
 
     Called when a scheduled event is marked as read.
+
+    .. note::
+
+        Scheduled events created by the current user are automatically marked as read,
+        but this event will not dispatch.
 
     .. versionadded:: 2.1
 
