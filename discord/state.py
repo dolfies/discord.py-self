@@ -1112,17 +1112,16 @@ class ConnectionState:
         if channel:
             channel.last_message_id = message.id  # type: ignore
 
+        read_state = self.get_read_state(channel.id)
         if message.author.id == self.self_id:
             # Implicitly mark our own messages as read
-            read_state = self.get_read_state(channel.id)
             read_state.last_acked_id = message.id
         if (
             not message.author.is_blocked()
             and not (channel.type == ChannelType.group and message.type == MessageType.recipient_remove)
             and message._is_self_mentioned()
         ):
-            # Increment mention count for the channel
-            read_state = self.get_read_state(channel.id)
+            # Increment mention count if applicable
             read_state.badge_count += 1
 
     def parse_message_delete(self, data: gw.MessageDeleteEvent) -> None:
@@ -2555,10 +2554,13 @@ class ConnectionState:
             guild._scheduled_events[scheduled_event.id] = scheduled_event
             self.dispatch('scheduled_event_create', scheduled_event)
 
+            read_state = self.get_read_state(guild.id, ReadStateType.scheduled_events)
             if scheduled_event.creator_id == self.self_id:
                 # Implicitly ack created events
-                read_state = self.get_read_state(guild.id, ReadStateType.scheduled_events)
                 read_state.last_acked_id = scheduled_event.id
+            if not guild.notification_settings.mute_scheduled_events:
+                # Increment badge count if we're not muted
+                read_state.badge_count += 1
         else:
             _log.debug('SCHEDULED_EVENT_CREATE referencing unknown guild ID: %s. Discarding.', data['guild_id'])
 
