@@ -4655,3 +4655,7 @@ class HTTPClient:
                 raise Forbidden(resp, 'cannot retrieve rtc regions')
             else:
                 raise HTTPException(resp, 'failed to get rtc regions')
+
+    async def get_experiments(self) -> dict:
+        # get /api/experiments and somehow change the response to ExperimentInfo
+        pass

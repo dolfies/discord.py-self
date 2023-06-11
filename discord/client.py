@@ -112,6 +112,8 @@ if TYPE_CHECKING:
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
+from .types.experiment import ExperimentInfo
+
 # fmt: off
 __all__ = (
     'Client',
@@ -4947,3 +4949,32 @@ class Client:
             icon_data = utils._bytes_to_base64_data(icon.fp.read())
             await state.http.upload_unverified_application_icon(app.name, app.hash, icon_data)
         return app
+    
+    async def fetch_experiments(
+            self,
+            *,
+            with_guild_experiments: bool
+    ) -> ExperimentInfo:
+        """|coro|
+
+        Retrieves the experiment assignments for the user.
+
+        Parameters
+        -----------
+        with_guild_experiments: :class:`bool`
+            Whether to include guild experiment rollouts in the response.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the experiment assignments failed.
+
+        Returns
+        -------
+        :class:`.ExperimentInfo`
+            The experiment assignments
+        """
+        state = self._connection
+        data = await state.http.fetch_experiments(with_guild_experiments=with_guild_experiments)
+
+        return 
