@@ -22,68 +22,84 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from enum import Enum
-from typing import List, NamedTuple, Optional, Tuple, TypedDict
+from __future__ import annotations
+
+from typing import List, Literal, Optional, Tuple, TypedDict, Union
+
+from typing_extensions import NotRequired
 
 
-class ExperimentInfo(TypedDict):
-    fingerprint: str
-    assignments: List[UserExperimentAssignment]
-    guild_experiments: List[GuildExperiment]
+class ExperimentResponse(TypedDict):
+    fingerprint: NotRequired[str]
+    assignments: List[UserExperiment]
 
-class GuildExperiment(TypedDict):
-    hash: int
-    hash_key: Optional[str]
-    revision: int
-    populations: List[Population]
-    overrides: List[Override]
-    overrides_formatted: List[List[Population]]
-    holdout: Optional[Holdout]
-    aa_mode: bool
 
-class Population(TypedDict):
-    rollouts: List[Rollout]
-    filters: Filters
+class ExperimentResponseWithGuild(ExperimentResponse):
+    guild_experiments: NotRequired[List[GuildExperiment]]
+
 
 class Rollout(TypedDict):
     bucket: int
     ranges: Tuple[int, int]
 
-class Filters(TypedDict):
-    features: Optional[List[str]]
-    id_range: Optional[Tuple[int, int]]
-    member_count: Tuple[int, int]
-    ids: Optional[Tuple[int, int]]
-    hub_types: Optional[List[int]]
-    range_by_hash: Optional[RangeByHashFilter]
-    vanity_url: Optional[bool]
 
-class FilterType(Enum):
-    FEATURE = 1604612045
-    ID_RANGE = 2404720969
-    MEMBER_COUNT = 2918402255
-    ID_LIST = 30137718
-    HUB_TYPE = 4148745523
-    VANITY_URL = 188952590
-    RANGE_BY_HASH = 2294888943 
+FilterType = Literal[
+    1604612045,  # FEATURE
+    2404720969,  # ID_RANGE
+    2918402255,  # MEMBER_COUNT
+    30137718,  # ID_LIST
+    4148745523,  # HUB_TYPE
+    188952590,  # VANITY_URL
+    2294888943,  # RANGE_BY_HASH
+]
 
-class RangeByHashFilter(NamedTuple):
-    hash_key: int
-    target: int
 
-class Override(NamedTuple):
-    bucket: int
-    ids: List[int]
+Filters = Union[
+    Tuple[Literal[1604612045], Tuple[Tuple[int, List[str]]]],  # FEATURE
+    Tuple[Literal[2404720969], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]],  # ID_RANGE
+    Tuple[Literal[2918402255], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]],  # MEMBER_COUNT
+    Tuple[Literal[30137718], Tuple[Tuple[int, List[int]]]],  # ID_LIST
+    Tuple[Literal[4148745523], Tuple[Tuple[int, List[int]]]],  # HUB_TYPE
+    Tuple[Literal[188952590], Tuple[Tuple[Literal[188952590], bool]]],  # VANITY_URL
+    Tuple[Literal[2294888943], Tuple[Tuple[int, int], Tuple[int, int]]],  # RANGE_BY_HASH
+]
 
-class Holdout(NamedTuple):
-    bucket: int
-    experiment_name: str
 
-class UserExperimentAssignment(TypedDict):
-    hash_key: int
-    revision: int
-    bucket: int
-    override: int
-    population: int
-    hash_result: int
-    aa_mode: int
+Population = Tuple[
+    List[Rollout],  # rollouts
+    List[Filters],  # filters
+]
+
+
+Override = Tuple[
+    int,  # bucket
+    List[int],  # ids
+]
+
+
+Holdout = Tuple[
+    int,  # bucket
+    str,  # experiment_name
+]
+
+
+UserExperiment = Tuple[
+    int,  # hash
+    int,  # revision
+    int,  # bucket
+    int,  # override
+    int,  # population
+    Optional[int],  # hash_result
+]
+
+
+GuildExperiment = Tuple[
+    int,  # hash
+    Optional[str],  # hash_key
+    int,  # revision
+    List[Population],  # populations
+    List[Override],  # overrides
+    List[List[Population]],  # overrides_formatted
+    Optional[Holdout],  # holdout
+    bool,  # aa_mode
+]

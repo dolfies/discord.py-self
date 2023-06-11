@@ -36,6 +36,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Optional,
     overload,
     Sequence,
@@ -4949,12 +4950,17 @@ class Client:
             icon_data = utils._bytes_to_base64_data(icon.fp.read())
             await state.http.upload_unverified_application_icon(app.name, app.hash, icon_data)
         return app
-    
-    async def fetch_experiments(
-            self,
-            *,
-            with_guild_experiments: bool
-    ) -> ExperimentInfo:
+
+    @overload
+    async def fetch_experiments(self, *, with_guild_experiments: Literal[True] = ...) -> List[Union[UserExperiment, GuildExperiment]]:
+        ...
+
+    @overload
+    async def fetch_experiments(self, *, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]:
+        ...
+
+
+    async def fetch_experiments(self, *, with_guild_experiments: bool = True) -> Union[List[User], List[Union[UserExperiment, GuildExperiment]]]:
         """|coro|
 
         Retrieves the experiment assignments for the user.
@@ -4971,10 +4977,9 @@ class Client:
 
         Returns
         -------
-        :class:`.ExperimentInfo`
-            The experiment assignments
+        List[Union[:class:`.UserExperiment`, :class:`.GuildExperiment`]]
         """
         state = self._connection
         data = await state.http.fetch_experiments(with_guild_experiments=with_guild_experiments)
 
-        return 
+        return
