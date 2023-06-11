@@ -4980,6 +4980,6 @@ class Client:
         List[Union[:class:`.UserExperiment`, :class:`.GuildExperiment`]]
         """
         state = self._connection
-        data = await state.http.fetch_experiments(with_guild_experiments=with_guild_experiments)
+        data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
         return

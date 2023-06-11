@@ -4660,11 +4660,11 @@ class HTTPClient:
     # Experiments
 
     @overload
-    def get_experiments(self, with_guild_experiments: Literal[True]) -> Response[experiment.ExperimentResponseWithGuild]:
+    def get_experiments(self, with_guild_experiments: Literal[True] = ...) -> Response[experiment.ExperimentResponseWithGuild]:
         ...
 
     @overload
-    def get_experiments(self, with_guild_experiments: Literal[False] = False) -> Response[experiment.ExperimentResponse]:
+    def get_experiments(self, with_guild_experiments: Literal[False] = ...) -> Response[experiment.ExperimentResponse]:
         ...
 
 

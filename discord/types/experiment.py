@@ -89,7 +89,7 @@ UserExperiment = Tuple[
     int,  # bucket
     int,  # override
     int,  # population
-    Optional[int],  # hash_result
+    int,  # hash_result
 ]
 
 
