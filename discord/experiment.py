@@ -35,9 +35,9 @@ if TYPE_CHECKING:
 
 
 try:
-    from mmh3 import hash as _hash
+    from mmh3 import hash as _hash # type: ignore -- this is caught anyway so its fine
 
-    def hash(data: str):
+    def hash(data: str): # type: ignore -- this function is defined only if it cannot be imported
         return _hash(data, signed=False)
 except ImportError:
     from .utils import hash as _hash
@@ -116,43 +116,43 @@ class GuildExperiment:
         def handle_population(population: Population):
             (rollouts, filters) = population
 
-            for type, value in filters:
-                if type == FilterTypes.FEATURE:
+            for type_, value in filters:
+                if type_ == FilterTypes.FEATURE:
                     features = value[0][1]
-                    for feature in features:
+                    for feature in features: # type: ignore
                         if feature in guild.features:
                             continue
                         else:
                             return -1
-                elif type == FilterTypes.ID_RANGE:
-                    ((_, start), (_, end)) = value
+                elif type_ == FilterTypes.ID_RANGE:
+                    ((_, start), (_, end)) = value # type: ignore
                     if start is not None and start <= guild.id <= end:
                         continue
                     elif start is None and guild.id <= end:
                         continue
                     else:
                         return -1
-                elif type == FilterTypes.MEMBER_COUNT:
-                    ((_, start), (_, end)) = value
+                elif type_ == FilterTypes.MEMBER_COUNT:
+                    ((_, start), (_, end)) = value # type: ignore
                     if start is not None and start <= guild.member_count <= end:
                         continue
                     elif start is None and guild.member_count <= end:
                         continue
                     else:
                         return -1
-                elif type == FilterTypes.ID_LIST:
+                elif type_ == FilterTypes.ID_LIST:
                     ids = value[0][1]
                     if guild.id in ids:
                         continue
                     else:
                         return -1
-                elif type == FilterTypes.HUB_TYPE:
+                elif type_ == FilterTypes.HUB_TYPE:
                     # no clue how this one works
                     pass
-                elif type == FilterTypes.RANGE_BY_HASH:
+                elif type_ == FilterTypes.RANGE_BY_HASH:
                     # this one either
                     pass
-                elif type == FilterTypes.VANITY_URL:
+                elif type_ == FilterTypes.VANITY_URL:
                     has_vanity = value[0][1]
                     vanity_url = guild.vanity_url
                     if has_vanity == True:
@@ -166,11 +166,11 @@ class GuildExperiment:
                         else:
                             return -1
                 else:
-                    raise NotImplementedError(f"Unknown filter type: {type}")
+                    raise NotImplementedError(f"Unknown filter type: {type_}")
 
             for bucket, rollouts in rollouts:
                 for rollout in rollouts:
-                    if rollout.s <= hash_result <= rollout.e:
+                    if rollout['s'] <= hash_result <= rollout['e']:
                         return bucket
                     else:
                         continue
