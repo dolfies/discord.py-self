@@ -110,7 +110,6 @@ if TYPE_CHECKING:
     from .tutorial import Tutorial
     from .file import File
     from .types.snowflake import Snowflake as _Snowflake
-    from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
     from .experiment import UserExperimentAssignment, GuildExperiment
 
     PrivateChannel = Union[DMChannel, GroupChannel]
@@ -4952,16 +4951,24 @@ class Client:
         return app
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[True] = ...) -> ExperimentResponseWithGuild:
+    async def fetch_experiments(
+        self, with_guild_experiments: Literal[True] = ...
+    ) -> List[Union[UserExperimentAssignment, GuildExperiment]]:
         ...
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> ExperimentResponse:
+    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperimentAssignment]:
+        ...
+
+    @overload
+    async def fetch_experiments(
+        self, with_guild_experiments: bool = True
+    ) -> Union[List[UserExperimentAssignment], List[Union[UserExperimentAssignment, GuildExperiment]]]:
         ...
 
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Union[ExperimentResponse, ExperimentResponseWithGuild]:
+    ) -> Union[List[UserExperimentAssignment], List[Union[UserExperimentAssignment, GuildExperiment]]]:
         """|coro|
 
         Retrieves the experiment assignments for the user.
@@ -4988,7 +4995,7 @@ class Client:
     @property
     def assignments(self) -> List[UserExperimentAssignment]:
         return self._connection.assignments
-    
+
     @property
     def guild_experiments(self) -> List[GuildExperiment]:
         return self._connection.guild_experiments
