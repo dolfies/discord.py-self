@@ -588,7 +588,7 @@ class DiscordWebSocket:
             self.sequence = msg['s']
             self.session_id = data['session_id']
             self.gateway = yarl.URL(data['resume_gateway_url'])
-            
+
             self.assignments = [UserExperimentAssignment(assignment) for assignment in data.get('experiments', [])]
             self.guild_experiments = [GuildExperiment(experiment) for experiment in data.get('guild_experiments', [])]
 

@@ -37,9 +37,11 @@ class ExperimentResponse(TypedDict):
 class ExperimentResponseWithGuild(ExperimentResponse):
     guild_experiments: NotRequired[List[GuildExperiment]]
 
+
 class RolloutData(TypedDict):
     s: int
     e: int
+
 
 Rollout = Tuple[int, List[RolloutData]]
 

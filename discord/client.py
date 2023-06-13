@@ -4961,8 +4961,9 @@ class Client:
     async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> ExperimentResponse:
         ...
 
-
-    async def fetch_experiments(self, with_guild_experiments: bool = True) -> Union[ExperimentResponse, ExperimentResponseWithGuild]:
+    async def fetch_experiments(
+        self, with_guild_experiments: bool = True
+    ) -> Union[ExperimentResponse, ExperimentResponseWithGuild]:
         """|coro|
 
         Retrieves the experiment assignments for the user.

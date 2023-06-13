@@ -64,14 +64,12 @@ class GuildExperiment:
         self.populations: List[Population] = populations
         self.overrides: List[Override] = overrides
         self.overrides_formatted: List[List[Population]] = overrides_formatted
-        self.holdout: Optional[Tuple[str, int]] = (
-            (holdout_name, holdout_bucket) if holdout_name is not None else None
-        )
+        self.holdout: Optional[Tuple[str, int]] = (holdout_name, holdout_bucket) if holdout_name is not None else None
         self.aa_mode: bool = True if aa_mode == 1 else False
 
     def __repr__(self) -> str:
         return f'<GuildExperiment hash_key={self.hash_key} name={self.name}>'
-    
+
     # FIXME(splatterxl): find a way to type `guild` as guild.Guild without crashing the whole thing
     def guild_bucket(self, guild) -> int:
         """
@@ -81,19 +79,20 @@ class GuildExperiment:
         -----------
         guild: :class:`Guild`
             The guild to compute experiment eligibility for.
-        
+
         Returns
         -------
         int
             The experiment bucket.
-        
+
         Raises
         ------
         ImportError
             The `mmh3` library is not installed (required for hash computation).
         """
 
-        if self.aa_mode: return -1
+        if self.aa_mode:
+            return -1
 
         try:
             import mmh3
@@ -107,26 +106,36 @@ class GuildExperiment:
         def handle_population(population: Population):
             (rollouts, filters) = population
 
-            for (type, value) in filters:
+            for type, value in filters:
                 if type == FilterTypes.FEATURE:
                     ((_, features)) = value
-                    for feature in features: 
-                        if feature in guild.features: continue
-                        else: return -1               
+                    for feature in features:
+                        if feature in guild.features:
+                            continue
+                        else:
+                            return -1
                 elif type == FilterTypes.ID_RANGE:
                     ((_, start), (_, end)) = value
-                    if start is not None and start <= guild.id <= end: continue
-                    elif start is None and guild.id <= end: continue
-                    else: return -1
+                    if start is not None and start <= guild.id <= end:
+                        continue
+                    elif start is None and guild.id <= end:
+                        continue
+                    else:
+                        return -1
                 elif type == FilterTypes.MEMBER_COUNT:
                     ((_, start), (_, end)) = value
-                    if start is not None and start <= guild.member_count <= end: continue
-                    elif start is None and guild.member_count <= end: continue
-                    else: return -1
+                    if start is not None and start <= guild.member_count <= end:
+                        continue
+                    elif start is None and guild.member_count <= end:
+                        continue
+                    else:
+                        return -1
                 elif type == FilterTypes.ID_LIST:
                     ((_, ids)) = value
-                    if guild.id in ids: continue
-                    else: return -1
+                    if guild.id in ids:
+                        continue
+                    else:
+                        return -1
                 elif type == FilterTypes.HUB_TYPE:
                     # no clue how this one works
                     pass
@@ -136,37 +145,45 @@ class GuildExperiment:
                 elif type == FilterTypes.VANITY_URL:
                     ((_, has_vanity)) = value
                     vanity_url = guild.vanity_url
-                    if has_vanity == True: 
-                        if vanity_url is not None: continue
-                        else: return -1
+                    if has_vanity == True:
+                        if vanity_url is not None:
+                            continue
+                        else:
+                            return -1
                     else:
-                        if vanity_url is None: continue
-                        else: return -1
+                        if vanity_url is None:
+                            continue
+                        else:
+                            return -1
                 else:
                     raise NotImplementedError(f"Unknown filter type: {type}")
-            
-            for (bucket, rollouts) in rollouts:
+
+            for bucket, rollouts in rollouts:
                 for rollout in rollouts:
-                    if rollout.s <= hash <= rollout.e: return bucket
-                    else: continue
-            
+                    if rollout.s <= hash <= rollout.e:
+                        return bucket
+                    else:
+                        continue
+
             return -1
 
         for population in self.populations:
-            pop_bucket = handle_population(population) 
+            pop_bucket = handle_population(population)
 
             bucket = pop_bucket if pop_bucket != -1 else bucket
 
         for overrides in self.overrides_formatted:
             for override in overrides:
                 pop_bucket = handle_population(override)
-                
+
                 bucket = pop_bucket if pop_bucket != -1 else bucket
-            
-        for (override_bucket, ids) in self.overrides:
-            if guild.id in ids or guild.owner_id in ids: bucket = override_bucket
-        
+
+        for override_bucket, ids in self.overrides:
+            if guild.id in ids or guild.owner_id in ids:
+                bucket = override_bucket
+
         return bucket
+
 
 class UserExperimentAssignment:
     def __init__(self, data: RawAssignment):
@@ -184,7 +201,7 @@ class UserExperimentAssignment:
 
     def __repr__(self) -> str:
         return f'<UserExperimentAssignment hash_key={self.hash_key} bucket={self.bucket}>'
-    
+
     @property
     def bucket(self) -> int:
         return -1 if self.aa_mode else self._bucket
