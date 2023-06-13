@@ -34,6 +34,17 @@ if TYPE_CHECKING:
     )
 
 
+try:
+    from mmh3 import hash as _hash
+
+    def hash(data: str):
+        return _hash(data, signed=False)
+except ImportError:
+    from .utils import hash as _hash
+
+    def hash(data: str):
+        return _hash(data)
+
 class FilterTypes(Enum):
     FEATURE = 1604612045
     ID_RANGE = 2404720969
@@ -65,7 +76,9 @@ class GuildExperiment:
         self.overrides: List[Override] = overrides
         self.overrides_formatted: List[List[Population]] = overrides_formatted
         self.holdout: Optional[Tuple[str, int]] = (
-            (holdout_name, holdout_bucket) if holdout_name is not None else None
+            (holdout_name, holdout_bucket)
+            if (holdout_name is not None and holdout_bucket is not None)
+            else None
         )
         self.aa_mode: bool = True if aa_mode == 1 else False
 
@@ -96,12 +109,7 @@ class GuildExperiment:
         if self.aa_mode:
             return -1
 
-        try:
-            from mmh3 import hash
-        except ImportError:
-            from .utils import hash
-
-        hash_result = hash("foo", signed=False) % 1e4
+        hash_result = hash(f"{self.name}:{guild.id}")
 
         bucket = -1
 
