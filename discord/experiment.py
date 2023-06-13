@@ -33,17 +33,7 @@ if TYPE_CHECKING:
         UserExperimentAssignment as RawAssignment,
     )
 
-
-try:
-    from mmh3 import hash as _hash # type: ignore -- this is caught anyway so its fine
-
-    def hash(data: str): # type: ignore -- this function is defined only if it cannot be imported
-        return _hash(data, signed=False)
-except ImportError:
-    from .utils import hash as _hash
-
-    def hash(data: str):
-        return _hash(data)
+from .utils import hash
 
 class FilterTypes(Enum):
     FEATURE = 1604612045
