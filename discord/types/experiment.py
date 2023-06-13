@@ -31,17 +31,17 @@ from typing_extensions import NotRequired
 
 class ExperimentResponse(TypedDict):
     fingerprint: NotRequired[str]
-    assignments: List[UserExperiment]
+    assignments: List[UserExperimentAssignment]
 
 
 class ExperimentResponseWithGuild(ExperimentResponse):
     guild_experiments: NotRequired[List[GuildExperiment]]
 
+class RolloutData(TypedDict):
+    s: int
+    e: int
 
-class Rollout(TypedDict):
-    bucket: int
-    ranges: Tuple[int, int]
-
+Rollout = Tuple[int, List[RolloutData]]
 
 FilterType = Literal[
     1604612045,  # FEATURE
@@ -53,6 +53,7 @@ FilterType = Literal[
     2294888943,  # RANGE_BY_HASH
 ]
 
+_ExperimentBoolean = Literal[0, 1]
 
 Filters = Union[
     Tuple[Literal[1604612045], Tuple[Tuple[int, List[str]]]],  # FEATURE
@@ -83,13 +84,14 @@ Holdout = Tuple[
 ]
 
 
-UserExperiment = Tuple[
+UserExperimentAssignment = Tuple[
     int,  # hash
     int,  # revision
     int,  # bucket
     int,  # override
     int,  # population
     int,  # hash_result
+    _ExperimentBoolean,  # aa_mode
 ]
 
 
@@ -100,6 +102,7 @@ GuildExperiment = Tuple[
     List[Population],  # populations
     List[Override],  # overrides
     List[List[Population]],  # overrides_formatted
-    Optional[Holdout],  # holdout
-    bool,  # aa_mode
+    Optional[str],  # holdout name
+    Optional[int],  # holdout bucket
+    _ExperimentBoolean,  # aa_mode
 ]

@@ -42,6 +42,7 @@ from .activity import BaseActivity, Spotify
 from .enums import SpeakingState
 from .errors import ConnectionClosed
 from .flags import Capabilities
+from .experiment import UserExperimentAssignment, GuildExperiment
 
 _log = logging.getLogger(__name__)
 
@@ -571,6 +572,10 @@ class DiscordWebSocket:
                 self.sequence = None
                 self.session_id = None
                 self.gateway = self.DEFAULT_GATEWAY
+
+                self.assignments = []
+                self.guild_experiments = []
+
                 _log.info('Gateway session has been invalidated.')
                 await self.close(code=1000)
                 raise ReconnectWebSocket(resume=False)
@@ -583,6 +588,10 @@ class DiscordWebSocket:
             self.sequence = msg['s']
             self.session_id = data['session_id']
             self.gateway = yarl.URL(data['resume_gateway_url'])
+            
+            self.assignments = [UserExperimentAssignment(assignment) for assignment in data.get('experiments', [])]
+            self.guild_experiments = [GuildExperiment(experiment) for experiment in data.get('guild_experiments', [])]
+
             _log.info('Connected to Gateway (Session ID: %s).', self.session_id)
             await self.voice_state()  # Initial OP 4
 

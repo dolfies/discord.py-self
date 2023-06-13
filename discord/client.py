@@ -91,6 +91,7 @@ from .relationship import FriendSuggestion, Relationship
 from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailSettings
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
+from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -112,8 +113,6 @@ if TYPE_CHECKING:
     from .types.snowflake import Snowflake as _Snowflake
 
     PrivateChannel = Union[DMChannel, GroupChannel]
-
-from .types.experiment import ExperimentInfo
 
 # fmt: off
 __all__ = (
@@ -312,6 +311,9 @@ class Client:
         )
 
     def _handle_ready(self) -> None:
+        self.assignments = self.ws.assignments
+        self.guild_experiments = self.ws.guild_experiments
+
         self._ready.set()
 
     def _handle_connect(self) -> None:
@@ -4952,15 +4954,15 @@ class Client:
         return app
 
     @overload
-    async def fetch_experiments(self, *, with_guild_experiments: Literal[True] = ...) -> List[Union[UserExperiment, GuildExperiment]]:
+    async def fetch_experiments(self, with_guild_experiments: Literal[True] = ...) -> ExperimentResponseWithGuild:
         ...
 
     @overload
-    async def fetch_experiments(self, *, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]:
+    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> ExperimentResponse:
         ...
 
 
-    async def fetch_experiments(self, *, with_guild_experiments: bool = True) -> Union[List[User], List[Union[UserExperiment, GuildExperiment]]]:
+    async def fetch_experiments(self, with_guild_experiments: bool = True) -> Union[ExperimentResponse, ExperimentResponseWithGuild]:
         """|coro|
 
         Retrieves the experiment assignments for the user.
@@ -4982,4 +4984,4 @@ class Client:
         state = self._connection
         data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
-        return
+        return data

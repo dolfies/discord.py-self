@@ -35,7 +35,7 @@ from .automod import AutoModerationAction, AutoModerationRuleTriggerType
 from .channel import ChannelType, DMChannel, GroupDMChannel, StageInstance
 from .emoji import Emoji, PartialEmoji
 from .entitlements import Entitlement, GatewayGift
-from .experiment import GuildExperiment, UserExperiment
+from .experiment import GuildExperiment, UserExperimentAssignment
 from .guild import ApplicationCommandCounts, Guild, SupplementalGuild, UnavailableGuild
 from .integration import BaseIntegration, IntegrationApplication
 from .interactions import Interaction
@@ -87,7 +87,7 @@ class ReadyEvent(ResumedEvent):
     auth_token: NotRequired[str]
     connected_accounts: List[Connection]
     country_code: str
-    experiments: List[UserExperiment]
+    experiments: List[UserExperimentAssignment]
     friend_suggestion_count: int
     geo_ordered_rtc_regions: List[str]
     guild_experiments: List[GuildExperiment]
