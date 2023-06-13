@@ -91,7 +91,6 @@ from .relationship import FriendSuggestion, Relationship
 from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailSettings
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
-from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
 from .experiment import UserExperimentAssignment, GuildExperiment
 
 if TYPE_CHECKING:
@@ -112,6 +111,7 @@ if TYPE_CHECKING:
     from .tutorial import Tutorial
     from .file import File
     from .types.snowflake import Snowflake as _Snowflake
+    from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 

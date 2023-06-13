@@ -98,6 +98,7 @@ from .automod import AutoModRule, AutoModAction
 from .audit_logs import AuditLogEntry
 from .read_state import ReadState
 from .tutorial import Tutorial
+from .experiment import UserExperimentAssignment, GuildExperiment
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -959,6 +960,10 @@ class ConnectionState:
         self._ready_data = data
         # Clear the ACK token
         self.http.ack_token = None
+        
+        self.assignments = [UserExperimentAssignment(assignment) for assignment in data.get('experiments', [])]
+        self.guild_experiments = [GuildExperiment(experiment) for experiment in data.get('guild_experiments', [])]
+
 
     def parse_ready_supplemental(self, extra_data: gw.ReadySupplementalEvent) -> None:
         if self._ready_task is not None:

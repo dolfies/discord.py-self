@@ -23,15 +23,15 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
-
-from .types.experiment import (
-    GuildExperiment as RawExperiment,
-    Override,
-    Population,
-    UserExperimentAssignment as RawAssignment,
-)
+if TYPE_CHECKING:
+    from .types.experiment import (
+        GuildExperiment as RawExperiment,
+        Override,
+        Population,
+        UserExperimentAssignment as RawAssignment,
+    )
 
 
 class FilterTypes(Enum):
@@ -97,13 +97,11 @@ class GuildExperiment:
             return -1
 
         try:
-            import mmh3
+            from mmh3 import hash
         except ImportError:
-            raise ImportError(
-                "`GuildExperiment` requires the `mmh3` library to compute cryptographic hashes."
-            )
+            from .utils import hash
 
-        hash = mmh3.hash("foo", signed=False) % 1e4
+        hash_result = hash("foo", signed=False) % 1e4
 
         bucket = -1
 
@@ -112,7 +110,7 @@ class GuildExperiment:
 
             for type, value in filters:
                 if type == FilterTypes.FEATURE:
-                    ((features)) = value
+                    features = value[0][1]
                     for feature in features:
                         if feature in guild.features:
                             continue
@@ -135,7 +133,7 @@ class GuildExperiment:
                     else:
                         return -1
                 elif type == FilterTypes.ID_LIST:
-                    ((_, ids)) = value
+                    ids = value[0][1]
                     if guild.id in ids:
                         continue
                     else:
@@ -147,7 +145,7 @@ class GuildExperiment:
                     # this one either
                     pass
                 elif type == FilterTypes.VANITY_URL:
-                    ((has_vanity)) = value
+                    has_vanity = value[0][1]
                     vanity_url = guild.vanity_url
                     if has_vanity == True:
                         if vanity_url is not None:
@@ -164,7 +162,7 @@ class GuildExperiment:
 
             for bucket, rollouts in rollouts:
                 for rollout in rollouts:
-                    if rollout.s <= hash <= rollout.e:
+                    if rollout.s <= hash_result <= rollout.e:
                         return bucket
                     else:
                         continue
