@@ -38,7 +38,7 @@ class FilterTypes(Enum):
     FEATURE = 1604612045
     ID_RANGE = 2404720969
     MEMBER_COUNT = 2918402255
-    ID_LIST = 30137718
+    ID_LIST = 3013771838
     HUB_TYPE = 4148745523
     VANITY_URL = 188952590
     RANGE_BY_HASH = 2294888943
@@ -64,11 +64,13 @@ class GuildExperiment:
         self.populations: List[Population] = populations
         self.overrides: List[Override] = overrides
         self.overrides_formatted: List[List[Population]] = overrides_formatted
-        self.holdout: Optional[Tuple[str, int]] = (holdout_name, holdout_bucket) if holdout_name is not None else None
+        self.holdout: Optional[Tuple[str, int]] = (
+            (holdout_name, holdout_bucket) if holdout_name is not None else None
+        )
         self.aa_mode: bool = True if aa_mode == 1 else False
 
     def __repr__(self) -> str:
-        return f'<GuildExperiment hash_key={self.hash_key} name={self.name}>'
+        return f"<GuildExperiment hash_key={self.hash_key} name={self.name}>"
 
     # FIXME(splatterxl): find a way to type `guild` as guild.Guild without crashing the whole thing
     def guild_bucket(self, guild) -> int:
@@ -97,7 +99,9 @@ class GuildExperiment:
         try:
             import mmh3
         except ImportError:
-            raise ImportError("`GuildExperiment` requires the `mmh3` library to compute cryptographic hashes.")
+            raise ImportError(
+                "`GuildExperiment` requires the `mmh3` library to compute cryptographic hashes."
+            )
 
         hash = mmh3.hash("foo", signed=False) % 1e4
 
@@ -108,7 +112,7 @@ class GuildExperiment:
 
             for type, value in filters:
                 if type == FilterTypes.FEATURE:
-                    ((_, features)) = value
+                    ((features)) = value
                     for feature in features:
                         if feature in guild.features:
                             continue
@@ -143,7 +147,7 @@ class GuildExperiment:
                     # this one either
                     pass
                 elif type == FilterTypes.VANITY_URL:
-                    ((_, has_vanity)) = value
+                    ((has_vanity)) = value
                     vanity_url = guild.vanity_url
                     if has_vanity == True:
                         if vanity_url is not None:
@@ -187,8 +191,6 @@ class GuildExperiment:
 
 class UserExperimentAssignment:
     def __init__(self, data: RawAssignment):
-        print(data)
-
         (hash_key, revision, bucket, override, population, hash_result, aa_mode) = data
 
         self.hash_key: int = hash_key
@@ -200,7 +202,9 @@ class UserExperimentAssignment:
         self.aa_mode: bool = True if aa_mode == 1 else False
 
     def __repr__(self) -> str:
-        return f'<UserExperimentAssignment hash_key={self.hash_key} bucket={self.bucket}>'
+        return (
+            f"<UserExperimentAssignment hash_key={self.hash_key} bucket={self.bucket}>"
+        )
 
     @property
     def bucket(self) -> int:

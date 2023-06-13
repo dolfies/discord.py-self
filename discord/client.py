@@ -92,6 +92,7 @@ from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailS
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
+from .experiment import UserExperimentAssignment, GuildExperiment
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -311,9 +312,6 @@ class Client:
         )
 
     def _handle_ready(self) -> None:
-        self.assignments = self.ws.assignments
-        self.guild_experiments = self.ws.guild_experiments
-
         self._ready.set()
 
     def _handle_connect(self) -> None:
@@ -4986,3 +4984,11 @@ class Client:
         data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
         return data
+
+    @property
+    def assignments(self) -> List[UserExperimentAssignment]:
+        return self.ws.assignments
+    
+    @property
+    def guild_experiments(self) -> List[GuildExperiment]:
+        return self.ws.guild_experiments
