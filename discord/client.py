@@ -91,7 +91,6 @@ from .relationship import FriendSuggestion, Relationship
 from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailSettings
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
-from .experiment import UserExperimentAssignment, GuildExperiment
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -112,6 +111,7 @@ if TYPE_CHECKING:
     from .file import File
     from .types.snowflake import Snowflake as _Snowflake
     from .types.experiment import ExperimentResponse, ExperimentResponseWithGuild
+    from .experiment import UserExperimentAssignment, GuildExperiment
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
@@ -4987,8 +4987,8 @@ class Client:
 
     @property
     def assignments(self) -> List[UserExperimentAssignment]:
-        return self.ws.assignments
+        return self._connection.assignments
     
     @property
     def guild_experiments(self) -> List[GuildExperiment]:
-        return self.ws.guild_experiments
+        return self._connection.guild_experiments
