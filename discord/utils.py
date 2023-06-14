@@ -1621,84 +1621,73 @@ def setup_logging(
     logger.setLevel(level)
     logger.addHandler(handler)
 
-# mmh3 function from https://github.com/wc-duck/pymmh3/blob/master/pymmh3.py
-
-def xrange( a, b, c ):
-    return range( a, b, c )
-def xencode(x):
-    if isinstance(x, bytes) or isinstance(x, bytearray):
-        return x
-    else:
-        return x.encode()
+# modified murmurhash3 function from https://github.com/wc-duck/pymmh3/blob/master/pymmh3.py
 
 try:
-    from mmh3 import hash as mmh3_hash # type: ignore -- this is caught anyway so its fine
+    from mmh3 import hash as mmh3_hash  # type: ignore -- this is caught anyway so its fine
 
-    def hash(data: str): # type: ignore -- this function is defined only if it cannot be imported
-        return mmh3_hash(data, signed=False) # type: ignore -- i know this works
+    def hash(data: str):  # type: ignore
+        return mmh3_hash(data, signed=False)  # type: ignore
+
 except ImportError:
-    def internal_hash( key, seed = 0x0 ):
-        ''' Implements 32bit murmur3 hash. '''
+    def fmix(h: int):
+        h ^= h >> 16
+        h = (h * 0x85EBCA6B) & 0xFFFFFFFF
+        h ^= h >> 13
+        h = (h * 0xC2B2AE35) & 0xFFFFFFFF
+        h ^= h >> 16
+        return h
 
-        key = bytearray( xencode(key) )
+    def internal_hash(key: Union[str, bytes, bytearray], seed=0x0, *, signed: bool = False):
+        key = bytearray(key.encode() if isinstance(key, str) else key)
 
-        def fmix( h ):
-            h ^= h >> 16
-            h  = ( h * 0x85ebca6b ) & 0xFFFFFFFF
-            h ^= h >> 13
-            h  = ( h * 0xc2b2ae35 ) & 0xFFFFFFFF
-            h ^= h >> 16
-            return h
-
-        length = len( key )
-        nblocks = int( length / 4 )
+        length = len(key)
+        nblocks = int(length / 4)
 
         h1 = seed
 
-        c1 = 0xcc9e2d51
-        c2 = 0x1b873593
+        c1 = 0xCC9E2D51
+        c2 = 0x1B873593
 
-        # body
-        for block_start in xrange( 0, nblocks * 4, 4 ):
-            # ??? big endian?
-            k1 = key[ block_start + 3 ] << 24 | \
-                key[ block_start + 2 ] << 16 | \
-                key[ block_start + 1 ] <<  8 | \
-                key[ block_start + 0 ]
-                
-            k1 = ( c1 * k1 ) & 0xFFFFFFFF
-            k1 = ( k1 << 15 | k1 >> 17 ) & 0xFFFFFFFF # inlined ROTL32
-            k1 = ( c2 * k1 ) & 0xFFFFFFFF
-            
+        for block_start in range(0, nblocks * 4, 4):
+            k1 = (
+                key[block_start + 3] << 24
+                | key[block_start + 2] << 16
+                | key[block_start + 1] << 8
+                | key[block_start + 0]
+            )
+
+            k1 = (c1 * k1) & 0xFFFFFFFF
+            k1 = (k1 << 15 | k1 >> 17) & 0xFFFFFFFF
+            k1 = (c2 * k1) & 0xFFFFFFFF
+
             h1 ^= k1
-            h1  = ( h1 << 13 | h1 >> 19 ) & 0xFFFFFFFF # inlined ROTL32
-            h1  = ( h1 * 5 + 0xe6546b64 ) & 0xFFFFFFFF
+            h1 = (h1 << 13 | h1 >> 19) & 0xFFFFFFFF
+            h1 = (h1 * 5 + 0xE6546B64) & 0xFFFFFFFF
 
-        # tail
         tail_index = nblocks * 4
         k1 = 0
         tail_size = length & 3
 
         if tail_size >= 3:
-            k1 ^= key[ tail_index + 2 ] << 16
+            k1 ^= key[tail_index + 2] << 16
         if tail_size >= 2:
-            k1 ^= key[ tail_index + 1 ] << 8
+            k1 ^= key[tail_index + 1] << 8
         if tail_size >= 1:
-            k1 ^= key[ tail_index + 0 ]
-        
+            k1 ^= key[tail_index + 0]
+
         if tail_size > 0:
-            k1  = ( k1 * c1 ) & 0xFFFFFFFF
-            k1  = ( k1 << 15 | k1 >> 17 ) & 0xFFFFFFFF # inlined ROTL32
-            k1  = ( k1 * c2 ) & 0xFFFFFFFF
+            k1 = (k1 * c1) & 0xFFFFFFFF
+            k1 = (k1 << 15 | k1 >> 17) & 0xFFFFFFFF
+            k1 = (k1 * c2) & 0xFFFFFFFF
             h1 ^= k1
 
-        #finalization
-        unsigned_val = fmix( h1 ^ length )
-        if unsigned_val & 0x80000000 == 0:
+        
+        unsigned_val = fmix(h1 ^ length)
+        if not signed or (unsigned_val & 0x80000000 == 0):
             return unsigned_val
         else:
-            return -( (unsigned_val ^ 0xFFFFFFFF) + 1 )
-
+            return -((unsigned_val ^ 0xFFFFFFFF) + 1)
 
     def hash(data: str):
-        return internal_hash(data)
+        return internal_hash(data, 0x0)

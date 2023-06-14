@@ -31,7 +31,7 @@ from typing_extensions import NotRequired
 
 class ExperimentResponse(TypedDict):
     fingerprint: NotRequired[str]
-    assignments: List[UserExperimentAssignment]
+    assignments: List[UserExperiment]
 
 
 class ExperimentResponseWithGuild(ExperimentResponse):
@@ -92,7 +92,7 @@ Holdout = Tuple[
 ]
 
 
-UserExperimentAssignment = Tuple[
+UserExperiment = Tuple[
     int,  # hash
     int,  # revision
     int,  # bucket

@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from .tutorial import Tutorial
     from .file import File
     from .types.snowflake import Snowflake as _Snowflake
-    from .experiment import UserExperimentAssignment, GuildExperiment
+    from .experiment import UserExperiment, GuildExperiment
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
@@ -4953,22 +4953,22 @@ class Client:
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: Literal[True] = ...
-    ) -> List[Union[UserExperimentAssignment, GuildExperiment]]:
+    ) -> List[Union[UserExperiment, GuildExperiment]]:
         ...
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperimentAssignment]:
+    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]:
         ...
 
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Union[List[UserExperimentAssignment], List[Union[UserExperimentAssignment, GuildExperiment]]]:
+    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]:
         ...
 
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Union[List[UserExperimentAssignment], List[Union[UserExperimentAssignment, GuildExperiment]]]:
+    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]:
         """|coro|
 
         Retrieves the experiment assignments for the user.
@@ -4990,11 +4990,19 @@ class Client:
         state = self._connection
         data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
-        return data
+        assignments = data['assignments']
+        guild_experiments = [GuildExperiment(d) for d in data.get('guild_experiments', [])]
+
+        result = []
+        result.extend(assignments)
+        result.extend(guild_experiments)
+
+        return result
+
 
     @property
-    def assignments(self) -> List[UserExperimentAssignment]:
-        return self._connection.assignments
+    def experiments(self) -> List[UserExperiment]:
+        return self._connection.experiments
 
     @property
     def guild_experiments(self) -> List[GuildExperiment]:

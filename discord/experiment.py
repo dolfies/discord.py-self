@@ -22,31 +22,26 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from enum import Enum
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple, cast
 
 if TYPE_CHECKING:
     from .types.experiment import (
-        GuildExperiment as RawExperiment,
+        GuildExperiment as GuildExperimentPayload,
         Override,
         Population,
-        UserExperimentAssignment as RawAssignment,
+        UserExperiment as AssignmentPayload,
     )
+    from .guild import Guild
 
 from .utils import hash
+from .enums import ExperimentFilterType
 
-class FilterTypes(Enum):
-    FEATURE = 1604612045
-    ID_RANGE = 2404720969
-    MEMBER_COUNT = 2918402255
-    ID_LIST = 3013771838
-    HUB_TYPE = 4148745523
-    VANITY_URL = 188952590
-    RANGE_BY_HASH = 2294888943
-
+class ExperimentHoldout(NamedTuple):
+    name: str
+    bucket: int
 
 class GuildExperiment:
-    def __init__(self, data: RawExperiment):
+    def __init__(self, data: GuildExperimentPayload):
         (
             hash_key,
             name,
@@ -65,8 +60,8 @@ class GuildExperiment:
         self.populations: List[Population] = populations
         self.overrides: List[Override] = overrides
         self.overrides_formatted: List[List[Population]] = overrides_formatted
-        self.holdout: Optional[Tuple[str, int]] = (
-            (holdout_name, holdout_bucket)
+        self.holdout: Optional[ExperimentHoldout] = (
+            ExperimentHoldout(holdout_name, holdout_bucket)
             if (holdout_name is not None and holdout_bucket is not None)
             else None
         )
@@ -75,24 +70,82 @@ class GuildExperiment:
     def __repr__(self) -> str:
         return f"<GuildExperiment hash_key={self.hash_key} name={self.name}>"
 
-    # FIXME(splatterxl): find a way to type `guild` as guild.Guild without crashing the whole thing
-    def guild_bucket(self, guild) -> int:
+    def handle_population(self, *, population: Population, guild: Guild, hash_result: int) -> int:
+        (rollouts, filters) = population
+
+        for type_, value in filters:
+            if type_ == ExperimentFilterType.FEATURE:
+                features = value[0][1]
+                for feature in features: # type: ignore
+                    if feature in guild.features:
+                        continue
+                    else:
+                        return -1
+            elif type_ == ExperimentFilterType.ID_RANGE:
+                ((_, start), (_, end)) = value # type: ignore
+                if start is not None and start <= guild.id <= end: # type: ignore -- start, end will always be int
+                    continue
+                elif start is None and guild.id <= end:
+                    continue
+                else:
+                    return -1
+            elif type_ == ExperimentFilterType.MEMBER_COUNT:
+                ((_, start), (_, end)) = value # type: ignore
+
+                if guild.member_count is None: continue
+
+                if start is not None and start <= guild.member_count <= end: # type: ignore -- same here
+                    continue
+                elif start is None and guild.member_count <= end:
+                    continue
+                else:
+                    return -1
+            elif type_ == ExperimentFilterType.ID_LIST:
+                ids = value[0][1]
+                if guild.id in ids: # type: ignore -- same here
+                    continue
+                else:
+                    return -1
+            # TODO: when hubs are implemented add HUB_TYPE
+            elif type_ == ExperimentFilterType.HUB_TYPE or type_ == ExperimentFilterType.RANGE_BY_HASH:
+                # checks for these filters are unknown
+                pass
+            elif type_ == ExperimentFilterType.VANITY_URL:
+                has_vanity = cast(bool, guild.vanity_url_code)
+                if value[0][1] == True:
+                    if not has_vanity:
+                        return -1
+                elif has_vanity:
+                    return -1
+            else:
+                raise NotImplementedError(f"Unknown filter type: {type_}")
+
+        for bucket, rollouts in rollouts:
+            for rollout in rollouts:
+                if rollout['s'] <= hash_result <= rollout['e']:
+                    return bucket
+                else:
+                    continue
+
+        return -1
+
+    def bucket_for(self, guild: Guild) -> int:
         """
         Returns the assigned experiment bucket for a :class:`Guild`.
 
         Parameters
         -----------
-        guild: :class:`Guild`
+        guild: :class:`.Guild`
             The guild to compute experiment eligibility for.
 
         Returns
         -------
-        int
+        :class:`int`
             The experiment bucket.
 
         Raises
         ------
-        ImportError
+        :class:`ImportError`
             The `mmh3` library is not installed (required for hash computation).
         """
 
@@ -103,78 +156,14 @@ class GuildExperiment:
 
         bucket = -1
 
-        def handle_population(population: Population):
-            (rollouts, filters) = population
-
-            for type_, value in filters:
-                if type_ == FilterTypes.FEATURE:
-                    features = value[0][1]
-                    for feature in features: # type: ignore
-                        if feature in guild.features:
-                            continue
-                        else:
-                            return -1
-                elif type_ == FilterTypes.ID_RANGE:
-                    ((_, start), (_, end)) = value # type: ignore
-                    if start is not None and start <= guild.id <= end:
-                        continue
-                    elif start is None and guild.id <= end:
-                        continue
-                    else:
-                        return -1
-                elif type_ == FilterTypes.MEMBER_COUNT:
-                    ((_, start), (_, end)) = value # type: ignore
-                    if start is not None and start <= guild.member_count <= end:
-                        continue
-                    elif start is None and guild.member_count <= end:
-                        continue
-                    else:
-                        return -1
-                elif type_ == FilterTypes.ID_LIST:
-                    ids = value[0][1]
-                    if guild.id in ids:
-                        continue
-                    else:
-                        return -1
-                elif type_ == FilterTypes.HUB_TYPE:
-                    # no clue how this one works
-                    pass
-                elif type_ == FilterTypes.RANGE_BY_HASH:
-                    # this one either
-                    pass
-                elif type_ == FilterTypes.VANITY_URL:
-                    has_vanity = value[0][1]
-                    vanity_url = guild.vanity_url
-                    if has_vanity == True:
-                        if vanity_url is not None:
-                            continue
-                        else:
-                            return -1
-                    else:
-                        if vanity_url is None:
-                            continue
-                        else:
-                            return -1
-                else:
-                    raise NotImplementedError(f"Unknown filter type: {type_}")
-
-            for bucket, rollouts in rollouts:
-                for rollout in rollouts:
-                    if rollout['s'] <= hash_result <= rollout['e']:
-                        return bucket
-                    else:
-                        continue
-
-            return -1
-
         for population in self.populations:
-            pop_bucket = handle_population(population)
+            pop_bucket = self.handle_population(population=population, guild=guild, hash_result=hash_result)
 
             bucket = pop_bucket if pop_bucket != -1 else bucket
 
         for overrides in self.overrides_formatted:
             for override in overrides:
-                pop_bucket = handle_population(override)
+                pop_bucket = self.handle_population(population=override, guild=guild, hash_result=hash_result)
 
                 bucket = pop_bucket if pop_bucket != -1 else bucket
 
@@ -186,7 +175,7 @@ class GuildExperiment:
 
 
 class UserExperiment:
-    def __init__(self, data: RawAssignment):
+    def __init__(self, data: AssignmentPayload):
         (hash_key, revision, bucket, override, population, hash_result, aa_mode) = data
 
         self.hash_key: int = hash_key
