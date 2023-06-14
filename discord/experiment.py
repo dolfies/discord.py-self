@@ -185,7 +185,7 @@ class GuildExperiment:
         return bucket
 
 
-class UserExperimentAssignment:
+class UserExperiment:
     def __init__(self, data: RawAssignment):
         (hash_key, revision, bucket, override, population, hash_result, aa_mode) = data
 
