@@ -70,7 +70,7 @@ class GuildExperiment:
             if (holdout_name is not None and holdout_bucket is not None)
             else None
         )
-        self.aa_mode: bool = True if aa_mode == 1 else False
+        self.aa_mode: bool = aa_mode == 1
 
     def __repr__(self) -> str:
         return f"<GuildExperiment hash_key={self.hash_key} name={self.name}>"
