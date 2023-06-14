@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, cast
+from typing import TYPE_CHECKING, List, NamedTuple, Optional
 
 if TYPE_CHECKING:
     from .types.experiment import (
@@ -113,7 +113,7 @@ class GuildExperiment:
                 # checks for these filters are unknown
                 pass
             elif type_ == ExperimentFilterType.VANITY_URL:
-                has_vanity = cast(bool, guild.vanity_url_code)
+                has_vanity = bool(guild.vanity_url_code)
                 if value[0][1] == True:
                     if not has_vanity:
                         return -1
