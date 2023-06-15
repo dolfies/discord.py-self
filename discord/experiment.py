@@ -144,11 +144,6 @@ class GuildExperiment:
         -------
         :class:`int`
             The experiment bucket.
-
-        Raises
-        ------
-        :class:`ImportError`
-            The `mmh3` library is not installed (required for hash computation).
         """
 
         if self.aa_mode:
