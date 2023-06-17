@@ -4990,14 +4990,11 @@ class Client:
         state = self._connection
         data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
-        assignments = data['assignments']
-        guild_experiments = [GuildExperiment(d) for d in data.get('guild_experiments', [])]
+        experiments = [UserExperiment(exp) for exp in data['assignments']]
+        for exp in data.get('guild_experiments', []):
+            experiments.append(GuildExperiment(exp))
 
-        result = []
-        result.extend(assignments)
-        result.extend(guild_experiments)
-
-        return result
+        return experiments
 
 
     @property
