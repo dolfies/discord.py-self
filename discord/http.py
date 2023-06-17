@@ -4677,4 +4677,4 @@ class HTTPClient:
         self, with_guild_experiments: bool = True
     ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]:
         params = {'with_guild_experiments': str(with_guild_experiments).lower()}
-        return self.request(Route('GET', '/experiments'), params=params)
+        return self.request(Route('GET', '/experiments'), params=params, context_properties=ContextProperties.empty())
