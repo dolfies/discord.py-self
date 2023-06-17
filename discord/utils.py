@@ -1624,7 +1624,7 @@ def setup_logging(
 # modified murmurhash3 function from https://github.com/wc-duck/pymmh3/blob/master/pymmh3.py
 
 try:
-    from mmh3 import hash as mmh3_hash  # type: ignore -- this is caught anyway so its fine
+    from mmh3 import hash as mmh3_hash  # type: ignore # This is caught anyway so it's fine
 
     def hash(data: str):  # type: ignore
         return mmh3_hash(data, signed=False)  # type: ignore
