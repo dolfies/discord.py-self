@@ -70,7 +70,7 @@ class GuildExperiment:
         self.aa_mode: bool = aa_mode == 1
 
     def __repr__(self) -> str:
-        return f"<GuildExperiment hash_key={self.hash_key} name={self.name}>"
+        return f'<GuildExperiment hash_key={self.hash_key} name={self.name}>'
 
     def handle_population(self, *, population: Population, guild: Guild, hash_result: int) -> int:
         (rollouts, filters) = population
