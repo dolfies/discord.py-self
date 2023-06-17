@@ -146,7 +146,7 @@ class GuildExperiment:
         if self.aa_mode:
             return -1
 
-        hash_result = hash(f"{self.name}:{guild.id}")
+        hash_result = hash(f'{self.name}:{guild.id}')
 
         bucket = -1
 
