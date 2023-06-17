@@ -114,10 +114,7 @@ class GuildExperiment:
                 pass
             elif type_ == ExperimentFilterType.VANITY_URL:
                 has_vanity = bool(guild.vanity_url_code)
-                if value[0][1] == True:
-                    if not has_vanity:
-                        return -1
-                elif has_vanity:
+                if value[0][1] != bool(guild.vanity_url_code):
                     return -1
             else:
                 raise NotImplementedError(f"Unknown filter type: {type_}")
