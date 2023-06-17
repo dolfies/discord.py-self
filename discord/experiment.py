@@ -129,8 +129,7 @@ class GuildExperiment:
         return -1
 
     def bucket_for(self, guild: Guild) -> int:
-        """
-        Returns the assigned experiment bucket for a :class:`Guild`.
+        """Returns the assigned experiment bucket for a :class:`Guild`.
 
         Parameters
         -----------
