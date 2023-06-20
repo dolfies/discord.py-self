@@ -1626,7 +1626,7 @@ def setup_logging(
 try:
     from mmh3 import hash as mmh3_hash  # type: ignore # This is caught anyway so it's fine
 
-    def hash(data: str):  # type: ignore
+    def murmurhash32(data: str):  # type: ignore
         return mmh3_hash(data, signed=False)  # type: ignore
 
 except ImportError:
@@ -1638,7 +1638,7 @@ except ImportError:
         h ^= h >> 16
         return h
 
-    def internal_hash(key: Union[str, bytes, bytearray], seed=0x0, *, signed: bool = False):
+    def murmurhash32(key: Union[str, bytes, bytearray], seed=0x0, *, signed: bool = False):
         key = bytearray(key.encode() if isinstance(key, str) else key)
 
         length = len(key)
@@ -1688,6 +1688,3 @@ except ImportError:
             return unsigned_val
         else:
             return -((unsigned_val ^ 0xFFFFFFFF) + 1)
-
-    def hash(data: str):
-        return internal_hash(data, 0x0)

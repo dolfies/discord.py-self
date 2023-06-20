@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     )
     from .guild import Guild
 
-from .utils import hash
+from .utils import murmurhash32
 from .enums import ExperimentFilterType
 
 class ExperimentHoldout(NamedTuple):
@@ -145,7 +145,7 @@ class GuildExperiment:
         if self.aa_mode:
             return -1
 
-        hash_result = hash(f'{self.name}:{guild.id}')
+        hash_result = murmurhash32(f'{self.name}:{guild.id}')
 
         bucket = -1
 
