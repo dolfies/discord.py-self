@@ -144,7 +144,7 @@ class GuildExperiment:
                 if value[0][1] != bool(guild.vanity_url_code):
                     return -1
             else:
-                raise NotImplementedError(f"Unknown filter type: {type_}")
+                raise NotImplementedError(f'Unknown filter type: {type_}')
 
         for bucket, rollouts in population.rollouts:
             for rollout in rollouts:
@@ -199,7 +199,7 @@ class UserExperiment:
     def __init__(self, data: AssignmentPayload):
         (hash_key, revision, bucket, override, population, hash_result, aa_mode) = data
 
-        self.hash_key: int = hash_key
+        self.hash: int = hash_key
         self.revision: int = revision
         self._bucket: int = bucket
         self.override: int = override
@@ -209,8 +209,17 @@ class UserExperiment:
 
     def __repr__(self) -> str:
         return (
-            f"<UserExperimentAssignment hash_key={self.hash_key} bucket={self.bucket}>"
+            f'<UserExperimentAssignment hash={self.hash} bucket={self.bucket}>'
         )
+
+    def __hash__(self) -> int:
+        return self.hash
+    
+    def __eq__(self, __value: object) -> bool:
+        return isinstance(__value, UserExperiment) and self.hash == __value.hash
+    
+    def __ne__(self, __value: object) -> bool:
+        return not self == __value
 
     @property
     def bucket(self) -> int:
