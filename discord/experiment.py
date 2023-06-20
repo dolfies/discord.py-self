@@ -1,7 +1,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-present Rapptz
+Copyright (c) 2021-present Dolfies
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -24,29 +24,49 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, TypedDict
+
+from .utils import murmurhash32
+from .enums import ExperimentFilterType
 
 if TYPE_CHECKING:
     from .types.experiment import (
         GuildExperiment as GuildExperimentPayload,
-        Override,
-        Population,
+        Override as OverridePayload,
         UserExperiment as AssignmentPayload,
+        Population as PopulationPayload,
+        Filters,
+        Rollout,
     )
     from .guild import Guild
-
-from .utils import murmurhash32
-from .enums import ExperimentFilterType
 
 class ExperimentHoldout(NamedTuple):
     name: str
     bucket: int
 
+class Population:
+    filters: List[Filters]
+    rollouts: List[Rollout]
+
+    def __init__(self, data: PopulationPayload):
+        (rollouts, filters) = data
+
+        self.filters: List[Filters] = filters
+        self.rollouts: List[Rollout] = rollouts
+
+class Override:
+    bucket: int
+    ids: List[int]
+
+    def __init__(self, data: OverridePayload):
+        self.bucket = data['b']
+        self.ids = data['k']
+
 class GuildExperiment:
     def __init__(self, data: GuildExperimentPayload):
         (
+            hash,
             hash_key,
-            name,
             revision,
             populations,
             overrides,
@@ -56,12 +76,12 @@ class GuildExperiment:
             aa_mode,
         ) = data
 
-        self.hash_key: int = hash_key
-        self.name: Optional[str] = name
+        self.hash: int = hash
+        self.name: Optional[str] = hash_key
         self.revision: int = revision
-        self.populations: List[Population] = populations
-        self.overrides: List[Override] = overrides
-        self.overrides_formatted: List[List[Population]] = overrides_formatted
+        self.populations: List[Population] = list(map(lambda x: Population(x), populations))
+        self.overrides: List[Override] = list(map(lambda x: Override(x), overrides))
+        self.overrides_formatted: List[List[Population]] = list(map(lambda x: list(map(lambda y: Population(y), x)), overrides_formatted))
         self.holdout: Optional[ExperimentHoldout] = (
             ExperimentHoldout(holdout_name, holdout_bucket)
             if (holdout_name is not None and holdout_bucket is not None)
@@ -70,20 +90,27 @@ class GuildExperiment:
         self.aa_mode: bool = aa_mode == 1
 
     def __repr__(self) -> str:
-        return f'<GuildExperiment hash_key={self.hash_key} name={self.name}>'
+        return f'<GuildExperiment hash_key={self.hash} name={self.name}>'
+
+    def __hash__(self) -> int:
+        return self.hash
+    
+    def __eq__(self, __value: object) -> bool:
+        return isinstance(__value, GuildExperiment) and self.hash == __value.hash
+    
+    def __ne__(self, __value: object) -> bool:
+        return not self == __value
 
     def handle_population(self, *, population: Population, guild: Guild, hash_result: int) -> int:
-        (rollouts, filters) = population
-
-        for type_, value in filters:
-            if type_ == ExperimentFilterType.FEATURE:
+        for type_, value in population.filters:
+            if type_ == ExperimentFilterType.feature:
                 features = value[0][1]
                 for feature in features: # type: ignore
                     if feature in guild.features:
                         continue
                     else:
                         return -1
-            elif type_ == ExperimentFilterType.ID_RANGE:
+            elif type_ == ExperimentFilterType.id_range:
                 ((_, start), (_, end)) = value # type: ignore
                 if start is not None and start <= guild.id <= end: # type: ignore -- start, end will always be int
                     continue
@@ -91,7 +118,7 @@ class GuildExperiment:
                     continue
                 else:
                     return -1
-            elif type_ == ExperimentFilterType.MEMBER_COUNT:
+            elif type_ == ExperimentFilterType.member_count:
                 ((_, start), (_, end)) = value # type: ignore
 
                 if guild.member_count is None: continue
@@ -102,24 +129,24 @@ class GuildExperiment:
                     continue
                 else:
                     return -1
-            elif type_ == ExperimentFilterType.ID_LIST:
+            elif type_ == ExperimentFilterType.id_list:
                 ids = value[0][1]
                 if guild.id in ids: # type: ignore -- same here
                     continue
                 else:
                     return -1
             # TODO: when hubs are implemented add HUB_TYPE
-            elif type_ == ExperimentFilterType.HUB_TYPE or type_ == ExperimentFilterType.RANGE_BY_HASH:
+            elif type_ == ExperimentFilterType.hub_type or type_ == ExperimentFilterType.range_by_hash:
                 # checks for these filters are unknown
                 pass
-            elif type_ == ExperimentFilterType.VANITY_URL:
+            elif type_ == ExperimentFilterType.vanity_url:
                 has_vanity = bool(guild.vanity_url_code)
                 if value[0][1] != bool(guild.vanity_url_code):
                     return -1
             else:
                 raise NotImplementedError(f"Unknown filter type: {type_}")
 
-        for bucket, rollouts in rollouts:
+        for bucket, rollouts in population.rollouts:
             for rollout in rollouts:
                 if rollout['s'] <= hash_result <= rollout['e']:
                     return bucket
@@ -145,7 +172,7 @@ class GuildExperiment:
         if self.aa_mode:
             return -1
 
-        hash_result = murmurhash32(f'{self.name}:{guild.id}')
+        hash_result = murmurhash32(f'{self.name or self.hash}:{guild.id}') % 1e4
 
         bucket = -1
 
@@ -160,9 +187,10 @@ class GuildExperiment:
 
                 bucket = pop_bucket if pop_bucket != -1 else bucket
 
-        for override_bucket, ids in self.overrides:
+        for override in self.overrides:
+            ids = override.ids
             if guild.id in ids or guild.owner_id in ids:
-                bucket = override_bucket
+                bucket = override.bucket
 
         return bucket
 

@@ -1533,13 +1533,13 @@ class ReadStateType(Enum):
     onboarding = 4
 
 class ExperimentFilterType(Enum):
-    FEATURE = 1604612045
-    ID_RANGE = 2404720969
-    MEMBER_COUNT = 2918402255
-    ID_LIST = 3013771838
-    HUB_TYPE = 4148745523
-    VANITY_URL = 188952590
-    RANGE_BY_HASH = 2294888943
+    feature = 1604612045
+    id_range = 2404720969
+    member_count = 2918402255
+    id_list = 3013771838
+    hub_type = 4148745523
+    vanity_url = 188952590
+    range_by_hash = 2294888943
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:
     value_cls = cls._enum_value_cls_  # type: ignore # This is narrowed below
