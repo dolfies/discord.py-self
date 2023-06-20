@@ -4990,7 +4990,7 @@ class Client:
         state = self._connection
         data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
 
-        experiments = [UserExperiment(exp) for exp in data['assignments']]
+        experiments: List[Union[UserExperiment, GuildExperiment]] = [UserExperiment(exp) for exp in data['assignments']]
         for exp in data.get('guild_experiments', []):
             experiments.append(GuildExperiment(exp))
 
