@@ -161,17 +161,15 @@ class ExperimentPopulation:
                 features = value[0][1]
                 if any(feature in guild.features for feature in features):  # type: ignore # features will always be str[]
                     continue
-                else:
-                    return -1
+                return -1
             elif type == ExperimentFilterType.id_range:
                 # Guild must be within the range of snowflakes
                 ((_, start), (_, end)) = value  # type: ignore
                 if start is not None and start <= guild.id <= end:  # type: ignore # start, end will always be int
                     continue
-                elif start is None and guild.id <= end:
+                elif guild.id <= end:
                     continue
-                else:
-                    return -1
+                return -1
             elif type == ExperimentFilterType.member_count_range:
                 # Guild must be within the range of member counts
                 ((_, start), (_, end)) = value  # type: ignore
@@ -180,17 +178,15 @@ class ExperimentPopulation:
                     continue
                 if start is not None and start <= guild.member_count <= end:  # type: ignore # same here
                     continue
-                elif start is None and guild.member_count <= end:
+                elif guild.member_count <= end:
                     continue
-                else:
-                    return -1
+                return -1
             elif type == ExperimentFilterType.ids:
                 # Guild must be in the list of snowflakes, similar to ExperimentOverride
                 ids = value[0][1]
                 if guild.id in ids:  # type: ignore # same here
                     continue
-                else:
-                    return -1
+                return -1
             elif type == ExperimentFilterType.hub_type:
                 # TODO: Pending hub implementation
                 continue
@@ -202,7 +198,9 @@ class ExperimentPopulation:
                     result += result
                 else:
                     result = (result % 0x100000000) >> 0
-                return result % 10000 < target
+                if result % 10000 < target:
+                    continue
+                return -1
             elif type == ExperimentFilterType.vanity_url:
                 # Guild must or must not have a vanity URL
                 if value[0][1] != bool(guild.vanity_url_code):
