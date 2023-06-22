@@ -24,23 +24,23 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterator, List, Optional, Sequence, Tuple, Union
 
 from .enums import ExperimentFilterType, try_enum
 from .metadata import Metadata
-from .utils import murmurhash32
+from .utils import SequenceProxy, SnowflakeList, murmurhash32
 
 if TYPE_CHECKING:
     from .abc import Snowflake
     from .guild import Guild
     from .state import ConnectionState
     from .types.experiment import (
+        Filters as FiltersPayload,
         GuildExperiment as GuildExperimentPayload,
         Override as OverridePayload,
-        UserExperiment as AssignmentPayload,
         Population as PopulationPayload,
-        Filters as FiltersPayload,
         Rollout as RolloutPayload,
+        UserExperiment as AssignmentPayload,
     )
 
 __all__ = (
@@ -319,28 +319,31 @@ class ExperimentOverride:
         The experiment this override belongs to.
     bucket: :class:`int`
         The bucket the override applies.
-    ids: List[:class:`int`]
-        The eligible guild/user IDs for the override.
     """
 
-    __slots__ = ('experiment', 'bucket', 'ids')
+    __slots__ = ('experiment', 'bucket', '_ids')
 
     def __init__(self, experiment: GuildExperiment, data: OverridePayload):
         self.experiment = experiment
         self.bucket: int = data['b']
-        self.ids: Tuple[int, ...] = tuple(data['k'])
+        self._ids: SnowflakeList = SnowflakeList(map(int, data['k']))
 
     def __repr__(self) -> str:
         return f'<ExperimentOverride bucket={self.bucket} ids={self.ids!r}>'
 
     def __len__(self) -> int:
-        return len(self.ids)
+        return len(self._ids)
 
     def __contains__(self, item: Union[int, Snowflake]) -> bool:
-        return getattr(item, 'id', item) in self.ids
+        return getattr(item, 'id', item) in self._ids
 
     def __iter__(self) -> Iterator[int]:
-        return iter(self.ids)
+        return iter(self._ids)
+
+    @property
+    def ids(self) -> Sequence[int]:
+        """Sequence[:class:`int`]: The eligible guild/user IDs for the override."""
+        return SequenceProxy(self._ids)
 
 
 class HoldoutExperiment:
