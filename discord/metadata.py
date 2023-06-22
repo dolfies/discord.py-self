@@ -74,6 +74,11 @@ class Metadata:
                 value = Metadata(value)
             elif key.endswith('_id') and isinstance(value, str) and value.isdigit():
                 value = int(value)
+            elif key.endswith('_ids') and value and isinstance(value, list):
+                try:
+                    value = [int(x) for x in value]
+                except ValueError:
+                    pass
             elif (key.endswith('_at') or key.endswith('_date')) and isinstance(value, str):
                 try:
                     value = parse_time(value)

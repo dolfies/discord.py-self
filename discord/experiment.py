@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator, List, Optional, Tuple, Union
 
 from .enums import ExperimentFilterType, try_enum
+from .metadata import Metadata
 from .utils import murmurhash32
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ __all__ = (
 
 
 class ExperimentRollout:
-    """Represents an experiment rollout.
+    """Represents a rollout for an experiment population.
 
     .. container:: operations
 
@@ -93,6 +94,128 @@ class ExperimentRollout:
         return False
 
 
+class ExperimentFilter:
+    """Represents a filter for an experiment population.
+
+    This is a purposefuly very low-level object.
+
+    .. container:: operations
+
+        .. describe:: x in y
+
+            Checks if a guild fulfills the filter requirements.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    population: :class:`ExperimentPopulation`
+        The population this filter belongs to.
+    type: :class:`ExperimentFilterType`
+        The type of filter.
+    options: :class:`Metadata`
+        The parameters for the filter.
+        If known, murmur3-hashed keys are unhashed to their original names.
+    """
+
+    __slots__ = ('population', 'type', 'options')
+
+    # Most of these are taken from the client
+    FILTER_KEYS = {
+        1604612045: 'guild_has_feature',
+        2404720969: 'guild_id_range',
+        2918402255: 'guild_member_count_range',
+        3013771838: 'guild_ids',
+        4148745523: 'guild_hub_types',
+        188952590: 'guild_has_vanity_url',
+        2294888943: 'guild_in_range_by_hash',
+        3399957344: 'min_id',
+        1238858341: 'max_id',
+        2690752156: 'hash_key',
+        1982804121: 'target',
+        1183251248: 'guild_features',
+    }
+
+    def __init__(self, population: ExperimentPopulation, data: FiltersPayload):
+        type, options = data
+
+        self.population = population
+        self.type: ExperimentFilterType = try_enum(ExperimentFilterType, type)
+
+        self.options = metadata = Metadata()
+        for key, value in options:
+            try:
+                key = self.FILTER_KEYS[int(key)]
+            except (KeyError, ValueError):
+                pass
+            if isinstance(value, str) and value.isdigit():
+                value = int(value)
+
+            metadata[str(key)] = value
+
+    def __repr__(self) -> str:
+        return f'<ExperimentFilter type={self.type!r} options={self.options!r}>'
+
+    def __contains__(self, guild: Guild) -> bool:
+        return self.is_eligible(guild)
+
+    @staticmethod
+    def in_range(num: int, start: Optional[int], end: Optional[int], /) -> bool:
+        if start is not None and num < start:
+            return False
+        if end is not None and num > end:
+            return False
+        return True
+
+    def is_eligible(self, guild: Guild, /) -> bool:
+        """Checks whether the guild fulfills the filter requirements.
+
+        Parameters
+        -----------
+        guild: :class:`Guild`
+            The guild to check.
+
+        Returns
+        --------
+        :class:`bool`
+            Whether the guild fulfills the filter requirements.
+        """
+        type = self.type
+        options = self.options
+
+        if type == ExperimentFilterType.feature:
+            # One feature must be present
+            return options.guild_features and any(feature in guild.features for feature in options.guild_features)
+        elif type == ExperimentFilterType.id_range:
+            # Guild must be within the range of snowflakes
+            return self.in_range(guild.id, options.min_id, options.max_id)
+        elif type == ExperimentFilterType.member_count_range:
+            # Guild must be within the range of member counts
+            return guild.member_count is not None and self.in_range(guild.member_count, options.min_id, options.max_id)
+        elif type == ExperimentFilterType.ids:
+            # Guild must be in the list of snowflakes, similar to ExperimentOverride
+            return options.guild_ids is not None and guild.id in options.guild_ids
+        elif type == ExperimentFilterType.hub_type:
+            # TODO: Pending hub implementation
+            # return guild.hub_type and options.guild_hub_types and guild.hub_type.value in options.guild_hub_types
+            return False
+        elif type == ExperimentFilterType.hash_range:
+            # Guild must... no idea tbh
+            # Probably for cleanly splitting populations
+            result = murmurhash32(f'{options.hash_key}:{guild.id}', signed=False)
+            if result > 0:
+                result += result
+            else:
+                result = (result % 0x100000000) >> 0
+            return options.target and result % 10000 < options.target
+        elif type == ExperimentFilterType.vanity_url:
+            # Guild must or must not have a vanity URL
+            return bool(guild.vanity_url_code) == options.guild_has_vanity_url
+        else:
+            # TODO: Maybe just return False?
+            raise NotImplementedError(f'Unknown filter type: {type}')
+
+
 class ExperimentPopulation:
     """Represents a population of an experiment.
 
@@ -120,7 +243,7 @@ class ExperimentPopulation:
         rollouts, filters = data
 
         self.experiment = experiment
-        self.filters: List[FiltersPayload] = filters
+        self.filters: List[ExperimentFilter] = [ExperimentFilter(self, x) for x in filters]
         self.rollouts: List[ExperimentRollout] = [ExperimentRollout(self, x) for x in rollouts]
 
     def __repr__(self) -> str:
@@ -155,59 +278,9 @@ class ExperimentPopulation:
         if _result is None:
             _result = self.experiment.result_for(guild)
 
-        for type, value in self.filters:
-            type = try_enum(ExperimentFilterType, type)
-            if type == ExperimentFilterType.feature:
-                # One feature must be present
-                features = value[0][1]
-                if any(feature in guild.features for feature in features):  # type: ignore # features will always be str[]
-                    continue
+        for filter in self.filters:
+            if not filter.is_eligible(guild):
                 return -1
-            elif type == ExperimentFilterType.id_range:
-                # Guild must be within the range of snowflakes
-                ((_, start), (_, end)) = value  # type: ignore
-                if start is not None and start <= guild.id <= end:  # type: ignore # start, end will always be int
-                    continue
-                elif guild.id <= end:
-                    continue
-                return -1
-            elif type == ExperimentFilterType.member_count_range:
-                # Guild must be within the range of member counts
-                ((_, start), (_, end)) = value  # type: ignore
-
-                if guild.member_count is None:
-                    continue
-                if start is not None and start <= guild.member_count <= end:  # type: ignore # same here
-                    continue
-                elif guild.member_count <= end:
-                    continue
-                return -1
-            elif type == ExperimentFilterType.ids:
-                # Guild must be in the list of snowflakes, similar to ExperimentOverride
-                ids = value[0][1]
-                if guild.id in ids:  # type: ignore # same here
-                    continue
-                return -1
-            elif type == ExperimentFilterType.hub_type:
-                # TODO: Pending hub implementation
-                continue
-            elif type == ExperimentFilterType.hash_range:
-                # Guild must... no idea tbh
-                ((_, hash_key), (_, target)) = value  # type: ignore
-                result = murmurhash32(f'{hash_key}:{guild.id}', signed=False)
-                if result > 0:
-                    result += result
-                else:
-                    result = (result % 0x100000000) >> 0
-                if result % 10000 < target:
-                    continue
-                return -1
-            elif type == ExperimentFilterType.vanity_url:
-                # Guild must or must not have a vanity URL
-                if value[0][1] != bool(guild.vanity_url_code):
-                    return -1
-            else:
-                raise NotImplementedError(f'Unknown filter type: {type}')
 
         for rollout in self.rollouts:
             for start, end in rollout.ranges:
