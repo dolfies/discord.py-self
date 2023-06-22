@@ -47,6 +47,7 @@ extras_require = {
         'aiodns>=1.1',
         'Brotli',
         'cchardet==2.1.7; python_version < "3.10"',
+        'mmh3>=2.5',
     ],
     'test': [
         'coverage[toml]',
@@ -55,6 +56,7 @@ extras_require = {
         'pytest-cov',
         'pytest-mock',
         'typing-extensions>=4.3,<5',
+        'mmh3>=2.5',
     ],
 }
 
