@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     'ExperimentRollout',
+    'ExperimentFilter',
     'ExperimentPopulation',
     'ExperimentOverride',
     'HoldoutExperiment',
@@ -138,7 +139,7 @@ class ExperimentPopulation:
 
         Parameters
         -----------
-        guild: :class:`.Guild`
+        guild: :class:`Guild`
             The guild to compute experiment eligibility for.
 
         Raises
@@ -448,7 +449,7 @@ class GuildExperiment:
 
         Parameters
         -----------
-        guild: :class:`.abc.Snowflake`
+        guild: :class:`abc.Snowflake`
             The guild to compute the position for.
 
         Raises
@@ -472,7 +473,7 @@ class GuildExperiment:
 
         Parameters
         -----------
-        guild: :class:`.Guild`
+        guild: :class:`Guild`
             The guild to compute experiment eligibility for.
 
         Raises
@@ -529,7 +530,7 @@ class GuildExperiment:
 
         Returns
         -------
-        List[:class:`.Guild`]
+        List[:class:`Guild`]
             The guilds assigned to the bucket.
         """
         return [x for x in self._state.guilds if self.bucket_for(x) == bucket]
