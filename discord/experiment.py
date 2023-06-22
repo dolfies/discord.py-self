@@ -170,6 +170,10 @@ class ExperimentFilter:
     def is_eligible(self, guild: Guild, /) -> bool:
         """Checks whether the guild fulfills the filter requirements.
 
+        .. note::
+
+            This function is not intended to be used directly. Instead, use :func:`GuildExperiment.bucket_for`.
+
         Parameters
         -----------
         guild: :class:`Guild`
@@ -385,6 +389,10 @@ class HoldoutExperiment:
 
     def is_eligible(self, guild: Guild, /) -> bool:
         """Checks whether the guild fulfills the dependency.
+
+        .. note::
+
+            This function is not intended to be used directly. Instead, use :func:`GuildExperiment.bucket_for`.
 
         Parameters
         -----------
