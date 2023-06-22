@@ -4670,7 +4670,9 @@ class HTTPClient:
         ...
 
     @overload
-    def get_experiments(self, with_guild_experiments: bool = True) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]:
+    def get_experiments(
+        self, with_guild_experiments: bool = True
+    ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]:
         ...
 
     def get_experiments(

@@ -59,18 +59,12 @@ _ExperimentBoolean = Literal[0, 1]
 
 Filters = Union[
     Tuple[Literal[1604612045], Tuple[Tuple[int, List[str]]]],  # FEATURE
-    Tuple[
-        Literal[2404720969], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]
-    ],  # ID_RANGE
-    Tuple[
-        Literal[2918402255], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]
-    ],  # MEMBER_COUNT
-    Tuple[Literal[3013771838], Tuple[Tuple[int, List[int]]]],  # ID_LIST
+    Tuple[Literal[2404720969], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]],  # ID_RANGE
+    Tuple[Literal[2918402255], Tuple[Tuple[int, Optional[int]], Tuple[int, int]]],  # MEMBER_COUNT_RANGE
+    Tuple[Literal[3013771838], Tuple[Tuple[int, List[int]]]],  # IDs
     Tuple[Literal[4148745523], Tuple[Tuple[int, List[int]]]],  # HUB_TYPE
     Tuple[Literal[188952590], Tuple[Tuple[Literal[188952590], bool]]],  # VANITY_URL
-    Tuple[
-        Literal[2294888943], Tuple[Tuple[int, int], Tuple[int, int]]
-    ],  # RANGE_BY_HASH
+    Tuple[Literal[2294888943], Tuple[Tuple[int, int], Tuple[int, int]]],  # RANGE_BY_HASH
 ]
 
 
@@ -78,6 +72,7 @@ Population = Tuple[
     List[Rollout],  # rollouts
     List[Filters],  # filters
 ]
+
 
 class Override(TypedDict):
     b: int
@@ -108,7 +103,7 @@ GuildExperiment = Tuple[
     List[Population],  # populations
     List[Override],  # overrides
     List[List[Population]],  # overrides_formatted
-    Optional[str],  # holdout name
-    Optional[int],  # holdout bucket
+    Optional[str],  # holdout_name
+    Optional[int],  # holdout_bucket
     _ExperimentBoolean,  # aa_mode
 ]

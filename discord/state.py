@@ -641,9 +641,9 @@ class ConnectionState:
             self._messages: Optional[Deque[Message]] = deque(maxlen=self.max_messages)
         else:
             self._messages: Optional[Deque[Message]] = None
-        
-        self.experiments = []
-        self.guild_experiments = []
+
+        self.experiments: Dict[int, UserExperiment] = {}
+        self.guild_experiments: Dict[int, GuildExperiment] = {}
 
     def process_chunk_requests(self, guild_id: int, nonce: Optional[str], members: List[Member], complete: bool) -> None:
         removed = []
@@ -963,10 +963,6 @@ class ConnectionState:
         self._ready_data = data
         # Clear the ACK token
         self.http.ack_token = None
-        
-        self.experiments = [UserExperiment(assignment) for assignment in data.get('experiments', [])]
-        self.guild_experiments = [GuildExperiment(experiment) for experiment in data.get('guild_experiments', [])]
-
 
     def parse_ready_supplemental(self, extra_data: gw.ReadySupplementalEvent) -> None:
         if self._ready_task is not None:
@@ -1069,6 +1065,10 @@ class ConnectionState:
         self.pending_payments = {int(p['id']): Payment(state=self, data=p) for p in data.get('pending_payments', [])}
         self.required_action = try_enum(RequiredActionType, data['required_action']) if 'required_action' in data else None
         self.friend_suggestion_count = data.get('friend_suggestion_count', 0)
+
+        # Experiments
+        self.experiments = {exp[0]: UserExperiment(state=self, data=exp) for exp in data.get('experiments', [])}
+        self.guild_experiments = {exp[0]: GuildExperiment(state=self, data=exp) for exp in data.get('guild_experiments', [])}
 
         if 'sessions' in data:
             self.parse_sessions_replace(data['sessions'], from_ready=True)

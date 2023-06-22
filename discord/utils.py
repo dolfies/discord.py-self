@@ -1520,7 +1520,6 @@ def stream_supports_colour(stream: Any) -> bool:
 
 
 class _ColourFormatter(logging.Formatter):
-
     # ANSI codes are a bit weird to decipher if you're unfamiliar with them, so here's a refresher
     # It starts off with a format like \x1b[XXXm where XXX is a semicolon separated list of commands
     # The important ones here relate to colour.
@@ -1621,41 +1620,23 @@ def setup_logging(
     logger.setLevel(level)
     logger.addHandler(handler)
 
-# modified murmurhash3 function from https://github.com/wc-duck/pymmh3/blob/master/pymmh3.py
 
 try:
-    from mmh3 import hash as mmh3_hash  # type: ignore # This is caught anyway so it's fine
-
-    def murmurhash32(data: str):  # type: ignore
-        return mmh3_hash(data, signed=False)  # type: ignore
+    from mmh3 import hash as murmurhash32  # type: ignore # Prefer the mmh3 package if available
 
 except ImportError:
-    def fmix(h: int):
-        h ^= h >> 16
-        h = (h * 0x85EBCA6B) & 0xFFFFFFFF
-        h ^= h >> 13
-        h = (h * 0xC2B2AE35) & 0xFFFFFFFF
-        h ^= h >> 16
-        return h
-
-    def murmurhash32(key: Union[str, bytes, bytearray], seed=0x0, *, signed: bool = False):
+    # Modified murmurhash3 function from https://github.com/wc-duck/pymmh3/blob/master/pymmh3.py
+    def murmurhash32(key: Union[bytes, bytearray, memoryview, str], seed: int = 0, *, signed: bool = True) -> int:
         key = bytearray(key.encode() if isinstance(key, str) else key)
-
         length = len(key)
         nblocks = int(length / 4)
 
         h1 = seed
-
         c1 = 0xCC9E2D51
         c2 = 0x1B873593
 
         for block_start in range(0, nblocks * 4, 4):
-            k1 = (
-                key[block_start + 3] << 24
-                | key[block_start + 2] << 16
-                | key[block_start + 1] << 8
-                | key[block_start + 0]
-            )
+            k1 = key[block_start + 3] << 24 | key[block_start + 2] << 16 | key[block_start + 1] << 8 | key[block_start + 0]
 
             k1 = (c1 * k1) & 0xFFFFFFFF
             k1 = (k1 << 15 | k1 >> 17) & 0xFFFFFFFF
@@ -1675,15 +1656,18 @@ except ImportError:
             k1 ^= key[tail_index + 1] << 8
         if tail_size >= 1:
             k1 ^= key[tail_index + 0]
-
         if tail_size > 0:
             k1 = (k1 * c1) & 0xFFFFFFFF
             k1 = (k1 << 15 | k1 >> 17) & 0xFFFFFFFF
             k1 = (k1 * c2) & 0xFFFFFFFF
             h1 ^= k1
 
-        
-        unsigned_val = fmix(h1 ^ length)
+        unsigned_val = h1 ^ length
+        unsigned_val ^= unsigned_val >> 16
+        unsigned_val = (unsigned_val * 0x85EBCA6B) & 0xFFFFFFFF
+        unsigned_val ^= unsigned_val >> 13
+        unsigned_val = (unsigned_val * 0xC2B2AE35) & 0xFFFFFFFF
+        unsigned_val ^= unsigned_val >> 16
         if not signed or (unsigned_val & 0x80000000 == 0):
             return unsigned_val
         else:
