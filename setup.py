@@ -56,7 +56,6 @@ extras_require = {
         'pytest-cov',
         'pytest-mock',
         'typing-extensions>=4.3,<5',
-        'mmh3>=2.5',
     ],
 }
 
