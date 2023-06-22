@@ -87,7 +87,7 @@ class ExperimentRollout:
     def __repr__(self) -> str:
         return f'<ExperimentRollout bucket={self.bucket} ranges={self.ranges!r}>'
 
-    def __contains__(self, item: int) -> bool:
+    def __contains__(self, item: int, /) -> bool:
         for start, end in self.ranges:
             if start <= item <= end:
                 return True
@@ -156,7 +156,7 @@ class ExperimentFilter:
     def __repr__(self) -> str:
         return f'<ExperimentFilter type={self.type!r} options={self.options!r}>'
 
-    def __contains__(self, guild: Guild) -> bool:
+    def __contains__(self, guild: Guild, /) -> bool:
         return self.is_eligible(guild)
 
     @staticmethod
@@ -253,7 +253,7 @@ class ExperimentPopulation:
     def __repr__(self) -> str:
         return f'<ExperimentPopulation experiment={self.experiment!r} filters={self.filters!r} rollouts={self.rollouts!r}>'
 
-    def __contains__(self, item: Guild) -> bool:
+    def __contains__(self, item: Guild, /) -> bool:
         return self.bucket_for(item) != -1
 
     def bucket_for(self, guild: Guild, _result: Optional[int] = None, /) -> int:
@@ -334,7 +334,7 @@ class ExperimentOverride:
     def __len__(self) -> int:
         return len(self._ids)
 
-    def __contains__(self, item: Union[int, Snowflake]) -> bool:
+    def __contains__(self, item: Union[int, Snowflake], /) -> bool:
         return getattr(item, 'id', item) in self._ids
 
     def __iter__(self) -> Iterator[int]:
@@ -551,7 +551,7 @@ class GuildExperiment:
 
         return murmurhash32(f'{self.name}:{guild.id}', signed=False) % 10000
 
-    def bucket_for(self, guild: Guild) -> int:
+    def bucket_for(self, guild: Guild, /) -> int:
         """Returns the assigned experiment bucket for a guild.
         Defaults to none (-1) if the guild is not in the experiment.
 
@@ -599,7 +599,7 @@ class GuildExperiment:
 
         return -1
 
-    def guilds_for(self, bucket: int) -> List[Guild]:
+    def guilds_for(self, bucket: int, /) -> List[Guild]:
         """Returns a list of guilds assigned to a specific bucket.
 
         Parameters
