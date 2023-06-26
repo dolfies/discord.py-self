@@ -432,10 +432,6 @@ class GuildExperiment:
 
             Returns the experiment's hash.
 
-        .. describe:: str(x)
-
-            Returns the experiment's name, if available.
-
     .. versionadded:: 2.1
 
     Attributes
@@ -502,9 +498,6 @@ class GuildExperiment:
 
     def __hash__(self) -> int:
         return self.hash
-
-    def __str__(self) -> str:
-        return self._name or ''
 
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, GuildExperiment):
@@ -637,10 +630,6 @@ class UserExperiment:
 
             Returns the experiment's hash.
 
-        .. describe:: str(x)
-
-            Returns the experiment's name, if available.
-
     .. versionadded:: 2.1
 
     .. note::
@@ -694,9 +683,6 @@ class UserExperiment:
 
     def __hash__(self) -> int:
         return self.hash
-
-    def __str__(self) -> str:
-        return self._name or ''
 
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, UserExperiment):
