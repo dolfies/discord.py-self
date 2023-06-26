@@ -1621,6 +1621,11 @@ def setup_logging(
     logger.addHandler(handler)
 
 
+if TYPE_CHECKING:
+    def murmurhash32(_key: Union[bytes, bytearray, memoryview, str], _seed: int = 0, *, signed: bool = True) -> int: # type: ignore
+        pass
+
+
 try:
     from mmh3 import hash as murmurhash32  # type: ignore # Prefer the mmh3 package if available
 

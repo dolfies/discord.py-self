@@ -677,11 +677,11 @@ class UserExperiment:
     )
 
     def __init__(self, *, state: ConnectionState, data: AssignmentPayload):
-        (hash_key, revision, bucket, override, population, hash_result, aa_mode) = data
+        (hash, revision, bucket, override, population, hash_result, aa_mode) = data
 
         self._state = state
         self._name: Optional[str] = None
-        self.hash: int = hash_key
+        self.hash: int = hash
         self.revision: int = revision
         self.assignment: int = bucket
         self.override: int = override
