@@ -1622,7 +1622,8 @@ def setup_logging(
 
 
 if TYPE_CHECKING:
-    def murmurhash32(_key: Union[bytes, bytearray, memoryview, str], _seed: int = 0, *, signed: bool = True) -> int: # type: ignore
+
+    def murmurhash32(_key: Union[bytes, bytearray, memoryview, str], _seed: int = 0, *, signed: bool = True) -> int:  # type: ignore
         pass
 
 
