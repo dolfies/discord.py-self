@@ -1,12 +1,9 @@
-discord-self-ssid-fix
+discord.py-self-ssid-fix
 ================
 This fork
 ------------
 This is a fix for the SSID errors in the original library. 
 
-================
-
-discord.py-self
 ================
 
 .. image:: https://img.shields.io/endpoint?url=https%3A%2F%2Frunkit.io%2Fdamiankrawczyk%2Ftelegram-badge%2Fbranches%2Fmaster%3Furl%3Dhttps%3A%2F%2Ft.me%2Fdpy_self
