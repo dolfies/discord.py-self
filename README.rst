@@ -4,12 +4,6 @@ This fork
 ------------
 This is a fix for the SSID errors in the original library. 
 
-Install
-------------
-.. code-block:: bash
-
-    pip install git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
-
 ================
 
 discord.py-self
@@ -74,20 +68,20 @@ To install the library without full voice support, you can just run the followin
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U discord.py-self
+    python3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
 
     # Windows
-    py -3 -m pip install -U discord.py-self
+    py -3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
 
 Otherwise to get voice support you should run the following command:
 
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U "discord.py-self[voice]"
+    python3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git[voice]
 
     # Windows
-    py -3 -m pip install -U discord.py-self[voice]
+    py -3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git[voice]
 
 
 To install the development version, do the following:
