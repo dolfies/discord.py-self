@@ -1,3 +1,17 @@
+discord-self-ssid-fix
+================
+This fork
+------------
+This is a fix for the SSID errors in the original library. 
+
+Install
+------------
+.. code-block:: bash
+
+    pip install git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
+
+================
+
 discord.py-self
 ================
 
