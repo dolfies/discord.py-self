@@ -24,6 +24,10 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+from random import choices
+from platform import platform
+from string import digits, ascii_lowercase
+
 import asyncio
 from collections import deque, OrderedDict
 import copy
@@ -1517,7 +1521,7 @@ class ConnectionState:
             # Else, we create a new one with fake data
             if len(data) > 1:
                 # We have more than one session, this should not happen
-                fake = data[self.session_id]  # type: ignore
+                fake = {"status": "online", "session_id": "".join(random.choices(string.ascii_uppercase + string.digits, k=32)), "client_info": {"version": 0, "os": "osx" if platform() == "Darwin" else platform(), "client": "web"}, "activities": []}  # type: ignore
             else:
                 fake = list(data.values())[0]
             if old_all is not None:
