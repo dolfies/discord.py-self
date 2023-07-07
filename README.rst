@@ -88,8 +88,8 @@ To install the development version, do the following:
 
 .. code:: sh
 
-    $ git clone https://github.com/dolfies/discord.py-self
-    $ cd discord.py-self
+    $ git clone https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
+    $ cd discord.py-self-ssid-fix
     $ python3 -m pip install -U .[voice]
 
 
