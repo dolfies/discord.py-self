@@ -103,7 +103,7 @@ Please note that on Linux installing voice you must install the following packag
 Using with Upstream
 ~~~~~~~~~~~~~~~~~~~~
 
-If you would like to use the library alongside upstream ``discord.py``, you can install ``selfcord.py`` instead of ``discord.py-self``. Check out the `renamed branch <https://github.com/dolfies/discord.py-self/tree/renamed>`_ for more information.
+If you would like to use the library alongside upstream ``discord.py``, you can install ``selfcord.py`` instead of ``discord.py-self``. Check out the `renamed branch <https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix/tree/renamed>`_ for more information.
 
 Quick Example
 --------------
