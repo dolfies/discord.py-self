@@ -1,9 +1,4 @@
-discord.py-self-ssid-fix
-================
-This fork
-------------
-This is a fix for the SSID errors in the original library. 
-
+discord.py-self
 ================
 
 .. image:: https://img.shields.io/endpoint?url=https%3A%2F%2Frunkit.io%2Fdamiankrawczyk%2Ftelegram-badge%2Fbranches%2Fmaster%3Furl%3Dhttps%3A%2F%2Ft.me%2Fdpy_self
@@ -65,28 +60,28 @@ To install the library without full voice support, you can just run the followin
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
+    python3 -m pip install -U discord.py-self
 
     # Windows
-    py -3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
+    py -3 -m pip install -U discord.py-self
 
 Otherwise to get voice support you should run the following command:
 
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git[voice]
+    python3 -m pip install -U "discord.py-self[voice]"
 
     # Windows
-    py -3 -m pip install -U git+https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git[voice]
+    py -3 -m pip install -U discord.py-self[voice]
 
 
 To install the development version, do the following:
 
 .. code:: sh
 
-    $ git clone https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix.git
-    $ cd discord.py-self-ssid-fix
+    $ git clone https://github.com/dolfies/discord.py-self
+    $ cd discord.py-self
     $ python3 -m pip install -U .[voice]
 
 
@@ -103,7 +98,7 @@ Please note that on Linux installing voice you must install the following packag
 Using with Upstream
 ~~~~~~~~~~~~~~~~~~~~
 
-If you would like to use the library alongside upstream ``discord.py``, you can install ``selfcord.py`` instead of ``discord.py-self``. Check out the `renamed branch <https://github.com/BlueSchnabeltier/discord.py-self-ssid-fix/tree/renamed>`_ for more information.
+If you would like to use the library alongside upstream ``discord.py``, you can install ``selfcord.py`` instead of ``discord.py-self``. Check out the `renamed branch <https://github.com/dolfies/discord.py-self/tree/renamed>`_ for more information.
 
 Quick Example
 --------------
