@@ -25,7 +25,22 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tuple, Type, TypeVar, overload
+from operator import or_
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    overload,
+)
 
 from .enums import UserFlags
 
@@ -59,6 +74,7 @@ __all__ = (
     'MemberFlags',
     'ReadStateFlags',
     'InviteFlags',
+    'AttachmentFlags',
 )
 
 BF = TypeVar('BF', bound='BaseFlags')
@@ -199,9 +215,17 @@ class BaseFlags:
 
 class ArrayFlags(BaseFlags):
     @classmethod
-    def _from_value(cls: Type[Self], value: List[int]) -> Self:
+    def _from_value(cls: Type[Self], value: Sequence[int]) -> Self:
         self = cls.__new__(cls)
-        self.value = reduce(lambda a, b: a | (1 << b - 1), value, 0)
+        # This is a micro-optimization given the frequency this object can be created.
+        # (1).__lshift__ is used in place of lambda x: 1 << x
+        # prebinding to a method of a constant rather than define a lambda.
+        # Pairing this with map, is essentially equivalent to (1 << x for x in value)
+        # reduction using operator.or_ instead of defining a lambda each call
+        # Discord sends these starting with a value of 1
+        # Rather than subtract 1 from each element prior to left shift,
+        # we shift right by 1 once at the end.
+        self.value = reduce(or_, map((1).__lshift__, value), 0) >> 1
         return self
 
     def to_array(self) -> List[int]:
@@ -254,6 +278,9 @@ class Capabilities(BaseFlags):
 
                Returns an iterator of ``(name, value)`` pairs. This allows it
                to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -392,6 +419,11 @@ class SystemChannelFlags(BaseFlags):
 
                Returns an iterator of ``(name, value)`` pairs. This allows it
                to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+            .. versionadded:: 2.0
 
     Attributes
     -----------
@@ -509,6 +541,11 @@ class MessageFlags(BaseFlags):
 
                Returns an iterator of ``(name, value)`` pairs. This allows it
                to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+            .. versionadded:: 2.0
 
     .. versionadded:: 1.3
 
@@ -610,10 +647,10 @@ class MessageFlags(BaseFlags):
         return 4096
 
     @flag_value
-    def is_voice_message(self):
-        """:class:`bool`: Returns ``True`` if the message's audio attachments are rendered as voice messages.
+    def voice(self):
+        """:class:`bool`: Returns ``True`` if the message is a voice message.
 
-        .. versionadded:: 2.0
+        .. versionadded:: 2.1
         """
         return 8192
 
@@ -661,6 +698,11 @@ class PublicUserFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+            .. versionadded:: 2.0
 
     .. versionadded:: 1.4
 
@@ -828,11 +870,15 @@ class PrivateUserFlags(PublicUserFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases or inherited flags are not shown.
+        .. describe:: bool(b)
 
-    .. versionadded:: 2.0
+            Returns whether any flag is set to ``True``.
 
     .. note::
+
         These are only available on your own user flags.
+
+    .. versionadded:: 2.0
 
     Attributes
     -----------
@@ -915,6 +961,9 @@ class PremiumUsageFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -979,6 +1028,9 @@ class PurchasedFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1067,6 +1119,11 @@ class MemberCacheFlags(BaseFlags):
 
                Returns an iterator of ``(name, value)`` pairs. This allows it
                to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+            .. versionadded:: 2.0
 
     Attributes
     -----------
@@ -1173,6 +1230,9 @@ class ApplicationFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1340,6 +1400,9 @@ class ChannelFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1398,6 +1461,9 @@ class PaymentSourceFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1456,6 +1522,9 @@ class SKUFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1552,6 +1621,9 @@ class PaymentFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1622,6 +1694,9 @@ class PromotionFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1705,6 +1780,9 @@ class GiftFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1776,6 +1854,9 @@ class LibraryApplicationFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1850,6 +1931,9 @@ class ApplicationDiscoveryFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -1986,6 +2070,9 @@ class FriendSourceFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2083,6 +2170,9 @@ class FriendDiscoveryFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2157,6 +2247,9 @@ class HubProgressFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2223,6 +2316,9 @@ class OnboardingProgressFlags(BaseFlags):
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2281,6 +2377,9 @@ class AutoModPresets(ArrayFlags):
 
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2334,39 +2433,35 @@ class MemberFlags(BaseFlags):
         .. describe:: x == y
 
             Checks if two MemberFlags are equal.
-
         .. describe:: x != y
 
             Checks if two MemberFlags are not equal.
-
         .. describe:: x | y, x |= y
 
             Returns a MemberFlags instance with all enabled flags from
             both x and y.
-
         .. describe:: x & y, x &= y
 
             Returns a MemberFlags instance with only flags enabled on
             both x and y.
-
         .. describe:: x ^ y, x ^= y
 
             Returns a MemberFlags instance with only flags enabled on
             only one of x or y, not on both.
-
         .. describe:: ~x
 
             Returns a MemberFlags instance with all flags inverted from x.
-
         .. describe:: hash(x)
 
             Return the flag's hash.
-
         .. describe:: iter(x)
 
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.0
 
@@ -2418,39 +2513,35 @@ class ReadStateFlags(BaseFlags):
         .. describe:: x == y
 
             Checks if two ReadStateFlags are equal.
-
         .. describe:: x != y
 
             Checks if two ReadStateFlags are not equal.
-
         .. describe:: x | y, x |= y
 
             Returns a ReadStateFlags instance with all enabled flags from
             both x and y.
-
         .. describe:: x & y, x &= y
 
             Returns a ReadStateFlags instance with only flags enabled on
             both x and y.
-
         .. describe:: x ^ y, x ^= y
 
             Returns a ReadStateFlags instance with only flags enabled on
             only one of x or y, not on both.
-
         .. describe:: ~x
 
             Returns a ReadStateFlags instance with all flags inverted from x.
-
         .. describe:: hash(x)
 
             Return the flag's hash.
-
         .. describe:: iter(x)
 
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.1
 
@@ -2483,39 +2574,35 @@ class InviteFlags(BaseFlags):
         .. describe:: x == y
 
             Checks if two InviteFlags are equal.
-
         .. describe:: x != y
 
             Checks if two InviteFlags are not equal.
-
         .. describe:: x | y, x |= y
 
             Returns a InviteFlags instance with all enabled flags from
             both x and y.
-
         .. describe:: x & y, x &= y
 
             Returns a InviteFlags instance with only flags enabled on
             both x and y.
-
         .. describe:: x ^ y, x ^= y
 
             Returns a InviteFlags instance with only flags enabled on
             only one of x or y, not on both.
-
         .. describe:: ~x
 
             Returns a InviteFlags instance with all flags inverted from x.
-
         .. describe:: hash(x)
 
             Return the flag's hash.
-
         .. describe:: iter(x)
 
             Returns an iterator of ``(name, value)`` pairs. This allows it
             to be, for example, constructed as a dict or a list of pairs.
             Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
 
     .. versionadded:: 2.1
 
@@ -2532,3 +2619,67 @@ class InviteFlags(BaseFlags):
     def guest(self):
         """:class:`bool`: Returns ``True`` if the invite is a guest invite. Guest invites grant temporary membership for the purposes of joining a voice channel."""
         return 1 << 0
+
+
+@fill_with_flags()
+class AttachmentFlags(BaseFlags):
+    r"""Wraps up the Discord Attachment flags
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two AttachmentFlags are equal.
+        .. describe:: x != y
+
+            Checks if two AttachmentFlags are not equal.
+        .. describe:: x | y, x |= y
+
+            Returns a AttachmentFlags instance with all enabled flags from
+            both x and y.
+        .. describe:: x & y, x &= y
+
+            Returns a AttachmentFlags instance with only flags enabled on
+            both x and y.
+        .. describe:: x ^ y, x ^= y
+
+            Returns a AttachmentFlags instance with only flags enabled on
+            only one of x or y, not on both.
+        .. describe:: ~x
+
+            Returns a AttachmentFlags instance with all flags inverted from x.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties
+        rather than using this raw value.
+    """
+
+    @flag_value
+    def clip(self):
+        """:class:`bool`: Returns ``True`` if the attachment is a clip."""
+        return 1 << 0
+
+    @flag_value
+    def thumbnail(self):
+        """:class:`bool`: Returns ``True`` if the attachment is a media channel thumbnail."""
+        return 1 << 1
+
+    @flag_value
+    def remix(self):
+        """:class:`bool`: Returns ``True`` if the attachment has been edited using the remix feature."""
+        return 1 << 2

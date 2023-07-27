@@ -56,7 +56,7 @@ from .errors import HTTPException
 from .components import _component_factory
 from .embeds import Embed
 from .member import Member
-from .flags import MessageFlags
+from .flags import MessageFlags, AttachmentFlags
 from .file import File
 from .utils import escape_mentions, MISSING
 from .http import handle_message_parameters
@@ -191,6 +191,14 @@ class Attachment(Hashable):
         Whether the attachment is ephemeral.
 
         .. versionadded:: 2.0
+    duration: Optional[:class:`float`]
+        The duration of the audio file in seconds. Returns ``None`` if it's not a voice message.
+
+        .. versionadded:: 2.1
+    waveform: Optional[:class:`bytes`]
+        The waveform (amplitudes) of the audio in bytes. Returns ``None`` if it's not a voice message.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
@@ -205,6 +213,9 @@ class Attachment(Hashable):
         'content_type',
         'description',
         'ephemeral',
+        'duration',
+        'waveform',
+        '_flags',
     )
 
     def __init__(self, *, data: AttachmentPayload, state: ConnectionState):
@@ -219,10 +230,28 @@ class Attachment(Hashable):
         self.content_type: Optional[str] = data.get('content_type')
         self.description: Optional[str] = data.get('description')
         self.ephemeral: bool = data.get('ephemeral', False)
+        self.duration: Optional[float] = data.get('duration_secs')
+
+        waveform = data.get('waveform')
+        self.waveform: Optional[bytes] = utils._base64_to_bytes(waveform) if waveform is not None else None
+
+        self._flags: int = data.get('flags', 0)
+
+    @property
+    def flags(self) -> AttachmentFlags:
+        """:class:`AttachmentFlags`: The attachment's flags."""
+        return AttachmentFlags._from_value(self._flags)
 
     def is_spoiler(self) -> bool:
         """:class:`bool`: Whether this attachment contains a spoiler."""
         return self.filename.startswith('SPOILER_')
+
+    def is_voice_message(self) -> bool:
+        """:class:`bool`: Whether this attachment is a voice message.
+
+        .. versionadded:: 2.1
+        """
+        return self.waveform is not None
 
     def __repr__(self) -> str:
         return f'<Attachment id={self.id} filename={self.filename!r} url={self.url!r}>'
@@ -1077,7 +1106,7 @@ class PartialMessage(Hashable):
         name: :class:`str`
             The name of the thread.
         auto_archive_duration: :class:`int`
-            The duration in minutes before a thread is automatically archived for inactivity.
+            The duration in minutes before a thread is automatically hidden from the channel list.
             If not provided, the channel's default auto archive duration is used.
 
             Must be one of ``60``, ``1440``, ``4320``, or ``10080``, if provided.
@@ -1751,7 +1780,7 @@ class Message(PartialMessage, Hashable):
         self.nonce = value
 
     def _handle_author(self, author: UserPayload) -> None:
-        self.author = self._state.store_user(author)
+        self.author = self._state.store_user(author, cache=self.webhook_id is None)
         if isinstance(self.guild, Guild):
             found = self.guild.get_member(self.author.id)
             if found is not None:
@@ -2002,7 +2031,7 @@ class Message(PartialMessage, Hashable):
                 return f'{self.author.name} changed the channel name: **{self.content}**'
 
         if self.type is MessageType.channel_icon_change:
-            return f'{self.author.name} changed the channel icon.'
+            return f'{self.author.name} changed the group icon.'
 
         if self.type is MessageType.pins_add:
             return f'{self.author.name} pinned a message to this channel.'

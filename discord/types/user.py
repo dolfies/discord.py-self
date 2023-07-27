@@ -38,6 +38,7 @@ class PartialUser(TypedDict):
     public_flags: NotRequired[int]
     bot: NotRequired[bool]
     system: NotRequired[bool]
+    global_name: Optional[str]
 
 
 ConnectionType = Literal[
@@ -87,6 +88,14 @@ class User(APIUser, total=False):
     phone: Optional[str]
     token: str
     nsfw_allowed: Optional[bool]
+
+
+class PomeloAttempt(TypedDict):
+    taken: bool
+
+
+class PomeloSuggestion(TypedDict):
+    username: str
 
 
 class PartialConnection(TypedDict):

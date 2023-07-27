@@ -133,6 +133,7 @@ if TYPE_CHECKING:
     from .types.message import MessageSearchAuthorType, MessageSearchHasType
     from .types.snowflake import SnowflakeList, Snowflake as _Snowflake
     from .types.widget import EditWidgetSettings
+    from .types.audit_log import AuditLogEvent
     from .types.oauth2 import OAuth2Guild as OAuth2GuildPayload
     from .message import EmojiInputType, Message
     from .read_state import ReadState
@@ -479,9 +480,9 @@ class Guild(Hashable):
     )
 
     _PREMIUM_GUILD_LIMITS: ClassVar[Dict[Optional[int], _GuildLimit]] = {
-        None: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=8388608),
-        0: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=8388608),
-        1: _GuildLimit(emoji=100, stickers=15, bitrate=128e3, filesize=8388608),
+        None: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
+        0: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
+        1: _GuildLimit(emoji=100, stickers=15, bitrate=128e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
         2: _GuildLimit(emoji=150, stickers=30, bitrate=256e3, filesize=52428800),
         3: _GuildLimit(emoji=250, stickers=60, bitrate=384e3, filesize=104857600),
     }
@@ -1298,15 +1299,13 @@ class Guild(Hashable):
     def get_member_named(self, name: str, /) -> Optional[Member]:
         """Returns the first member found that matches the name provided.
 
-        The name can have an optional discriminator argument, e.g. "Jake#0001"
-        or "Jake" will both do the lookup. However the former will give a more
-        precise result. Note that the discriminator must have all 4 digits
-        for this to work.
+        The name is looked up in the following order:
 
-        If a nickname is passed, then it is looked up via the nickname. Note
-        however, that a nickname + discriminator combo will not lookup the nickname
-        but rather the username + discriminator combo due to nickname + discriminator
-        not being unique.
+        - Username#Discriminator (deprecated)
+        - Username#0 (deprecated, only gets users that migrated from their discriminator)
+        - Nickname
+        - Global name
+        - Username
 
         If no member is found, ``None`` is returned.
 
@@ -1314,10 +1313,14 @@ class Guild(Hashable):
 
             ``name`` parameter is now positional-only.
 
+        .. deprecated:: 2.1
+
+            Looking up users via discriminator due to Discord API change.
+
         Parameters
         -----------
         name: :class:`str`
-            The name of the member to lookup with an optional discriminator.
+            The name of the member to lookup.
 
         Returns
         --------
@@ -1328,14 +1331,17 @@ class Guild(Hashable):
 
         members = self.members
 
-        if len(name) > 5 and name[-5] == '#':
-            potential_discriminator = name[-4:]
-            result = utils.get(members, name=name[:-5], discriminator=potential_discriminator)
-            if result is not None:
-                return result
+        username, _, discriminator = name.rpartition('#')
+
+        # If # isn't found then "discriminator" actually has the username
+        if not username:
+            discriminator, username = username, discriminator
+
+        if discriminator == '0' or (len(discriminator) == 4 and discriminator.isdigit()):
+            return utils.find(lambda m: m.name == username and m.discriminator == discriminator, members)
 
         def pred(m: Member) -> bool:
-            return m.nick == name or m.name == name
+            return m.nick == name or m.global_name == name or m.name == name
 
         return utils.find(pred, members)
 
@@ -1539,7 +1545,7 @@ class Guild(Hashable):
         nsfw: :class:`bool`
             To mark the channel as NSFW or not.
         news: :class:`bool`
-             Whether to create the text channel as a news channel.
+            Whether to create the text channel as a news channel.
 
             .. versionadded:: 2.0
         default_auto_archive_duration: :class:`int`
@@ -4226,7 +4232,7 @@ class Guild(Hashable):
         async def _before_strategy(retrieve: int, before: Optional[Snowflake], limit: Optional[int]):
             before_id = before.id if before else None
             data = await self._state.http.get_audit_logs(
-                self.id, limit=retrieve, user_id=user_id, action_type=action, before=before_id
+                self.id, limit=retrieve, user_id=user_id, action_type=action_type, before=before_id
             )
 
             entries = data.get('audit_log_entries', [])
@@ -4242,7 +4248,7 @@ class Guild(Hashable):
         async def _after_strategy(retrieve: int, after: Optional[Snowflake], limit: Optional[int]):
             after_id = after.id if after else None
             data = await self._state.http.get_audit_logs(
-                self.id, limit=retrieve, user_id=user_id, action_type=action, after=after_id
+                self.id, limit=retrieve, user_id=user_id, action_type=action_type, after=after_id
             )
 
             entries = data.get('audit_log_entries', [])
@@ -4260,8 +4266,10 @@ class Guild(Hashable):
         else:
             user_id = None
 
-        if action:
-            action = action.value
+        if action is not MISSING:
+            action_type: Optional[AuditLogEvent] = action.value
+        else:
+            action_type = None
 
         if isinstance(before, datetime):
             before = Object(id=utils.time_snowflake(before, high=False))
@@ -4283,6 +4291,9 @@ class Guild(Hashable):
             if after:
                 predicate = lambda m: int(m['id']) > after.id
 
+        # Circular import
+        from .webhook import Webhook
+
         while True:
             retrieve = 100 if limit is None else min(limit, 100)
             if retrieve < 1:
@@ -4302,6 +4313,9 @@ class Guild(Hashable):
             )
             automod_rule_map = {rule.id: rule for rule in automod_rules}
 
+            webhooks = (Webhook.from_state(data=raw_webhook, state=self._state) for raw_webhook in data.get('webhooks', []))
+            webhook_map = {webhook.id: webhook for webhook in webhooks}
+
             count = 0
 
             for count, raw_entry in enumerate(raw_entries, 1):
@@ -4313,6 +4327,7 @@ class Guild(Hashable):
                     data=raw_entry,
                     users=user_map,
                     automod_rules=automod_rule_map,
+                    webhooks=webhook_map,
                     guild=self,
                 )
 
@@ -4784,6 +4799,7 @@ class Guild(Hashable):
         cache: :class:`bool`
             Whether to cache the members internally. This makes operations
             such as :meth:`get_member` work for those that matched.
+            The cache will not be kept updated unless ``subscribe`` is set to ``True``.
         user_ids: Optional[List[:class:`int`]]
             List of user IDs to search for. If the user ID is not in the guild then it won't be returned.
 
@@ -4820,6 +4836,61 @@ class Guild(Hashable):
         if subscribe:
             ids: List[_Snowflake] = [str(m.id) for m in members]
             await self._state.ws.request_lazy_guild(self.id, members=ids)
+        return members
+
+    async def query_recent_members(
+        self,
+        query: Optional[str] = None,
+        *,
+        limit: int = 1000,
+        cache: bool = True,
+        subscribe: bool = False,
+    ) -> List[Member]:
+        """|coro|
+
+        Request the most recent 10,000 joined members of this guild.
+        This is a websocket operation.
+
+        .. note::
+
+            This operation does not return presences.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        query: Optional[:class:`str`]
+            The string that the username or nickname should start with, if any.
+        limit: :class:`int`
+            The maximum number of members to send back. This must be
+            a number between 1 and 10,000.
+        cache: :class:`bool`
+            Whether to cache the members internally. This makes operations
+            such as :meth:`get_member` work for those that matched.
+            The cache will not be kept updated unless ``subscribe`` is set to ``True``.
+        subscribe: :class:`bool`
+            Whether to subscribe to the resulting members. This will keep their info and presence updated.
+            This requires another request, and defaults to ``False``.
+
+        Raises
+        -------
+        asyncio.TimeoutError
+            The query timed out waiting for the members.
+        TypeError
+            Invalid parameters were passed to the function.
+
+        Returns
+        --------
+        List[:class:`Member`]
+            The list of members that have matched the query.
+        """
+        limit = min(10000, limit or 1)
+        members = await self._state.search_recent_members(self, query or '', limit, cache)
+        if subscribe:
+            ids: List[_Snowflake] = [str(m.id) for m in members]
+            for i in range(0, len(ids), 750):
+                subs = ids[i : i + 750]
+                await self._state.ws.request_lazy_guild(self.id, members=subs)
         return members
 
     async def change_voice_state(

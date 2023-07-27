@@ -794,7 +794,7 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
             If ``None`` is passed then a private thread is created.
             Defaults to ``None``.
         auto_archive_duration: :class:`int`
-            The duration in minutes before a thread is automatically archived for inactivity.
+            The duration in minutes before a thread is automatically hidden from the channel list.
             If not provided, the channel's default auto archive duration is used.
 
             Must be one of ``60``, ``1440``, ``4320``, or ``10080``, if provided.
@@ -833,7 +833,7 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
                 self.id,
                 name=name,
                 auto_archive_duration=auto_archive_duration or self.default_auto_archive_duration,
-                type=type.value,
+                type=type.value,  # type: ignore # we're assuming that the user is passing a valid variant
                 reason=reason,
                 invitable=invitable,
                 rate_limit_per_user=slowmode_delay,
@@ -1799,6 +1799,7 @@ class StageChannel(VocalGuildChannel):
         *,
         name: str = ...,
         nsfw: bool = ...,
+        user_limit: int = ...,
         position: int = ...,
         sync_permissions: int = ...,
         category: Optional[CategoryChannel] = ...,
@@ -1838,6 +1839,8 @@ class StageChannel(VocalGuildChannel):
             The new channel's position.
         nsfw: :class:`bool`
             To mark the channel as NSFW or not.
+        user_limit: :class:`int`
+            The new channel's user limit.
         sync_permissions: :class:`bool`
             Whether to sync permissions with the channel's new or pre-existing
             category. Defaults to ``False``.
@@ -2079,6 +2082,16 @@ class CategoryChannel(discord.abc.GuildChannel, Hashable):
         ret = [c for c in self.guild.channels if c.category_id == self.id and isinstance(c, StageChannel)]
         ret.sort(key=lambda c: (c.position, c.id))
         return ret
+
+    @property
+    def forums(self) -> List[ForumChannel]:
+        """List[:class:`ForumChannel`]: Returns the forum channels that are under this category.
+
+        .. versionadded:: 2.1
+        """
+        r = [c for c in self.guild.channels if c.category_id == self.id and isinstance(c, ForumChannel)]
+        r.sort(key=lambda c: (c.position, c.id))
+        return r
 
     async def create_text_channel(self, name: str, **options: Any) -> TextChannel:
         """|coro|
@@ -2759,7 +2772,7 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         name: :class:`str`
             The name of the thread.
         auto_archive_duration: :class:`int`
-            The duration in minutes before a thread is automatically archived for inactivity.
+            The duration in minutes before a thread is automatically hidden from the channel list.
             If not provided, the channel's default auto archive duration is used.
 
             Must be one of ``60``, ``1440``, ``4320``, or ``10080``, if provided.

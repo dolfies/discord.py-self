@@ -144,24 +144,55 @@ _log = logging.getLogger(__name__)
 
 
 class ChunkRequest:
+    __slots__ = (
+        'guild_id',
+        'resolver',
+        'loop',
+        'limit',
+        'remaining',
+        'cache',
+        'oneshot',
+        'nonce',
+        'buffer',
+        'last_buffer',
+        'waiters',
+    )
+
     def __init__(
         self,
         guild_id: int,
         loop: asyncio.AbstractEventLoop,
         resolver: Callable[[int], Any],
         *,
+        limit: Optional[int] = None,
         cache: bool = True,
+        oneshot: bool = True,
     ) -> None:
         self.guild_id: int = guild_id
         self.resolver: Callable[[int], Any] = resolver
         self.loop: asyncio.AbstractEventLoop = loop
+        self.limit: Optional[int] = limit
+        self.remaining: int = limit or 0
         self.cache: bool = cache
+        self.oneshot: bool = oneshot
         self.nonce: str = str(utils.time_snowflake(utils.utcnow()))
         self.buffer: List[Member] = []
+        self.last_buffer: Optional[List[Member]] = None
         self.waiters: List[asyncio.Future[List[Member]]] = []
 
     def add_members(self, members: List[Member]) -> None:
+        unique_members = set(members)
+        if self.limit is not None:
+            if self.remaining <= 0:
+                return
+
+            members = list(unique_members)[: self.remaining]
+            self.remaining -= len(unique_members)
+        else:
+            members = list(unique_members)
+
         self.buffer.extend(members)
+
         if self.cache:
             guild = self.resolver(self.guild_id)
             if guild is None:
@@ -169,6 +200,9 @@ class ChunkRequest:
 
             for member in members:
                 guild._add_member(member)
+
+        if not self.oneshot:
+            self.last_buffer = members
 
     async def wait(self) -> List[Member]:
         future = self.loop.create_future()
@@ -184,12 +218,28 @@ class ChunkRequest:
         return future
 
     def done(self) -> None:
+        result = self.buffer if self.oneshot else self.last_buffer or self.buffer
         for future in self.waiters:
             if not future.done():
-                future.set_result(self.buffer)
+                future.set_result(result)
 
 
 class MemberSidebar:
+    __slots__ = (
+        'guild',
+        'channels',
+        'chunk',
+        'delay',
+        'cache',
+        'loop',
+        'safe_override',
+        'ranges',
+        'subscribing',
+        'buffer',
+        'exception',
+        'waiters',
+    )
+
     def __init__(
         self,
         guild: Guild,
@@ -305,6 +355,7 @@ class MemberSidebar:
         return list(ret)
 
     def add_members(self, members: List[Member]) -> None:
+        members = list(set(members))
         self.buffer.extend(members)
         if self.cache:
             guild = self.guild
@@ -618,6 +669,7 @@ class ConnectionState:
         self.auth_session_id: Optional[str] = None
         self.required_action: Optional[RequiredActionType] = None
         self.friend_suggestion_count: int = 0
+        self.disclose: List[str] = []
         self._emojis: Dict[int, Emoji] = {}
         self._stickers: Dict[int, GuildSticker] = {}
         self._guilds: Dict[int, Guild] = {}
@@ -656,7 +708,8 @@ class ConnectionState:
                 request.add_members(members)
                 if complete:
                     request.done()
-                    removed.append(key)
+                    if request.oneshot:
+                        removed.append(key)
 
         for key in removed:
             del self._chunk_requests[key]
@@ -752,18 +805,18 @@ class ConnectionState:
         if len(self._interactions) > 15:
             self._interactions.popitem(last=False)
 
-    def store_user(self, data: Union[UserPayload, PartialUserPayload]) -> User:
+    def store_user(self, data: Union[UserPayload, PartialUserPayload], *, cache: bool = True) -> User:
         # this way is 300% faster than `dict.setdefault`.
         user_id = int(data['id'])
         try:
             return self._users[user_id]
         except KeyError:
             user = User(state=self, data=data)
-            if user.discriminator != '0000':
+            if cache:
                 self._users[user_id] = user
             return user
 
-    def create_user(self, data: Union[UserPayload, PartialUserPayload]) -> User:
+    def create_user(self, data: Union[UserPayload, PartialUserPayload], cache: bool = False) -> User:
         user_id = int(data['id'])
         if user_id == self.self_id:
             return self.user  # type: ignore
@@ -908,9 +961,18 @@ class ConnectionState:
         return self.ws.request_lazy_guild(guild_id, typing=typing, activities=activities, threads=threads)
 
     def chunker(
-        self, guild_id: int, query: str = '', limit: int = 0, presences: bool = True, *, nonce: Optional[str] = None
+        self,
+        guild_id: int,
+        query: Optional[str] = '',
+        limit: int = 0,
+        presences: bool = True,
+        *,
+        user_ids: Optional[List[Snowflake]] = None,
+        nonce: Optional[str] = None,
     ):
-        return self.ws.request_chunks([guild_id], query=query, limit=limit, presences=presences, nonce=nonce)
+        return self.ws.request_chunks(
+            [guild_id], query=query, limit=limit, presences=presences, user_ids=user_ids, nonce=nonce
+        )
 
     async def query_members(
         self,
@@ -926,13 +988,50 @@ class ConnectionState:
         self._chunk_requests[request.nonce] = request
 
         try:
-            await self.ws.request_chunks(
-                [guild_id], query=query, limit=limit, user_ids=user_ids, presences=presences, nonce=request.nonce
+            await self.chunker(
+                guild_id, query=query, limit=limit, presences=presences, user_ids=user_ids, nonce=request.nonce
             )
             return await asyncio.wait_for(request.wait(), timeout=30.0)
         except asyncio.TimeoutError:
             _log.warning('Timed out waiting for chunks with query %r and limit %d for guild_id %d.', query, limit, guild_id)
             raise
+
+    async def search_recent_members(
+        self,
+        guild: Guild,
+        query: str = '',
+        limit: Optional[int] = None,
+        cache: bool = False,
+    ) -> List[Member]:
+        guild_id = guild.id
+        request = ChunkRequest(guild.id, self.loop, self._get_guild, limit=limit, cache=cache, oneshot=False)
+        self._chunk_requests[request.nonce] = request
+
+        # Unlike query members, this OP is paginated
+        old_continuation_token = None
+        continuation_token = None
+        while True:
+            try:
+                await self.ws.search_recent_members(guild_id, query=query, nonce=request.nonce, after=continuation_token)
+                returned = await asyncio.wait_for(request.wait(), timeout=30.0)
+            except asyncio.TimeoutError:
+                _log.warning(
+                    'Timed out waiting for search chunks with query %r and limit %d for guild_id %d.', query, limit, guild_id
+                )
+                raise
+
+            if (limit is not None and request.remaining < 1) or len(returned) < 1:
+                break
+
+            # Sort the members by joined_at timestamp and grab the oldest one
+            request.buffer.sort(key=lambda m: m.joined_at or utils.utcnow())
+            old_continuation_token = continuation_token
+            continuation_token = request.buffer[0].id
+            if continuation_token == old_continuation_token:
+                break
+
+        self._chunk_requests.pop(request.nonce, None)
+        return list(set(request.buffer))
 
     async def _delay_ready(self) -> None:
         try:
@@ -1081,8 +1180,11 @@ class ConnectionState:
         for pm in data.get('private_channels', []) + extra_data.get('lazy_private_channels', []):
             factory, _ = _private_channel_factory(pm['type'])
             if 'recipients' not in pm:
-                pm['recipients'] = [temp_users[int(u_id)] for u_id in pm.pop('recipient_ids')]
+                pm['recipients'] = [temp_users[int(u_id)] for u_id in pm.pop('recipient_ids')]  # type: ignore
             self._add_private_channel(factory(me=user, data=pm, state=self))  # type: ignore
+
+        # Disloses
+        self.dislose = data.get('dislose', [])
 
         # We're done
         del self._ready_data
@@ -1799,7 +1901,7 @@ class ConnectionState:
             channel, _ = self._get_guild_channel(message)
 
             # channel will be the correct type here
-            message = Message(channel=channel, data=message, state=self)
+            message = Message(channel=channel, data=message, state=self)  # type: ignore
             if self._messages is not None:
                 self._messages.append(message)
 
@@ -1958,7 +2060,7 @@ class ConnectionState:
                     mdata = item['member']
                     member = Member(data=mdata, guild=guild, state=self)
                     if mdata.get('presence') is not None:
-                        member._presence_update(mdata['presence'], empty_tuple)  # type: ignore
+                        member._presence_update(mdata['presence'], empty_tuple)
 
                     members.append(member)
                     guild._member_list.append(member) if should_parse else None
@@ -2004,7 +2106,7 @@ class ConnectionState:
                 else:
                     member = Member(data=mdata, guild=guild, state=self)
                     if mdata.get('presence') is not None:
-                        member._presence_update(mdata['presence'], empty_tuple)  # type: ignore
+                        member._presence_update(mdata['presence'], empty_tuple)
 
                     to_add.append(member)
 
@@ -2138,6 +2240,7 @@ class ConnectionState:
         entry = AuditLogEntry(
             users=self._users,
             automod_rules={},
+            webhooks={},
             data=data,
             guild=guild,
         )

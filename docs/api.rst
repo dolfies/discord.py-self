@@ -388,6 +388,7 @@ Debug
     :param payload: The message that is about to be passed on to the
                     WebSocket library. It can be :class:`bytes` to denote a binary
                     message or :class:`str` to denote a regular text message.
+    :type payload: Union[:class:`bytes`, :class:`str`]
 
 Gateway
 ~~~~~~~~
@@ -1559,7 +1560,7 @@ Threads
     .. versionadded:: 2.0
 
     :param payload: The raw event payload data.
-    :type member: :class:`RawThreadMembersUpdate`
+    :type payload: :class:`RawThreadMembersUpdate`
 
 Voice
 ~~~~~~
@@ -3095,6 +3096,18 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.0
 
+    .. attribute:: creator_monetization_request_created
+
+        A request to monetize the server was created.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: creator_monetization_terms_accepted
+
+        The terms and conditions for creator monetization were accepted.
+
+        .. versionadded:: 2.1
+
 .. class:: AuditLogActionCategory
 
     Represents the category that the :class:`AuditLogAction` belongs to.
@@ -3534,7 +3547,7 @@ of :class:`enum.Enum`.
 
     .. attribute:: pending_funds
 
-        The payout is pending fund transfer.
+        The payout is pending sufficient funds.
 
 .. class:: PayoutReportType
 
@@ -3594,12 +3607,12 @@ of :class:`enum.Enum`.
 
     .. attribute:: blurple
 
-        Represents the default avatar with the color blurple.
+        Represents the default avatar with the colour blurple.
         See also :attr:`Colour.blurple`
 
     .. attribute:: grey
 
-        Represents the default avatar with the color grey.
+        Represents the default avatar with the colour grey.
         See also :attr:`Colour.greyple`
 
     .. attribute:: gray
@@ -3608,23 +3621,22 @@ of :class:`enum.Enum`.
 
     .. attribute:: green
 
-        Represents the default avatar with the color green.
+        Represents the default avatar with the colour green.
         See also :attr:`Colour.green`
 
     .. attribute:: orange
 
-        Represents the default avatar with the color orange.
+        Represents the default avatar with the colour orange.
         See also :attr:`Colour.orange`
 
     .. attribute:: red
 
-        Represents the default avatar with the color red.
+        Represents the default avatar with the colour red.
         See also :attr:`Colour.red`
-
     .. attribute:: pink
 
-        Represents the default avatar with the color pink.
-        This is not currently used in the client.
+        Represents the default avatar with the colour pink.
+        See also :attr:`Colour.pink`
 
 .. class:: StickerType
 
@@ -5772,6 +5784,12 @@ AuditLogDiff
 
         :type: :class:`str`
 
+    .. attribute:: guild
+
+        The guild of something.
+
+        :type: :class:`Guild`
+
     .. attribute:: icon
 
         A guild's or role's icon. See also :attr:`Guild.icon` or :attr:`Role.icon`.
@@ -6339,6 +6357,38 @@ AuditLogDiff
         See also :attr:`ForumChannel.flags` and :attr:`Thread.flags`
 
         :type: :class:`ChannelFlags`
+
+    .. attribute:: default_thread_slowmode_delay
+
+        The default slowmode delay for threads created in this text channel or forum.
+
+        See also :attr:`TextChannel.default_thread_slowmode_delay` and :attr:`ForumChannel.default_thread_slowmode_delay`
+
+        :type: :class:`int`
+
+    .. attribute:: applied_tags
+
+        The applied tags of a forum post.
+
+        See also :attr:`Thread.applied_tags`
+
+        :type: List[Union[:class:`ForumTag`, :class:`Object`]]
+
+    .. attribute:: available_tags
+
+        The available tags of a forum.
+
+        See also :attr:`ForumChannel.available_tags`
+
+        :type: Sequence[:class:`ForumTag`]
+
+    .. attribute:: default_reaction_emoji
+
+        The default_reaction_emoji for forum posts.
+
+        See also :attr:`ForumChannel.default_reaction_emoji`
+
+        :type: :class:`default_reaction_emoji`
 
 .. this is currently missing the following keys: reason and application_id
    I'm not sure how to port these
@@ -7792,19 +7842,14 @@ Flags
 .. autoclass:: ApplicationDiscoveryFlags()
     :members:
 
-.. attributetable:: LibraryApplicationFlags
+.. attributetable:: AttachmentFlags
 
-.. autoclass:: LibraryApplicationFlags()
+.. autoclass:: AttachmentFlags()
     :members:
 
 .. attributetable:: ChannelFlags
 
 .. autoclass:: ChannelFlags()
-    :members:
-
-.. attributetable:: SystemChannelFlags
-
-.. autoclass:: SystemChannelFlags()
     :members:
 
 .. attributetable:: FriendSourceFlags
@@ -7832,9 +7877,19 @@ Flags
 .. autoclass:: InviteFlags()
     :members:
 
+.. attributetable:: LibraryApplicationFlags
+
+.. autoclass:: LibraryApplicationFlags()
+    :members:
+
 .. attributetable:: MemberFlags
 
 .. autoclass:: MemberFlags()
+    :members:
+
+.. attributetable:: MemberCacheFlags
+
+.. autoclass:: MemberCacheFlags()
     :members:
 
 .. attributetable:: MessageFlags
@@ -7893,9 +7948,9 @@ Flags
 .. autoclass:: SKUFlags()
     :members:
 
-.. attributetable:: MemberCacheFlags
+.. attributetable:: SystemChannelFlags
 
-.. autoclass:: MemberCacheFlags()
+.. autoclass:: SystemChannelFlags()
     :members:
 
 

@@ -135,6 +135,7 @@ class ReadySupplementalEvent(TypedDict):
     merged_members: List[List[MemberWithUser]]
     merged_presences: MergedPresences
     lazy_private_channels: List[Union[DMChannel, GroupDMChannel]]
+    disclose: List[str]
 
 
 class VersionedReadState(TypedDict):
@@ -180,6 +181,7 @@ class MessageReactionAddEvent(TypedDict):
     emoji: PartialEmoji
     member: NotRequired[MemberWithUser]
     guild_id: NotRequired[Snowflake]
+    message_author_id: NotRequired[Snowflake]
 
 
 class MessageReactionRemoveEvent(TypedDict):

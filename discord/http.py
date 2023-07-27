@@ -80,7 +80,7 @@ if TYPE_CHECKING:
     from .mentions import AllowedMentions
     from .message import Attachment, Message
     from .flags import MessageFlags
-    from .enums import AuditLogAction, ChannelType, InteractionType
+    from .enums import ChannelType, InteractionType
     from .embeds import Embed
 
     from .types import (
@@ -1032,10 +1032,6 @@ class HTTPClient:
         self.token = token
         self.ack_token = None
 
-    def get_me(self, with_analytics_token: bool = True) -> Response[user.User]:
-        params = {'with_analytics_token': str(with_analytics_token).lower()}
-        return self.request(Route('GET', '/users/@me'), params=params)
-
     async def static_login(self, token: str) -> user.User:
         old_token, self.token = self.token, token
 
@@ -1048,6 +1044,26 @@ class HTTPClient:
             raise
 
         return data
+
+    # Self user
+
+    def get_me(self, with_analytics_token: bool = True) -> Response[user.User]:
+        params = {'with_analytics_token': str(with_analytics_token).lower()}
+        return self.request(Route('GET', '/users/@me'), params=params)
+
+    def edit_profile(self, payload: Dict[str, Any]) -> Response[user.User]:
+        return self.request(Route('PATCH', '/users/@me'), json=payload)
+
+    def pomelo(self, username: str) -> Response[user.User]:
+        payload = {'username': username}
+        return self.request(Route('POST', '/users/@me/pomelo'), json=payload)
+
+    def pomelo_suggestion(self) -> Response[user.PomeloSuggestion]:
+        return self.request(Route('GET', '/users/@me/pomelo-suggestions'))
+
+    def pomelo_attempt(self, username: str) -> Response[user.PomeloAttempt]:
+        payload = {'username': username}
+        return self.request(Route('POST', '/users/@me/pomelo-attempt'), json=payload)
 
     # PM functionality
 
@@ -1428,9 +1444,6 @@ class HTTPClient:
             payload['deaf'] = deafen
 
         return self.request(r, json=payload, reason=reason)
-
-    def edit_profile(self, payload: Dict[str, Any]) -> Response[user.User]:
-        return self.request(Route('PATCH', '/users/@me'), json=payload)
 
     def edit_my_voice_state(self, guild_id: Snowflake, payload: Dict[str, Any]) -> Response[None]:  # TODO: remove payload
         r = Route('PATCH', '/guilds/{guild_id}/voice-states/@me', guild_id=guild_id)
@@ -2200,7 +2213,7 @@ class HTTPClient:
         before: Optional[Snowflake] = None,
         after: Optional[Snowflake] = None,
         user_id: Optional[Snowflake] = None,
-        action_type: Optional[AuditLogAction] = None,
+        action_type: Optional[audit_log.AuditLogEvent] = None,
     ) -> Response[audit_log.AuditLog]:
         r = Route('GET', '/guilds/{guild_id}/audit-logs', guild_id=guild_id)
         params: Dict[str, Any] = {'limit': limit}
@@ -2244,9 +2257,9 @@ class HTTPClient:
         guild_id: Snowflake = MISSING,
         channel_id: Snowflake = MISSING,
         channel_type: ChannelType = MISSING,
-        message: Message = MISSING,
+        message: Optional[Message] = None,
     ):  # TODO: response type
-        if message is not MISSING:  # Invite Button Embed
+        if message:  # Invite Button Embed
             props = ContextProperties.from_invite_button_embed(
                 guild_id=getattr(message.guild, 'id', None),
                 channel_id=message.channel.id,
@@ -2894,7 +2907,7 @@ class HTTPClient:
     def send_friend_request(self, username: str, discriminator: Snowflake) -> Response[None]:
         r = Route('POST', '/users/@me/relationships')
         props = choice((ContextProperties.from_add_friend, ContextProperties.from_group_dm))()  # Friends, Group DM
-        payload = {'username': username, 'discriminator': int(discriminator)}
+        payload = {'username': username, 'discriminator': int(discriminator) or None}
 
         return self.request(r, json=payload, context_properties=props)
 
@@ -3180,9 +3193,9 @@ class HTTPClient:
         )
 
     def add_app_whitelist(
-        self, app_id: Snowflake, username: str, discriminator: str
+        self, app_id: Snowflake, username: str, discriminator: Snowflake
     ) -> Response[application.WhitelistedUser]:
-        payload = {'username': username, 'discriminator': discriminator}
+        payload = {'username': username, 'discriminator': str(discriminator) or None}
 
         return self.request(
             Route('POST', '/oauth2/applications/{app_id}/allowlist', app_id=app_id),
@@ -3279,7 +3292,7 @@ class HTTPClient:
         return self.request(Route('GET', '/teams/{team_id}/members', team_id=team_id), super_properties_to_track=True)
 
     def invite_team_member(self, team_id: Snowflake, username: str, discriminator: Snowflake):
-        payload = {'username': username, 'discriminator': str(discriminator)}
+        payload = {'username': username, 'discriminator': str(discriminator) or None}
 
         return self.request(
             Route('POST', '/teams/{team_id}/members', team_id=team_id), json=payload, super_properties_to_track=True
