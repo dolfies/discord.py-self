@@ -776,7 +776,7 @@ class ClientUser(BaseUser):
         self,
         *,
         username: str = MISSING,
-        global_name: str = MISSING,
+        global_name: Optional[str] = MISSING,
         avatar: Optional[bytes] = MISSING,
         avatar_decoration: Optional[bytes] = MISSING,
         password: str = MISSING,
@@ -813,7 +813,7 @@ class ClientUser(BaseUser):
         -----------
         password: :class:`str`
             The current password for the client's account.
-            Required for everything except avatar, banner, accent_colour, date_of_birth, and bio.
+            Required for everything except avatar, banner, accent_colour, date_of_birth, global_name, and bio.
         new_password: :class:`str`
             The new password you wish to change to.
         email: :class:`str`
@@ -823,8 +823,6 @@ class ClientUser(BaseUser):
             Could be ``None`` to leave the current house.
         username: :class:`str`
             The new username you wish to change to.
-        global_name: :class:`str`
-            The new global display name you wish to change to.
         discriminator: :class:`int`
             The new discriminator you wish to change to.
             This is a legacy concept that is no longer used. Can only be used if you have Nitro.
@@ -860,7 +858,10 @@ class ClientUser(BaseUser):
                 This change cannot be undone and requires you to be in the pomelo rollout.
 
             .. versionadded:: 2.1
+        global_name: Optional[:class:`str`]
+            The new global display name you wish to change to.
 
+            .. versionadded:: 2.1
         Raises
         ------
         HTTPException
