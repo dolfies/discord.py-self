@@ -862,6 +862,7 @@ class ClientUser(BaseUser):
             The new global display name you wish to change to.
 
             .. versionadded:: 2.1
+
         Raises
         ------
         HTTPException
