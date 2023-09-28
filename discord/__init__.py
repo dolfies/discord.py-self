@@ -19,7 +19,7 @@ __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 import logging
 from typing import Literal, NamedTuple
 
-from . import abc as abc, opus as opus, utils as utils
+from . import abc as abc, opus as opus, utils as utils, sinks as sinks
 from .activity import *
 from .affinity import *
 from .application import *
