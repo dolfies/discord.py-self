@@ -1479,7 +1479,8 @@ async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord
         build_url = 'https://discord.com/assets/' + re.compile(r'assets/+([a-z0-9]+)\.js').findall(login_page)[-2] + '.js'
         build_request = await session.get(build_url, timeout=7)
         build_file = await build_request.text()
-        build_index = build_file.find('buildNumber') + 24
+        build_find = 'Build Number: ").concat("'
+        build_index = build_file.find(build_find) + len(build_find)
         return int(build_file[build_index : build_index + 6])
     except asyncio.TimeoutError:
         _log.critical('Could not fetch client build number. Falling back to hardcoded value...')
