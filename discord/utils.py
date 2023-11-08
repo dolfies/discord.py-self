@@ -1479,8 +1479,23 @@ async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord
         build_url = 'https://discord.com/assets/' + re.compile(r'assets/+([a-z0-9]+)\.js').findall(login_page)[-2] + '.js'
         build_request = await session.get(build_url, timeout=7)
         build_file = await build_request.text()
+        # Check for 'buildNumber' format
         build_index = build_file.find('buildNumber') + 24
-        return int(build_file[build_index : build_index + 6])
+        build_number_str = build_file[build_index : build_index + 6]
+
+        if build_number_str.isnumeric():
+            return int(build_number_str)
+        else:
+            # Check for 'Build Number' format
+            build_index = build_file.find('Build Number') + 25
+            build_number_str = build_file[build_index : build_index + 6]
+
+            if build_number_str.isnumeric():
+                return int(build_number_str)
+            else:
+                # Handle the case where neither format contains a valid integer
+                _log.warning('Client build number is not a valid integer.')
+                return 9999  # Return a default value
     except asyncio.TimeoutError:
         _log.critical('Could not fetch client build number. Falling back to hardcoded value...')
         return 9999
