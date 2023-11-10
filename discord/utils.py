@@ -1473,6 +1473,7 @@ async def _get_info(session: ClientSession) -> Tuple[Dict[str, Any], str]:
 
 async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord-S.C.U.M
     """Fetches client build number"""
+    default_build_number = 9999
     try:
         login_page_request = await session.get('https://discord.com/login', timeout=7)
         login_page = await login_page_request.text()
@@ -1480,10 +1481,10 @@ async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord
         build_request = await session.get(build_url, timeout=7)
         build_file = await build_request.text()
         build_find = re.findall(r'Build Number:\D+"(\d+)"', build_file)
-        return int(build_find[0]) if build_find and str.isnumeric(build_find[0]) else 9999
+        return int(build_find[0]) if build_find else default_build_number
     except asyncio.TimeoutError:
         _log.critical('Could not fetch client build number. Falling back to hardcoded value...')
-        return 9999
+        return default_build_number
 
 
 async def _get_user_agent(session: ClientSession) -> str:
