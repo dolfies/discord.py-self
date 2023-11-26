@@ -1471,6 +1471,7 @@ async def _get_info(session: ClientSession) -> Tuple[Dict[str, Any], str]:
     return properties, b64encode(_to_json(properties).encode()).decode('utf-8')
 
 
+
 async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord-S.C.U.M
     """Fetches client build number"""
     default_build_number = 9999
