@@ -1483,7 +1483,9 @@ async def _get_build_number(session: ClientSession) -> int:  # Thank you Discord
             build_file = await build_request.text()
             build_find = re.findall(r'Build Number:\D+"(\d+)"', build_file)
             if build_find:
-                return int(build_find[0]) if build_find else default_build_number
+                return int(build_find[0])
+        else:
+            return default_build_number
     except asyncio.TimeoutError:
         _log.critical('Could not fetch client build number. Falling back to hardcoded value...')
         return default_build_number
