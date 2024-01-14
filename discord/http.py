@@ -778,7 +778,7 @@ class HTTPClient:
 
         # Proxy support
         if self.proxy is not None:
-            kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
+            kwargs['proxies'] = {'all': self.proxy}
         if self.proxy_auth is not None:
             headers['Proxy-Authorization'] = self.proxy_auth.encode()
 
