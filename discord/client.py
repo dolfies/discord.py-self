@@ -1719,6 +1719,7 @@ class Client:
         TypeError
             The ``activity`` parameter is not the proper type.
             Both ``activity`` and ``activities`` were passed.
+        ValueError
             More than one custom activity was passed.
         """
         if activity is not MISSING and activities is not MISSING:
@@ -1745,17 +1746,17 @@ class Client:
         else:
             since = int(idle_since.timestamp() * 1000) if idle_since else 0
 
+        custom_activity = None
+        if not skip_activities:
+            for activity in activities:
+                if getattr(activity, 'type', None) is ActivityType.custom:
+                    if custom_activity is not None:
+                        raise ValueError('More than one custom activity was passed')
+                    custom_activity = activity
+
         await self.ws.change_presence(status=status, activities=activities, afk=afk, since=since)
 
         if edit_settings and self.settings:
-            custom_activity = None
-            if not skip_activities:
-                for activity in activities:
-                    if getattr(activity, 'type', None) is ActivityType.custom:
-                        if custom_activity is not None:
-                            raise TypeError('More than one custom activity was passed')
-                        custom_activity = activity
-
             payload: Dict[str, Any] = {}
             if not skip_status and status != self.settings.status:
                 payload['status'] = status
