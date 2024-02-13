@@ -869,6 +869,7 @@ class SyncWebhook(BaseWebhook):
         wait: Literal[True],
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        components: Dict[Any, Any] = MISSING,
     ) -> SyncWebhookMessage:
         ...
 
@@ -890,6 +891,7 @@ class SyncWebhook(BaseWebhook):
         wait: Literal[False] = ...,
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        components: Dict[Any, Any] = MISSING,
     ) -> None:
         ...
 
@@ -910,6 +912,7 @@ class SyncWebhook(BaseWebhook):
         wait: bool = False,
         suppress_embeds: bool = False,
         silent: bool = False,
+        components: Dict[Any, Any] = MISSING,
     ) -> Optional[SyncWebhookMessage]:
         """Sends a message using the webhook.
 
@@ -1026,6 +1029,7 @@ class SyncWebhook(BaseWebhook):
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
             flags=flags,
+            components=components
         ) as params:
             adapter: WebhookAdapter = _get_webhook_adapter()
             thread_id: Optional[int] = None

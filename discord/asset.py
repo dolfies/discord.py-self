@@ -233,7 +233,7 @@ class Asset(AssetMixin):
         format = 'gif' if animated else 'png'
         return cls(
             state,
-            url=f'{cls.BASE}/avatars/{user_id}/{avatar}.{format}?size=1024',
+            url=f'{cls.BASE}/avatars/{user_id}/{avatar}.{format}?size=4096',
             key=avatar,
             animated=animated,
         )
@@ -249,7 +249,7 @@ class Asset(AssetMixin):
         format = 'gif' if animated else 'png'
         return cls(
             state,
-            url=f"{cls.BASE}/guilds/{guild_id}/users/{member_id}/avatars/{avatar}.{format}?size=1024",
+            url=f"{cls.BASE}/guilds/{guild_id}/users/{member_id}/avatars/{avatar}.{format}?size=4096",
             key=avatar,
             animated=animated,
         )
@@ -269,7 +269,7 @@ class Asset(AssetMixin):
     def _from_icon(cls, state: _State, object_id: int, icon_hash: str, path: str) -> Self:
         return cls(
             state,
-            url=f'{cls.BASE}/{path}-icons/{object_id}/{icon_hash}.png?size=1024',
+            url=f'{cls.BASE}/{path}-icons/{object_id}/{icon_hash}.png?size=4096',
             key=icon_hash,
             animated=False,
         )
@@ -278,7 +278,7 @@ class Asset(AssetMixin):
     def _from_scheduled_event_cover_image(cls, state: _State, scheduled_event_id: int, cover_image_hash: str) -> Self:
         return cls(
             state,
-            url=f'{cls.BASE}/guild-events/{scheduled_event_id}/{cover_image_hash}.png?size=1024',
+            url=f'{cls.BASE}/guild-events/{scheduled_event_id}/{cover_image_hash}.png?size=4096',
             key=cover_image_hash,
             animated=False,
         )
@@ -289,7 +289,7 @@ class Asset(AssetMixin):
         format = 'gif' if animated else 'png'
         return cls(
             state,
-            url=f'{cls.BASE}/{path}/{guild_id}/{image}.{format}?size=1024',
+            url=f'{cls.BASE}/{path}/{guild_id}/{image}.{format}?size=4096',
             key=image,
             animated=animated,
         )
@@ -300,7 +300,7 @@ class Asset(AssetMixin):
         format = 'gif' if animated else 'png'
         return cls(
             state,
-            url=f'{cls.BASE}/icons/{guild_id}/{icon_hash}.{format}?size=1024',
+            url=f'{cls.BASE}/icons/{guild_id}/{icon_hash}.{format}?size=4096',
             key=icon_hash,
             animated=animated,
         )

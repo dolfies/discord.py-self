@@ -1372,6 +1372,7 @@ class Webhook(BaseWebhook):
         wait: Literal[True],
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        components: Dict[Any, Any] = MISSING,
     ) -> WebhookMessage:
         ...
 
@@ -1393,6 +1394,7 @@ class Webhook(BaseWebhook):
         wait: Literal[False] = ...,
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        components: Dict[Any, Any] = MISSING,
     ) -> None:
         ...
 
@@ -1413,6 +1415,7 @@ class Webhook(BaseWebhook):
         wait: bool = False,
         suppress_embeds: bool = False,
         silent: bool = False,
+        components: Dict[Any, Any] = MISSING,
     ) -> Optional[WebhookMessage]:
         """|coro|
 
@@ -1538,6 +1541,7 @@ class Webhook(BaseWebhook):
             thread_name=thread_name,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            components=components
         ) as params:
             adapter = async_context.get()
             thread_id: Optional[int] = None

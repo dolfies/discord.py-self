@@ -241,6 +241,7 @@ def handle_message_parameters(
     thread_name: str = MISSING,
     network_type: NetworkConnectionType = MISSING,
     channel_payload: Dict[str, Any] = MISSING,
+    components: Dict[Any, Any] = MISSING,
 ) -> MultipartParameters:
     if files is not MISSING and file is not MISSING:
         raise TypeError('Cannot mix file and files keyword arguments.')
@@ -334,6 +335,9 @@ def handle_message_parameters(
             'message': payload,
         }
         payload.update(channel_payload)
+        
+    if components is not MISSING:
+        payload['components'] = components
 
     # Legacy uploading
     multipart = []
