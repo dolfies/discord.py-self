@@ -4685,3 +4685,19 @@ class HTTPClient:
     def join_hub_token(self, token: str) -> Response[hub.EmailDomainVerification]:
         payload = {'token': token}
         return self.request(Route('POST', '/guilds/automations/email-domain-lookup/verify'), json=payload)
+
+    async def get_guild_rules_form(self, guild_id: Snowflake, invite_id: str):
+        params = {
+            "with_guild": "false",
+            "invite_code": invite_id,
+        }
+        return await self.request(Route('GET', '/guilds/{guild_id}/member-verification', guild_id=guild_id), params=params)
+
+    async def agree_guild_rules(self, guild_id: Snowflake, rules_form: dict):
+        form_fields = rules_form["form_fields"][0].copy()
+        form_fields["response"] = True
+        payload = {
+            "version": rules_form["version"],
+            "form_fields": [form_fields],
+        }
+        return await self.request(Route('PUT', '/guilds/{guild_id}/requests/@me', guild_id=guild_id), json=payload)
