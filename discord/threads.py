@@ -1015,7 +1015,7 @@ class ThreadMember(Hashable):
             state._handle_member_update(guild, member_data)
         presence = data.get('presence')
         if presence is not None:
-            state._parse_presence_update(guild, presence)
+            state._handle_presence_update(guild, presence)
 
     @property
     def thread(self) -> Thread:
