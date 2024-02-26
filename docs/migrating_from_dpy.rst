@@ -56,6 +56,10 @@ Additionally, for guilds with less than 75,000 members, they're synced the per-g
 Outside of these cases, you will not receive presence updates for any other users. To obtain the presence of an arbitrary user, you can use the :meth:`Guild.query_members` method.
 To stay informed of presence updates for a specific user, you can subscribe to them using the :meth:`Guild.subscribe_to` method. See the :doc:`guild_subscriptions` section for more information.
 
+.. note::
+
+    User updates (i.e. :func:`discord.on_user_update`) require either member updates (for at least one guild) or presence updates to be dispatched for the user as outlined above.
+
 AutoMod
 --------
 
