@@ -184,6 +184,8 @@ class Client:
 
         For larger servers, this is required to receive nearly all events.
 
+        See :doc:`guild_subscriptions` for more information.
+
         .. versionadded:: 2.1
 
         .. warning::
