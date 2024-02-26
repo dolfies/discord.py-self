@@ -469,9 +469,9 @@ class GuildSubscriptions:
     - ``activities``: not sure what this does yet
     - ``member_updates``: whether the client receives member events (GUILD_MEMBER_ADD, GUILD_MEMBER_UPDATE, GUILD_MEMBER_REMOVE)
 
-    The client is automatically subscribed to all guilds with < 75k members on connect. For guilds the client is not subscribed
-    to, it will not receive non-stateful events (e.g. MESSAGE_CREATE, MESSAGE_UPDATE, MESSAGE_DELETE, etc.). Additionally, it will
-    receive the PASSIVE_UPDATE_V1 event to keep voice states and channel unreads up-to-date.
+    The client is automatically subscribed to all guilds with < 75k members on connect. For guilds the client is not subscribed to,
+    it will not receive non-stateful events (e.g. MESSAGE_CREATE, MESSAGE_UPDATE, MESSAGE_DELETE, etc.).
+    Additionally, it will receive the PASSIVE_UPDATE_V1 event to keep voice states and channel unreads up-to-date.
 
     Once a client subscribes to the ``typing`` feature, it is considered subscribed to that guild indefinitely. On the first subscribe,
     it will receive a GUILD_CREATE event (for some reason). If subscribing to other features/members without having subscribed to the
@@ -487,10 +487,26 @@ class GuildSubscriptions:
     to the guild) with all the members in the thread. Note that the members received are guild member objects, not thread member objects.
     There is no way for user accounts to request thread member objects. After subscribing to a thread member list, the client will be
     subscribed to all members in the thread, akin to using ``members``. This field has no cap except for the max payload size.
+
+    The client is automatically subscribed to the members of all friends, implicit relationships, and users with open DMs (that it has a mutual guild with)
+    for all guilds with less than 75k members at startup. Additionally, the Gateway will repeat this process and subscribe you to a specific DM recipient every time a new DM is opened.
+    The above triggers a GUILD_MEMBER_REMOVE event for every guild you do not share with the DM recipient (this behavior used to exist for the ``members`` parameter too).
+
+    Irrespective of subscribed members, clients will always receive GUILD_MEMBER_UPDATE and GUILD_MEMBER_REMOVE events for actions they perform
+    (e.g. changing a user's nickname, kicking a user, banning a user, etc.). Additionally, you will also receive GUILD_MEMBER_UPDATE for members
+    with an active voice state. This requires that the client is subscribed to the guild.
+
+    Remember that you get presence updates for the overall user presence for all friends and implicit relationships.
+
+    # TODO: there's some weird behavior here that needs to be further investigated:
+    a) joining new guilds
+    b) adding new friends - I believe you are NOT automatically subscribed to them in every guild (however you still get the overall user presence)
+    c) opening new DMs - I'm almost sure this just universally subscribes you
+    d) 75k member+ guilds are fucking weird
     """
 
     # I thought it was 4096 bytes, but this is taken from the client
-    MAX_PAYLOAD_SIZE: Final[int] = 15360
+    MAX_PAYLOAD_SIZE: Final[int] = 15360  # 15 KiB
     TICK_TIMEOUT: Final[float] = 0.5
 
     __slots__ = (
@@ -588,6 +604,7 @@ class GuildSubscriptions:
             if guild_id not in subscribed:
                 continue
 
+            key = str(guild_id)
             payload: gw.BaseGuildSubscribePayload = {
                 # Ensure we are subscribed to the guild
                 'typing': guild_id in typing or guild_id in subscribed,
@@ -598,17 +615,18 @@ class GuildSubscriptions:
                 'thread_member_lists': list(thread_member_lists.get(guild_id, ())),
                 'channels': channels.get(guild_id, {}),  # type: ignore
             }
-            if str(guild_id) in pending:
-                payload.update(pending[str(guild_id)])
+            if key in pending:
+                payload.update(pending[key])
             if payload:
-                await self._checked_add({str(guild_id): payload})
+                await self._checked_add({key: payload})
 
     def is_subscribed(self, guild: abcSnowflake, /) -> bool:
         return guild.id in self._subscribed
 
     def _is_pending_subscribe(self, guild_id: int, /) -> bool:
+        key = str(guild_id)
         return guild_id in self._subscribed or (
-            str(guild_id) in self._pending and self._pending[str(guild_id)].get('typing') is True
+            key in self._pending and self._pending[key].get('typing') is True
         )
 
     def has_feature(
@@ -983,7 +1001,7 @@ class ConnectionState:
         if chunk_guilds and not subscribe_guilds:
             raise ClientException('Cannot chunk guilds at startup without subscribing to them')
 
-        self._chunk_guilds: bool = chunk_guilds if chunk_guilds is not MISSING else cache_flags.joined
+        self._chunk_guilds: bool = chunk_guilds if chunk_guilds is not MISSING else (subscribe_guilds and cache_flags.joined)
         self._subscribe_guilds: bool = subscribe_guilds
         self.member_cache_flags: MemberCacheFlags = cache_flags
         self._activities: List[ActivityPayload] = activities

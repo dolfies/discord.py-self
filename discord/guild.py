@@ -4878,9 +4878,12 @@ class Guild(Hashable):
         .. versionadded:: 2.0
 
         .. note::
+
             For guilds with more than 1,000 members, this requires the
             :attr:`~Permissions.manage_roles`, :attr:`~Permissions.kick_members`,
             or :attr:`~Permissions.ban_members` permissions.
+            For guilds with less than 1,000 members, this requires at least
+            one channel that is viewable by every member.
 
         Parameters
         -----------
@@ -4933,6 +4936,7 @@ class Guild(Hashable):
         .. versionadded:: 2.0
 
         .. note::
+
             If you have any of :attr:`~Permissions.kick_members`, :attr:`~Permissions.ban_members`,
             or :attr:`~Permissions.manage_roles`, members will be requested normally (including offline members).
             Else, this will scrape the member sidebar, which is slower and may not include offline members.
@@ -5156,7 +5160,7 @@ class Guild(Hashable):
         Parameters
         -----------
         typing: :class:`bool`
-            Whether to receive typing events.
+            Whether to receive typing events (i.e. :func:`discord.on_typing`).
 
             .. note::
 
@@ -5166,7 +5170,13 @@ class Guild(Hashable):
         threads: :class:`bool`
             Whether to populate the thread cache and receive thread events.
         member_updates: :class:`bool`
-            Whether to receive member update events.
+            Whether to receive member update events
+            (i.e. :func:`discord.on_member_join`, :func:`discord.on_member_update`, and :func:`discord.on_member_remove`).
+
+        Raises
+        -------
+        TypeError
+            Attempted to subscribe to a guild without subscribing to typing events.
         """
         await self._state.subscribe_guild(
             self, typing=typing, activities=activities, threads=threads, member_updates=member_updates
@@ -5196,7 +5206,7 @@ class Guild(Hashable):
         -------
         ValueError
             The guild is not subscribed to.
-
+            The subscription payload is too large.
         """
         subscriptions = self._state.subscriptions
         if members:
@@ -5220,6 +5230,11 @@ class Guild(Hashable):
             A collection of members to unsubscribe from.
         threads: List[:class:`~abc.Snowflake`]
             A collection of threads to unsubscribe from.
+
+        Raises
+        -------
+        ValueError
+            The guild is not subscribed to.
         """
         subscriptions = self._state.subscriptions
         if members:
