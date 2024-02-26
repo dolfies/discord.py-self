@@ -625,9 +625,7 @@ class GuildSubscriptions:
 
     def _is_pending_subscribe(self, guild_id: int, /) -> bool:
         key = str(guild_id)
-        return guild_id in self._subscribed or (
-            key in self._pending and self._pending[key].get('typing') is True
-        )
+        return guild_id in self._subscribed or (key in self._pending and self._pending[key].get('typing') is True)
 
     def has_feature(
         self, guild: abcSnowflake, feature: Literal['typing', 'threads', 'activities', 'member_updates'], /
