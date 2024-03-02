@@ -1450,11 +1450,12 @@ FALLBACK_BUILD_NUMBER = 9999  # Used in marketing and dev portal :)
 FALLBACK_BROWSER_VERSION = '120.0.0.1'
 _SENTRY_ASSET_REGEX = re.compile(r'assets/(sentry\.\w+)\.js')
 _BUILD_NUMBER_REGEX = re.compile(r'buildNumber\D+(\d+)"')
+_DEFAULT_SESSION_TIMEOUT = 3
 
 
 async def _get_info(session: ClientSession) -> Tuple[Dict[str, Any], str]:
     try:
-        async with session.post('https://cordapi.dolfi.es/api/v2/properties/web', timeout=5) as resp:
+        async with session.post('https://cordapi.dolfi.es/api/v2/properties/web', timeout=_DEFAULT_SESSION_TIMEOUT) as resp:
             json = await resp.json()
             return json['properties'], json['encoded']
     except Exception:
@@ -1494,14 +1495,14 @@ async def _get_info(session: ClientSession) -> Tuple[Dict[str, Any], str]:
 
 async def _get_build_number(session: ClientSession) -> int:
     """Fetches client build number"""
-    async with session.get('https://discord.com/login') as resp:
+    async with session.get('https://discord.com/login', timeout=_DEFAULT_SESSION_TIMEOUT) as resp:
         app = await resp.text()
         match = _SENTRY_ASSET_REGEX.search(app)
         if match is None:
             raise RuntimeError('Could not find sentry asset file')
         sentry = match.group(1)
 
-    async with session.get(f'https://discord.com/assets/{sentry}.js') as resp:
+    async with session.get(f'https://discord.com/assets/{sentry}.js', timeout=_DEFAULT_SESSION_TIMEOUT) as resp:
         build = await resp.text()
         match = _BUILD_NUMBER_REGEX.search(build)
         if match is None:
@@ -1512,7 +1513,8 @@ async def _get_build_number(session: ClientSession) -> int:
 async def _get_browser_version(session: ClientSession) -> str:
     """Fetches the latest Windows 10/Chrome major browser version."""
     async with session.get(
-        'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions'
+        'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions',
+        timeout=_DEFAULT_SESSION_TIMEOUT
     ) as response:
         data = await response.json()
         major = data['versions'][0]['version'].split('.')[0]
