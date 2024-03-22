@@ -188,10 +188,12 @@ class CachedSlotProperty(Generic[T, T_co]):
         self.__doc__ = getattr(function, '__doc__')
 
     @overload
-    def __get__(self, instance: None, owner: Type[T]) -> CachedSlotProperty[T, T_co]: ...
+    def __get__(self, instance: None, owner: Type[T]) -> CachedSlotProperty[T, T_co]:
+        ...
 
     @overload
-    def __get__(self, instance: T, owner: Type[T]) -> T_co: ...
+    def __get__(self, instance: T, owner: Type[T]) -> T_co:
+        ...
 
     def __get__(self, instance: Optional[T], owner: Type[T]) -> Any:
         if instance is None:
@@ -243,10 +245,12 @@ class SequenceProxy(Sequence[T_co]):
         return f"SequenceProxy({self.__proxied!r})"
 
     @overload
-    def __getitem__(self, idx: SupportsIndex) -> T_co: ...
+    def __getitem__(self, idx: SupportsIndex) -> T_co:
+        ...
 
     @overload
-    def __getitem__(self, idx: slice) -> List[T_co]: ...
+    def __getitem__(self, idx: slice) -> List[T_co]:
+        ...
 
     def __getitem__(self, idx: Union[SupportsIndex, slice]) -> Union[T_co, List[T_co]]:
         return self.__copied[idx]
@@ -271,15 +275,18 @@ class SequenceProxy(Sequence[T_co]):
 
 
 @overload
-def parse_time(timestamp: None) -> None: ...
+def parse_time(timestamp: None) -> None:
+    ...
 
 
 @overload
-def parse_time(timestamp: str) -> datetime.datetime: ...
+def parse_time(timestamp: str) -> datetime.datetime:
+    ...
 
 
 @overload
-def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]: ...
+def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
+    ...
 
 
 def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
@@ -289,15 +296,18 @@ def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
 
 
 @overload
-def parse_date(date: None) -> None: ...
+def parse_date(date: None) -> None:
+    ...
 
 
 @overload
-def parse_date(date: str) -> datetime.date: ...
+def parse_date(date: str) -> datetime.date:
+    ...
 
 
 @overload
-def parse_date(date: Optional[str]) -> Optional[datetime.date]: ...
+def parse_date(date: Optional[str]) -> Optional[datetime.date]:
+    ...
 
 
 def parse_date(date: Optional[str]) -> Optional[datetime.date]:
@@ -307,15 +317,18 @@ def parse_date(date: Optional[str]) -> Optional[datetime.date]:
 
 
 @overload
-def parse_timestamp(timestamp: None) -> None: ...
+def parse_timestamp(timestamp: None) -> None:
+    ...
 
 
 @overload
-def parse_timestamp(timestamp: float) -> datetime.datetime: ...
+def parse_timestamp(timestamp: float) -> datetime.datetime:
+    ...
 
 
 @overload
-def parse_timestamp(timestamp: Optional[float]) -> Optional[datetime.datetime]: ...
+def parse_timestamp(timestamp: Optional[float]) -> Optional[datetime.datetime]:
+    ...
 
 
 def parse_timestamp(timestamp: Optional[float]) -> Optional[datetime.datetime]:
@@ -476,11 +489,13 @@ async def _afind(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -
 
 
 @overload
-def find(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -> Coro[Optional[T]]: ...
+def find(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -> Coro[Optional[T]]:
+    ...
 
 
 @overload
-def find(predicate: Callable[[T], Any], iterable: Iterable[T], /) -> Optional[T]: ...
+def find(predicate: Callable[[T], Any], iterable: Iterable[T], /) -> Optional[T]:
+    ...
 
 
 def find(predicate: Callable[[T], Any], iterable: _Iter[T], /) -> Union[Optional[T], Coro[Optional[T]]]:
@@ -560,11 +575,13 @@ async def _aget(iterable: AsyncIterable[T], /, **attrs: Any) -> Optional[T]:
 
 
 @overload
-def get(iterable: AsyncIterable[T], /, **attrs: Any) -> Coro[Optional[T]]: ...
+def get(iterable: AsyncIterable[T], /, **attrs: Any) -> Coro[Optional[T]]:
+    ...
 
 
 @overload
-def get(iterable: Iterable[T], /, **attrs: Any) -> Optional[T]: ...
+def get(iterable: Iterable[T], /, **attrs: Any) -> Optional[T]:
+    ...
 
 
 def get(iterable: _Iter[T], /, **attrs: Any) -> Union[Optional[T], Coro[Optional[T]]]:
@@ -801,11 +818,13 @@ def compute_timedelta(dt: datetime.datetime) -> float:
 
 
 @overload
-async def sleep_until(when: datetime.datetime, result: T) -> T: ...
+async def sleep_until(when: datetime.datetime, result: T) -> T:
+    ...
 
 
 @overload
-async def sleep_until(when: datetime.datetime) -> None: ...
+async def sleep_until(when: datetime.datetime) -> None:
+    ...
 
 
 async def sleep_until(when: datetime.datetime, result: Optional[T] = None) -> Optional[T]:
@@ -867,7 +886,8 @@ class SnowflakeList(_SnowflakeListBase):
 
     if TYPE_CHECKING:
 
-        def __init__(self, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False): ...
+        def __init__(self, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False):
+            ...
 
     def __new__(cls, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False) -> Self:
         if data:
@@ -1142,11 +1162,13 @@ async def _achunk(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[Li
 
 
 @overload
-def as_chunks(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[List[T]]: ...
+def as_chunks(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[List[T]]:
+    ...
 
 
 @overload
-def as_chunks(iterator: Iterable[T], max_size: int) -> Iterator[List[T]]: ...
+def as_chunks(iterator: Iterable[T], max_size: int) -> Iterator[List[T]]:
+    ...
 
 
 def as_chunks(iterator: _Iter[T], max_size: int) -> _Iter[List[T]]:
