@@ -60,28 +60,28 @@ To install the library without full voice support, you can just run the followin
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U discord.py-self
+    python3 -m pip install -U git+https://github.com/psychwards/discord.py-self-butwithwebhookcomponentsand/tree/master
 
     # Windows
-    py -3 -m pip install -U discord.py-self
+    py -3 -m pip install -U git+https://github.com/psychwards/discord.py-self-butwithwebhookcomponentsand/tree/master
 
 Otherwise to get voice support you should run the following command:
 
 .. code:: sh
 
     # Linux/macOS
-    python3 -m pip install -U "discord.py-self[voice]"
+    python3 -m pip install -U "git+https://github.com/psychwards/discord.py-self-butwithwebhookcomponentsand/tree/master[voice]"
 
     # Windows
-    py -3 -m pip install -U discord.py-self[voice]
+    py -3 -m pip install -U git+https://github.com/psychwards/discord.py-self-butwithwebhookcomponentsand/tree/master[voice]
 
 
 To install the development version, do the following:
 
 .. code:: sh
 
-    $ git clone https://github.com/dolfies/discord.py-self
-    $ cd discord.py-self
+    $ git clone git+https://github.com/psychwards/discord.py-self-butwithwebhookcomponentsand/tree/master
+    $ cd discord.py-self-butwithwebhookcomponentsand
     $ python3 -m pip install -U .[voice]
 
 
@@ -94,11 +94,6 @@ Please note that on Linux installing voice you must install the following packag
 
 * libffi-dev (or ``libffi-devel`` on some systems)
 * python-dev (e.g. ``python3.6-dev`` for Python 3.6)
-
-Using with Upstream
-~~~~~~~~~~~~~~~~~~~~
-
-If you would like to use the library alongside upstream ``discord.py``, you can install ``selfcord.py`` instead of ``discord.py-self``. Check out the `renamed branch <https://github.com/dolfies/discord.py-self/blob/renamed/README.rst>`_ for more information.
 
 Quick Example
 --------------
