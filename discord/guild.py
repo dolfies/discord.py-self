@@ -5347,4 +5347,6 @@ class Guild(Hashable):
             invite = Invite.from_incomplete(state=self._state, data=data)
 
         rules_form = await self._state.http.get_guild_rules_form(self.id, invite.id)
+        if not rules_form.get('form_fields'):
+            return
         await self._state.http.agree_guild_rules(self.id, rules_form)
