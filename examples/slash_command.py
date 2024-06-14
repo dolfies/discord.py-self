@@ -1,4 +1,4 @@
-"""Slash command exemple using bot extension."""
+"""Slash command example using bot extension."""
 import asyncio
 
 import discord
@@ -14,7 +14,7 @@ async def on_ready():
 
 @bot.command()
 async def bump(ctx: commands.Context):
-    # For this exemple, we are going to  bump a server three times.
+    # For this example, we are going to  bump a server three times.
 
     # Get the SlashCommand object with the command name and the
     # application_id, optional, but recommended to avoid commands confusions.
