@@ -1342,7 +1342,7 @@ class HTTPClient:
 
     async def get_message(self, channel_id: Snowflake, message_id: Snowflake) -> message.Message:
         data = await self.logs_from(channel_id, 1, around=message_id)
-        if not data or int(data[0]['id']) != message_id:
+        if not data or data[0]['id'] != str(message_id):
             raise NotFound(_FakeResponse('Not Found', 404), {'code': 10008, 'message': 'Unknown Message'})  # type: ignore # Faked response
 
         return data[0]
