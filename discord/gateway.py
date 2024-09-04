@@ -720,7 +720,6 @@ class DiscordWebSocket:
         sent = utils._to_json(payload)
         _log.debug('Sending "%s" to change presence.', sent)
         await self.send(sent)
-        print(activities_data)
 
     async def request_lazy_guild(
         self,
