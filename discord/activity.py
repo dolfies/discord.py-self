@@ -98,6 +98,7 @@ if TYPE_CHECKING:
         ActivityAssets,
         ActivityParty,
         ActivityTimestamps,
+        ActivityButton,
     )
     from .types.gateway import Session as SessionPayload
 
@@ -228,7 +229,7 @@ class Activity(BaseActivity):
         self.sync_id: Optional[str] = kwargs.pop('sync_id', None)
         self.session_id: Optional[str] = kwargs.pop('session_id', None)
         self.buttons: Optional[List[str]] = kwargs.pop('buttons', None)
-        self.metadata: Optional[dict] = kwargs.pop('metadata', None)
+        self.metadata: ActivityButton = kwargs.pop('metadata', {})
 
         activity_type = kwargs.pop('type', -1)
         self.type: ActivityType = (
@@ -247,6 +248,7 @@ class Activity(BaseActivity):
             ('application_id', self.application_id),
             ('session_id', self.session_id),
             ('emoji', self.emoji),
+            ('metadata', self.metadata),
         )
         inner = ' '.join('%s=%r' % t for t in attrs)
         return f'<Activity {inner}>'
