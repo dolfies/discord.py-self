@@ -192,7 +192,10 @@ class Activity(BaseActivity):
         A list of strings representing the labels of custom buttons shown in a rich presence.
 
         .. versionadded:: 2.0
+    metadata: :class:`dict`
+        A dictionary of metadata. It contains the following optional keys:
 
+        - ``button_urls``: A list of strings representing the links of the buttons.
     emoji: Optional[:class:`PartialEmoji`]
         The emoji that belongs to this activity.
     """
@@ -264,6 +267,7 @@ class Activity(BaseActivity):
             and other.session_id == self.session_id
             and other.sync_id == self.sync_id
             and other.start == self.start
+            and other.metadata == self.metadata
         )
 
     def __ne__(self, other):
@@ -305,6 +309,16 @@ class Activity(BaseActivity):
         else:
             return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
+    @property
+        def button_urls(self) -> Optional[list]:
+            """Optional[:class:`str`]: Returns a list of URLs pointing to the URLs of the buttons, if applicable."""
+            try:
+                metadata = self.metadata['button_urls']
+            except KeyError:
+                return None
+            else:
+                return metadata
+    
     @property
     def large_image_url(self) -> Optional[str]:
         """Optional[:class:`str`]: Returns a URL pointing to the large image asset of this activity, if applicable."""
