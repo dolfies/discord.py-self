@@ -33,15 +33,12 @@ from .snowflake import Snowflake
 StatusType = Literal['idle', 'dnd', 'online', 'offline']
 
 
-class BasePresenceUpdate(TypedDict):
+class PartialPresenceUpdate(TypedDict):
     user: PartialUser
+    guild_id: Optional[Snowflake]
     status: StatusType
     activities: List[Activity]
     client_status: ClientStatus
-
-
-class PartialPresenceUpdate(BasePresenceUpdate):
-    guild_id: NotRequired[Snowflake]
 
 
 class ClientStatus(TypedDict, total=False):
@@ -53,6 +50,10 @@ class ClientStatus(TypedDict, total=False):
 class ActivityTimestamps(TypedDict, total=False):
     start: int
     end: int
+
+
+class ActivityMetadata(TypedDict, total=False):
+    button_urls: List[str]
 
 
 class ActivityParty(TypedDict, total=False):
