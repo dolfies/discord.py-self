@@ -640,13 +640,17 @@ class HTTPClient:
         self.super_properties, self.encoded_super_properties = sp, _ = await utils._get_info(session)
         _log.info('Found user agent "%s", build number %s.', sp.get('browser_user_agent'), sp.get('client_build_number'))
 
-        impersonate = f'chrome{self.browser_version[:3]}'
-        if not requests.BrowserType.has(impersonate):
-            chromes = [b.value for b in requests.BrowserType if b.value.startswith('chrome')]
-            impersonate = max(chromes, key=lambda c: int(c[6:].split('_')[0]))
-        _log.info('Found TLS fingerprint target "%s".', impersonate)
-        self.__session = requests.AsyncSession(impersonate=impersonate)
+        try:
+            impersonate = requests.impersonate.DEFAULT_CHROME
+        except AttributeError:
+            # Legacy version
+            impersonate = f'chrome{self.browser_version[:3]}'
+            if not impersonate in requests.BrowserType:
+                chromes = [b.value for b in requests.BrowserType if b.value.startswith('chrome')]
+                impersonate = max(chromes, key=lambda c: int(c[6:].split('_')[0]))
 
+        _log.info('Found TLS fingerprint target "%s".', impersonate)
+        self.__session = requests.AsyncSession(impersonate=impersonate)  # type: ignore # strings do indeed work here
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.WebSocket:
@@ -1063,7 +1067,7 @@ class HTTPClient:
         if self.__asession:
             await self.__asession.close()
         if self.__session:
-            self.__session.close()
+            await self.__session.close()
 
     # Login management
 
