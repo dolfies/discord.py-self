@@ -29,6 +29,7 @@ import datetime
 import logging
 import ssl
 import string
+import warnings
 from collections import deque
 from http import HTTPStatus
 from random import choice, choices
@@ -52,7 +53,6 @@ from typing import (
     overload,
 )
 from urllib.parse import quote as _uriquote
-import warnings
 
 import aiohttp
 from curl_cffi import requests
@@ -379,9 +379,9 @@ def handle_message_parameters(
 class Route:
     BASE: ClassVar[str] = f'https://discord.com/api/v{INTERNAL_API_VERSION}'
 
-    def __init__(self, method: str, path: str, *, metadata: Optional[str] = None, **parameters: Any) -> None:
+    def __init__(self, method: requests.session.HttpMethod, path: str, *, metadata: Optional[str] = None, **parameters: Any) -> None:
         self.path: str = path
-        self.method: str = method
+        self.method: requests.session.HttpMethod = method
         # Metadata is a special string used to differentiate between known sub rate limits
         # Since these can't be handled generically, this is the next best way to do so.
         self.metadata: Optional[str] = metadata
@@ -588,6 +588,7 @@ class HTTPClient:
         captcha: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = None,
         max_ratelimit_timeout: Optional[float] = None,
         locale: Callable[[], str] = lambda: 'en-US',
+        extra_headers: Optional[Mapping[str, str]] = None,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.__asession: aiohttp.ClientSession = MISSING
@@ -610,6 +611,7 @@ class HTTPClient:
         self.captcha_handler: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = captcha
         self.max_ratelimit_timeout: Optional[float] = max(30.0, max_ratelimit_timeout) if max_ratelimit_timeout else None
         self.get_locale: Callable[[], str] = locale
+        self.extra_headers: Mapping[str, str] = extra_headers or {}
 
         self.super_properties: Dict[str, Any] = {}
         self.encoded_super_properties: str = MISSING
@@ -665,7 +667,7 @@ class HTTPClient:
             'User-Agent': self.user_agent,
         }
         if self.proxy is not None:
-            kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
+            kwargs['proxies'] = {'all': self.proxy}
         if self.proxy_auth is not None:
             headers['Proxy-Authorization'] = self.proxy_auth.encode()
 
@@ -778,6 +780,7 @@ class HTTPClient:
         extra_headers = kwargs.pop('headers', None)
         if extra_headers:
             headers.update(extra_headers)
+        headers.update(self.extra_headers)
         kwargs['headers'] = headers
 
         # Proxy support
@@ -948,19 +951,19 @@ class HTTPClient:
                             raise CaptchaRequired(response, data)  # type: ignore
                         raise HTTPException(response, data)
 
-                # This is handling exceptions from the request
-                except OSError as e:
-                    # Connection reset by peer
-                    if tries < 4 and e.errno in (54, 10054):
+                # libcurl errors
+                except requests.RequestsError as e:
+                    # Outdated library might be missing the code
+                    if getattr(e, 'code', None) in (23, 28, 35):
                         failed += 1
                         await asyncio.sleep(1 + tries * 2)
                         continue
                     raise
 
-                # libcurl errors
-                except requests.RequestsError as e:
-                    # Outdated library might be missing the code
-                    if getattr(e, 'code', None) in (23, 28, 35):
+                # This is handling exceptions from the request
+                except OSError as e:
+                    # Connection reset by peer
+                    if tries < 4 and e.errno in (54, 10054):
                         failed += 1
                         await asyncio.sleep(1 + tries * 2)
                         continue
