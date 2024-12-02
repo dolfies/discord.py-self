@@ -155,6 +155,10 @@ class Client:
 
     A number of options can be passed to the :class:`Client`.
 
+    .. versionchanged:: 2.1
+
+        Removed the ``http_trace`` parameter.
+
     Parameters
     -----------
     max_messages: Optional[:class:`int`]

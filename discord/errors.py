@@ -305,6 +305,5 @@ class ConnectionClosed(ClientException):
         # This exception is just the same exception except
         # reconfigured to subclass ClientException for users
         self.code: int = code or -1
-        # aiohttp doesn't seem to consistently provide close reason
-        self.reason: str = reason or ''
+        self.reason: str = reason or 'unknown'
         super().__init__(f'WebSocket closed with {self.code} (reason: {self.reason!r})')
