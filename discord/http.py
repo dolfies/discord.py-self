@@ -208,7 +208,6 @@ async def _gen_session(session: Optional[aiohttp.ClientSession]) -> aiohttp.Clie
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.maximum_version = ssl.TLSVersion.TLSv1_3
     ctx.set_ciphers(':'.join(CIPHERS))
-    ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3
     ctx.set_ecdh_curve('prime256v1')
 
     if connector is not None:
@@ -626,6 +625,8 @@ class HTTPClient:
                 pass
 
     def clear(self) -> None:
+        if self.__session and self.__session._closed:
+            self.__session = MISSING
         if self.__asession and self.__asession.closed:
             self.__asession = MISSING
 
@@ -989,6 +990,9 @@ class HTTPClient:
                 raise HTTPException(response, data)
 
             raise RuntimeError('Unreachable code in HTTP handling')
+
+    # TODO: All the below could be rewritten to use curl_cffi, but I'm not sure
+    # about the performance and we aren't concerned about fingerprinting here
 
     async def get_from_cdn(self, url: str) -> bytes:
         async with self.__asession.get(url) as resp:

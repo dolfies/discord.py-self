@@ -32,6 +32,8 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import aiohttp
+import curl_cffi
+import discord_protos
 
 import discord
 
@@ -47,7 +49,8 @@ def show_version() -> None:
         if version:
             entries.append(f'    - discord.py-self metadata: v{version}')
 
-    entries.append(f'- curl_cffi v{importlib.metadata.version("curl_cffi")}')
+    entries.append(f'- discord-protos v{discord_protos.__version__}')
+    entries.append(f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__})')
     entries.append(f'- aiohttp v{aiohttp.__version__}')
     uname = platform.uname()
     entries.append('- system info: {0.system} {0.release} {0.version}'.format(uname))
