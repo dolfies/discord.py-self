@@ -41,7 +41,7 @@ class PermissionOverwrite(TypedDict):
     deny: str
 
 
-ChannelTypeWithoutThread = Literal[0, 1, 2, 3, 4, 5, 6, 13, 14, 15]
+ChannelTypeWithoutThread = Literal[0, 1, 2, 3, 4, 5, 6, 13, 14, 15, 16]
 ChannelType = Union[ChannelTypeWithoutThread, ThreadType]
 
 
@@ -154,16 +154,31 @@ ForumOrderType = Literal[0, 1]
 ForumLayoutType = Literal[0, 1, 2]
 
 
-class ForumChannel(_BaseTextChannel):
-    type: Literal[15]
+class _BaseForumChannel(_BaseTextChannel):
     available_tags: List[ForumTag]
     default_reaction_emoji: Optional[DefaultReaction]
     default_sort_order: Optional[ForumOrderType]
     default_forum_layout: NotRequired[ForumLayoutType]
 
 
+class ForumChannel(_BaseForumChannel):
+    type: Literal[15]
+
+
+class MediaChannel(_BaseForumChannel):
+    type: Literal[16]
+
+
 GuildChannel = Union[
-    TextChannel, NewsChannel, VoiceChannel, CategoryChannel, StageChannel, DirectoryChannel, ThreadChannel, ForumChannel
+    TextChannel,
+    NewsChannel,
+    VoiceChannel,
+    CategoryChannel,
+    StageChannel,
+    DirectoryChannel,
+    ThreadChannel,
+    ForumChannel,
+    MediaChannel,
 ]
 
 

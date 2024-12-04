@@ -116,6 +116,7 @@ if TYPE_CHECKING:
         CategoryChannel as CategoryChannelPayload,
         GroupDMChannel as GroupChannelPayload,
         ForumChannel as ForumChannelPayload,
+        MediaChannel as MediaChannelPayload,
         ForumTag as ForumTagPayload,
     )
     from .types.oauth2 import WebhookChannel as WebhookChannelPayload
@@ -488,9 +489,24 @@ class TextChannel(selfcord.abc.Messageable, selfcord.abc.GuildChannel, Hashable)
             return self.__class__(state=self._state, guild=self.guild, data=payload)  # type: ignore
 
     @utils.copy_doc(selfcord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> TextChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> TextChannel:
         return await self._clone_impl(
-            {'topic': self.topic, 'nsfw': self.nsfw, 'rate_limit_per_user': self.slowmode_delay}, name=name, reason=reason
+            {
+                'topic': self.topic,
+                'rate_limit_per_user': self.slowmode_delay,
+                'nsfw': self.nsfw,
+                'default_auto_archive_duration': self.default_auto_archive_duration,
+                'default_thread_rate_limit_per_user': self.default_thread_slowmode_delay,
+            },
+            name=name,
+            category=category,
+            reason=reason,
         )
 
     async def delete_messages(self, messages: Iterable[Snowflake], /, *, reason: Optional[str] = None) -> None:
@@ -1368,6 +1384,24 @@ class VocalGuildChannel(selfcord.abc.Messageable, selfcord.abc.Connectable, self
         data = await self._state.http.create_webhook(self.id, name=str(name), avatar=avatar, reason=reason)
         return Webhook.from_state(data, state=self._state)
 
+    @utils.copy_doc(selfcord.abc.GuildChannel.clone)
+    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> Self:
+        base = {
+            'bitrate': self.bitrate,
+            'user_limit': self.user_limit,
+            'rate_limit_per_user': self.slowmode_delay,
+            'nsfw': self.nsfw,
+            'video_quality_mode': self.video_quality_mode.value,
+        }
+        if self.rtc_region:
+            base['rtc_region'] = self.rtc_region
+
+        return await self._clone_impl(
+            base,
+            name=name,
+            reason=reason,
+        )
+
 
 class VoiceChannel(VocalGuildChannel):
     """Represents a Discord guild voice channel.
@@ -1467,8 +1501,16 @@ class VoiceChannel(VocalGuildChannel):
         return ChannelType.voice
 
     @utils.copy_doc(selfcord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> VoiceChannel:
-        return await self._clone_impl({'bitrate': self.bitrate, 'user_limit': self.user_limit}, name=name, reason=reason)
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> VoiceChannel:
+        return await self._clone_impl(
+            {'bitrate': self.bitrate, 'user_limit': self.user_limit}, name=name, category=category, reason=reason
+        )
 
     @overload
     async def edit(self) -> None:
@@ -1493,6 +1535,7 @@ class VoiceChannel(VocalGuildChannel):
         rtc_region: Optional[str] = ...,
         video_quality_mode: VideoQualityMode = ...,
         slowmode_delay: int = ...,
+        status: Optional[str] = ...,
         reason: Optional[str] = ...,
     ) -> VoiceChannel:
         ...
@@ -1552,6 +1595,11 @@ class VoiceChannel(VocalGuildChannel):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        status: Optional[:class:`str`]
+            The new voice channel status. It can be up to 500 characters.
+            Can be ``None`` to remove the status.
+
+            .. versionadded:: 2.1
 
         Raises
         ------
@@ -1710,8 +1758,14 @@ class StageChannel(VocalGuildChannel):
         return ChannelType.stage_voice
 
     @utils.copy_doc(selfcord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> StageChannel:
-        return await self._clone_impl({}, name=name, reason=reason)
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> StageChannel:
+        return await self._clone_impl({}, name=name, category=category, reason=reason)
 
     @property
     def instance(self) -> Optional[StageInstance]:
@@ -1727,6 +1781,7 @@ class StageChannel(VocalGuildChannel):
         topic: str,
         privacy_level: PrivacyLevel = MISSING,
         send_start_notification: bool = False,
+        scheduled_event: Snowflake = MISSING,
         reason: Optional[str] = None,
     ) -> StageInstance:
         """|coro|
@@ -1746,6 +1801,10 @@ class StageChannel(VocalGuildChannel):
         send_start_notification: :class:`bool`
             Whether to send a start notification. This sends a push notification to @everyone if ``True``. Defaults to ``False``.
             You must have :attr:`~Permissions.mention_everyone` to do this.
+        scheduled_event: :class:`~selfcord.abc.Snowflake`
+            The guild scheduled event associated with the stage instance.
+
+            .. versionadded:: 2.1
         reason: :class:`str`
             The reason the stage instance was created. Shows up on the audit log.
 
@@ -1769,6 +1828,9 @@ class StageChannel(VocalGuildChannel):
                 raise TypeError('privacy_level field must be of type PrivacyLevel')
 
             payload['privacy_level'] = privacy_level.value
+
+        if scheduled_event is not MISSING:
+            payload['guild_scheduled_event_id'] = scheduled_event.id
 
         data = await self._state.http.create_stage_instance(**payload, reason=reason)
         return StageInstance(guild=self.guild, state=self._state, data=data)
@@ -1809,6 +1871,7 @@ class StageChannel(VocalGuildChannel):
         *,
         name: str = ...,
         nsfw: bool = ...,
+        bitrate: int = ...,
         user_limit: int = ...,
         position: int = ...,
         sync_permissions: int = ...,
@@ -1845,6 +1908,8 @@ class StageChannel(VocalGuildChannel):
         ----------
         name: :class:`str`
             The new channel's name.
+        bitrate: :class:`int`
+            The new channel's bitrate.
         position: :class:`int`
             The new channel's position.
         nsfw: :class:`bool`
@@ -1973,7 +2038,13 @@ class CategoryChannel(selfcord.abc.GuildChannel, Hashable):
         return self.nsfw
 
     @utils.copy_doc(selfcord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> CategoryChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> CategoryChannel:
         return await self._clone_impl({'nsfw': self.nsfw}, name=name, reason=reason)
 
     @overload
@@ -2432,6 +2503,7 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         'topic',
         '_state',
         '_flags',
+        '_type',
         'nsfw',
         'category_id',
         'position',
@@ -2447,9 +2519,10 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         '_flags',
     )
 
-    def __init__(self, *, state: ConnectionState, guild: Guild, data: ForumChannelPayload):
+    def __init__(self, *, state: ConnectionState, guild: Guild, data: Union[ForumChannelPayload, MediaChannelPayload]):
         self._state: ConnectionState = state
         self.id: int = int(data['id'])
+        self._type: Literal[15, 16] = data['type']
         self._update(guild, data)
 
     def __repr__(self) -> str:
@@ -2463,7 +2536,7 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         joined = ' '.join('%s=%r' % t for t in attrs)
         return f'<{self.__class__.__name__} {joined}>'
 
-    def _update(self, guild: Guild, data: ForumChannelPayload) -> None:
+    def _update(self, guild: Guild, data: Union[ForumChannelPayload, MediaChannelPayload]) -> None:
         self.guild: Guild = guild
         self.name: str = data['name']
         self.category_id: Optional[int] = utils._get_as_snowflake(data, 'parent_id')
@@ -2499,8 +2572,10 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         self._fill_overwrites(data)
 
     @property
-    def type(self) -> ChannelType:
+    def type(self) -> Literal[ChannelType.forum, ChannelType.media]:
         """:class:`ChannelType`: The channel's Discord type."""
+        if self._type == 16:
+            return ChannelType.media
         return ChannelType.forum
 
     @property
@@ -2574,10 +2649,41 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         """:class:`bool`: Checks if the forum is NSFW."""
         return self.nsfw
 
+    def is_media(self) -> bool:
+        """:class:`bool`: Checks if the channel is a media channel.
+
+        .. versionadded:: 2.1
+        """
+        return self._type == ChannelType.media.value
+
     @utils.copy_doc(selfcord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> ForumChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel],
+        reason: Optional[str] = None,
+    ) -> ForumChannel:
+        base = {
+            'topic': self.topic,
+            'rate_limit_per_user': self.slowmode_delay,
+            'nsfw': self.nsfw,
+            'default_auto_archive_duration': self.default_auto_archive_duration,
+            'available_tags': [tag.to_dict() for tag in self.available_tags],
+            'default_thread_rate_limit_per_user': self.default_thread_slowmode_delay,
+        }
+        if self.default_sort_order:
+            base['default_sort_order'] = self.default_sort_order.value
+        if self.default_reaction_emoji:
+            base['default_reaction_emoji'] = self.default_reaction_emoji._to_forum_tag_payload()
+        if not self.is_media() and self.default_layout:
+            base['default_forum_layout'] = self.default_layout.value
+
         return await self._clone_impl(
-            {'topic': self.topic, 'nsfw': self.nsfw, 'rate_limit_per_user': self.slowmode_delay}, name=name, reason=reason
+            base,
+            name=name,
+            category=category,
+            reason=reason,
         )
 
     @overload
@@ -3487,13 +3593,15 @@ class DMChannel(selfcord.abc.Messageable, selfcord.abc.Connectable, selfcord.abc
         return self
 
     async def _initial_ring(self) -> None:
-        ring = self.recipient.is_friend()
-        if not ring:
-            data = await self._state.http.get_ringability(self.id)
-            ring = data['ringable']
+        call = self.call
+        if not call or (call.connected and len(call.voice_states) == 1):
+            ring = self.recipient.is_friend()
+            if not ring:
+                data = await self._state.http.get_ringability(self.id)
+                ring = data['ringable']
 
-        if ring:
-            await self._state.http.ring(self.id)
+            if ring:
+                await self._state.http.ring(self.id)
 
     def __str__(self) -> str:
         if self.recipient:
@@ -3792,10 +3900,11 @@ class DMChannel(selfcord.abc.Messageable, selfcord.abc.Connectable, selfcord.abc
             A voice client that is fully connected to the voice server.
         """
         await self._get_channel()
-        call = self.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+
+        if ring:
             await self._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+        return ret
 
     async def accept(self) -> DMChannel:
         """|coro|
@@ -4363,10 +4472,11 @@ class GroupChannel(selfcord.abc.Messageable, selfcord.abc.Connectable, selfcord.
         ring: bool = True,
     ) -> T:
         await self._get_channel()
-        call = self.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+
+        if ring:
             await self._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+        return ret
 
 
 class PartialMessageable(selfcord.abc.Messageable, Hashable):
@@ -4483,6 +4593,14 @@ class PartialMessageable(selfcord.abc.Messageable, Hashable):
         """
         return Permissions.none()
 
+    @property
+    def mention(self) -> str:
+        """:class:`str`: Returns a string that allows you to mention the channel.
+
+        .. versionadded:: 2.1
+        """
+        return f'<#{self.id}>'
+
     def get_partial_message(self, message_id: int, /) -> PartialMessage:
         """Creates a :class:`PartialMessage` from the message ID.
 
@@ -4520,6 +4638,8 @@ def _guild_channel_factory(channel_type: int):
     elif value is ChannelType.directory:
         return DirectoryChannel, value
     elif value is ChannelType.forum:
+        return ForumChannel, value
+    elif value is ChannelType.media:
         return ForumChannel, value
     else:
         return None, value

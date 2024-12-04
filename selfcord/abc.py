@@ -96,6 +96,7 @@ if TYPE_CHECKING:
         StageChannel,
         CategoryChannel,
     )
+    from .poll import Poll
     from .threads import Thread
     from .types.channel import (
         PermissionOverwrite as PermissionOverwritePayload,
@@ -762,6 +763,13 @@ class GuildChannel:
                 raise TypeError('type field must be of type ChannelType')
             options['type'] = ch_type.value
 
+        try:
+            status = options.pop('status')
+        except KeyError:
+            pass
+        else:
+            await self._state.http.edit_voice_channel_status(status, channel_id=self.id, reason=reason)
+
         if options:
             return await self._state.http.edit_channel(self.id, reason=reason, **options)
 
@@ -1237,11 +1245,15 @@ class GuildChannel:
         base_attrs: Dict[str, Any],
         *,
         name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
         reason: Optional[str] = None,
     ) -> Self:
         base_attrs['permission_overwrites'] = [x._asdict() for x in self._overwrites]
         base_attrs['parent_id'] = self.category_id
         base_attrs['name'] = name or self.name
+        if category is not None:
+            base_attrs['parent_id'] = category.id
+
         guild_id = self.guild.id
         cls = self.__class__
         data = await self._state.http.create_channel(guild_id, self.type.value, reason=reason, **base_attrs)
@@ -1251,7 +1263,13 @@ class GuildChannel:
         self.guild._channels[obj.id] = obj  # type: ignore # obj is a GuildChannel
         return obj
 
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> Self:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> Self:
         """|coro|
 
         Clones this channel. This creates a channel with the same properties
@@ -1261,11 +1279,18 @@ class GuildChannel:
 
         .. versionadded:: 1.1
 
+        .. versionchanged:: 2.1
+
+            The ``category`` keyword-only parameter was added.
+
         Parameters
         ------------
         name: Optional[:class:`str`]
             The name of the new channel. If not provided, defaults to this
             channel name.
+        category: Optional[:class:`~selfcord.CategoryChannel`]
+            The category the new channel belongs to.
+            This parameter is ignored if cloning a category channel.
         reason: Optional[:class:`str`]
             The reason for cloning this channel. Shows up on the audit log.
 
@@ -1362,10 +1387,10 @@ class GuildChannel:
             channel list (or category if given).
             This is mutually exclusive with ``beginning``, ``before``, and ``after``.
         before: :class:`~selfcord.abc.Snowflake`
-            The channel that should be before our current channel.
+            Whether to move the channel before the given channel.
             This is mutually exclusive with ``beginning``, ``end``, and ``after``.
         after: :class:`~selfcord.abc.Snowflake`
-            The channel that should be after our current channel.
+            Whether to move the channel after the given channel.
             This is mutually exclusive with ``beginning``, ``end``, and ``before``.
         offset: :class:`int`
             The number of channels to offset the move by. For example,
@@ -1658,6 +1683,7 @@ class Messageable:
         mention_author: bool = ...,
         suppress_embeds: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -1676,6 +1702,7 @@ class Messageable:
         mention_author: bool = ...,
         suppress_embeds: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -1694,6 +1721,7 @@ class Messageable:
         mention_author: bool = ...,
         suppress_embeds: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -1712,6 +1740,7 @@ class Messageable:
         mention_author: bool = ...,
         suppress_embeds: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -1730,6 +1759,7 @@ class Messageable:
         mention_author: Optional[bool] = None,
         suppress_embeds: bool = False,
         silent: bool = False,
+        poll: Optional[Poll] = None,
     ) -> Message:
         """|coro|
 
@@ -1775,10 +1805,11 @@ class Messageable:
             .. versionadded:: 1.4
 
         reference: Union[:class:`~selfcord.Message`, :class:`~selfcord.MessageReference`, :class:`~selfcord.PartialMessage`]
-            A reference to the :class:`~selfcord.Message` to which you are replying, this can be created using
-            :meth:`~selfcord.Message.to_reference` or passed directly as a :class:`~selfcord.Message`. You can control
-            whether this mentions the author of the referenced message using the :attr:`~selfcord.AllowedMentions.replied_user`
-            attribute of ``allowed_mentions`` or by setting ``mention_author``.
+            A reference to the :class:`~selfcord.Message` to which you are referencing, this can be created using
+            :meth:`~selfcord.Message.to_reference` or passed directly as a :class:`~selfcord.Message`.
+            In the event of a replying reference, you can control whether this mentions the author of the referenced
+            message using the :attr:`~selfcord.AllowedMentions.replied_user` attribute of ``allowed_mentions`` or by
+            setting ``mention_author``.
 
             .. versionadded:: 1.6
 
@@ -1799,6 +1830,10 @@ class Messageable:
             in the UI, but will not actually send a notification.
 
             .. versionadded:: 2.0
+        poll: :class:`~selfcord.Poll`
+            The poll to send with this message.
+
+            .. versionadded:: 2.1
 
         Raises
         --------
@@ -1862,10 +1897,14 @@ class Messageable:
             stickers=sticker_ids,
             flags=flags,
             network_type=NetworkConnectionType.unknown,
+            poll=poll,
         ) as params:
             data = await state.http.send_message(channel.id, params=params)
 
         ret = state.create_message(channel=channel, data=data)
+
+        if poll:
+            poll._update(ret)
 
         if delete_after is not None:
             await ret.delete(delay=delete_after)
@@ -2619,7 +2658,7 @@ class Connectable(Protocol):
     async def connect(
         self,
         *,
-        timeout: float = 60.0,
+        timeout: float = 30.0,
         reconnect: bool = True,
         cls: Callable[[Client, VocalChannel], T] = VoiceClient,
         _channel: Optional[Connectable] = None,
@@ -2634,7 +2673,7 @@ class Connectable(Protocol):
         Parameters
         -----------
         timeout: :class:`float`
-            The timeout in seconds to wait for the voice endpoint.
+            The timeout in seconds to wait the connection to complete.
         reconnect: :class:`bool`
             Whether the bot should automatically attempt
             a reconnect if a part of the handshake fails

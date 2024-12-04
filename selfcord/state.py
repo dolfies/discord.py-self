@@ -115,6 +115,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .gateway import DiscordWebSocket
     from .calls import Call
+    from .poll import Poll
 
     from .types.automod import AutoModerationRule, AutoModerationActionExecution
     from .types.snowflake import Snowflake
@@ -1015,6 +1016,7 @@ class ConnectionState:
         self._status: Optional[str] = status
         self._afk: bool = options.get('afk', False)
         self._idle_since: int = since
+        self.overriden_rtc_regions: Optional[List[str]] = options.get('preferred_rtc_regions', None)
 
         if cache_flags._empty:
             self.store_user = self.create_user
@@ -1131,10 +1133,6 @@ class ConnectionState:
         return str(getattr(self.user, 'locale', 'en-US'))
 
     @property
-    def preferred_rtc_region(self) -> str:
-        return self.preferred_rtc_regions[0] if self.preferred_rtc_regions else 'us-central'
-
-    @property
     def voice_clients(self) -> List[VoiceProtocol]:
         return list(self._voice_clients.values())
 
@@ -1174,6 +1172,12 @@ class ConnectionState:
 
     def _remove_voice_client(self, guild_id: int) -> None:
         self._voice_clients.pop(guild_id, None)
+
+    def _get_preferred_regions(self) -> Dict[str, Union[List[str], str]]:
+        regions = self.overriden_rtc_regions if self.overriden_rtc_regions is not None else self.client.preferred_rtc_regions
+        if regions:
+            return {'preferred_regions': regions, 'preferred_region': regions[0]}
+        return {}
 
     def _update_references(self, ws: DiscordWebSocket) -> None:
         for vc in self.voice_clients:
@@ -1359,6 +1363,13 @@ class ConnectionState:
                 await delete_message(channel_id, msg.id, reason=reason)
             except NotFound:
                 pass
+
+    def _update_poll_counts(self, message: Message, answer_id: int, added: bool, self_voted: bool = False) -> Optional[Poll]:
+        poll = message.poll
+        if not poll:
+            return
+        poll._handle_vote(answer_id, added, self_voted)
+        return poll
 
     def subscribe_guild(
         self, guild: Guild, typing: bool = True, activities: bool = True, threads: bool = True, member_updates: bool = True
@@ -2126,6 +2137,11 @@ class ConnectionState:
                         if s.channel_id == channel.id:
                             guild._scheduled_events.pop(s.id)
                             self.dispatch('scheduled_event_delete', s)
+
+                threads = guild._remove_threads_by_channel(channel_id)
+                for thread in threads:
+                    self.dispatch('thread_delete', thread)
+                    self.dispatch('raw_thread_delete', RawThreadDeleteEvent._from_thread(thread))
         else:
             channel = self._get_private_channel(channel_id)
             if channel is not None:
@@ -3470,6 +3486,42 @@ class ConnectionState:
     # Silence "unknown event" warnings for events parsed elsewhere
     parse_nothing = lambda *_: None
     # parse_guild_application_commands_update = parse_nothing  # Grabbed directly in command iterators
+
+    def parse_message_poll_vote_add(self, data: gw.PollVoteActionEvent) -> None:
+        raw = RawPollVoteActionEvent(data)
+
+        self.dispatch('raw_poll_vote_add', raw)
+
+        message = self._get_message(raw.message_id)
+        guild = self._get_guild(raw.guild_id)
+
+        if guild:
+            user = guild.get_member(raw.user_id)
+        else:
+            user = self.get_user(raw.user_id)
+
+        if message and user:
+            poll = self._update_poll_counts(message, raw.answer_id, True, raw.user_id == self.self_id)
+            if poll:
+                self.dispatch('poll_vote_add', user, poll.get_answer(raw.answer_id))
+
+    def parse_message_poll_vote_remove(self, data: gw.PollVoteActionEvent) -> None:
+        raw = RawPollVoteActionEvent(data)
+
+        self.dispatch('raw_poll_vote_remove', raw)
+
+        message = self._get_message(raw.message_id)
+        guild = self._get_guild(raw.guild_id)
+
+        if guild:
+            user = guild.get_member(raw.user_id)
+        else:
+            user = self.get_user(raw.user_id)
+
+        if message and user:
+            poll = self._update_poll_counts(message, raw.answer_id, False, raw.user_id == self.self_id)
+            if poll:
+                self.dispatch('poll_vote_remove', user, poll.get_answer(raw.answer_id))
 
     def _get_reaction_user(self, channel: MessageableChannel, user_id: int) -> Optional[Union[User, Member]]:
         if isinstance(channel, (TextChannel, Thread, VoiceChannel, StageChannel)):

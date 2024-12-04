@@ -127,6 +127,8 @@ __all__ = (
     'HubType',
     'NetworkConnectionType',
     'NetworkConnectionSpeed',
+    'PollLayoutType',
+    'MessageReferenceType',
 )
 
 if TYPE_CHECKING:
@@ -263,12 +265,19 @@ class ChannelType(Enum):
     stage_voice = 13
     directory = 14
     forum = 15
+    media = 16
 
     def __str__(self) -> str:
         return self.name
 
     def __int__(self):
         return self.value
+
+
+class MessageReferenceType(Enum):
+    default = 0
+    reply = 0
+    forward = 1
 
 
 class MessageType(Enum):
@@ -308,6 +317,11 @@ class MessageType(Enum):
     stage_raise_hand = 30
     stage_topic = 31
     guild_application_premium_subscription = 32
+    guild_incident_alert_mode_enabled = 36
+    guild_incident_alert_mode_disabled = 37
+    guild_incident_report_raid = 38
+    guild_incident_report_false_alarm = 39
+    purchase_notification = 44
 
 
 class SpeakingState(Enum):
@@ -1588,16 +1602,19 @@ class AutoModRuleTriggerType(Enum):
     spam = 3
     keyword_preset = 4
     mention_spam = 5
+    member_profile = 6
 
 
 class AutoModRuleEventType(Enum):
     message_send = 1
+    member_update = 2
 
 
 class AutoModRuleActionType(Enum):
     block_message = 1
     send_alert_message = 2
     timeout = 3
+    block_member_interactions = 4
 
 
 class ForumLayoutType(Enum):
@@ -1669,6 +1686,20 @@ class NetworkConnectionSpeed(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+class PollLayoutType(Enum):
+    default = 1
+    image_only_answers = 2
+
+
+class PurchaseNotificationType(Enum):
+    guild_product = 0
+
+
+class ReactionType(Enum):
+    normal = 0
+    burst = 1
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

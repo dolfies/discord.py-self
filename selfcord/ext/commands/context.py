@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from selfcord.member import Member
     from selfcord.mentions import AllowedMentions
     from selfcord.message import MessageReference, PartialMessage
+    from selfcord.poll import Poll
     from selfcord.state import ConnectionState
     from selfcord.sticker import GuildSticker, StickerItem
     from selfcord.user import ClientUser, User
@@ -452,6 +453,7 @@ class Context(selfcord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -471,6 +473,7 @@ class Context(selfcord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -490,6 +493,7 @@ class Context(selfcord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -509,6 +513,7 @@ class Context(selfcord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 

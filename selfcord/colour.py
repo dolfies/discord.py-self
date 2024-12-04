@@ -196,6 +196,9 @@ class Colour:
             The string could not be converted into a colour.
         """
 
+        if not value:
+            raise ValueError('unknown colour format given')
+
         if value[0] == '#':
             return parse_hex_number(value[1:])
 
@@ -515,7 +518,7 @@ class Colour:
 
         .. colour:: #EB459F
 
-        .. versionadded:: 2.3
+        .. versionadded:: 2.1
         """
         return cls(0xEB459F)
 

@@ -808,7 +808,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         Raises
         -------
         Forbidden
-            You do not have the proper permissions to the action requested.
+            You do not have the proper permissions to do the action requested.
         HTTPException
             The operation failed.
         TypeError
@@ -912,7 +912,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         ClientException
             You are not connected to a voice channel.
         Forbidden
-            You do not have the proper permissions to the action requested.
+            You do not have the proper permissions to do the action requested.
         HTTPException
             The operation failed.
         """
@@ -998,7 +998,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
 
         You must have :attr:`~Permissions.manage_roles` to
         use this, and the added :class:`Role`\s must appear lower in the list
-        of roles than the highest role of the member.
+        of roles than the highest role of the client.
 
         Parameters
         -----------
@@ -1037,7 +1037,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
 
         You must have :attr:`~Permissions.manage_roles` to
         use this, and the removed :class:`Role`\s must appear lower in the list
-        of roles than the highest role of the member.
+        of roles than the highest role of the client.
 
         Parameters
         -----------

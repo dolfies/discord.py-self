@@ -45,7 +45,7 @@ from ..asset import Asset
 from ..partial_emoji import PartialEmoji
 from ..http import Route, handle_message_parameters, json_or_text, HTTPClient
 from ..mixins import Hashable
-from ..channel import TextChannel, ForumChannel, PartialMessageable
+from ..channel import TextChannel, ForumChannel, PartialMessageable, ForumTag
 from ..file import File
 
 __all__ = (
@@ -58,6 +58,7 @@ __all__ = (
 _log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from typing_extensions import Self
     from types import TracebackType
 
@@ -71,7 +72,7 @@ if TYPE_CHECKING:
     from ..emoji import Emoji
     from ..channel import VoiceChannel
     from ..abc import Snowflake
-    import datetime
+    from ..poll import Poll
     from ..types.webhook import (
         Webhook as WebhookPayload,
         SourceGuild as SourceGuildPayload,
@@ -85,6 +86,7 @@ if TYPE_CHECKING:
         PartialUser as PartialUserPayload,
     )
     from ..types.emoji import PartialEmoji as PartialEmojiPayload
+    from ..types.snowflake import SnowflakeList
 
     BE = TypeVar('BE', bound=BaseException)
     _State = Union[ConnectionState, '_WebhookState']
@@ -806,7 +808,7 @@ class BaseWebhook(Hashable):
         return guild and guild.get_channel(self.channel_id)  # type: ignore
 
     @property
-    def created_at(self) -> datetime.datetime:
+    def created_at(self) -> datetime:
         """:class:`datetime.datetime`: Returns the webhook's creation time in UTC."""
         return utils.snowflake_time(self.id)
 
@@ -939,7 +941,7 @@ class Webhook(BaseWebhook):
         self.proxy_auth: Optional[aiohttp.BasicAuth] = proxy_auth
 
     def __repr__(self) -> str:
-        return f'<Webhook id={self.id!r}>'
+        return f'<Webhook id={self.id!r} type={self.type!r} name={self.name!r}>'
 
     @property
     def url(self) -> str:
@@ -1371,6 +1373,8 @@ class Webhook(BaseWebhook):
         wait: Literal[True],
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        applied_tags: List[ForumTag] = MISSING,
+        poll: Poll = MISSING,
     ) -> WebhookMessage:
         ...
 
@@ -1392,6 +1396,8 @@ class Webhook(BaseWebhook):
         wait: Literal[False] = ...,
         suppress_embeds: bool = MISSING,
         silent: bool = MISSING,
+        applied_tags: List[ForumTag] = MISSING,
+        poll: Poll = MISSING,
     ) -> None:
         ...
 
@@ -1412,6 +1418,8 @@ class Webhook(BaseWebhook):
         wait: bool = False,
         suppress_embeds: bool = False,
         silent: bool = False,
+        applied_tags: List[ForumTag] = MISSING,
+        poll: Poll = MISSING,
     ) -> Optional[WebhookMessage]:
         """|coro|
 
@@ -1483,6 +1491,19 @@ class Webhook(BaseWebhook):
             in the UI, but will not actually send a notification.
 
             .. versionadded:: 2.0
+        applied_tags: List[:class:`ForumTag`]
+            Tags to apply to the thread if the webhook belongs to a :class:`~selfcord.ForumChannel`.
+
+            .. versionadded:: 2.1
+
+        poll: :class:`Poll`
+            The poll to send with this message.
+
+            .. warning::
+
+                When sending a Poll via webhook, you cannot manually end it.
+
+            .. versionadded:: 2.1
 
         Raises
         --------
@@ -1524,6 +1545,11 @@ class Webhook(BaseWebhook):
         if thread_name is not MISSING and thread is not MISSING:
             raise TypeError('Cannot mix thread_name and thread keyword arguments.')
 
+        if applied_tags is MISSING:
+            applied_tag_ids = MISSING
+        else:
+            applied_tag_ids: SnowflakeList = [tag.id for tag in applied_tags]
+
         with handle_message_parameters(
             content=content,
             username=username,
@@ -1537,6 +1563,8 @@ class Webhook(BaseWebhook):
             thread_name=thread_name,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            applied_tags=applied_tag_ids,
+            poll=poll,
         ) as params:
             adapter = async_context.get()
             thread_id: Optional[int] = None
@@ -1559,6 +1587,9 @@ class Webhook(BaseWebhook):
         msg = None
         if wait:
             msg = self._create_message(data, thread=thread)
+
+        if poll is not MISSING and msg:
+            poll._update(msg)
 
         return msg
 

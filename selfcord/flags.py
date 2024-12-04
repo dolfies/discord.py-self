@@ -75,6 +75,7 @@ __all__ = (
     'ReadStateFlags',
     'InviteFlags',
     'AttachmentFlags',
+    'RoleFlags',
 )
 
 BF = TypeVar('BF', bound='BaseFlags')
@@ -147,7 +148,7 @@ class BaseFlags:
             setattr(self, key, value)
 
     @classmethod
-    def _from_value(cls, value):
+    def _from_value(cls, value: int) -> Self:
         self = cls.__new__(cls)
         self.value = value
         return self
@@ -672,6 +673,14 @@ class MessageFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 8192
+
+    @flag_value
+    def forwarded(self):
+        """:class:`bool`: Returns ``True`` if the message is a forwarded message.
+
+        .. versionadded:: 2.1
+        """
+        return 16384
 
 
 @fill_with_flags()
@@ -1443,6 +1452,15 @@ class ChannelFlags(BaseFlags):
     def require_tag(self):
         """:class:`bool`: Returns ``True`` if a tag is required to be specified when creating a thread in a :class:`ForumChannel`."""
         return 1 << 4
+
+    @flag_value
+    def hide_media_download_options(self):
+        """:class:`bool`: Returns ``True`` if the client hides embedded media download options in a :class:`ForumChannel`.
+        Only available in media channels.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 15
 
 
 @fill_with_flags()
@@ -2726,3 +2744,65 @@ class AttachmentFlags(BaseFlags):
     def remix(self):
         """:class:`bool`: Returns ``True`` if the attachment has been edited using the remix feature."""
         return 1 << 2
+
+
+@fill_with_flags()
+class RoleFlags(BaseFlags):
+    r"""Wraps up the Discord Role flags
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two RoleFlags are equal.
+
+        .. describe:: x != y
+
+            Checks if two RoleFlags are not equal.
+
+        .. describe:: x | y, x |= y
+
+            Returns a RoleFlags instance with all enabled flags from
+            both x and y.
+
+        .. describe:: x & y, x &= y
+
+            Returns a RoleFlags instance with only flags enabled on
+            both x and y.
+
+        .. describe:: x ^ y, x ^= y
+
+            Returns a RoleFlags instance with only flags enabled on
+            only one of x or y, not on both.
+
+        .. describe:: ~x
+
+            Returns a RoleFlags instance with all flags inverted from x.
+
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties
+        rather than using this raw value.
+    """
+
+    @flag_value
+    def in_prompt(self):
+        """:class:`bool`: Returns ``True`` if the role can be selected by members in an onboarding prompt."""
+        return 1 << 0

@@ -274,6 +274,11 @@ class Client:
         set to is ``30.0`` seconds.
 
         .. versionadded:: 2.0
+    preferred_rtc_regions: List[:class:`str`]
+
+        A list of preferred RTC regions to connect to. This overrides Discord's suggested list.
+
+        .. versionadded:: 2.1
 
     Attributes
     -----------
@@ -317,7 +322,7 @@ class Client:
         self._enable_debug_events: bool = options.pop('enable_debug_events', False)
         self._sync_presences: bool = options.pop('sync_presence', True)
         self._connection: ConnectionState = self._get_state(**options)
-        self._closed: bool = False
+        self._closing_task: Optional[asyncio.Task[None]] = None
         self._ready: asyncio.Event = MISSING
 
         if VoiceClient.warn_nacl:
@@ -334,7 +339,10 @@ class Client:
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
-        if not self.is_closed():
+        # This avoids double-calling a user-provided .close()
+        if self._closing_task:
+            await self._closing_task
+        else:
             await self.close()
 
     # Internals
@@ -530,13 +538,24 @@ class Client:
     def preferred_rtc_regions(self) -> List[str]:
         """List[:class:`str`]: Geo-ordered list of voice regions the connected client can use.
 
+        This value is determined by Discord by default, but can be set to override it.
+
         .. versionadded:: 2.0
 
         .. versionchanged:: 2.1
 
             Rename from ``preferred_voice_regions`` to ``preferred_rtc_regions``.
         """
-        return self._connection.preferred_rtc_regions
+        return (
+            self._connection.overriden_rtc_regions
+            if self._connection.overriden_rtc_regions is not None
+            else self._connection.preferred_rtc_regions
+        )
+
+    @preferred_rtc_regions.setter
+    def preferred_rtc_regions(self, value: List[str]) -> None:
+        values = [str(x).lower() for x in value]
+        self._connection.overriden_rtc_regions = values
 
     @property
     def pending_payments(self) -> Sequence[Payment]:
@@ -969,27 +988,29 @@ class Client:
 
         Closes the connection to Discord.
         """
-        if self._closed:
-            return
+        if self._closing_task:
+            return await self._closing_task
 
-        self._closed = True
+        async def _close():
+            for voice in self.voice_clients:
+                try:
+                    await voice.disconnect(force=True)
+                except Exception:
+                    # If an error happens during disconnects, disregard it
+                    pass
 
-        for voice in self.voice_clients:
-            try:
-                await voice.disconnect(force=True)
-            except Exception:
-                # If an error happens during disconnects, disregard it
-                pass
+            if self.ws is not None and self.ws.open:
+                await self.ws.close(code=1000)
 
-        if self.ws is not None and self.ws.open:
-            await self.ws.close(code=1000)
+            await self.http.close()
 
-        await self.http.close()
+            if self._ready is not MISSING:
+                self._ready.clear()
 
-        if self._ready is not MISSING:
-            self._ready.clear()
+            self.loop = MISSING
 
-        self.loop = MISSING
+        self._closing_task = asyncio.create_task(_close())
+        await self._closing_task
 
     def clear(self) -> None:
         """Clears the internal state of the bot.
@@ -998,7 +1019,7 @@ class Client:
         and :meth:`is_ready` both return ``False`` along with the bot's internal
         cache cleared.
         """
-        self._closed = False
+        self._closing_task = None
         self._ready.clear()
         self._connection.clear(full=True)
         self.http.clear()
@@ -1114,7 +1135,7 @@ class Client:
 
     def is_closed(self) -> bool:
         """:class:`bool`: Indicates if the websocket connection is closed."""
-        return self._closed
+        return self._closing_task is not None
 
     @property
     def voice_client(self) -> Optional[VoiceProtocol]:
@@ -1803,13 +1824,16 @@ class Client:
         self_mute: bool = False,
         self_deaf: bool = False,
         self_video: bool = False,
-        preferred_region: Optional[str] = MISSING,
     ) -> None:
         """|coro|
 
         Changes client's private channel voice state.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            Removed the ``preferred_region`` parameter.
 
         Parameters
         -----------
@@ -1822,19 +1846,12 @@ class Client:
         self_video: :class:`bool`
             Indicates if the client is using video. Untested & unconfirmed
             (do not use).
-        preferred_region: Optional[:class:`str`]
-            The preferred region to connect to.
         """
         state = self._connection
         ws = self.ws
         channel_id = channel.id if channel else None
 
-        if preferred_region is None or channel_id is None:
-            region = None
-        else:
-            region = str(preferred_region) if preferred_region else state.preferred_rtc_region
-
-        await ws.voice_state(None, channel_id, self_mute, self_deaf, self_video, preferred_region=region)
+        await ws.voice_state(None, channel_id, self_mute, self_deaf, self_video)
 
     # Guild stuff
 
@@ -1925,8 +1942,8 @@ class Client:
 
         Raises
         ------
-        Forbidden
-            You do not have access to the guild.
+        NotFound
+            The guild doesn't exist or you got no access to it.
         HTTPException
             Getting the guild failed.
 
@@ -3087,12 +3104,17 @@ class Client:
         data = await self.http.get_country_code()
         return data['country_code']
 
-    async def fetch_preferred_voice_regions(self) -> List[str]:
+    async def fetch_preferred_rtc_regions(self) -> List[Tuple[str, List[str]]]:
         """|coro|
 
-        Retrieves the preferred voice regions of the client.
+        Retrieves the preferred RTC regions of the client.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            Changed the name of the method from ``fetch_preferred_voice_regions`` to ``fetch_preferred_rtc_regions``.
+            The method now returns a list of tuples instead of a list of strings.
 
         Raises
         -------
@@ -3101,11 +3123,11 @@ class Client:
 
         Returns
         -------
-        List[:class:`str`]
-            The preferred voice regions of the client.
+        List[Tuple[:class:`str`, List[:class:`str`]]]
+            The region name and list of IPs for the closest voice regions.
         """
         data = await self.http.get_preferred_voice_regions()
-        return [v['region'] for v in data]
+        return [(v['region'], v['ips']) for v in data]
 
     async def create_dm(self, user: Snowflake, /) -> DMChannel:
         """|coro|

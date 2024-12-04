@@ -49,6 +49,11 @@ class UnavailableGuild(TypedDict):
     unavailable: NotRequired[bool]
 
 
+class IncidentData(TypedDict):
+    invites_disabled_until: NotRequired[Optional[str]]
+    dms_disabled_until: NotRequired[Optional[str]]
+
+
 DefaultMessageNotificationLevel = Literal[0, 1]
 ExplicitContentFilterLevel = Literal[0, 1, 2]
 MFALevel = Literal[0, 1]
@@ -125,8 +130,11 @@ class Guild(UnavailableGuild, _GuildMedia):
     max_members: NotRequired[int]
     premium_subscription_count: NotRequired[int]
     max_video_channel_users: NotRequired[int]
+    max_stage_video_channel_users: NotRequired[int]
     # application_command_counts: ApplicationCommandCounts
     hub_type: Optional[Literal[0, 1, 2]]
+    incidents_data: Optional[IncidentData]
+    safety_alerts_channel_id: Optional[Snowflake]
 
 
 class UserGuild(BaseGuild):
@@ -190,3 +198,13 @@ class CommandScopeMigration(TypedDict):
 class SupplementalGuild(UnavailableGuild):
     embedded_activities: list
     voice_states: List[VoiceState]
+
+
+class BulkBanUserResponse(TypedDict):
+    banned_users: Optional[List[Snowflake]]
+    failed_users: Optional[List[Snowflake]]
+
+
+class RTCRegion(TypedDict):
+    region: str
+    ips: List[str]

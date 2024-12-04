@@ -41,7 +41,7 @@ from .interactions import Modal
 from .invite import _InviteTargetType
 from .library import LibraryApplication
 from .member import MemberWithPresence, MemberWithUser
-from .message import Message
+from .message import Message, ReactionType
 from .payments import Payment
 from .read_state import ReadState, ReadStateType
 from .role import Role
@@ -190,6 +190,9 @@ class MessageReactionAddEvent(TypedDict):
     member: NotRequired[MemberWithUser]
     guild_id: NotRequired[Snowflake]
     message_author_id: NotRequired[Snowflake]
+    burst: bool
+    burst_colors: NotRequired[List[str]]
+    type: ReactionType
 
 
 class MessageReactionRemoveEvent(TypedDict):
@@ -198,6 +201,8 @@ class MessageReactionRemoveEvent(TypedDict):
     message_id: Snowflake
     emoji: PartialEmoji
     guild_id: NotRequired[Snowflake]
+    burst: bool
+    type: ReactionType
 
 
 class MessageReactionRemoveAllEvent(TypedDict):
@@ -698,3 +703,11 @@ class GuildMemberListUpdateEvent(TypedDict):
     online_count: int
     groups: List[GuildMemberListGroup]
     ops: List[GuildMemberListOP]
+
+
+class PollVoteActionEvent(TypedDict):
+    user_id: Snowflake
+    channel_id: Snowflake
+    message_id: Snowflake
+    guild_id: NotRequired[Snowflake]
+    answer_id: int

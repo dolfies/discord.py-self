@@ -1142,10 +1142,11 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
         ring: bool = True,
     ) -> ConnectReturn:
         channel = await self._get_channel()
-        call = channel.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls, _channel=channel)
+
+        if ring:
             await channel._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls, _channel=channel)
+        return ret
 
     async def create_dm(self) -> DMChannel:
         """|coro|
