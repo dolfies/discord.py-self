@@ -378,7 +378,9 @@ def handle_message_parameters(
 class Route:
     BASE: ClassVar[str] = f'https://discord.com/api/v{INTERNAL_API_VERSION}'
 
-    def __init__(self, method: requests.session.HttpMethod, path: str, *, metadata: Optional[str] = None, **parameters: Any) -> None:
+    def __init__(
+        self, method: requests.session.HttpMethod, path: str, *, metadata: Optional[str] = None, **parameters: Any
+    ) -> None:
         self.path: str = path
         self.method: requests.session.HttpMethod = method
         # Metadata is a special string used to differentiate between known sub rate limits
@@ -612,8 +614,7 @@ class HTTPClient:
         self.get_locale: Callable[[], str] = locale
         self.extra_headers: Mapping[str, str] = extra_headers or {}
 
-        self.super_properties: Dict[str, Any] = {}
-        self.encoded_super_properties: str = MISSING
+        self.headers: utils.Headers = MISSING
         self._started: bool = False
 
     def __del__(self) -> None:
@@ -640,14 +641,18 @@ class HTTPClient:
         if self.connector is MISSING or self.connector.closed:
             self.connector = aiohttp.TCPConnector(limit=0)
         self.__asession = session = await _gen_session(aiohttp.ClientSession(connector=self.connector))
-        self.super_properties, self.encoded_super_properties = sp, _ = await utils._get_info(session)
-        _log.info('Found user agent "%s", build number %s.', sp.get('browser_user_agent'), sp.get('client_build_number'))
+        self.headers = headers = await utils.Headers.default(session, self.proxy, self.proxy_auth)
+        _log.info(
+            'Found user agent "%s", build number %s.',
+            headers.user_agent,
+            headers.super_properties.get('client_build_number'),
+        )
 
         try:
             impersonate = requests.impersonate.DEFAULT_CHROME
         except AttributeError:
             # Legacy version
-            impersonate = f'chrome{self.browser_version[:3]}'
+            impersonate = f'chrome{self.browser_version}'
             if not impersonate in requests.BrowserType:
                 chromes = [b.value for b in requests.BrowserType if b.value.startswith('chrome')]
                 impersonate = max(chromes, key=lambda c: int(c[6:].split('_')[0]))
@@ -660,13 +665,13 @@ class HTTPClient:
         await self.startup()
 
         headers: Dict[str, Any] = {
-            'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
             'User-Agent': self.user_agent,
         }
+
         if self.proxy is not None:
             kwargs['proxies'] = {'all': self.proxy}
         if self.proxy_auth is not None:
@@ -676,12 +681,12 @@ class HTTPClient:
         return await session.ws_connect(url, headers=headers, impersonate=session.impersonate, timeout=30.0, **kwargs)
 
     @property
-    def browser_version(self) -> str:
-        return self.super_properties.get('browser_version', '')
+    def browser_version(self) -> int:
+        return self.headers.major_version
 
     @property
     def user_agent(self) -> str:
-        return self.super_properties['browser_user_agent']
+        return self.headers.user_agent
 
     def _try_clear_expired_ratelimits(self) -> None:
         if len(self._buckets) < 256:
@@ -726,24 +731,20 @@ class HTTPClient:
         ratelimit = self.get_ratelimit(key)
 
         # Header creation
+        # NOTE: Many browser-specific headers are missing here because curl_cffi fills them in
         headers = {
-            'Accept-Language': 'en-US,en;q=0.9',
+            **self.headers.client_hints,
             'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
             'Referer': 'https://discord.com/channels/@me',
-            'Sec-CH-UA': '"Google Chrome";v="{0}", "Chromium";v="{0}", ";Not-A.Brand";v="24"'.format(
-                self.browser_version.split('.')[0]
-            ),
-            'Sec-CH-UA-Mobile': '?0',
-            'Sec-CH-UA-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': self.user_agent,
+            'User-Agent': self.headers.user_agent,
             'X-Discord-Locale': self.get_locale(),
             'X-Debug-Options': 'bugReporterEnabled',
-            'X-Super-Properties': self.encoded_super_properties,
+            'X-Super-Properties': self.headers.encoded_super_properties,
         }
 
         # This header isn't really necessary

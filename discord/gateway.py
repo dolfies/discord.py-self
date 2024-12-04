@@ -411,7 +411,7 @@ class DiscordWebSocket:
         ws.sequence = sequence
         ws._max_heartbeat_timeout = client._connection.heartbeat_timeout
         ws._user_agent = client.http.user_agent
-        ws._super_properties = client.http.super_properties
+        ws._super_properties = client.http.headers.super_properties
         ws._zlib_enabled = zlib
 
         if client._enable_debug_events:
