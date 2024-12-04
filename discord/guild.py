@@ -5423,3 +5423,21 @@ class Guild(Hashable):
         """
         data = await self._state.http.get_directory_broadcast_info(self.id, 1)
         return data['can_broadcast']
+
+    async def agree_guild_rules(self, url: str | Invite):
+        resolved = utils.resolve_invite(url)
+
+        data = await self._state.http.get_invite(
+            resolved.code,
+            with_counts=True,
+            input_value=resolved.code if isinstance(url, Invite) else url,
+        )
+        if isinstance(url, Invite):
+            invite = url
+        else:
+            invite = Invite.from_incomplete(state=self._state, data=data)
+
+        rules_form = await self._state.http.get_guild_rules_form(self.id, invite.id)
+        if not rules_form.get('form_fields'):
+            return
+        await self._state.http.agree_guild_rules(self.id, rules_form)
