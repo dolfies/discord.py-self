@@ -665,11 +665,14 @@ class DiscordWebSocket:
             if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
                 await self.received_message(msg)
             elif flags & CurlWsFlag.CLOSE:
-                _log.debug('Received %s.', msg)
                 err = WebSocketClosure(msg)
                 _log.info(f'Got close {err.code} reason {err.reason}')
                 raise WebSocketClosure(msg)
         except (asyncio.TimeoutError, CurlError, WebSocketClosure) as e:
+            if isinstance(e, CurlError) and e.code == 52:
+                _log.debug('Gateway received CURLE_GOT_NOTHING, ignoring...')
+                return
+
             _log.info(f'Got poll exception {e}')
             # Ensure the keep alive handler is closed
             if self._keep_alive:
