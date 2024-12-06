@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 from .mixins import Hashable
-from .utils import snowflake_time, MISSING
+from .utils import snowflake_time, MISSING, snowflake_worker_id, snowflake_increment, snowflake_process_id
 
 from typing import (
     SupportsInt,
@@ -113,5 +113,19 @@ class Object(Hashable):
         """:class:`datetime.datetime`: Returns the snowflake's creation time in UTC."""
         return snowflake_time(self.id)
 
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the object's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the object's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the object's snowflake increment."""
+        return snowflake_increment(self.id)
 
 OLDEST_OBJECT = Object(id=0)

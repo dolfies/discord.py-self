@@ -28,7 +28,7 @@ import unicodedata
 
 from .mixins import Hashable
 from .asset import Asset, AssetMixin
-from .utils import cached_slot_property, find, snowflake_time, get, MISSING, _get_as_snowflake
+from .utils import cached_slot_property, find, snowflake_time, get, MISSING, _get_as_snowflake, snowflake_process_id, snowflake_increment, snowflake_worker_id
 from .errors import InvalidData
 from .enums import StickerType, StickerFormatType, try_enum
 
@@ -315,6 +315,21 @@ class Sticker(_StickerTag):
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the sticker's creation time in UTC."""
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the sticker's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the sticker's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the sticker's snowflake increment."""
+        return snowflake_increment(self.id)
 
 
 class StandardSticker(Sticker):

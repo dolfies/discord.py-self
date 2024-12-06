@@ -716,6 +716,21 @@ class AuditLogEntry(Hashable):
         return utils.snowflake_time(self.id)
 
     @utils.cached_property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the entry's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @utils.cached_property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the entry's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @utils.cached_property
+    def increment(self) -> int:
+        """:class:`int`: Returns the entry's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @utils.cached_property
     def target(self) -> TargetType:
         if self.action.target_type is None:
             return None

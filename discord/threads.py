@@ -35,7 +35,7 @@ from .enums import ChannelType, try_enum
 from .errors import ClientException, InvalidData
 from .flags import ChannelFlags
 from .permissions import Permissions
-from .utils import MISSING, parse_time, snowflake_time, _get_as_snowflake, _unique
+from .utils import MISSING, parse_time, snowflake_time, _get_as_snowflake, _unique, snowflake_worker_id, snowflake_increment, snowflake_process_id
 
 __all__ = (
     'Thread',
@@ -264,6 +264,21 @@ class Thread(Messageable, Hashable):
             This may be inaccurate for threads created before January 9th, 2022.
         """
         return self._created_at or snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the thread's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the thread's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the thread's snowflake increment."""
+        return snowflake_increment(self.id)
 
     @property
     def jump_url(self) -> str:

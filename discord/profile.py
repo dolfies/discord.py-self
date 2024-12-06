@@ -320,6 +320,21 @@ class ApplicationProfile(Hashable):
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the application's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+ 
+    @property
     def flags(self) -> ApplicationFlags:
         """:class:`ApplicationFlags`: The flags of this application."""
         return ApplicationFlags._from_value(self._flags)
