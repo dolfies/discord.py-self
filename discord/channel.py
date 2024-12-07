@@ -3640,6 +3640,21 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the direct message channel's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the direct message channel's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the direct message channel's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def guild(self) -> Optional[Guild]:
         """Optional[:class:`Guild`]: The guild this DM channel belongs to. Always ``None``.
 
@@ -4116,6 +4131,21 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the channel's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def jump_url(self) -> str:
         """:class:`str`: Returns a URL that allows the client to jump to the channel.
 
@@ -4563,6 +4593,21 @@ class PartialMessageable(discord.abc.Messageable, Hashable):
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the channel's creation time in UTC."""
         return utils.snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the channel's snowflake increment."""
+        return utils.snowflake_increment(self.id)
 
     @property
     def read_state(self) -> ReadState:

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import List, Optional, TYPE_CHECKING, Union
 
-from .utils import snowflake_time, _get_as_snowflake, resolve_invite
+from .utils import snowflake_time, _get_as_snowflake, resolve_invite, snowflake_worker_id, snowflake_increment, snowflake_process_id
 from .user import BaseUser
 from .activity import BaseActivity, Spotify, create_activity
 from .invite import Invite
@@ -100,6 +100,22 @@ class WidgetChannel:
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the channel's creation time in UTC."""
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the widget channel's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the widget channel's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the widget channel's snowflake increment."""
+        return snowflake_increment(self.id)
+
 
 
 class WidgetMember(BaseUser):
@@ -288,6 +304,21 @@ class Widget:
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the member's creation time in UTC."""
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the member's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the member's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the member's snowflake increment."""
+        return snowflake_increment(self.id)
 
     @property
     def json_url(self) -> str:

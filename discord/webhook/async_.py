@@ -813,6 +813,21 @@ class BaseWebhook(Hashable):
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the webhook's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the webhook's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the webhook's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def avatar(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns an :class:`Asset` for the avatar the webhook has.
 

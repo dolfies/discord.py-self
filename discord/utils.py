@@ -438,6 +438,52 @@ def oauth_url(
         url += f'&{urlencode({"state": state})}'
     return url
 
+def snowflake_worker_id(id: int, /) -> int:
+    """Returns the worker id of the given snowflake
+    
+    Paramaters
+    -----------
+    id: :class:`int`
+        The snowflake ID.
+
+    Returns
+    --------
+    :class:`int`
+        The worker ID used to generate the snowflake.
+    """
+    return (id >> 17) & 0x1F
+
+def snowflake_process_id(id: int, /) -> int:
+    """Returns the process id of the given snowflake
+    
+    Paramaters
+    -----------
+    id: :class:`int`
+        The snowflake ID.
+
+    Returns
+    --------
+    :class:`int`
+        The process ID used to generate the snowflake.
+    """
+    return (id >> 12) & 0x1F
+
+def snowflake_increment(id: int, /) -> int:
+    """Returns the increment of the given snowflake.
+    For every generated ID on that process, this number is incremented.
+    
+    Paramaters
+    -----------
+    id: :class:`int`
+        The snowflake ID.
+
+    Returns
+    --------
+    :class:`int`
+        The increment of current snowflake.
+    """
+    return id & 0xFFF
+
 
 def snowflake_time(id: int, /) -> datetime.datetime:
     """Returns the creation time of the given snowflake.

@@ -33,7 +33,7 @@ from .mixins import Hashable
 from .object import Object
 from .scheduled_event import ScheduledEvent
 from .stage_instance import StageInstance
-from .utils import MISSING, _generate_session_id, _get_as_snowflake, parse_time, snowflake_time
+from .utils import MISSING, _generate_session_id, _get_as_snowflake, parse_time, snowflake_time, snowflake_process_id, snowflake_increment, snowflake_worker_id
 from .welcome_screen import WelcomeScreen
 
 __all__ = (
@@ -153,6 +153,21 @@ class PartialInviteChannel:
         return snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the channel's snowflake increment."""
+        return snowflake_increment(self.id)
+
+    @property
     def icon(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns the channel's icon asset if available.
 
@@ -257,6 +272,22 @@ class PartialInviteGuild:
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the guild's creation time in UTC."""
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the guild's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the guild's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the guild's snowflake increment."""
+        return snowflake_increment(self.id)
+
 
     @property
     def vanity_url(self) -> Optional[str]:

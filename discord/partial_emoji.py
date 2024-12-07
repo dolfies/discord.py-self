@@ -241,6 +241,24 @@ class PartialEmoji(_EmojiTag, AssetMixin):
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> Optional[int]:
+        """:class:`int`: Returns the emoji's snowflake worker ID."""
+        if self.id:
+            return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> Optional[int]:
+        """:class:`int`: Returns the emoji's snowflake process ID."""
+        if self.id:
+            return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> Optional[int]:
+        """:class:`int`: Returns the emoji's snowflake increment."""
+        if self.id:
+            return utils.snowflake_increment(self.id)
+
+    @property
     def url(self) -> str:
         """:class:`str`: Returns the URL of the emoji, if it is custom.
 

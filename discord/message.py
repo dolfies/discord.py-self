@@ -953,6 +953,21 @@ class PartialMessage(Hashable):
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the message's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the message's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the message's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def jump_url(self) -> str:
         """:class:`str`: Returns a URL that allows the client to jump to this message."""
         guild_id = getattr(self.guild, 'id', '@me')
@@ -2408,6 +2423,22 @@ class Message(PartialMessage, Hashable):
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: The message's creation time in UTC."""
         return utils.snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the message's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the message's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the message's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
 
     @property
     def edited_at(self) -> Optional[datetime.datetime]:

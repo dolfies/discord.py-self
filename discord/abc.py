@@ -838,6 +838,21 @@ class GuildChannel:
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the channel's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the channel's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def jump_url(self) -> str:
         """:class:`str`: Returns a URL that allows the client to jump to the channel.
 

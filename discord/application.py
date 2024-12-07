@@ -1988,6 +1988,21 @@ class PartialApplication(Hashable):
         return utils.snowflake_time(self.id)
 
     @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the application's snowflake increment."""
+        return utils.snowflake_increment(self.id)
+
+    @property
     def icon(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Retrieves the application's icon asset, if any."""
         if self._icon is None:
@@ -3754,6 +3769,21 @@ class IntegrationApplication(Hashable):
         .. versionadded:: 2.1
         """
         return utils.snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake worker ID."""
+        return utils.snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the application's snowflake process ID."""
+        return utils.snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the application's snowflake increment."""
+        return utils.snowflake_increment(self.id)
 
     @property
     def icon(self) -> Optional[Asset]:

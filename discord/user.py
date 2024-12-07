@@ -40,7 +40,7 @@ from .enums import (
 from .errors import ClientException, NotFound
 from .flags import PublicUserFlags, PrivateUserFlags, PremiumUsageFlags, PurchasedFlags
 from .relationship import Relationship
-from .utils import _bytes_to_base64_data, _get_as_snowflake, cached_slot_property, copy_doc, snowflake_time, MISSING
+from .utils import _bytes_to_base64_data, _get_as_snowflake, cached_slot_property, copy_doc, snowflake_time, MISSING, snowflake_process_id, snowflake_increment, snowflake_worker_id
 from .voice_client import VoiceClient
 
 if TYPE_CHECKING:
@@ -514,6 +514,21 @@ class BaseUser(_UserTag):
         This is when the user's Discord account was created.
         """
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the user's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the user's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the user's snowflake increment."""
+        return snowflake_increment(self.id)
 
     @property
     def display_name(self) -> str:

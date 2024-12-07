@@ -31,7 +31,7 @@ from .colour import Colour
 from .flags import RoleFlags
 from .mixins import Hashable
 from .permissions import Permissions
-from .utils import MISSING, _bytes_to_base64_data, _get_as_snowflake, snowflake_time
+from .utils import MISSING, _bytes_to_base64_data, _get_as_snowflake, snowflake_time, snowflake_increment, snowflake_worker_id, snowflake_process_id
 
 __all__ = (
     'RoleTags',
@@ -366,6 +366,21 @@ class Role(Hashable):
     def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the role's creation time in UTC."""
         return snowflake_time(self.id)
+
+    @property
+    def worker_id(self) -> int:
+        """:class:`int`: Returns the role's snowflake worker ID."""
+        return snowflake_worker_id(self.id)
+
+    @property
+    def process_id(self) -> int:
+        """:class:`int`: Returns the role's snowflake process ID."""
+        return snowflake_process_id(self.id)
+
+    @property
+    def increment(self) -> int:
+        """:class:`int`: Returns the role's snowflake increment."""
+        return snowflake_increment(self.id)
 
     @property
     def mention(self) -> str:
