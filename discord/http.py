@@ -175,7 +175,7 @@ async def json_or_text(response: Union[aiohttp.ClientResponse, requests.Response
     if isinstance(response, aiohttp.ClientResponse):
         text = await response.text(encoding='utf-8')
     else:
-        text = response.content.decode('utf-8')
+        text = await response.atext()
 
     try:
         if response.headers['content-type'] == 'application/json':
@@ -814,7 +814,7 @@ class HTTPClient:
                     headers['X-Failed-Requests'] = str(failed)
 
                 try:
-                    response = await self.__session.request(method, url, **kwargs)
+                    response = await self.__session.request(method, url, **kwargs, stream=True)
                     response.status = response.status_code  # type: ignore
                     response.reason = HTTPStatus(response.status_code).phrase
                     _log.debug('%s %s with %s has returned %s.', method, url, kwargs.get('data'), response.status_code)
