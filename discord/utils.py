@@ -1694,7 +1694,7 @@ class Headers:
             'system_locale': 'en-US',
             'client_build_number': bn,
             'client_event_source': None,
-            'design_id': 0,
+            'has_client_mods': False,
         }
 
         return cls(
