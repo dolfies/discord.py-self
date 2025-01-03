@@ -2423,69 +2423,6 @@ class Client:
         data = await self.http.get_user(user_id)
         return User(state=self._connection, data=data)
 
-    @overload
-    async def fetch_user_named(self, user: str, /) -> User:
-        ...
-
-    @overload
-    async def fetch_user_named(self, username: str, discriminator: str, /) -> User:
-        ...
-
-    async def fetch_user_named(self, *args: str) -> User:
-        """|coro|
-
-        Retrieves a :class:`selfcord.User` based on their name or legacy username.
-        You do not have to share any guilds with the user to get this information,
-        however you must be able to add them as a friend.
-
-        This function can be used in multiple ways.
-
-        .. versionadded:: 2.1
-
-        .. code-block:: python
-
-            # Passing a username
-            await client.fetch_user_named('jake')
-
-            # Passing a legacy user:
-            await client.fetch_user_named('Jake#0001')
-
-            # Passing a legacy username and discriminator:
-            await client.fetch_user_named('Jake', '0001')
-
-        Parameters
-        -----------
-        user: :class:`str`
-            The user to send the friend request to.
-        username: :class:`str`
-            The username of the user to send the friend request to.
-        discriminator: :class:`str`
-            The discriminator of the user to send the friend request to.
-
-        Raises
-        -------
-        Forbidden
-            Not allowed to send a friend request to this user.
-        HTTPException
-            Fetching the user failed.
-        TypeError
-            More than 2 parameters or less than 1 parameter was passed.
-
-        Returns
-        --------
-        :class:`selfcord.User`
-            The user you requested.
-        """
-        if len(args) == 1:
-            username, _, discrim = args[0].partition('#')
-        elif len(args) == 2:
-            username, discrim = args
-        else:
-            raise TypeError(f'fetch_user_named() takes 1 or 2 arguments but {len(args)} were given')
-
-        data = await self.http.get_user_named(username, discrim)
-        return User(state=self._connection, data=data)
-
     async def fetch_user_profile(
         self,
         user_id: int,
@@ -2494,14 +2431,15 @@ class Client:
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
+        friend_token: str = MISSING,
     ) -> UserProfile:
         """|coro|
 
         Retrieves a :class:`.UserProfile` based on their user ID.
 
-        You must share a guild, be friends with this user,
-        or have an incoming friend request from them to
-        get this information (unless the user is a bot).
+        You must provide a valid ``friend_token``, share a guild with,
+        be friends with, or have an incoming friend request from this
+        user to get this information, unless the user is a bot.
 
         .. versionchanged:: 2.0
 
@@ -2526,13 +2464,16 @@ class Client:
             This fills in :attr:`.UserProfile.mutual_friends` and :attr:`.UserProfile.mutual_friends_count`.
 
             .. versionadded:: 2.0
+        friend_token: :class:`str`
+            The friend token to use for fetching the profile.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
         NotFound
             A user with this ID does not exist.
-        Forbidden
-            You do not have a mutual with this user, and the user is not a bot.
+            You do not have a mutual with this user and the user is not a bot.
         HTTPException
             Fetching the profile failed.
 
@@ -2547,6 +2488,7 @@ class Client:
             with_mutual_guilds=with_mutual_guilds,
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
+            friend_token=friend_token or None,
         )
 
         return UserProfile(state=state, data=data)
@@ -3082,6 +3024,32 @@ class Client:
         state = self._connection
         data = await state.http.get_friend_suggestions()
         return [FriendSuggestion(state=state, data=d) for d in data]
+
+    async def friend_token(self) -> str:
+        """|coro|
+
+        Retrieves your friend token.
+
+        These can be used to fetch the user's profile without a mutual
+        and add the user as a friend regardless of their friend request settings.
+
+        To share, append it to the user's URL like so:
+        ``https://discord.com/users/{user.id?friend_token={friend_token}``.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Retrieving your friend token failed.
+
+        Returns
+        --------
+        :class:`str`
+            Your friend token.
+        """
+        data = await self.http.get_friend_token()
+        return data['friend_token']
 
     async def fetch_country_code(self) -> str:
         """|coro|
