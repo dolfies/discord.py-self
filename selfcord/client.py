@@ -3034,7 +3034,7 @@ class Client:
         and add the user as a friend regardless of their friend request settings.
 
         To share, append it to the user's URL like so:
-        ``https://discord.com/users/{user.id?friend_token={friend_token}``.
+        ``https://discord.com/users/{user.id}?friend_token={friend_token}``.
 
         .. versionadded:: 2.1
 
