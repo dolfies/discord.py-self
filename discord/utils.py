@@ -449,6 +449,7 @@ def snowflake_worker_id(id: int, /) -> int:
     -----------
     id: :class:`int`
         The snowflake ID.
+
     Returns
     --------
     :class:`int`
