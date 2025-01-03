@@ -460,10 +460,12 @@ def snowflake_worker_id(id: int, /) -> int:
 def snowflake_process_id(id: int, /) -> int:
     """Returns the process id of the given snowflake
     
-    Paramaters
+    .. versionadded:: 2.1
+    Parameters
     -----------
     id: :class:`int`
         The snowflake ID.
+
     Returns
     --------
     :class:`int`
@@ -474,11 +476,13 @@ def snowflake_process_id(id: int, /) -> int:
 def snowflake_increment(id: int, /) -> int:
     """Returns the increment of the given snowflake.
     For every generated ID on that process, this number is incremented.
-    
-    Paramaters
+
+    .. versionadded:: 2.1
+    Parameters
     -----------
     id: :class:`int`
         The snowflake ID.
+
     Returns
     --------
     :class:`int`
