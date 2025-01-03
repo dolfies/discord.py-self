@@ -444,6 +444,7 @@ def oauth_url(
 def snowflake_worker_id(id: int, /) -> int:
     """Returns the worker id of the given snowflake
     
+    .. versionadded:: 2.1
     Paramaters
     -----------
     id: :class:`int`
