@@ -445,7 +445,7 @@ def snowflake_worker_id(id: int, /) -> int:
     """Returns the worker id of the given snowflake
     
     .. versionadded:: 2.1
-    Paramaters
+    Parameters
     -----------
     id: :class:`int`
         The snowflake ID.
