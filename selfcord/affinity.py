@@ -29,7 +29,11 @@ from .mixins import Hashable
 
 if TYPE_CHECKING:
     from .state import ConnectionState
-    from .types.user import UserAffinity as UserAffinityPayload, GuildAffinity as GuildAffinityPayload, ChannelAffinity as ChannelAffinityPayload
+    from .types.user import (
+        UserAffinity as UserAffinityPayload,
+        GuildAffinity as GuildAffinityPayload,
+        ChannelAffinity as ChannelAffinityPayload,
+    )
 
 __all__ = (
     'UserAffinity',
