@@ -1760,10 +1760,14 @@ class Headers:
             return int(data['versions'][0]['version'].split('.')[0])
 
     @staticmethod
-    def _get_user_agent(version: int) -> str:
+    def _get_user_agent(version: int, brand: Optional[str] = None) -> str:
         """Fetches the latest Windows/Chrome user-agent."""
         # Because of [user agent reduction](https://www.chromium.org/updates/ua-reduction/), we just need the major version now :)
-        return f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36'
+        ret = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36'
+        if brand:
+            # e.g. Edg/v.0.0.0 for Microsoft Edge
+            ret += f' {brand}/{version}.0.0.0'
+        return ret
 
     # These are all adapted from Chromium source code (https://github.com/chromium/chromium/blob/master/components/embedder_support/user_agent_utils.cc)
 
