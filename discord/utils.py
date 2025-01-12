@@ -442,9 +442,10 @@ def oauth_url(
     return url
 
 def snowflake_worker_id(id: int, /) -> int:
-    """Returns the worker id of the given snowflake
+    """Returns the worker ID of the given snowflake
     
     .. versionadded:: 2.1
+
     Parameters
     -----------
     id: :class:`int`
@@ -458,9 +459,10 @@ def snowflake_worker_id(id: int, /) -> int:
     return (id >> 17) & 0x1F
 
 def snowflake_process_id(id: int, /) -> int:
-    """Returns the process id of the given snowflake
+    """Returns the process ID of the given snowflake
     
     .. versionadded:: 2.1
+
     Parameters
     -----------
     id: :class:`int`
@@ -478,6 +480,7 @@ def snowflake_increment(id: int, /) -> int:
     For every generated ID on that process, this number is incremented.
 
     .. versionadded:: 2.1
+
     Parameters
     -----------
     id: :class:`int`
