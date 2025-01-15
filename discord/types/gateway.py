@@ -570,10 +570,10 @@ class PartialUpdateChannel(TypedDict):
 
 
 class PassiveUpdateEvent(TypedDict):
-    guild_id: Snowflake
-    channels: List[PartialUpdateChannel]
-    voice_states: NotRequired[List[VoiceState]]
-    members: NotRequired[List[MemberWithUser]]
+    removed_voice_states: List[Snowflake]
+    updated_channels: List[PartialUpdateChannel]
+    members: List[MemberWithUser]
+    voice_states: List[VoiceState]
 
 
 class GuildApplicationCommandIndexUpdateEvent(TypedDict):
