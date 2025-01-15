@@ -1681,7 +1681,7 @@ class ConnectionState:
     def parse_resumed(self, data: gw.ResumedEvent) -> None:
         self.dispatch('resumed')
 
-    def parse_passive_update_v2(self, data: gw.PassiveUpdateEvent) -> None:
+    def parse_passive_update_v2(self, data: gw.PassiveUpdateV2Event) -> None:
         # PASSIVE_UPDATE_V2 is sent for large guilds you are not subscribed to
         # in order to keep their members/read and voice states up-to-date; it replaces CHANNEL_UNREADS_UPDATE and PASSIVE_UPDATE_V1
         guild = self._get_guild(int(data['guild_id']))
