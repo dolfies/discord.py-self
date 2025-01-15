@@ -1690,13 +1690,7 @@ class ConnectionState:
             return
 
         for user_id in map(int, data.get('removed_voice_states', [])):
-            old = guild._voice_states.pop(user_id, None)
-            member = guild.get_member(user_id)
-            if member is None or old is None:
-                continue
-            new = copy.copy(old)
-            new.channel = None
-            self.dispatch('voice_state_update', member, old, new)
+            guild._voice_states.pop(user_id, None)
 
         for channel_data in data.get('updated_channels', []):
             channel = guild.get_channel(int(channel_data['id']))
@@ -1708,23 +1702,22 @@ class ConnectionState:
 
         members = {int(m['user']['id']): m for m in data.get('members', [])}
 
+        cache_flags = self.member_cache_flags
         for k, member_data in members.items():
             member = guild.get_member(k)
-            if member is None:
-                guild._members[k] = Member(data=member_data, guild=guild, state=self)
+            if member is not None:
+                member._update(data)
             else:
-                old = member._update(member_data)
-                if old is not None:
-                    self.dispatch('member_update', old, member)
+                if cache_flags.voice:
+                    member = Member(data=member_data, guild=guild, state=self)  # type: ignore # The data is close enough
+                    guild._add_member(member)
 
         for voice_state in data.get('updated_voice_states', []):
             user_id = int(voice_state['user_id'])
             member_data = members.get(user_id)
             if member_data:
                 voice_state['member'] = member_data
-            member, old, new = guild._update_voice_state(voice_state, utils._get_as_snowflake(voice_state, 'channel_id'))
-            if member is not None:
-                self.dispatch('voice_state_update', member, old, new)
+            guild._update_voice_state(voice_state, utils._get_as_snowflake(voice_state, 'channel_id'))
 
     def parse_message_create(self, data: gw.MessageCreateEvent) -> None:
         channel, _ = self._get_guild_channel(data)
