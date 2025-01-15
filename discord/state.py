@@ -1717,7 +1717,7 @@ class ConnectionState:
                 if old is not None:
                     self.dispatch('member_update', old, member)
 
-        for voice_state in data.get('voice_states', []):
+        for voice_state in data.get('updated_voice_states', []):
             user_id = int(voice_state['user_id'])
             member_data = members.get(user_id)
             if member_data:
