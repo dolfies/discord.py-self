@@ -573,7 +573,7 @@ class PassiveUpdateEvent(TypedDict):
     removed_voice_states: List[Snowflake]
     updated_channels: List[PartialUpdateChannel]
     members: List[MemberWithUser]
-    voice_states: List[VoiceState]
+    updated_voice_states: List[VoiceState]
 
 
 class GuildApplicationCommandIndexUpdateEvent(TypedDict):
