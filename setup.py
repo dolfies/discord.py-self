@@ -3,7 +3,7 @@ import re
 
 def derive_version() -> str:
     version = ''
-    with open('discord/__init__.py') as f:
+    with open('selfcord/__init__.py') as f:
         version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE).group(1)  # type: ignore
 
     if not version:
