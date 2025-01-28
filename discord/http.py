@@ -3220,7 +3220,7 @@ class HTTPClient:
         form: List[Dict[str, Any]] = [
             {
                 'name': 'assets',  # Not a typo
-                'value': file.fp,
+                'data': file.fp,
                 'filename': file.filename,
                 'content_type': mime_type,
             }
