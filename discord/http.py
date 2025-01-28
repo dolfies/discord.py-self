@@ -55,7 +55,7 @@ from typing import (
 from urllib.parse import quote as _uriquote
 
 import aiohttp
-from curl_cffi import requests
+from curl_cffi import requests, CurlMime
 
 from . import utils
 from .enums import InviteType, NetworkConnectionType, RelationshipAction
@@ -360,13 +360,13 @@ def handle_message_parameters(
     multipart = []
     to_upload = [file for file in files if isinstance(file, File)] if files else None
     if to_upload:
-        multipart.append({'name': 'payload_json', 'value': utils._to_json(payload)})
+        multipart.append({'name': 'payload_json', 'data': utils._to_json(payload)})
         payload = None
         for index, file in enumerate(to_upload):
             multipart.append(
                 {
                     'name': f'files[{index}]',
-                    'value': file.fp,
+                    'data': file.fp,
                     'filename': file.filename,
                     'content_type': 'application/octet-stream',
                 }
@@ -804,11 +804,7 @@ class HTTPClient:
                         f.reset(seek=tries)
 
                 if form:
-                    # With quote_fields=True '[' and ']' in file field names are escaped, which Discord does not support
-                    form_data = aiohttp.FormData(quote_fields=False)
-                    for params in form:
-                        form_data.add_field(**params)
-                    kwargs['data'] = form_data()
+                    kwargs['multipart'] = CurlMime.from_list(form)
 
                 if failed:
                     headers['X-Failed-Requests'] = str(failed)
@@ -2088,7 +2084,7 @@ class HTTPClient:
         form: List[Dict[str, Any]] = [
             {
                 'name': 'file',
-                'value': file.fp,
+                'data': file.fp,
                 'filename': file.filename,
                 'content_type': mime_type,
             }
@@ -2097,7 +2093,7 @@ class HTTPClient:
             form.append(
                 {
                     'name': k,
-                    'value': v,
+                    'data': v,
                 }
             )
 
@@ -4495,14 +4491,14 @@ class HTTPClient:
         form = []
         to_upload = [file for file in files if isinstance(file, File)] if files else []
         if files is not None:
-            form.append({'name': 'payload_json', 'value': utils._to_json(payload)})
+            form.append({'name': 'payload_json', 'data': utils._to_json(payload)})
 
             # Legacy uploading
             for index, file in enumerate(to_upload or []):
                 form.append(
                     {
                         'name': f'files[{index}]',
-                        'value': file.fp,
+                        'data': file.fp,
                         'filename': file.filename,
                         'content_type': 'application/octet-stream',
                     }
