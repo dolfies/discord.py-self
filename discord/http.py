@@ -672,10 +672,14 @@ class HTTPClient:
             'User-Agent': self.user_agent,
         }
 
-        if self.proxy is not None:
-            kwargs['proxies'] = {'all': self.proxy}
-        if self.proxy_auth is not None:
-            headers['Proxy-Authorization'] = self.proxy_auth.encode()
+        proxy = kwargs.pop('proxy', self.proxy)
+        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth)
+        if proxy is not None:
+            kwargs['proxies'] = {'all': proxy}
+        if proxy_auth is not None:
+            if isinstance(proxy_auth, aiohttp.BasicAuth):
+                proxy_auth = (proxy_auth.login, proxy_auth.password)
+            kwargs['proxy_auth'] = proxy_auth
 
         session = self.__session
         return await session.ws_connect(url, headers=headers, impersonate=session.impersonate, timeout=30.0, **kwargs)
@@ -791,7 +795,9 @@ class HTTPClient:
         if proxy is not None:
             kwargs['proxies'] = {'all': proxy}
         if proxy_auth is not None:
-            headers['Proxy-Authorization'] = proxy_auth.encode()
+            if isinstance(proxy_auth, aiohttp.BasicAuth):
+                proxy_auth = (proxy_auth.login, proxy_auth.password)
+            kwargs['proxy_auth'] = proxy_auth
 
         if not self._global_over.is_set():
             await self._global_over.wait()
