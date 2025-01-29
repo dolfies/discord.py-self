@@ -150,10 +150,9 @@ class _ProtoSettings:
             return self._state._get_or_create_unavailable_guild(id)
         return self._state._get_guild(id) or Object(id=id)
 
-    def to_dict(self, *, with_defaults: bool = False) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         return MessageToDict(
             self.settings,
-            including_default_value_fields=with_defaults,
             preserving_proto_field_name=True,
             use_integers_for_enums=True,
         )
@@ -1794,9 +1793,6 @@ class LegacyUserSettings:
             How you get recommended friends.
         gif_auto_play: :class:`bool`
             Whether to automatically play GIFs that are in the chat.
-        guild_positions: List[:class:`~discord.abc.Snowflake`]
-            A list of guilds in order of the guild/guild icons that are on
-            the left hand side of the UI.
         inline_attachment_media: :class:`bool`
             Whether to display attachments when they are uploaded in chat.
         inline_embed_media: :class:`bool`
@@ -1825,10 +1821,6 @@ class LegacyUserSettings:
             The overall theme of the Discord UI.
         timezone_offset: :class:`int`
             The timezone offset to use.
-        view_nsfw_commands: :class:`bool`
-            Whether to show NSFW application commands in DMs.
-
-            .. versionadded:: 2.0
         view_nsfw_guilds: :class:`bool`
             Whether to show NSFW guilds on iOS.
 
@@ -1894,11 +1886,6 @@ class LegacyUserSettings:
         return [
             GuildFolder._from_legacy_settings(data=folder, state=state) for folder in getattr(self, '_guild_folders', [])
         ]
-
-    @property
-    def guild_positions(self) -> List[Guild]:
-        """List[:class:`Guild`]: A list of guilds in order of the guild/guild icons that are on the left hand side of the UI."""
-        return list(map(self._get_guild, getattr(self, '_guild_positions', [])))
 
     @property
     def locale(self) -> Locale:

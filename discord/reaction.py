@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, AsyncIterator, Union, Optional
 
 from .user import User
 from .object import Object
+from .enums import ReactionType
 
 # fmt: off
 __all__ = (
@@ -74,20 +75,41 @@ class Reaction:
     emoji: Union[:class:`Emoji`, :class:`PartialEmoji`, :class:`str`]
         The reaction emoji. May be a custom emoji, or a unicode emoji.
     count: :class:`int`
-        Number of times this reaction was made
+        Number of times this reaction was made. This is a sum of :attr:`normal_count` and :attr:`burst_count`.
     me: :class:`bool`
-        If the user sent this reaction.
+        If the user has reacted with this emoji.
     message: :class:`Message`
         Message this reaction is for.
+    me_burst: :class:`bool`
+        If the user has super-reacted with this emoji.
+
+        .. versionadded:: 2.1
+    normal_count: :class:`int`
+        The number of times this reaction was made using normal reactions.
+        This is not available in the gateway events such as :func:`on_reaction_add`
+        or :func:`on_reaction_remove`.
+
+        .. versionadded:: 2.1
+    burst_count: :class:`int`
+        The number of times this reaction was made using super reactions.
+        This is not available in the gateway events such as :func:`on_reaction_add`
+        or :func:`on_reaction_remove`.
+
+        .. versionadded:: 2.1
     """
 
-    __slots__ = ('message', 'count', 'emoji', 'me')
+    __slots__ = ('message', 'count', 'emoji', 'me', 'me_burst', 'normal_count', 'burst_count')
 
     def __init__(self, *, message: Message, data: ReactionPayload, emoji: Optional[Union[PartialEmoji, Emoji, str]] = None):
         self.message: Message = message
         self.emoji: Union[PartialEmoji, Emoji, str] = emoji or message._state.get_reaction_emoji(data['emoji'])
         self.count: int = data.get('count', 1)
         self.me: bool = data['me']
+        self.me_burst: bool = data.get('me_burst', False)
+
+        details = data.get('count_details', {})
+        self.normal_count: int = details.get('normal', int(self.me))
+        self.burst_count: int = details.get('burst', int(self.me_burst))
 
     # TODO: typeguard
     def is_custom_emoji(self) -> bool:
@@ -111,7 +133,7 @@ class Reaction:
     def __repr__(self) -> str:
         return f'<Reaction emoji={self.emoji!r} me={self.me} count={self.count}>'
 
-    async def remove(self, user: Snowflake) -> None:
+    async def remove(self, user: Snowflake, *, boost: bool = False) -> None:
         """|coro|
 
         Remove the reaction by the provided :class:`User` from the message.
@@ -126,6 +148,14 @@ class Reaction:
         -----------
         user: :class:`abc.Snowflake`
              The user or member from which to remove the reaction.
+        boost: :class:`bool`
+            Whether to remove a super reaction.
+
+            .. note::
+
+                Keep in mind that members can both react and super react with the same emoji.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
@@ -137,7 +167,7 @@ class Reaction:
             The user you specified, or the reaction's message was not found.
         """
 
-        await self.message.remove_reaction(self.emoji, user)
+        await self.message.remove_reaction(self.emoji, user, boost=boost)
 
     async def clear(self) -> None:
         """|coro|
@@ -166,7 +196,7 @@ class Reaction:
         await self.message.clear_reaction(self.emoji)
 
     async def users(
-        self, *, limit: Optional[int] = None, after: Optional[Snowflake] = None
+        self, *, limit: Optional[int] = None, after: Optional[Snowflake] = None, type: Optional[ReactionType] = None
     ) -> AsyncIterator[Union[Member, User]]:
         """Returns an :term:`asynchronous iterator` representing the users that have reacted to the message.
 
@@ -201,6 +231,11 @@ class Reaction:
             reacted to the message.
         after: Optional[:class:`abc.Snowflake`]
             For pagination, reactions are sorted by member.
+        type: Optional[:class:`ReactionType`]
+            The type of reaction to return users from.
+            Defaults to :attr:`ReactionType.normal`.
+
+            .. versionadded:: 2.1
 
         Raises
         --------
@@ -232,7 +267,14 @@ class Reaction:
             state = message._state
             after_id = after.id if after else None
 
-            data = await state.http.get_reaction_users(message.channel.id, message.id, emoji, retrieve, after=after_id)
+            data = await state.http.get_reaction_users(
+                message.channel.id,
+                message.id,
+                emoji,
+                retrieve,
+                after=after_id,
+                type=type.value if type else 0,
+            )
 
             if data:
                 limit -= len(data)

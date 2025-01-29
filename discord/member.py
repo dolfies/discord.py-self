@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from .user import Note
     from .relationship import Relationship
     from .calls import PrivateCall
+    from .enums import PremiumType
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     ConnectableChannel = Union[VocalGuildChannel, DMChannel, GroupChannel]
@@ -290,6 +291,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         avatar: Optional[Asset]
         avatar_decoration: Optional[Asset]
         avatar_decoration_sku_id: Optional[int]
+        avatar_decoration_expires_at: Optional[datetime.datetime]
         note: Note
         relationship: Optional[Relationship]
         is_friend: Callable[[], bool]
@@ -302,6 +304,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         remove_friend: Callable[[], Awaitable[None]]
         fetch_mutual_friends: Callable[[], Awaitable[List[User]]]
         public_flags: PublicUserFlags
+        premium_type: Optional[PremiumType]
         banner: Optional[Asset]
         accent_color: Optional[Colour]
         accent_colour: Optional[Colour]
@@ -806,7 +809,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         Raises
         -------
         Forbidden
-            You do not have the proper permissions to the action requested.
+            You do not have the proper permissions to do the action requested.
         HTTPException
             The operation failed.
         TypeError
@@ -910,7 +913,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         ClientException
             You are not connected to a voice channel.
         Forbidden
-            You do not have the proper permissions to the action requested.
+            You do not have the proper permissions to do the action requested.
         HTTPException
             The operation failed.
         """
@@ -996,7 +999,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
         You must have :attr:`~Permissions.manage_roles` to
         use this, and the added :class:`Role`\s must appear lower in the list
-        of roles than the highest role of the member.
+        of roles than the highest role of the client.
 
         Parameters
         -----------
@@ -1035,7 +1038,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
         You must have :attr:`~Permissions.manage_roles` to
         use this, and the removed :class:`Role`\s must appear lower in the list
-        of roles than the highest role of the member.
+        of roles than the highest role of the client.
 
         Parameters
         -----------
@@ -1110,6 +1113,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
+        friend_token: str = MISSING,
     ) -> MemberProfile:
         """|coro|
 
@@ -1129,14 +1133,13 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             .. versionadded:: 2.0
         with_mutual_friends: :class:`bool`
             Whether to fetch mutual friends.
-            This fills in :attr:`MemberProfile.mutual_friends` and :attr:`MemberProfile.mutual_friends_count`,
-            but requires an extra API call.
+            This fills in :attr:`MemberProfile.mutual_friends` and :attr:`MemberProfile.mutual_friends_count`.
 
             .. versionadded:: 2.0
 
         Raises
         -------
-        Forbidden
+        NotFound
             Not allowed to fetch this profile.
         HTTPException
             Fetching the profile failed.
@@ -1153,4 +1156,5 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             with_mutual_guilds=with_mutual_guilds,
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
+            friend_token=friend_token,
         )

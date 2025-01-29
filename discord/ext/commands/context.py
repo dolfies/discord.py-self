@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from discord.member import Member
     from discord.mentions import AllowedMentions
     from discord.message import MessageReference, PartialMessage
+    from discord.poll import Poll
     from discord.state import ConnectionState
     from discord.sticker import GuildSticker, StickerItem
     from discord.user import ClientUser, User
@@ -452,6 +453,7 @@ class Context(discord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -471,6 +473,7 @@ class Context(discord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -490,6 +493,7 @@ class Context(discord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -509,6 +513,7 @@ class Context(discord.abc.Messageable, Generic[BotT]):
         suppress_embeds: bool = ...,
         ephemeral: bool = ...,
         silent: bool = ...,
+        poll: Poll = ...,
     ) -> Message:
         ...
 
@@ -516,6 +521,7 @@ class Context(discord.abc.Messageable, Generic[BotT]):
     async def reply(self, content: Optional[str] = None, **kwargs: Any) -> Message:
         return await self.message.reply(content, **kwargs)
 
+    @discord.utils.deprecated("Context.application_commands")
     @discord.utils.copy_doc(Message.message_commands)
     def message_commands(
         self,

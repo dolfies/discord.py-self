@@ -40,7 +40,15 @@ from .enums import (
 from .errors import ClientException, NotFound
 from .flags import PublicUserFlags, PrivateUserFlags, PremiumUsageFlags, PurchasedFlags
 from .relationship import Relationship
-from .utils import _bytes_to_base64_data, _get_as_snowflake, cached_slot_property, copy_doc, snowflake_time, MISSING
+from .utils import (
+    _bytes_to_base64_data,
+    _get_as_snowflake,
+    cached_slot_property,
+    copy_doc,
+    parse_timestamp,
+    snowflake_time,
+    MISSING,
+)
 from .voice_client import VoiceClient
 
 if TYPE_CHECKING:
@@ -245,11 +253,13 @@ class BaseUser(_UserTag):
         '_avatar',
         '_avatar_decoration',
         '_avatar_decoration_sku_id',
+        '_avatar_decoration_expires_at',
         '_banner',
         '_accent_colour',
         'bot',
         'system',
         '_public_flags',
+        'premium_type',
         '_cs_note',
         '_state',
     )
@@ -261,10 +271,12 @@ class BaseUser(_UserTag):
         global_name: Optional[str]
         bot: bool
         system: bool
+        premium_type: Optional[PremiumType]
         _state: ConnectionState
         _avatar: Optional[str]
         _avatar_decoration: Optional[str]
-        _avatar_decoration_sku_id: Optional[Snowflake]
+        _avatar_decoration_sku_id: Optional[int]
+        _avatar_decoration_expires_at: Optional[int]
         _banner: Optional[str]
         _accent_colour: Optional[int]
         _public_flags: int
@@ -280,7 +292,7 @@ class BaseUser(_UserTag):
         )
 
     def __str__(self) -> str:
-        if self.discriminator == '0':
+        if self.is_pomelo():
             return self.name
         return f'{self.name}#{self.discriminator}'
 
@@ -302,12 +314,14 @@ class BaseUser(_UserTag):
         self._banner = data.get('banner', None)
         self._accent_colour = data.get('accent_color', None)
         self._public_flags = data.get('public_flags', 0)
+        self.premium_type = try_enum(PremiumType, data['premium_type'] or 0) if 'premium_type' in data else None
         self.bot = data.get('bot', False)
         self.system = data.get('system', False)
 
         decoration_data = data.get('avatar_decoration_data')
         self._avatar_decoration = decoration_data.get('asset') if decoration_data else None
         self._avatar_decoration_sku_id = _get_as_snowflake(decoration_data, 'sku_id') if decoration_data else None
+        self._avatar_decoration_expires_at = decoration_data.get('expires_at') if decoration_data else None
 
     @classmethod
     def _copy(cls, user: Self) -> Self:
@@ -320,6 +334,7 @@ class BaseUser(_UserTag):
         self._avatar = user._avatar
         self._avatar_decoration = user._avatar_decoration
         self._avatar_decoration_sku_id = user._avatar_decoration_sku_id
+        self._avatar_decoration_expires_at = user._avatar_decoration_expires_at
         self._banner = user._banner
         self._accent_colour = user._accent_colour
         self._public_flags = user._public_flags
@@ -332,7 +347,7 @@ class BaseUser(_UserTag):
     def _to_minimal_user_json(self) -> APIUserPayload:
         decoration: Optional[UserAvatarDecorationData] = None
         if self._avatar_decoration is not None:
-            decoration = {'asset': self._avatar_decoration}
+            decoration = {'asset': self._avatar_decoration, 'expires_at': self._avatar_decoration_expires_at}
             if self._avatar_decoration_sku_id is not None:
                 decoration['sku_id'] = self._avatar_decoration_sku_id
 
@@ -349,6 +364,9 @@ class BaseUser(_UserTag):
             'banner': self._banner,
             'accent_color': self._accent_colour,
         }
+        if self.premium_type is not None:
+            user['premium_type'] = self.premium_type.value
+
         return user
 
     @property
@@ -375,7 +393,7 @@ class BaseUser(_UserTag):
     @property
     def default_avatar(self) -> Asset:
         """:class:`Asset`: Returns the default avatar for a given user."""
-        if self.discriminator == '0':
+        if self.is_pomelo():
             avatar_id = (self.id >> 22) % 6
         else:
             avatar_id = int(self.discriminator) % 5
@@ -393,6 +411,11 @@ class BaseUser(_UserTag):
         return self.avatar or self.default_avatar
 
     @property
+    def premium(self) -> bool:
+        """Indicates if the user is a premium user (i.e. has Discord Nitro)."""
+        return bool(self.premium_type.value) if self.premium_type else False
+
+    @property
     def avatar_decoration(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns an :class:`Asset` for the avatar decoration the user has.
 
@@ -405,7 +428,7 @@ class BaseUser(_UserTag):
         return None
 
     @property
-    def avatar_decoration_sku_id(self) -> Optional[Snowflake]:
+    def avatar_decoration_sku_id(self) -> Optional[int]:
         """Optional[:class:`int`]: Returns the avatar decoration's SKU ID.
 
         If the user does not have a preset avatar decoration, ``None`` is returned.
@@ -413,6 +436,18 @@ class BaseUser(_UserTag):
         .. versionadded:: 2.1
         """
         return self._avatar_decoration_sku_id
+
+    @property
+    def avatar_decoration_expires_at(self) -> Optional[datetime]:
+        """Optional[:class:`datetime.datetime`]: Returns the avatar decoration's expiration time.
+
+        If the user does not have an expiring avatar decoration, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._avatar_decoration_expires_at is None:
+            return None
+        return parse_timestamp(self._avatar_decoration_expires_at, ms=False)
 
     @property
     def banner(self) -> Optional[Asset]:
@@ -551,7 +586,7 @@ class BaseUser(_UserTag):
 
         .. versionadded:: 2.1
         """
-        return self.discriminator == '0'
+        return int(self.discriminator) == 0
 
     @property
     def relationship(self) -> Optional[Relationship]:
@@ -578,6 +613,7 @@ class BaseUser(_UserTag):
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
+        friend_token: str = MISSING,
     ) -> UserProfile:
         """|coro|
 
@@ -597,15 +633,19 @@ class BaseUser(_UserTag):
             .. versionadded:: 2.0
         with_mutual_friends: :class:`bool`
             Whether to fetch mutual friends.
-            This fills in :attr:`UserProfile.mutual_friends` and :attr:`UserProfile.mutual_friends_count`,
-            but requires an extra API call.
+            This fills in :attr:`UserProfile.mutual_friends` and :attr:`UserProfile.mutual_friends_count`.
 
             .. versionadded:: 2.0
+        friend_token: :class:`str`
+            The friend token to use for fetching the profile.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
-        Forbidden
-            Not allowed to fetch this profile.
+        NotFound
+            A user with this ID does not exist.
+            You do not have a mutual with this user, and the user is not a bot.
         HTTPException
             Fetching the profile failed.
 
@@ -619,6 +659,7 @@ class BaseUser(_UserTag):
             with_mutual_guilds=with_mutual_guilds,
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
+            friend_token=friend_token,
         )
 
     async def fetch_mutual_friends(self) -> List[User]:
@@ -701,8 +742,12 @@ class ClientUser(BaseUser):
             This now returns a :class:`str` instead of an :class:`int` to match the API.
     mfa_enabled: :class:`bool`
         Specifies if the user has MFA turned on and working.
-    premium_type: Optional[:class:`PremiumType`]
-        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic). Could be None if the user is not premium.
+    premium_type: :class:`PremiumType`
+        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic).
+
+        .. versionchanged:: 2.1
+
+            This is now :attr:`PremiumType.none` instead of ``None`` if the user is not premium.
     note: :class:`Note`
         The user's note. Not pre-fetched.
 
@@ -730,7 +775,6 @@ class ClientUser(BaseUser):
         'mfa_enabled',
         'email',
         'phone',
-        'premium_type',
         'note',
         'bio',
         'nsfw_allowed',
@@ -747,7 +791,7 @@ class ClientUser(BaseUser):
         _locale: str
         _flags: int
         mfa_enabled: bool
-        premium_type: Optional[PremiumType]
+        premium_type: PremiumType
         bio: Optional[str]
         nsfw_allowed: Optional[bool]
 
@@ -772,7 +816,7 @@ class ClientUser(BaseUser):
         self._purchased_flags = data.get('purchased_flags', 0)
         self._premium_usage_flags = data.get('premium_usage_flags', 0)
         self.mfa_enabled = data.get('mfa_enabled', False)
-        self.premium_type = try_enum(PremiumType, data.get('premium_type')) if data.get('premium_type') else None
+        self.premium_type = try_enum(PremiumType, data.get('premium_type') or 0)
         self.bio = data.get('bio') or None
         self.nsfw_allowed = data.get('nsfw_allowed')
         self.desktop: bool = data.get('desktop', False)
@@ -786,11 +830,6 @@ class ClientUser(BaseUser):
     def locale(self) -> Locale:
         """:class:`Locale`: The IETF language tag used to identify the language the user is using."""
         return self._state.settings.locale if self._state.settings else try_enum(Locale, self._locale)
-
-    @property
-    def premium(self) -> bool:
-        """Indicates if the user is a premium user (i.e. has Discord Nitro)."""
-        return self.premium_type is not None
 
     @property
     def flags(self) -> PrivateUserFlags:
@@ -1051,6 +1090,14 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
         Specifies if the user is a bot account.
     system: :class:`bool`
         Specifies if the user is a system user (i.e. represents Discord officially).
+    premium_type: Optional[:class:`PremiumType`]
+        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic).
+
+        .. note::
+
+            This information is only available in certain contexts.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = ('__weakref__',)
@@ -1125,10 +1172,11 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
         ring: bool = True,
     ) -> ConnectReturn:
         channel = await self._get_channel()
-        call = channel.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls, _channel=channel)
+
+        if ring:
             await channel._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls, _channel=channel)
+        return ret
 
     async def create_dm(self) -> DMChannel:
         """|coro|
@@ -1195,10 +1243,18 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
         """
         await self._state.http.remove_relationship(self.id, action=RelationshipAction.unfriend)
 
-    async def send_friend_request(self) -> None:
+    async def send_friend_request(self, *, friend_token: str = MISSING) -> None:
         """|coro|
 
         Sends the user a friend request.
+
+        Parameters
+        -----------
+        friend_token: :class:`str`
+            The friend token to use for sending the friend request.
+            This will bypass the user's friend request settings.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
@@ -1207,4 +1263,6 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
         HTTPException
             Sending the friend request failed.
         """
-        await self._state.http.add_relationship(self.id, action=RelationshipAction.send_friend_request)
+        await self._state.http.add_relationship(
+            self.id, friend_token=friend_token or None, action=RelationshipAction.send_friend_request
+        )

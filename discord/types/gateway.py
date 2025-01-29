@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Generic, List, Literal, Optional, TypedDict, TypeVar, Union
+from typing import Generic, Dict, List, Literal, Optional, Tuple, TypedDict, TypeVar, Union
 from typing_extensions import NotRequired, Required
 
 from .activity import Activity, BasePresenceUpdate, PartialPresenceUpdate, StatusType
@@ -35,13 +35,13 @@ from .channel import ChannelType, DMChannel, GroupDMChannel, StageInstance
 from .emoji import Emoji, PartialEmoji
 from .entitlements import Entitlement, GatewayGift
 from .experiment import GuildExperiment, UserExperiment
-from .guild import ApplicationCommandCounts, Guild, SupplementalGuild, UnavailableGuild
+from .guild import Guild, SupplementalGuild, UnavailableGuild
 from .integration import BaseIntegration, IntegrationApplication
 from .interactions import Modal
 from .invite import _InviteTargetType
 from .library import LibraryApplication
 from .member import MemberWithPresence, MemberWithUser
-from .message import Message
+from .message import Message, ReactionType
 from .payments import Payment
 from .read_state import ReadState, ReadStateType
 from .role import Role
@@ -49,7 +49,7 @@ from .scheduled_event import GuildScheduledEvent
 from .snowflake import Snowflake
 from .sticker import GuildSticker
 from .subscriptions import PremiumGuildSubscriptionSlot
-from .threads import Thread, ThreadMember
+from .threads import BaseThreadMember, Thread, ThreadMember
 from .user import (
     Connection,
     FriendSuggestion,
@@ -190,6 +190,9 @@ class MessageReactionAddEvent(TypedDict):
     member: NotRequired[MemberWithUser]
     guild_id: NotRequired[Snowflake]
     message_author_id: NotRequired[Snowflake]
+    burst: bool
+    burst_colors: NotRequired[List[str]]
+    type: ReactionType
 
 
 class MessageReactionRemoveEvent(TypedDict):
@@ -198,6 +201,8 @@ class MessageReactionRemoveEvent(TypedDict):
     message_id: Snowflake
     emoji: PartialEmoji
     guild_id: NotRequired[Snowflake]
+    burst: bool
+    type: ReactionType
 
 
 class MessageReactionRemoveAllEvent(TypedDict):
@@ -248,6 +253,7 @@ ChannelCreateEvent = ChannelUpdateEvent = ChannelDeleteEvent = _ChannelEvent
 class ChannelRecipientEvent(TypedDict):
     channel_id: Snowflake
     user: PartialUser
+    nick: str
 
 
 class ChannelPinsUpdateEvent(TypedDict):
@@ -315,8 +321,15 @@ class ThreadMembersUpdate(TypedDict):
     removed_member_ids: NotRequired[List[Snowflake]]
 
 
+class ThreadMemberListUpdateEvent(TypedDict):
+    guild_id: Snowflake
+    thread_id: Snowflake
+    members: List[BaseThreadMember]
+
+
 class GuildMemberAddEvent(MemberWithUser):
     guild_id: Snowflake
+    presence: NotRequired[BasePresenceUpdate]
 
 
 class SnowflakeUser(TypedDict):
@@ -461,6 +474,7 @@ class ConnectionsLinkCallbackEvent(TypedDict):
 
 class OAuth2TokenRevokeEvent(TypedDict):
     access_token: str
+    application_id: Snowflake
 
 
 class AuthSessionChangeEvent(TypedDict):
@@ -489,7 +503,7 @@ class BillingPopupBridgeCallbackEvent(TypedDict):
     payment_source_type: int
     state: str
     path: str
-    query: str
+    query: Dict[str, str]
 
 
 PaymentUpdateEvent = Payment
@@ -556,16 +570,27 @@ class PartialUpdateChannel(TypedDict):
     last_pin_timestamp: NotRequired[Optional[str]]
 
 
-class PassiveUpdateEvent(TypedDict):
+class PassiveUpdateV1Event(TypedDict):
     guild_id: Snowflake
     channels: List[PartialUpdateChannel]
     voice_states: NotRequired[List[VoiceState]]
     members: NotRequired[List[MemberWithUser]]
 
 
+class PassiveUpdateV2Event(TypedDict):
+    guild_id: Snowflake
+    removed_voice_states: List[Snowflake]
+    updated_channels: List[PartialUpdateChannel]
+    members: List[MemberWithUser]
+    updated_voice_states: List[VoiceState]
+
+
 class GuildApplicationCommandIndexUpdateEvent(TypedDict):
     guild_id: Snowflake
-    application_command_counts: ApplicationCommandCounts
+    # All these fields are dead
+    # application_command_counts: ApplicationCommandCounts
+    # bot_users: List[PartialUser]
+    # version: Snowflake
 
 
 class UserNoteUpdateEvent(TypedDict):
@@ -607,6 +632,23 @@ class CallDeleteEvent(TypedDict):
     unavailable: NotRequired[bool]
 
 
+class BaseGuildSubscribePayload(TypedDict, total=False):
+    typing: bool
+    threads: bool
+    activities: bool
+    member_updates: bool
+    members: List[Snowflake]
+    channels: Dict[Snowflake, List[Tuple[int, int]]]
+    thread_member_lists: List[Snowflake]
+
+
+class GuildSubscribePayload(BaseGuildSubscribePayload):
+    guild_id: Snowflake
+
+
+BulkGuildSubscribePayload = Dict[Snowflake, BaseGuildSubscribePayload]
+
+
 class _GuildMemberListGroup(TypedDict):
     id: Union[Snowflake, Literal['online', 'offline']]
 
@@ -628,7 +670,7 @@ GuildMemberListItem = Union[_GuildMemberListGroupItem, _GuildMemberListMemberIte
 
 class GuildMemberListSyncOP(TypedDict):
     op: Literal['SYNC']
-    range: tuple[int, int]
+    range: Tuple[int, int]
     items: List[GuildMemberListItem]
 
 
@@ -651,7 +693,7 @@ class GuildMemberListDeleteOP(TypedDict):
 
 class GuildMemberListInvalidateOP(TypedDict):
     op: Literal['INVALIDATE']
-    range: tuple[int, int]
+    range: Tuple[int, int]
 
 
 GuildMemberListOP = Union[
@@ -670,3 +712,11 @@ class GuildMemberListUpdateEvent(TypedDict):
     online_count: int
     groups: List[GuildMemberListGroup]
     ops: List[GuildMemberListOP]
+
+
+class PollVoteActionEvent(TypedDict):
+    user_id: Snowflake
+    channel_id: Snowflake
+    message_id: Snowflake
+    guild_id: NotRequired[Snowflake]
+    answer_id: int

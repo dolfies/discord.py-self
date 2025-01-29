@@ -38,6 +38,7 @@ from .interactions import MessageInteraction
 from .application import BaseApplication
 from .sticker import StickerItem
 from .threads import Thread, ThreadMember
+from .poll import Poll
 
 
 class PartialMessage(TypedDict):
@@ -52,10 +53,21 @@ class ChannelMention(TypedDict):
     name: str
 
 
+class ReactionCountDetails(TypedDict):
+    burst: int
+    normal: int
+
+
+ReactionType = Literal[0, 1]
+
+
 class Reaction(TypedDict):
     count: int
     me: bool
     emoji: PartialEmoji
+    me_burst: bool
+    count_details: ReactionCountDetails
+    burst_colors: List[str]
 
 
 class Attachment(TypedDict):
@@ -83,7 +95,11 @@ class MessageActivity(TypedDict):
     party_id: str
 
 
+MessageReferenceType = Literal[0, 1]
+
+
 class MessageReference(TypedDict, total=False):
+    type: MessageReferenceType
     message_id: Snowflake
     channel_id: Required[Snowflake]
     guild_id: Snowflake
@@ -102,9 +118,70 @@ class RoleSubscriptionData(TypedDict):
     is_renewal: bool
 
 
+PurchaseNotificationResponseType = Literal[0]
+
+
+class GuildProductPurchase(TypedDict):
+    listing_id: Snowflake
+    product_name: str
+
+
+class PurchaseNotificationResponse(TypedDict):
+    type: PurchaseNotificationResponseType
+    guild_product_purchase: Optional[GuildProductPurchase]
+
+
 MessageType = Literal[
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    14,
+    15,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    36,
+    37,
+    38,
+    39,
+    44,
 ]
+
+
+class MessageSnapshot(TypedDict):
+    type: MessageType
+    content: str
+    embeds: List[Embed]
+    attachments: List[Attachment]
+    timestamp: str
+    edited_timestamp: Optional[str]
+    flags: NotRequired[int]
+    mentions: List[UserWithMember]
+    mention_roles: SnowflakeList
+    sticker_items: NotRequired[List[StickerItem]]
+    components: NotRequired[List[MessageActionRow]]
 
 
 class Message(PartialMessage):
@@ -120,6 +197,7 @@ class Message(PartialMessage):
     attachments: List[Attachment]
     embeds: List[Embed]
     pinned: bool
+    poll: NotRequired[Poll]
     type: MessageType
     member: NotRequired[Member]
     mention_channels: NotRequired[List[ChannelMention]]
@@ -140,6 +218,7 @@ class Message(PartialMessage):
     role_subscription_data: NotRequired[RoleSubscriptionData]
     hit: NotRequired[bool]
     thread: NotRequired[Thread]
+    purchase_notification: NotRequired[PurchaseNotificationResponse]
 
 
 AllowedMentionType = Literal['roles', 'users', 'everyone']

@@ -127,6 +127,8 @@ __all__ = (
     'HubType',
     'NetworkConnectionType',
     'NetworkConnectionSpeed',
+    'PollLayoutType',
+    'MessageReferenceType',
 )
 
 if TYPE_CHECKING:
@@ -263,12 +265,19 @@ class ChannelType(Enum):
     stage_voice = 13
     directory = 14
     forum = 15
+    media = 16
 
     def __str__(self) -> str:
         return self.name
 
     def __int__(self):
         return self.value
+
+
+class MessageReferenceType(Enum):
+    default = 0
+    reply = 0
+    forward = 1
 
 
 class MessageType(Enum):
@@ -308,6 +317,11 @@ class MessageType(Enum):
     stage_raise_hand = 30
     stage_topic = 31
     guild_application_premium_subscription = 32
+    guild_incident_alert_mode_enabled = 36
+    guild_incident_alert_mode_disabled = 37
+    guild_incident_report_raid = 38
+    guild_incident_report_false_alarm = 39
+    purchase_notification = 44
 
 
 class SpeakingState(Enum):
@@ -666,11 +680,9 @@ class UserFlags(Enum):
     hypesquad_balance = 256
     early_supporter = 512
     team_user = 1024
-    partner_or_verification_application = 2048
     system = 4096
     has_unread_urgent_messages = 8192
     bug_hunter_level_2 = 16384
-    underage_deleted = 32768
     verified_bot = 65536
     verified_bot_developer = 131072
     discord_certified_moderator = 262144
@@ -678,7 +690,10 @@ class UserFlags(Enum):
     spammer = 1048576
     disable_premium = 2097152
     active_developer = 4194304
+    provisional_account = 8388608
     quarantined = 17592186044416
+    collaborator = 1125899906842624
+    restricted_collaborator = 2251799813685248
 
 
 class ActivityType(Enum):
@@ -1220,8 +1235,11 @@ class SubscriptionStatus(Enum):
     canceled = 3
     cancelled = 3
     ended = 4
-    inactive = 5
+    inactive = 5  # Guess, probably incorrect
     account_hold = 6
+    billing_retry = 7
+    paused = 8
+    pause_pending = 9
 
     def __int__(self) -> int:
         return self.value
@@ -1588,16 +1606,19 @@ class AutoModRuleTriggerType(Enum):
     spam = 3
     keyword_preset = 4
     mention_spam = 5
+    member_profile = 6
 
 
 class AutoModRuleEventType(Enum):
     message_send = 1
+    member_update = 2
 
 
 class AutoModRuleActionType(Enum):
     block_message = 1
     send_alert_message = 2
     timeout = 3
+    block_member_interactions = 4
 
 
 class ForumLayoutType(Enum):
@@ -1669,6 +1690,20 @@ class NetworkConnectionSpeed(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+class PollLayoutType(Enum):
+    default = 1
+    image_only_answers = 2
+
+
+class PurchaseNotificationType(Enum):
+    guild_product = 0
+
+
+class ReactionType(Enum):
+    normal = 0
+    burst = 1
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

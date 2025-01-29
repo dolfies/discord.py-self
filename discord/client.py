@@ -72,7 +72,15 @@ from .utils import MISSING
 from .object import Object, OLDEST_OBJECT
 from .backoff import ExponentialBackoff
 from .webhook import Webhook
-from .application import Application, ApplicationActivityStatistics, Company, EULA, PartialApplication, UnverifiedApplication
+from .application import (
+    Application,
+    ApplicationActivityStatistics,
+    Company,
+    EULA,
+    DetectableApplication,
+    PartialApplication,
+    UnverifiedApplication,
+)
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -82,7 +90,7 @@ from .team import Team
 from .billing import PaymentSource, PremiumUsage
 from .subscriptions import Subscription, SubscriptionItem, SubscriptionInvoice
 from .payments import Payment
-from .promotions import PricingPromotion, Promotion, TrialOffer
+from .promotions import PricingPromotion, Promotion, TrialOffer, UserOffer
 from .entitlements import Entitlement, Gift
 from .store import SKU, StoreListing, SubscriptionPlan
 from .guild_premium import *
@@ -182,14 +190,50 @@ class Client:
         amounts of guilds. The default is ``True``.
 
         .. versionadded:: 1.5
+    guild_subscriptions: :class:`bool`
+        Whether to subscribe to all guilds at startup.
+        This is required to receive member events and populate the thread cache.
+
+        For larger servers, this is required to receive nearly all events.
+
+        See :doc:`guild_subscriptions` for more information.
+
+        .. versionadded:: 2.1
+
+        .. warning::
+
+            If this is set to ``False``, the following consequences will occur:
+
+            - Large guilds (over 75,000 members) will not dispatch any non-stateful events (e.g. :func:`.on_message`, :func:`.on_reaction_add`, :func:`.on_typing`, etc.)
+            - :attr:`~Guild.threads` will only contain threads the client has joined.
+            - Guilds will not be chunkable and member events (e.g. :func:`.on_member_update`) will not be dispatched.
+                - Most :func:`.on_user_update` occurences will not be dispatched.
+                - The member (:attr:`~Guild.members`) and user (:attr:`~Client.users`) cache will be largely incomplete.
+                - Essentially, only the client user, friends/implicit relationships, voice members, and other subscribed-to users will be cached and dispatched.
+
+            This is useful if you want to control subscriptions manually (see :meth:`Guild.subscribe`) to save bandwidth and memory.
+            Disabling this is not recommended for most use cases.
     request_guilds: :class:`bool`
-        Whether to request guilds at startup. Defaults to True.
+        See ``guild_subscriptions``.
 
         .. versionadded:: 2.0
+
+        .. deprecated:: 2.1
+
+            This is deprecated and will be removed in a future version.
+            Use ``guild_subscriptions`` instead.
     status: Optional[:class:`.Status`]
         A status to start your presence with upon logging on to Discord.
     activity: Optional[:class:`.BaseActivity`]
         An activity to start your presence with upon logging on to Discord.
+    activities: List[:class:`.BaseActivity`]
+        A list of activities to start your presence with upon logging on to Discord. Cannot be sent with ``activity``.
+
+        .. versionadded:: 2.0
+    afk: :class:`bool`
+        Whether to start your session as AFK. Defaults to ``False``.
+
+        .. versionadded:: 2.1
     allowed_mentions: Optional[:class:`AllowedMentions`]
         Control how the client handles mentions by default on every message sent.
 
@@ -236,6 +280,11 @@ class Client:
         set to is ``30.0`` seconds.
 
         .. versionadded:: 2.0
+    preferred_rtc_regions: List[:class:`str`]
+
+        A list of preferred RTC regions to connect to. This overrides Discord's suggested list.
+
+        .. versionadded:: 2.1
 
     Attributes
     -----------
@@ -277,7 +326,7 @@ class Client:
         self._enable_debug_events: bool = options.pop('enable_debug_events', False)
         self._sync_presences: bool = options.pop('sync_presence', True)
         self._connection: ConnectionState = self._get_state(**options)
-        self._closed: bool = False
+        self._closing_task: Optional[asyncio.Task[None]] = None
         self._ready: asyncio.Event = MISSING
 
         if VoiceClient.warn_nacl:
@@ -294,7 +343,10 @@ class Client:
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
-        if not self.is_closed():
+        # This avoids double-calling a user-provided .close()
+        if self._closing_task:
+            await self._closing_task
+        else:
             await self.close()
 
     # Internals
@@ -320,7 +372,10 @@ class Client:
         if status or activities:
             if status is None:
                 status = getattr(state.settings, 'status', None) or Status.unknown
-            self.loop.create_task(self.change_presence(activities=activities, status=status))
+            _log.debug('Setting initial presence to %s %s', status, activities)
+            self.loop.create_task(
+                self.change_presence(activities=activities, status=status, edit_settings=self._sync_presences)
+            )
 
     @property
     def latency(self) -> float:
@@ -489,13 +544,24 @@ class Client:
     def preferred_rtc_regions(self) -> List[str]:
         """List[:class:`str`]: Geo-ordered list of voice regions the connected client can use.
 
+        This value is determined by Discord by default, but can be set to override it.
+
         .. versionadded:: 2.0
 
         .. versionchanged:: 2.1
 
             Rename from ``preferred_voice_regions`` to ``preferred_rtc_regions``.
         """
-        return self._connection.preferred_rtc_regions
+        return (
+            self._connection.overriden_rtc_regions
+            if self._connection.overriden_rtc_regions is not None
+            else self._connection.preferred_rtc_regions
+        )
+
+    @preferred_rtc_regions.setter
+    def preferred_rtc_regions(self, value: List[str]) -> None:
+        values = [str(x).lower() for x in value]
+        self._connection.overriden_rtc_regions = values
 
     @property
     def pending_payments(self) -> Sequence[Payment]:
@@ -680,11 +746,21 @@ class Client:
         ):
             return  # Nothing changed
 
+        current_activity = None
+        for activity in self.activities:
+            if activity.type != ActivityType.custom:
+                current_activity = activity
+                break
+
+        if new_settings.status == self.client_status and new_settings.custom_activity == current_activity:
+            return  # Nothing changed
+
         status = new_settings.status
-        activities = [a for a in self.activities if a.type != ActivityType.custom]
+        activities = [a for a in self.client_activities if a.type != ActivityType.custom]
         if new_settings.custom_activity is not None:
             activities.append(new_settings.custom_activity)
 
+        _log.debug('Syncing presence to %s %s', status, new_settings.custom_activity)
         await self.change_presence(status=status, activities=activities, edit_settings=False)
 
     # Hooks
@@ -918,27 +994,29 @@ class Client:
 
         Closes the connection to Discord.
         """
-        if self._closed:
-            return
+        if self._closing_task:
+            return await self._closing_task
 
-        self._closed = True
+        async def _close():
+            for voice in self.voice_clients:
+                try:
+                    await voice.disconnect(force=True)
+                except Exception:
+                    # If an error happens during disconnects, disregard it
+                    pass
 
-        for voice in self.voice_clients:
-            try:
-                await voice.disconnect(force=True)
-            except Exception:
-                # If an error happens during disconnects, disregard it
-                pass
+            if self.ws is not None and self.ws.open:
+                await self.ws.close(code=1000)
 
-        if self.ws is not None and self.ws.open:
-            await self.ws.close(code=1000)
+            await self.http.close()
 
-        await self.http.close()
+            if self._ready is not MISSING:
+                self._ready.clear()
 
-        if self._ready is not MISSING:
-            self._ready.clear()
+            self.loop = MISSING
 
-        self.loop = MISSING
+        self._closing_task = asyncio.create_task(_close())
+        await self._closing_task
 
     def clear(self) -> None:
         """Clears the internal state of the bot.
@@ -947,9 +1025,9 @@ class Client:
         and :meth:`is_ready` both return ``False`` along with the bot's internal
         cache cleared.
         """
-        self._closed = False
+        self._closing_task = None
         self._ready.clear()
-        self._connection.clear()
+        self._connection.clear(full=True)
         self.http.clear()
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
@@ -1063,7 +1141,7 @@ class Client:
 
     def is_closed(self) -> bool:
         """:class:`bool`: Indicates if the websocket connection is closed."""
-        return self._closed
+        return self._closing_task is not None
 
     @property
     def voice_client(self) -> Optional[VoiceProtocol]:
@@ -1225,6 +1303,32 @@ class Client:
             activity = getattr(state.settings, 'custom_activity', None)
             activities = (activity,) if activity else activities
         return activities or tuple()
+
+    def is_afk(self) -> bool:
+        """:class:`bool`: Indicates if the client is currently AFK.
+
+        This allows the Discord client to know how to handle push notifications
+        better for you in case you are away from your keyboard.
+
+        .. versionadded:: 2.1
+        """
+        if self.ws:
+            return self.ws.afk
+        return False
+
+    @property
+    def idle_since(self) -> Optional[datetime]:
+        """Optional[:class:`datetime.datetime`]: When the client went idle.
+
+        This indicates that you are truly idle and not just lying.
+
+        .. versionadded:: 2.1
+        """
+        ws = self.ws
+        if ws is None or not ws.idle_since:
+            return None
+
+        return utils.parse_timestamp(ws.idle_since)
 
     @property
     def allowed_mentions(self) -> Optional[AllowedMentions]:
@@ -1602,21 +1706,30 @@ class Client:
     async def change_presence(
         self,
         *,
-        activity: Optional[ActivityTypes] = None,
-        activities: Optional[List[ActivityTypes]] = None,
-        status: Optional[Status] = None,
-        afk: bool = False,
+        activity: Optional[ActivityTypes] = MISSING,
+        activities: List[ActivityTypes] = MISSING,
+        status: Status = MISSING,
+        afk: bool = MISSING,
+        idle_since: Optional[datetime] = MISSING,
         edit_settings: bool = True,
     ) -> None:
         """|coro|
 
         Changes the client's presence.
 
+        .. versionchanged:: 2.1
+
+            The default value for parameters is now the current value.
+            ``None`` is no longer a valid value for most; you must explicitly
+            set it to the default value if you want to reset it.
+
         .. versionchanged:: 2.0
+
             Edits are no longer in place.
             Added option to update settings.
 
         .. versionchanged:: 2.0
+
             This function will now raise :exc:`TypeError` instead of
             ``InvalidArgument``.
 
@@ -1632,55 +1745,82 @@ class Client:
         ----------
         activity: Optional[:class:`.BaseActivity`]
             The activity being done. ``None`` if no activity is done.
-        activities: Optional[List[:class:`.BaseActivity`]]
-            A list of the activities being done. ``None`` if no activities
-            are done. Cannot be sent with ``activity``.
-        status: Optional[:class:`.Status`]
-            Indicates what status to change to. If ``None``, then
-            :attr:`.Status.online` is used.
+        activities: List[:class:`.BaseActivity`]
+            A list of the activities being done. Cannot be sent with ``activity``.
+
+            .. versionadded:: 2.0
+        status: :class:`.Status`
+            Indicates what status to change to.
         afk: :class:`bool`
             Indicates if you are going AFK. This allows the Discord
             client to know how to handle push notifications better
-            for you in case you are actually idle and not lying.
+            for you in case you are away from your keyboard.
+        idle_since: Optional[:class:`datetime.datetime`]
+            When the client went idle. This indicates that you are
+            truly idle and not just lying.
         edit_settings: :class:`bool`
-            Whether to update the settings with the new status and/or
+            Whether to update user settings with the new status and/or
             custom activity. This will broadcast the change and cause
             all connected (official) clients to change presence as well.
+
+            This should be set to ``False`` for idle changes.
+
             Required for setting/editing ``expires_at`` for custom activities.
-            It's not recommended to change this, as setting it to ``False`` causes undefined behavior.
+            It's not recommended to change this, as setting it to ``False``
+            can cause undefined behavior.
 
         Raises
         ------
         TypeError
             The ``activity`` parameter is not the proper type.
             Both ``activity`` and ``activities`` were passed.
+        ValueError
+            More than one custom activity was passed.
         """
-        if activity and activities:
+        if activity is not MISSING and activities is not MISSING:
             raise TypeError('Cannot pass both activity and activities')
-        activities = activities or activity and [activity]
-        if activities is None:
-            activities = []
 
-        if status is None:
-            status = Status.online
-        elif status is Status.offline:
+        skip_activities = False
+        if activities is MISSING:
+            if activity is not MISSING:
+                activities = [activity] if activity else []
+            else:
+                activities = list(self.client_activities)
+                skip_activities = True
+        else:
+            activities = activities or []
+
+        skip_status = status is MISSING
+        if status is MISSING:
+            status = self.client_status
+        if status is Status.offline:
             status = Status.invisible
 
-        await self.ws.change_presence(status=status, activities=activities, afk=afk)
+        if afk is MISSING:
+            afk = self.ws.afk if self.ws else False
 
-        if edit_settings:
-            custom_activity = None
+        if idle_since is MISSING:
+            since = self.ws.idle_since if self.ws else 0
+        else:
+            since = int(idle_since.timestamp() * 1000) if idle_since else 0
 
+        custom_activity = None
+        if not skip_activities:
             for activity in activities:
                 if getattr(activity, 'type', None) is ActivityType.custom:
+                    if custom_activity is not None:
+                        raise ValueError('More than one custom activity was passed')
                     custom_activity = activity
 
+        await self.ws.change_presence(status=status, activities=activities, afk=afk, since=since)
+
+        if edit_settings and self.settings:
             payload: Dict[str, Any] = {}
-            if status != getattr(self.settings, 'status', None):
+            if not skip_status and status != self.settings.status:
                 payload['status'] = status
-            if custom_activity != getattr(self.settings, 'custom_activity', None):
+            if not skip_activities and custom_activity != self.settings.custom_activity:
                 payload['custom_activity'] = custom_activity
-            if payload and self.settings:
+            if payload:
                 await self.settings.edit(**payload)
 
     async def change_voice_state(
@@ -1690,13 +1830,16 @@ class Client:
         self_mute: bool = False,
         self_deaf: bool = False,
         self_video: bool = False,
-        preferred_region: Optional[str] = MISSING,
     ) -> None:
         """|coro|
 
         Changes client's private channel voice state.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            Removed the ``preferred_region`` parameter.
 
         Parameters
         -----------
@@ -1709,19 +1852,12 @@ class Client:
         self_video: :class:`bool`
             Indicates if the client is using video. Untested & unconfirmed
             (do not use).
-        preferred_region: Optional[:class:`str`]
-            The preferred region to connect to.
         """
         state = self._connection
         ws = self.ws
         channel_id = channel.id if channel else None
 
-        if preferred_region is None or channel_id is None:
-            region = None
-        else:
-            region = str(preferred_region) if preferred_region else state.preferred_rtc_region
-
-        await ws.voice_state(None, channel_id, self_mute, self_deaf, self_video, preferred_region=region)
+        await ws.voice_state(None, channel_id, self_mute, self_deaf, self_video)
 
     # Guild stuff
 
@@ -1812,8 +1948,8 @@ class Client:
 
         Raises
         ------
-        Forbidden
-            You do not have access to the guild.
+        NotFound
+            The guild doesn't exist or you got no access to it.
         HTTPException
             Getting the guild failed.
 
@@ -2091,6 +2227,27 @@ class Client:
         )
         return Invite.from_incomplete(state=self._connection, data=data)
 
+    async def create_invite(self) -> Invite:
+        """|coro|
+
+        Creates a new friend :class:`.Invite`.
+
+        .. versionadded:: 2.0
+
+        Raises
+        ------
+        HTTPException
+            Creating the invite failed.
+
+        Returns
+        --------
+        :class:`.Invite`
+            The created friend invite.
+        """
+        state = self._connection
+        data = await state.http.create_friend_invite()
+        return Invite.from_incomplete(state=state, data=data)
+
     async def accept_invite(self, url: Union[Invite, str], /) -> Invite:
         """|coro|
 
@@ -2248,11 +2405,6 @@ class Client:
 
             This method is an API call. If you have member cache enabled, consider :meth:`get_user` instead.
 
-        .. warning::
-
-            This API route is not well-used by the Discord client and may increase your chances at getting detected.
-            Consider :meth:`fetch_user_profile` if you share a guild/relationship with the user.
-
         .. versionchanged:: 2.0
 
             ``user_id`` parameter is now positional-only.
@@ -2285,14 +2437,15 @@ class Client:
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
+        friend_token: str = MISSING,
     ) -> UserProfile:
         """|coro|
 
         Retrieves a :class:`.UserProfile` based on their user ID.
 
-        You must share a guild, be friends with this user,
-        or have an incoming friend request from them to
-        get this information (unless the user is a bot).
+        You must provide a valid ``friend_token``, share a guild with,
+        be friends with, or have an incoming friend request from this
+        user to get this information, unless the user is a bot.
 
         .. versionchanged:: 2.0
 
@@ -2314,17 +2467,19 @@ class Client:
             .. versionadded:: 2.0
         with_mutual_friends: :class:`bool`
             Whether to fetch mutual friends.
-            This fills in :attr:`.UserProfile.mutual_friends` and :attr:`.UserProfile.mutual_friends_count`,
-            but requires an extra API call.
+            This fills in :attr:`.UserProfile.mutual_friends` and :attr:`.UserProfile.mutual_friends_count`.
 
             .. versionadded:: 2.0
+        friend_token: :class:`str`
+            The friend token to use for fetching the profile.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
         NotFound
             A user with this ID does not exist.
-        Forbidden
-            You do not have a mutual with this user, and and the user is not a bot.
+            You do not have a mutual with this user and the user is not a bot.
         HTTPException
             Fetching the profile failed.
 
@@ -2335,13 +2490,14 @@ class Client:
         """
         state = self._connection
         data = await state.http.get_user_profile(
-            user_id, with_mutual_guilds=with_mutual_guilds, with_mutual_friends_count=with_mutual_friends_count
+            user_id,
+            with_mutual_guilds=with_mutual_guilds,
+            with_mutual_friends_count=with_mutual_friends_count,
+            with_mutual_friends=with_mutual_friends,
+            friend_token=friend_token or None,
         )
-        mutual_friends = None
-        if with_mutual_friends and not data['user'].get('bot', False):
-            mutual_friends = await state.http.get_mutual_friends(user_id)
 
-        return UserProfile(state=state, data=data, mutual_friends=mutual_friends)
+        return UserProfile(state=state, data=data)
 
     async def fetch_channel(self, channel_id: int, /) -> Union[GuildChannel, PrivateChannel, Thread]:
         """|coro|
@@ -2792,11 +2948,6 @@ class Client:
         if friend_discovery_flags:
             payload['friend_discovery_flags'] = friend_discovery_flags.value
 
-        guild_positions = kwargs.pop('guild_positions', None)
-        if guild_positions:
-            guild_positions = [str(x.id) for x in guild_positions]
-            payload['guild_positions'] = guild_positions
-
         restricted_guilds = kwargs.pop('restricted_guilds', None)
         if restricted_guilds:
             restricted_guilds = [str(x.id) for x in restricted_guilds]
@@ -2880,6 +3031,32 @@ class Client:
         data = await state.http.get_friend_suggestions()
         return [FriendSuggestion(state=state, data=d) for d in data]
 
+    async def friend_token(self) -> str:
+        """|coro|
+
+        Retrieves your friend token.
+
+        These can be used to fetch the user's profile without a mutual
+        and add the user as a friend regardless of their friend request settings.
+
+        To share, append it to the user's URL like so:
+        ``https://discord.com/users/{user.id}?friend_token={friend_token}``.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Retrieving your friend token failed.
+
+        Returns
+        --------
+        :class:`str`
+            Your friend token.
+        """
+        data = await self.http.get_friend_token()
+        return data['friend_token']
+
     async def fetch_country_code(self) -> str:
         """|coro|
 
@@ -2900,12 +3077,17 @@ class Client:
         data = await self.http.get_country_code()
         return data['country_code']
 
-    async def fetch_preferred_voice_regions(self) -> List[str]:
+    async def fetch_preferred_rtc_regions(self) -> List[Tuple[str, List[str]]]:
         """|coro|
 
-        Retrieves the preferred voice regions of the client.
+        Retrieves the preferred RTC regions of the client.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            Changed the name of the method from ``fetch_preferred_voice_regions`` to ``fetch_preferred_rtc_regions``.
+            The method now returns a list of tuples instead of a list of strings.
 
         Raises
         -------
@@ -2914,11 +3096,11 @@ class Client:
 
         Returns
         -------
-        List[:class:`str`]
-            The preferred voice regions of the client.
+        List[Tuple[:class:`str`, List[:class:`str`]]]
+            The region name and list of IPs for the closest voice regions.
         """
         data = await self.http.get_preferred_voice_regions()
-        return [v['region'] for v in data]
+        return [(v['region'], v['ips']) for v in data]
 
     async def create_dm(self, user: Snowflake, /) -> DMChannel:
         """|coro|
@@ -2973,8 +3155,13 @@ class Client:
         :class:`.GroupChannel`
             The new group channel.
         """
-        users: List[_Snowflake] = [u.id for u in recipients]
         state = self._connection
+
+        users: List[_Snowflake] = [u.id for u in recipients]
+        if len(users) == 1:
+            # To create a group DM with one user, the client user must be included
+            users.append(state.self_id)  # type: ignore # user is always present when logged in
+
         data = await state.http.start_group(users)
         return GroupChannel(me=self.user, data=data, state=state)  # type: ignore # user is always present when logged in
 
@@ -3072,12 +3259,17 @@ class Client:
         data = await state.http.get_my_applications(with_team_applications=with_team_applications)
         return [Application(state=state, data=d) for d in data]
 
-    async def detectable_applications(self) -> List[PartialApplication]:
+    async def detectable_applications(self) -> List[DetectableApplication]:
         """|coro|
 
         Retrieves the list of applications detectable by the Discord client.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            The method now returns a list of :class:`.DetectableApplication`
+            instead of :class:`.PartialApplication` due to an API change.
 
         Raises
         -------
@@ -3086,12 +3278,12 @@ class Client:
 
         Returns
         -------
-        List[:class:`.PartialApplication`]
+        List[:class:`.DetectableApplication`]
             The applications detectable by the Discord client.
         """
         state = self._connection
         data = await state.http.get_detectable_applications()
-        return [PartialApplication(state=state, data=d) for d in data]
+        return [DetectableApplication(state=state, data=d) for d in data]
 
     async def fetch_application(self, application_id: int, /) -> Application:
         """|coro|
@@ -3947,6 +4139,37 @@ class Client:
         )
         return [Promotion(state=state, data=d) for d in data]
 
+    async def user_offer(self, *, payment_gateway: Optional[PaymentGateway] = None) -> UserOffer:
+        """|coro|
+
+        Retrieves the current user offer for your account.
+        This includes the trial offer and discount offer.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        payment_gateway: Optional[:class:`.PaymentGateway`]
+            The payment gateway to fetch the user offer for.
+            Used to fetch user offers for :attr:`.PaymentGateway.apple`
+            and :attr:`.PaymentGateway.google` mobile platforms.
+
+        Raises
+        -------
+        NotFound
+            You do not have a user offer.
+        HTTPException
+            Retrieving the user offer failed.
+
+        Returns
+        -------
+        :class:`.UserOffer`
+            The user offer for your account.
+        """
+        state = self._connection
+        data = await state.http.get_user_offer(payment_gateway=int(payment_gateway) if payment_gateway else None)
+        return UserOffer(data=data, state=state)
+
     async def trial_offer(self) -> TrialOffer:
         """|coro|
 
@@ -4773,6 +4996,27 @@ class Client:
         data = await self._connection.http.get_premium_usage()
         return PremiumUsage(data=data)
 
+    async def checkout_recovery(self) -> bool:
+        """|coro|
+
+        Checks whether the client should prompt the user to
+        continue their premium purchase.
+
+        .. versionadded:: 2.1
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the checkout recovery eligibility failed.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the client should prompt the user for checkout recovery.
+        """
+        data = await self._connection.http.checkout_recovery_eligibility()
+        return data.get('is_eligible', False)
+
     async def recent_mentions(
         self,
         *,
@@ -4931,6 +5175,51 @@ class Client:
         state = self._connection
         data = await state.http.get_guild_affinities()
         return [GuildAffinity(data=d, state=state) for d in data['guild_affinities']]
+
+    async def channel_affinities(self) -> List[ChannelAffinity]:
+        """|coro|
+
+        Retrieves the channel affinities for the current user.
+
+        Channel affinities are the channels you interact with most frecently.
+
+        .. versionadded:: 2.1
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the channel affinities failed.
+
+        Returns
+        -------
+        List[:class:`.ChannelAffinity`]
+            The channel affinities.
+        """
+        state = self._connection
+        data = await state.http.get_channel_affinities()
+        return [ChannelAffinity(data=d, state=state) for d in data['channel_affinities']]
+
+    async def premium_affinities(self) -> List[User]:
+        """|coro|
+
+        Retrieves a list of friends who have a premium subscription,
+        used to incentivize the user to purchase one as well.
+
+        .. versionadded:: 2.1
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the premium affinities failed.
+
+        Returns
+        -------
+        List[:class:`discord.User`]
+            The users who share a premium subscription with the current user.
+        """
+        state = self._connection
+        data = await state.http.get_premium_affinity()
+        return [state.store_user(d) for d in data]
 
     async def join_active_developer_program(self, *, application: Snowflake, channel: Snowflake) -> int:
         """|coro|
@@ -5194,7 +5483,7 @@ class Client:
         data = await state.http.join_hub(email, guild.id, code)
         return state.create_guild(data['guild'])
 
-    async def pomelo_suggestion(self) -> str:
+    async def pomelo_suggestion(self, global_name: Optional[str] = MISSING) -> str:
         """|coro|
 
         Gets the suggested pomelo username for your account.
@@ -5203,9 +5492,15 @@ class Client:
 
         .. note::
 
-            This method requires you to be in the pomelo rollout.
+            This method requires you to be in the pomelo rollout if ``global_name`` is not provided.
 
         .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        global_name: Optional[:class:`str`]
+            The global name to suggest a username for.
+            Defaults to the current user's global name, if authenticated.
 
         Raises
         -------
@@ -5217,17 +5512,17 @@ class Client:
         :class:`str`
             The suggested username.
         """
-        data = await self.http.pomelo_suggestion()
+        http = self.http
+        if http.token and global_name is MISSING:
+            data = await http.pomelo_suggestion()
+        else:
+            data = await http.pomelo_suggestion_unauthed(global_name)
         return data['username']
 
     async def check_pomelo_username(self, username: str) -> bool:
         """|coro|
 
         Checks if a pomelo username is taken.
-
-        .. note::
-
-            This method requires you to be in the pomelo rollout.
 
         .. versionadded:: 2.1
 
@@ -5246,5 +5541,9 @@ class Client:
         :class:`bool`
             Whether the username is taken.
         """
-        data = await self.http.pomelo_attempt(username)
+        http = self.http
+        if http.token:
+            data = await http.pomelo_attempt(username)
+        else:
+            data = await http.pomelo_attempt_unauthed(username)
         return data['taken']

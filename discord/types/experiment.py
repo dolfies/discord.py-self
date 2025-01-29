@@ -84,7 +84,7 @@ UserExperiment = Tuple[
     int,  # hash
     int,  # revision
     int,  # bucket
-    int,  # override
+    Literal[-1, 0],  # override
     int,  # population
     int,  # hash_result
     Literal[0, 1],  # aa_mode

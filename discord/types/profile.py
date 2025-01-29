@@ -22,10 +22,11 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from typing import List, Optional, TypedDict
-from typing_extensions import NotRequired
+from typing import List, Optional, Tuple, TypedDict
+from typing_extensions import NotRequired, Required
 
 from .application import ApplicationInstallParams, RoleConnection
+from .emoji import Emoji
 from .member import PrivateMember as ProfileMember
 from .snowflake import Snowflake
 from .user import APIUser, PartialConnection, PremiumType
@@ -35,12 +36,21 @@ class ProfileUser(APIUser):
     bio: str
 
 
-class ProfileMetadata(TypedDict):
-    guild_id: NotRequired[int]
-    bio: NotRequired[str]
-    banner: NotRequired[Optional[str]]
-    accent_color: NotRequired[Optional[int]]
-    theme_colors: NotRequired[List[int]]
+class ProfileEffect(TypedDict):
+    id: Snowflake
+    expires_at: Optional[int]
+
+
+class ProfileMetadata(TypedDict, total=False):
+    guild_id: int
+    bio: str
+    banner: Optional[str]
+    accent_color: Optional[int]
+    theme_colors: Optional[Tuple[int, int]]
+    emoji: Optional[Emoji]
+    popout_animation_particle_type: Optional[Snowflake]
+    profile_effect: Optional[ProfileEffect]
+    pronouns: Required[str]
 
 
 class MutualGuild(TypedDict):
@@ -51,6 +61,7 @@ class MutualGuild(TypedDict):
 class ProfileApplication(TypedDict):
     id: Snowflake
     verified: bool
+    storefront_available: bool
     popular_application_command_ids: NotRequired[List[Snowflake]]
     primary_sku_id: NotRequired[Snowflake]
     flags: int
@@ -73,10 +84,12 @@ class Profile(TypedDict):
     guild_member_profile: NotRequired[Optional[ProfileMetadata]]
     guild_badges: List[ProfileBadge]
     mutual_guilds: NotRequired[List[MutualGuild]]
+    mutual_friends: NotRequired[List[APIUser]]
     mutual_friends_count: NotRequired[int]
     connected_accounts: List[PartialConnection]
     application_role_connections: NotRequired[List[RoleConnection]]
     premium_type: Optional[PremiumType]
     premium_since: Optional[str]
     premium_guild_since: Optional[str]
+    legacy_username: Optional[str]
     application: NotRequired[ProfileApplication]

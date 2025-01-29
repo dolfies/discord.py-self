@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Dict, Final, Iterator, List, Optional, Sequenc
 
 from .enums import HubType, try_enum
 from .metadata import Metadata
-from .utils import SequenceProxy, SnowflakeList, murmurhash32
+from .utils import SequenceProxy, SnowflakeList, murmurhash32, utcnow
 
 if TYPE_CHECKING:
     from .abc import Snowflake
@@ -126,6 +126,7 @@ class ExperimentFilters:
     FILTER_KEYS: Final[Dict[int, str]] = {
         1604612045: 'guild_has_feature',
         2404720969: 'guild_id_range',
+        3730341874: 'guild_age_range_days',
         2918402255: 'guild_member_count_range',
         3013771838: 'guild_ids',
         4148745523: 'guild_hub_types',
@@ -143,7 +144,16 @@ class ExperimentFilters:
         self.options: Metadata = self.array_object(data)
 
     def __repr__(self) -> str:
-        keys = ('features', 'id_range', 'member_count_range', 'ids', 'range_by_hash', 'has_vanity_url')
+        keys = (
+            'features',
+            'id_range',
+            'age_range',
+            'member_count_range',
+            'ids',
+            'hub_types',
+            'range_by_hash',
+            'has_vanity_url',
+        )
         attrs = [f'{attr}={getattr(self, attr)!r}' for attr in keys if getattr(self, attr) is not None]
         if attrs:
             return f'<ExperimentFilters {" ".join(attrs)}>'
@@ -168,7 +178,7 @@ class ExperimentFilters:
         return metadata
 
     @staticmethod
-    def in_range(num: int, start: Optional[int], end: Optional[int], /) -> bool:
+    def in_range(num: float, start: Optional[float], end: Optional[float], /) -> bool:
         if start is not None and num < start:
             return False
         if end is not None and num > end:
@@ -188,6 +198,13 @@ class ExperimentFilters:
         id_range_filter = self.options.guild_id_range
         if id_range_filter is not None:
             return id_range_filter.min_id, id_range_filter.max_id
+
+    @property
+    def age_range(self) -> Optional[Tuple[Optional[int], Optional[int]]]:
+        """Optional[Tuple[Optional[:class:`int`], Optional[:class:`int`]]]: The range of guild ages that are eligible for the population."""
+        age_range_filter = self.options.guild_age_range_days
+        if age_range_filter is not None:
+            return age_range_filter.min_id, age_range_filter.max_id
 
     @property
     def member_count_range(self) -> Optional[Tuple[Optional[int], Optional[int]]]:
@@ -251,6 +268,12 @@ class ExperimentFilters:
         if id_range is not None:
             # Guild must be within the range of snowflakes
             if not self.in_range(guild.id, *id_range):
+                return False
+
+        age_range = self.age_range
+        if age_range is not None:
+            # Guild must be within the range of ages (in days)
+            if not self.in_range((utcnow() - guild.created_at).days, *age_range):
                 return False
 
         member_count_range = self.member_count_range
@@ -330,7 +353,7 @@ class ExperimentPopulation:
 
     def bucket_for(self, guild: Guild, _result: Optional[int] = None, /) -> int:
         """Returns the assigned experiment bucket within a population for a guild.
-        Defaults to none (-1) if the guild is not in the population.
+        Defaults to None (-1) if the guild is not in the population.
 
         .. note::
 
@@ -406,7 +429,9 @@ class ExperimentOverride:
         return len(self._ids)
 
     def __contains__(self, item: Union[int, Snowflake], /) -> bool:
-        return getattr(item, 'id', item) in self._ids
+        if isinstance(item, int):
+            return item in self._ids
+        return item.id in self._ids
 
     def __iter__(self) -> Iterator[int]:
         return iter(self._ids)
@@ -623,7 +648,7 @@ class GuildExperiment:
 
     def bucket_for(self, guild: Guild, /) -> int:
         """Returns the assigned experiment bucket for a guild.
-        Defaults to none (-1) if the guild is not in the experiment.
+        Defaults to None (-1) if the guild is not in the experiment.
 
         Parameters
         -----------
@@ -640,10 +665,6 @@ class GuildExperiment:
         :class:`int`
             The experiment bucket.
         """
-        # a/a mode is always -1
-        if self.aa_mode:
-            return -1
-
         # Holdout must be fulfilled
         if self.holdout and not self.holdout.is_eligible(guild):
             return -1
@@ -661,6 +682,10 @@ class GuildExperiment:
                 pop_bucket = override.bucket_for(guild, hash_result)
                 if pop_bucket != -1:
                     return pop_bucket
+
+        # a/a mode is always -1 without an override
+        if self.aa_mode:
+            return -1
 
         for population in self.populations:
             pop_bucket = population.bucket_for(guild, hash_result)
@@ -722,10 +747,10 @@ class UserExperiment:
         The current revision of the experiment rollout.
     assignment: :class:`int`
         The assigned bucket for the user.
-    override: :class:`int`
-        The overriden bucket for the user, takes precedence over :attr:`assignment`.
+    override: :class:`bool`
+        Whether the user has an explicit bucket override.
     population: :class:`int`
-        The internal population group for the user.
+        The internal population group for the user, or None (-1) if manually overridden.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
     trigger_debugging:
@@ -753,7 +778,7 @@ class UserExperiment:
         self.hash: int = hash
         self.revision: int = revision
         self.assignment: int = bucket
-        self.override: int = override
+        self.override: bool = override == 0  # this is fucking weird
         self.population: int = population
         self._result: int = hash_result
         self.aa_mode: bool = aa_mode == 1
@@ -792,7 +817,7 @@ class UserExperiment:
         """:class:`int`: The assigned bucket for the user."""
         if self.aa_mode:
             return -1
-        return self.override if self.override != -1 else self.population
+        return self.assignment
 
     @property
     def result(self) -> int:

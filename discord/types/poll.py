@@ -24,31 +24,65 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TypedDict, Optional
+
+from typing import List, TypedDict, Optional, Literal, TYPE_CHECKING
 from typing_extensions import NotRequired
 
 from .snowflake import Snowflake
 
+if TYPE_CHECKING:
+    from .user import User
+    from .emoji import PartialEmoji
 
-class Role(TypedDict):
+
+LayoutType = Literal[1, 2]  # 1 = Default
+
+
+class PollMedia(TypedDict):
+    text: str
+    emoji: NotRequired[Optional[PartialEmoji]]
+
+
+class PollAnswer(TypedDict):
+    poll_media: PollMedia
+
+
+class PollAnswerWithID(PollAnswer):
+    answer_id: int
+
+
+class PollAnswerCount(TypedDict):
     id: Snowflake
-    name: str
-    color: int
-    hoist: bool
-    position: int
-    permissions: str
-    managed: bool
-    mentionable: bool
-    flags: int
-    icon: NotRequired[Optional[str]]
-    unicode_emoji: NotRequired[Optional[str]]
-    tags: NotRequired[RoleTags]
+    count: int
+    me_voted: bool
 
 
-class RoleTags(TypedDict, total=False):
-    bot_id: Snowflake
-    integration_id: Snowflake
-    subscription_listing_id: Snowflake
-    premium_subscriber: None
-    available_for_purchase: None
-    guild_connections: None
+class PollAnswerVoters(TypedDict):
+    users: List[User]
+
+
+class PollResult(TypedDict):
+    is_finalized: bool
+    answer_counts: List[PollAnswerCount]
+
+
+class PollCreate(TypedDict):
+    allow_multiselect: bool
+    answers: List[PollAnswer]
+    duration: float
+    layout_type: LayoutType
+    question: PollMedia
+
+
+# We don't subclass Poll as it will
+# still have the duration field, which
+# is converted into expiry when poll is
+# fetched from a message or returned
+# by a `send` method in a Messageable
+class Poll(TypedDict):
+    allow_multiselect: bool
+    answers: List[PollAnswerWithID]
+    expiry: str
+    layout_type: LayoutType
+    question: PollMedia
+    results: PollResult

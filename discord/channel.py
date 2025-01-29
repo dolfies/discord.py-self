@@ -115,7 +115,9 @@ if TYPE_CHECKING:
         DMChannel as DMChannelPayload,
         CategoryChannel as CategoryChannelPayload,
         GroupDMChannel as GroupChannelPayload,
+        GroupDMNickname as GroupDMNicknamePayload,
         ForumChannel as ForumChannelPayload,
+        MediaChannel as MediaChannelPayload,
         ForumTag as ForumTagPayload,
     )
     from .types.oauth2 import WebhookChannel as WebhookChannelPayload
@@ -488,9 +490,24 @@ class TextChannel(discord.abc.Messageable, discord.abc.GuildChannel, Hashable):
             return self.__class__(state=self._state, guild=self.guild, data=payload)  # type: ignore
 
     @utils.copy_doc(discord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> TextChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> TextChannel:
         return await self._clone_impl(
-            {'topic': self.topic, 'nsfw': self.nsfw, 'rate_limit_per_user': self.slowmode_delay}, name=name, reason=reason
+            {
+                'topic': self.topic,
+                'rate_limit_per_user': self.slowmode_delay,
+                'nsfw': self.nsfw,
+                'default_auto_archive_duration': self.default_auto_archive_duration,
+                'default_thread_rate_limit_per_user': self.default_thread_slowmode_delay,
+            },
+            name=name,
+            category=category,
+            reason=reason,
         )
 
     async def delete_messages(self, messages: Iterable[Snowflake], /, *, reason: Optional[str] = None) -> None:
@@ -1368,6 +1385,24 @@ class VocalGuildChannel(discord.abc.Messageable, discord.abc.Connectable, discor
         data = await self._state.http.create_webhook(self.id, name=str(name), avatar=avatar, reason=reason)
         return Webhook.from_state(data, state=self._state)
 
+    @utils.copy_doc(discord.abc.GuildChannel.clone)
+    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> Self:
+        base = {
+            'bitrate': self.bitrate,
+            'user_limit': self.user_limit,
+            'rate_limit_per_user': self.slowmode_delay,
+            'nsfw': self.nsfw,
+            'video_quality_mode': self.video_quality_mode.value,
+        }
+        if self.rtc_region:
+            base['rtc_region'] = self.rtc_region
+
+        return await self._clone_impl(
+            base,
+            name=name,
+            reason=reason,
+        )
+
 
 class VoiceChannel(VocalGuildChannel):
     """Represents a Discord guild voice channel.
@@ -1467,8 +1502,16 @@ class VoiceChannel(VocalGuildChannel):
         return ChannelType.voice
 
     @utils.copy_doc(discord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> VoiceChannel:
-        return await self._clone_impl({'bitrate': self.bitrate, 'user_limit': self.user_limit}, name=name, reason=reason)
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> VoiceChannel:
+        return await self._clone_impl(
+            {'bitrate': self.bitrate, 'user_limit': self.user_limit}, name=name, category=category, reason=reason
+        )
 
     @overload
     async def edit(self) -> None:
@@ -1493,6 +1536,7 @@ class VoiceChannel(VocalGuildChannel):
         rtc_region: Optional[str] = ...,
         video_quality_mode: VideoQualityMode = ...,
         slowmode_delay: int = ...,
+        status: Optional[str] = ...,
         reason: Optional[str] = ...,
     ) -> VoiceChannel:
         ...
@@ -1552,6 +1596,11 @@ class VoiceChannel(VocalGuildChannel):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        status: Optional[:class:`str`]
+            The new voice channel status. It can be up to 500 characters.
+            Can be ``None`` to remove the status.
+
+            .. versionadded:: 2.1
 
         Raises
         ------
@@ -1710,8 +1759,14 @@ class StageChannel(VocalGuildChannel):
         return ChannelType.stage_voice
 
     @utils.copy_doc(discord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> StageChannel:
-        return await self._clone_impl({}, name=name, reason=reason)
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> StageChannel:
+        return await self._clone_impl({}, name=name, category=category, reason=reason)
 
     @property
     def instance(self) -> Optional[StageInstance]:
@@ -1727,6 +1782,7 @@ class StageChannel(VocalGuildChannel):
         topic: str,
         privacy_level: PrivacyLevel = MISSING,
         send_start_notification: bool = False,
+        scheduled_event: Snowflake = MISSING,
         reason: Optional[str] = None,
     ) -> StageInstance:
         """|coro|
@@ -1746,6 +1802,10 @@ class StageChannel(VocalGuildChannel):
         send_start_notification: :class:`bool`
             Whether to send a start notification. This sends a push notification to @everyone if ``True``. Defaults to ``False``.
             You must have :attr:`~Permissions.mention_everyone` to do this.
+        scheduled_event: :class:`~discord.abc.Snowflake`
+            The guild scheduled event associated with the stage instance.
+
+            .. versionadded:: 2.1
         reason: :class:`str`
             The reason the stage instance was created. Shows up on the audit log.
 
@@ -1769,6 +1829,9 @@ class StageChannel(VocalGuildChannel):
                 raise TypeError('privacy_level field must be of type PrivacyLevel')
 
             payload['privacy_level'] = privacy_level.value
+
+        if scheduled_event is not MISSING:
+            payload['guild_scheduled_event_id'] = scheduled_event.id
 
         data = await self._state.http.create_stage_instance(**payload, reason=reason)
         return StageInstance(guild=self.guild, state=self._state, data=data)
@@ -1809,6 +1872,7 @@ class StageChannel(VocalGuildChannel):
         *,
         name: str = ...,
         nsfw: bool = ...,
+        bitrate: int = ...,
         user_limit: int = ...,
         position: int = ...,
         sync_permissions: int = ...,
@@ -1845,6 +1909,8 @@ class StageChannel(VocalGuildChannel):
         ----------
         name: :class:`str`
             The new channel's name.
+        bitrate: :class:`int`
+            The new channel's bitrate.
         position: :class:`int`
             The new channel's position.
         nsfw: :class:`bool`
@@ -1973,7 +2039,13 @@ class CategoryChannel(discord.abc.GuildChannel, Hashable):
         return self.nsfw
 
     @utils.copy_doc(discord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> CategoryChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel] = None,
+        reason: Optional[str] = None,
+    ) -> CategoryChannel:
         return await self._clone_impl({'nsfw': self.nsfw}, name=name, reason=reason)
 
     @overload
@@ -2432,6 +2504,7 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         'topic',
         '_state',
         '_flags',
+        '_type',
         'nsfw',
         'category_id',
         'position',
@@ -2447,9 +2520,10 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         '_flags',
     )
 
-    def __init__(self, *, state: ConnectionState, guild: Guild, data: ForumChannelPayload):
+    def __init__(self, *, state: ConnectionState, guild: Guild, data: Union[ForumChannelPayload, MediaChannelPayload]):
         self._state: ConnectionState = state
         self.id: int = int(data['id'])
+        self._type: Literal[15, 16] = data['type']
         self._update(guild, data)
 
     def __repr__(self) -> str:
@@ -2463,7 +2537,7 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         joined = ' '.join('%s=%r' % t for t in attrs)
         return f'<{self.__class__.__name__} {joined}>'
 
-    def _update(self, guild: Guild, data: ForumChannelPayload) -> None:
+    def _update(self, guild: Guild, data: Union[ForumChannelPayload, MediaChannelPayload]) -> None:
         self.guild: Guild = guild
         self.name: str = data['name']
         self.category_id: Optional[int] = utils._get_as_snowflake(data, 'parent_id')
@@ -2499,8 +2573,10 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         self._fill_overwrites(data)
 
     @property
-    def type(self) -> ChannelType:
+    def type(self) -> Literal[ChannelType.forum, ChannelType.media]:
         """:class:`ChannelType`: The channel's Discord type."""
+        if self._type == 16:
+            return ChannelType.media
         return ChannelType.forum
 
     @property
@@ -2574,10 +2650,41 @@ class ForumChannel(discord.abc.GuildChannel, Hashable):
         """:class:`bool`: Checks if the forum is NSFW."""
         return self.nsfw
 
+    def is_media(self) -> bool:
+        """:class:`bool`: Checks if the channel is a media channel.
+
+        .. versionadded:: 2.1
+        """
+        return self._type == ChannelType.media.value
+
     @utils.copy_doc(discord.abc.GuildChannel.clone)
-    async def clone(self, *, name: Optional[str] = None, reason: Optional[str] = None) -> ForumChannel:
+    async def clone(
+        self,
+        *,
+        name: Optional[str] = None,
+        category: Optional[CategoryChannel],
+        reason: Optional[str] = None,
+    ) -> ForumChannel:
+        base = {
+            'topic': self.topic,
+            'rate_limit_per_user': self.slowmode_delay,
+            'nsfw': self.nsfw,
+            'default_auto_archive_duration': self.default_auto_archive_duration,
+            'available_tags': [tag.to_dict() for tag in self.available_tags],
+            'default_thread_rate_limit_per_user': self.default_thread_slowmode_delay,
+        }
+        if self.default_sort_order:
+            base['default_sort_order'] = self.default_sort_order.value
+        if self.default_reaction_emoji:
+            base['default_reaction_emoji'] = self.default_reaction_emoji._to_forum_tag_payload()
+        if not self.is_media() and self.default_layout:
+            base['default_forum_layout'] = self.default_layout.value
+
         return await self._clone_impl(
-            {'topic': self.topic, 'nsfw': self.nsfw, 'rate_limit_per_user': self.slowmode_delay}, name=name, reason=reason
+            base,
+            name=name,
+            category=category,
+            reason=reason,
         )
 
     @overload
@@ -3458,7 +3565,6 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         '_requested_at',
         '_spam',
         '_state',
-        '_accessed',
     )
 
     def __init__(self, *, me: ClientUser, state: ConnectionState, data: DMChannelPayload):
@@ -3467,7 +3573,6 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         self.me: ClientUser = me
         self.id: int = int(data['id'])
         self._update(data)
-        self._accessed: bool = False
 
     def _update(self, data: DMChannelPayload) -> None:
         self.last_message_id: Optional[int] = utils._get_as_snowflake(data, 'last_message_id')
@@ -3486,19 +3591,18 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         return PrivateCall(**kwargs)
 
     async def _get_channel(self) -> Self:
-        if not self._accessed:
-            await self._state.call_connect(self.id)
-            self._accessed = True
         return self
 
     async def _initial_ring(self) -> None:
-        ring = self.recipient.is_friend()
-        if not ring:
-            data = await self._state.http.get_ringability(self.id)
-            ring = data['ringable']
+        call = self.call
+        if not call or (call.connected and len(call.voice_states) == 1):
+            ring = self.recipient.is_friend()
+            if not ring:
+                data = await self._state.http.get_ringability(self.id)
+                ring = data['ringable']
 
-        if ring:
-            await self._state.http.ring(self.id)
+            if ring:
+                await self._state.http.ring(self.id)
 
     def __str__(self) -> str:
         if self.recipient:
@@ -3712,6 +3816,48 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         """
         return Permissions._dm_permissions()
 
+    async def add_recipients(self, *recipients: Snowflake) -> GroupChannel:
+        r"""|coro|
+
+        Adds recipients to this DM. This spawns a new group with the existing DM
+        recipient and the new recipients.
+
+        A group can only have a maximum of 10 members.
+        Attempting to add more ends up in an exception. To
+        add a recipient to the group, you must have a relationship
+        with the user of type :attr:`RelationshipType.friend`.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        \*recipients: :class:`~discord.abc.Snowflake`
+            An argument list of users to add to this group.
+
+        Raises
+        -------
+        TypeError
+            No recipients were provided.
+        Forbidden
+            You do not have permissions to add a recipient to this group.
+        HTTPException
+            Adding a recipient to this group failed.
+
+        Returns
+        --------
+        :class:`GroupChannel`
+            The newly created group channel. Due to a Discord limitation,
+            this will not contain complete recipient data.
+        """
+        if len(recipients) < 1:
+            raise TypeError('add_recipients() missing 1 required positional argument')
+
+        state = self._state
+        data = await state.http.convert_dm(self.id, recipients[0].id)
+        channel = GroupChannel(state=state, data=data, me=self.me)
+        await channel.add_recipients(*[r for r in recipients[1:]])
+        return channel
+
     def get_partial_message(self, message_id: int, /) -> PartialMessage:
         """Creates a :class:`PartialMessage` from the message ID.
 
@@ -3796,11 +3942,11 @@ class DMChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc.Pr
         :class:`~discord.VoiceProtocol`
             A voice client that is fully connected to the voice server.
         """
-        await self._get_channel()
-        call = self.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+
+        if ring:
             await self._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+        return ret
 
     async def accept(self) -> DMChannel:
         """|coro|
@@ -3897,6 +4043,13 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         A mapping of users to their respective nicknames in the group channel.
 
         .. versionadded:: 2.0
+    origin_channel_id: Optional[:class:`int`]
+        The ID of the DM this group channel originated from, if any.
+        This can only be accurately received in :func:`on_private_channel_create`
+        due to a Discord limitation.
+
+        .. versionadded:: 2.1
+
     """
 
     __slots__ = (
@@ -3908,11 +4061,11 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         'managed',
         'application_id',
         'nicks',
+        'origin_channel_id',
         '_icon',
         'name',
         'me',
         '_state',
-        '_accessed',
     )
 
     def __init__(self, *, me: ClientUser, state: ConnectionState, data: GroupChannelPayload):
@@ -3920,7 +4073,6 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         self.id: int = int(data['id'])
         self.me: ClientUser = me
         self._update(data)
-        self._accessed: bool = False
 
     def _update(self, data: GroupChannelPayload) -> None:
         self.owner_id: int = int(data['owner_id'])
@@ -3931,7 +4083,17 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         self.last_pin_timestamp: Optional[datetime.datetime] = utils.parse_time(data.get('last_pin_timestamp'))
         self.managed: bool = data.get('managed', False)
         self.application_id: Optional[int] = utils._get_as_snowflake(data, 'application_id')
-        self.nicks: Dict[User, str] = {utils.get(self.recipients, id=int(k)): v for k, v in data.get('nicks', {}).items()}  # type: ignore
+        self.nicks: Dict[User, str] = self._unroll_nicks(data.get('nicks', []))
+        self.origin_channel_id: Optional[int] = utils._get_as_snowflake(data, 'origin_channel_id')
+
+    def _unroll_nicks(self, data: List[GroupDMNicknamePayload]) -> Dict[User, str]:
+        ret = {}
+        for entry in data:
+            user_id = int(entry['id'])
+            user = utils.get(self.recipients, id=user_id)
+            if user:
+                ret[user] = entry['nick']
+        return ret
 
     def _get_voice_client_key(self) -> Tuple[int, str]:
         return self.me.id, 'self_id'
@@ -3940,9 +4102,6 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         return self.me.id, self.id
 
     async def _get_channel(self) -> Self:
-        if not self._accessed:
-            await self._state.call_connect(self.id)
-            self._accessed = True
         return self
 
     def _initial_ring(self):
@@ -4010,6 +4169,17 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         if self._icon is None:
             return None
         return Asset._from_icon(self._state, self.id, self._icon, path='channel')
+
+    @property
+    def origin_channel(self) -> Optional[DMChannel]:
+        """Optional[:class:`DMChannel`]: The DM this group channel originated from, if any.
+
+        This can only be accurately received in :func:`on_private_channel_create`
+        due to a Discord limitation.
+
+        .. versionadded:: 2.1
+        """
+        return self._state._get_private_channel(self.origin_channel_id) if self.origin_channel_id else None  # type: ignore
 
     @property
     def created_at(self) -> datetime.datetime:
@@ -4196,7 +4366,6 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
             Adding a recipient to this group failed.
         """
         nicknames = {k.id: v for k, v in nicks.items()} if nicks else {}
-        await self._get_channel()
         req = self._state.http.add_group_recipient
         for recipient in recipients:
             await req(self.id, recipient.id, getattr(recipient, 'nick', (nicknames.get(recipient.id) if nicks else None)))
@@ -4218,7 +4387,6 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         HTTPException
             Removing a recipient from this group failed.
         """
-        await self._get_channel()
         req = self._state.http.remove_group_recipient
         for recipient in recipients:
             await req(self.id, recipient.id)
@@ -4255,8 +4423,6 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         HTTPException
             Editing the group failed.
         """
-        await self._get_channel()
-
         payload = {}
         if name is not MISSING:
             payload['name'] = name
@@ -4372,11 +4538,11 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         cls: Callable[[Client, discord.abc.VocalChannel], T] = VoiceClient,
         ring: bool = True,
     ) -> T:
-        await self._get_channel()
-        call = self.call
-        if call is None and ring:
+        ret = await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+
+        if ring:
             await self._initial_ring()
-        return await super().connect(timeout=timeout, reconnect=reconnect, cls=cls)
+        return ret
 
 
 class PartialMessageable(discord.abc.Messageable, Hashable):
@@ -4493,6 +4659,14 @@ class PartialMessageable(discord.abc.Messageable, Hashable):
         """
         return Permissions.none()
 
+    @property
+    def mention(self) -> str:
+        """:class:`str`: Returns a string that allows you to mention the channel.
+
+        .. versionadded:: 2.1
+        """
+        return f'<#{self.id}>'
+
     def get_partial_message(self, message_id: int, /) -> PartialMessage:
         """Creates a :class:`PartialMessage` from the message ID.
 
@@ -4530,6 +4704,8 @@ def _guild_channel_factory(channel_type: int):
     elif value is ChannelType.directory:
         return DirectoryChannel, value
     elif value is ChannelType.forum:
+        return ForumChannel, value
+    elif value is ChannelType.media:
         return ForumChannel, value
     else:
         return None, value

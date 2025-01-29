@@ -41,6 +41,7 @@ class PartialUser(TypedDict):
     bot: NotRequired[bool]
     system: NotRequired[bool]
     global_name: Optional[str]
+    premium_type: NotRequired[PremiumType]
 
 
 ConnectionType = Literal[
@@ -95,6 +96,7 @@ class User(APIUser, total=False):
 class UserAvatarDecorationData(TypedDict):
     asset: str
     sku_id: NotRequired[Snowflake]
+    expires_at: Optional[int]
 
 
 class PomeloAttempt(TypedDict):
@@ -228,6 +230,15 @@ class GuildAffinities(TypedDict):
     guild_affinities: List[GuildAffinity]
 
 
+class ChannelAffinity(TypedDict):
+    channel_id: Snowflake
+    affinity: float
+
+
+class ChannelAffinities(TypedDict):
+    channel_affinities: List[ChannelAffinity]
+
+
 class Note(TypedDict):
     note: str
     user_id: Snowflake
@@ -244,6 +255,10 @@ class FriendSuggestion(TypedDict):
     suggested_user: PartialUser
     reasons: List[FriendSuggestionReason]
     from_suggested_user_contacts: NotRequired[bool]
+
+
+class FriendToken(TypedDict):
+    friend_token: str
 
 
 class Report(TypedDict):

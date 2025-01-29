@@ -198,7 +198,7 @@ class Embed:
         """Converts a :class:`dict` to a :class:`Embed` provided it is in the
         format that Discord expects it to be in.
 
-        You can find out about this format in the :ddocs:`official Discord documentation <resources/channel#embed-object>`.
+        You can find out about this format in the :ddocs:`official Discord documentation <resources/message#embed-object>`.
 
         Parameters
         -----------
@@ -450,9 +450,6 @@ class Embed:
 
         This function returns the class instance to allow for fluent-style
         chaining.
-
-        .. versionchanged:: 1.4
-            Passing ``None`` removes the thumbnail.
 
         Parameters
         -----------

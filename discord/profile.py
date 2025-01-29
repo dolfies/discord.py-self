@@ -24,16 +24,18 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Collection, List, Optional, Tuple
 
 from . import utils
 from .application import ApplicationInstallParams
 from .asset import Asset, AssetMixin
+from .colour import Colour
 from .connections import PartialConnection
 from .enums import PremiumType, try_enum
 from .flags import ApplicationFlags
 from .member import Member
 from .mixins import Hashable
+from .partial_emoji import PartialEmoji
 from .user import User
 
 if TYPE_CHECKING:
@@ -45,11 +47,13 @@ if TYPE_CHECKING:
         Profile as ProfilePayload,
         ProfileApplication as ProfileApplicationPayload,
         ProfileBadge as ProfileBadgePayload,
+        ProfileMetadata as ProfileMetadataPayload,
         MutualGuild as MutualGuildPayload,
     )
     from .types.user import PartialUser as PartialUserPayload
 
 __all__ = (
+    'ProfileMetadata',
     'ApplicationProfile',
     'MutualGuild',
     'ProfileBadge',
@@ -67,9 +71,11 @@ class Profile:
     def __init__(self, **kwargs) -> None:
         data: ProfilePayload = kwargs.pop('data')
         user = data['user']
-        mutual_friends: List[PartialUserPayload] = kwargs.pop('mutual_friends', None)
+        profile = data.get('user_profile')
+        mutual_friends = data.get('mutual_friends')
 
         member = data.get('guild_member')
+        member_profile = data.get('guild_member_profile')
         if member is not None:
             member['user'] = user
             kwargs['data'] = member
@@ -83,6 +89,13 @@ class Profile:
         super().__init__(**kwargs)
         state = self._state
 
+        # All metadata will be missing on a blocked profile
+        self.metadata = ProfileMetadata(id=self.id, state=state, data=profile)
+        self._blocked = profile is None
+        if member is not None:
+            self.guild_metadata = ProfileMetadata(id=self.id, state=state, data=member_profile)
+
+        self.legacy_username: Optional[str] = data.get('legacy_username')
         self.bio: Optional[str] = user['bio'] or None
 
         # We need to do a bit of a hack here because premium_since is massively overloaded
@@ -90,11 +103,9 @@ class Profile:
         if guild_premium_since is not utils.MISSING:
             self.guild_premium_since = guild_premium_since
 
-        self.premium_type: Optional[PremiumType] = (
-            try_enum(PremiumType, data['premium_type']) if user.get('premium_type') else None
-        )
-        self.premium_since: Optional[datetime] = utils.parse_time(data['premium_since'])
-        self.premium_guild_since: Optional[datetime] = utils.parse_time(data['premium_guild_since'])
+        self.premium_type: Optional[PremiumType] = try_enum(PremiumType, data.get('premium_type') or 0) if profile else None
+        self.premium_since: Optional[datetime] = utils.parse_time(data.get('premium_since'))
+        self.premium_guild_since: Optional[datetime] = utils.parse_time(data.get('premium_guild_since'))
         self.connections: List[PartialConnection] = [PartialConnection(d) for d in data['connected_accounts']]
 
         self.badges: List[ProfileBadge] = [
@@ -109,7 +120,7 @@ class Profile:
         application = data.get('application')
         self.application: Optional[ApplicationProfile] = ApplicationProfile(data=application) if application else None
 
-    def _parse_mutual_friends(self, mutual_friends: List[PartialUserPayload]) -> Optional[List[User]]:
+    def _parse_mutual_friends(self, mutual_friends: Optional[Collection[PartialUserPayload]]) -> Optional[List[User]]:
         if self.bot:
             # Bots don't have friends
             return []
@@ -134,6 +145,136 @@ class Profile:
     def premium(self) -> bool:
         """:class:`bool`: Indicates if the user is a premium user."""
         return self.premium_since is not None
+
+    def is_blocker(self) -> bool:
+        """:class:`bool`: Indicates if the user has blocked the client user.
+
+        .. versionadded:: 2.1
+        """
+        return self._blocked
+
+
+class ProfileMetadata:
+    """Represents global or per-user Discord profile metadata.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    ------------
+    bio: Optional[:class:`str`]
+        The profile's "about me" field. Could be ``None``.
+    pronouns: Optional[:class:`str`]
+        The profile's pronouns, if any.
+    """
+
+    __slots__ = (
+        '_id',
+        '_state',
+        'bio',
+        'pronouns',
+        'emoji',
+        'popout_animation_particle_type',
+        '_banner',
+        '_accent_colour',
+        '_theme_colours',
+        '_guild_id',
+        '_effect_id',
+        '_effect_expires_at',
+    )
+
+    def __init__(self, *, id: int, state: ConnectionState, data: Optional[ProfileMetadataPayload]) -> None:
+        self._id = id
+        self._state = state
+
+        # user_profile is null if blocked
+        if data is None:
+            data = {'pronouns': ''}
+
+        self.bio: Optional[str] = data.get('bio') or None
+        self.pronouns: Optional[str] = data.get('pronouns') or None
+        self.emoji: Optional[PartialEmoji] = PartialEmoji.from_dict_stateful(data['emoji'], state) if data.get('emoji') else None  # type: ignore
+        self.popout_animation_particle_type: Optional[int] = utils._get_as_snowflake(data, 'popout_animation_particle_type')
+        self._banner: Optional[str] = data.get('banner')
+        self._accent_colour: Optional[int] = data.get('accent_color')
+        self._theme_colours: Optional[Tuple[int, int]] = tuple(data['theme_colors']) if data.get('theme_colors') else None  # type: ignore
+        self._guild_id: Optional[int] = utils._get_as_snowflake(data, 'guild_id')
+
+        effect_data = data.get('profile_effect')
+        self._effect_id: Optional[int] = utils._get_as_snowflake(effect_data, 'id') if effect_data else None
+        self._effect_expires_at = effect_data.get('expires_at') if effect_data else None
+
+    def __repr__(self) -> str:
+        return f'<ProfileMetadata bio={self.bio!r} pronouns={self.pronouns!r}>'
+
+    @property
+    def banner(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns the user's banner asset, if available."""
+        if self._banner is None:
+            return None
+        return Asset._from_user_banner(self._state, self._id, self._banner)
+
+    @property
+    def accent_colour(self) -> Optional[Colour]:
+        """Optional[:class:`Colour`]: Returns the profile's accent colour, if applicable.
+
+        A user's accent colour is only shown if they do not have a banner.
+        This will only be available if the user explicitly sets a colour.
+
+        There is an alias for this named :attr:`accent_color`.
+        """
+        if self._accent_colour is None:
+            return None
+        return Colour(self._accent_colour)
+
+    @property
+    def accent_color(self) -> Optional[Colour]:
+        """Optional[:class:`Colour`]: Returns the profile's accent color, if applicable.
+
+        A user's accent color is only shown if they do not have a banner.
+        This will only be available if the user explicitly sets a color.
+
+        There is an alias for this named :attr:`accent_colour`.
+        """
+        return self.accent_colour
+
+    @property
+    def theme_colours(self) -> Optional[Tuple[Colour, Colour]]:
+        """Optional[Tuple[:class:`Colour`, :class:`Colour`]]: Returns the profile's theme colours, if applicable.
+
+        The first colour is the user's background colour and the second is the user's foreground colour.
+
+        There is an alias for this named :attr:`theme_colors`.
+        """
+        if self._theme_colours is None:
+            return None
+        return tuple(Colour(c) for c in self._theme_colours)  # type: ignore
+
+    @property
+    def theme_colors(self) -> Optional[Tuple[Colour, Colour]]:
+        """Optional[Tuple[:class:`Colour`, :class:`Colour`]]: Returns the profile's theme colors, if applicable.
+
+        The first color is the user's background color and the second is the user's foreground color.
+
+        There is an alias for this named :attr:`theme_colours`.
+        """
+        return self.theme_colours
+
+    @property
+    def effect_id(self) -> Optional[int]:
+        """Optional[:class:`int`]: Returns the ID of the profile effect the user has, if any.."""
+        return self._effect_id
+
+    @property
+    def effect_expires_at(self) -> Optional[datetime]:
+        """Optional[:class:`datetime.datetime`]: Returns the profile effect's expiration time.
+
+        If the user does not have an expiring profile effect, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._effect_expires_at is None:
+            return None
+        return utils.parse_timestamp(self._effect_expires_at, ms=False)
 
 
 class ApplicationProfile(Hashable):
@@ -161,6 +302,10 @@ class ApplicationProfile(Hashable):
         The application's ID.
     verified: :class:`bool`
         Indicates if the application is verified.
+    storefront_available: :class:`bool`
+        Indicates if the application has public subscriptions or products available for purchase.
+
+        .. versionadded:: 2.1
     popular_application_command_ids: List[:class:`int`]
         A list of the IDs of the application's popular commands.
     primary_sku_id: Optional[:class:`int`]
@@ -175,6 +320,7 @@ class ApplicationProfile(Hashable):
     __slots__ = (
         'id',
         'verified',
+        'storefront_available',
         'popular_application_command_ids',
         'primary_sku_id',
         '_flags',
@@ -185,6 +331,7 @@ class ApplicationProfile(Hashable):
     def __init__(self, data: ProfileApplicationPayload) -> None:
         self.id: int = int(data['id'])
         self.verified: bool = data.get('verified', False)
+        self.storefront_available: bool = data.get('storefront_available', False)
         self.popular_application_command_ids: List[int] = [int(id) for id in data.get('popular_application_command_ids', [])]
         self.primary_sku_id: Optional[int] = utils._get_as_snowflake(data, 'primary_sku_id')
         self._flags: int = data.get('flags', 0)
@@ -351,16 +498,32 @@ class UserProfile(Profile, User):
 
             Returns the user's name with discriminator.
 
+    .. note::
+
+        Information may be missing or inaccurate if the user has blocked the client user.
+
     .. versionadded:: 2.0
 
     Attributes
     -----------
     application: Optional[:class:`ApplicationProfile`]
         The application profile of the user, if it is a bot.
+    metadata: :class:`ProfileMetadata`
+        The global profile metadata of the user.
+
+        .. versionadded:: 2.1
+    legacy_username: Optional[:class:`str`]
+        The user's legacy username (Username#Discriminator), if public.
+
+        .. versionadded:: 2.1
     bio: Optional[:class:`str`]
         The user's "about me" field. Could be ``None``.
     premium_type: Optional[:class:`PremiumType`]
-        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic). Could be None if the user is not premium.
+        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic).
+
+        .. versionchanged:: 2.1
+
+            This is now :attr:`PremiumType.none` instead of ``None`` if the user is not premium.
     premium_since: Optional[:class:`datetime.datetime`]
         An aware datetime object that specifies how long a user has been premium (had Nitro).
         ``None`` if the user is not a premium user.
@@ -430,12 +593,24 @@ class MemberProfile(Profile, Member):
 
             Returns the member's name with the discriminator.
 
+    .. note::
+
+        Information may be missing or inaccurate if the user has blocked the client user.
+
     .. versionadded:: 2.0
 
     Attributes
     -----------
     application: Optional[:class:`ApplicationProfile`]
         The application profile of the user, if it is a bot.
+    metadata: :class:`ProfileMetadata`
+        The global profile metadata of the user.
+
+        .. versionadded:: 2.1
+    legacy_username: Optional[:class:`str`]
+        The user's legacy username (Username#Discriminator), if public.
+
+        .. versionadded:: 2.1
     bio: Optional[:class:`str`]
         The user's "about me" field. Could be ``None``.
     guild_bio: Optional[:class:`str`]
@@ -448,7 +623,11 @@ class MemberProfile(Profile, Member):
 
             This is renamed from :attr:`Member.premium_since` because of name collisions.
     premium_type: Optional[:class:`PremiumType`]
-        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic). Could be ``None`` if the user is not premium.
+        Specifies the type of premium a user has (i.e. Nitro, Nitro Classic, or Nitro Basic).
+
+        .. versionchanged:: 2.1
+
+            This is now :attr:`PremiumType.none` instead of ``None`` if the user is not premium.
     premium_since: Optional[:class:`datetime.datetime`]
         An aware datetime object that specifies how long a user has been premium (had Nitro).
         ``None`` if the user is not a premium user.
