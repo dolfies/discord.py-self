@@ -1655,7 +1655,7 @@ class Headers:
         """Creates a new :class:`Headers` instance using the default fetching mechanisms."""
         try:
             properties, encoded = await asyncio.wait_for(
-                cls.get_api_properties(session, 'info', proxy=proxy, proxy_auth=proxy_auth), timeout=3
+                cls.get_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
             )
         except Exception:
             _log.info('Info API temporarily down. Falling back to manual retrieval...')
@@ -1721,9 +1721,10 @@ class Headers:
         session: ClientSession, type: str, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
     ) -> Tuple[Dict[str, Any], str]:
         """Fetches client properties from the API."""
-        async with session.get(
+        async with session.post(
             f'https://cordapi.dolfi.es/api/v2/properties/{type}', proxy=proxy, proxy_auth=proxy_auth
         ) as resp:
+            resp.raise_for_status()
             json = await resp.json()
             return json['properties'], json['encoded']
 
