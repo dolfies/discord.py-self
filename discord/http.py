@@ -786,10 +786,12 @@ class HTTPClient:
         kwargs['headers'] = headers
 
         # Proxy support
-        if self.proxy is not None:
-            kwargs['proxies'] = {'all': self.proxy}
-        if self.proxy_auth is not None:
-            headers['Proxy-Authorization'] = self.proxy_auth.encode()
+        proxy = kwargs.pop('proxy', self.proxy)
+        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth)
+        if proxy is not None:
+            kwargs['proxies'] = {'all': proxy}
+        if proxy_auth is not None:
+            headers['Proxy-Authorization'] = proxy_auth.encode()
 
         if not self._global_over.is_set():
             await self._global_over.wait()
