@@ -2005,6 +2005,14 @@ class LibraryApplicationFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the library application is free for premium users."""
         return 1 << 4
 
+    @flag_value
+    def overlay_v3_disabled(self):
+        """:class:`bool`: Returns ``True`` if the library application has the new Discord overlay implementation disabled.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 5
+
 
 @fill_with_flags()
 class ApplicationDiscoveryFlags(BaseFlags):
@@ -2249,8 +2257,10 @@ class FriendSourceFlags(BaseFlags):
     __slots__ = ()
 
     @classmethod
-    def _from_dict(cls, data: dict) -> Self:
+    def _from_dict(cls, data: Optional[dict]) -> Self:
         self = cls()
+        if not data:
+            return self
         if data.get('mutual_friends'):
             self.mutual_friends = True
         if data.get('mutual_guilds'):

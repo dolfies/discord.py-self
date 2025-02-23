@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Dict, Final, Iterator, List, Optional, Sequenc
 
 from .enums import HubType, try_enum
 from .metadata import Metadata
-from .utils import SequenceProxy, SnowflakeList, murmurhash32, utcnow
+from .utils import SequenceProxy, SnowflakeList, cached_slot_property, murmurhash32, utcnow
 
 if TYPE_CHECKING:
     from .abc import Snowflake
@@ -438,12 +438,12 @@ class ExperimentOverride:
 
     @property
     def ids(self) -> Sequence[int]:
-        """Sequence[:class:`int`]: The eligible guild/user IDs for the override."""
+        """Sequence[:class:`int`]: The eligible guild IDs for the override."""
         return SequenceProxy(self._ids)
 
 
 class HoldoutExperiment:
-    """Represents an experiment dependency.
+    """Represents an experiment holdout.
 
     .. container:: operations
 
@@ -456,14 +456,14 @@ class HoldoutExperiment:
     Attributes
     -----------
     dependent: :class:`GuildExperiment`
-        The experiment that depends on this experiment.
+        The experiment that this holdout blocks.
     name: :class:`str`
         The name of the dependency.
     bucket: :class:`int`
         The required bucket of the dependency.
     """
 
-    __slots__ = ('dependent', 'name', 'bucket')
+    __slots__ = ('dependent', 'name', 'bucket', '_hash')
 
     def __init__(self, dependent: GuildExperiment, name: str, bucket: int):
         self.dependent = dependent
@@ -471,23 +471,27 @@ class HoldoutExperiment:
         self.bucket: int = bucket
 
     def __repr__(self) -> str:
-        return f'<HoldoutExperiment dependent={self.dependent!r} name={self.name!r} bucket={self.bucket}>'
+        return f'<HoldoutExperiment name={self.name!r} bucket={self.bucket}>'
 
     def __contains__(self, item: Guild) -> bool:
-        return self.is_eligible(item)
+        return self.is_blocked(item)
+
+    @cached_slot_property('_hash')
+    def hash(self) -> int:
+        """:class:`int`: The 32-bit unsigned Murmur3 hash of the dependency name."""
+        return murmurhash32(self.name, signed=False)
 
     @property
     def experiment(self) -> Optional[GuildExperiment]:
         """Optional[:class:`GuildExperiment`]: The experiment dependency, if found."""
-        experiment_hash = murmurhash32(self.name, signed=False)
-        experiment = self.dependent._state.guild_experiments.get(experiment_hash)
+        experiment = self.dependent._state.guild_experiments.get(self.hash)
         if experiment and not experiment.name:
             # Backfill the name
             experiment._name = self.name
         return experiment
 
-    def is_eligible(self, guild: Guild, /) -> bool:
-        """Checks whether the guild fulfills the dependency.
+    def is_blocked(self, guild: Guild, /) -> bool:
+        """Checks whether the guild is blocked by the holdout.
 
         .. note::
 
@@ -501,12 +505,12 @@ class HoldoutExperiment:
         Returns
         --------
         :class:`bool`
-            Whether the guild fulfills the dependency.
+            Whether the guild is blocked by the holdout.
         """
         experiment = self.experiment
-        if experiment is None:
-            # We don't have the experiment, so we can't check
-            return True
+        if self.hash == self.dependent.hash or experiment is None:
+            # We don't have the experiment so there is no holdout
+            return False
 
         return experiment.bucket_for(guild) == self.bucket
 
@@ -543,7 +547,7 @@ class GuildExperiment:
     overrides_formatted: List[List[:class:`ExperimentPopulation`]]
         Additional rollout populations for the experiment.
     holdout: Optional[:class:`HoldoutExperiment`]
-        The experiment this experiment depends on, if any.
+        An experiment that blocks the rollout of this experiment.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
     trigger_debugging:
@@ -604,6 +608,8 @@ class GuildExperiment:
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, GuildExperiment):
             return self.hash == other.hash
+        elif isinstance(other, UserExperiment):
+            return False
         return NotImplemented
 
     @property
@@ -646,7 +652,7 @@ class GuildExperiment:
 
         return murmurhash32(f'{self.name}:{guild.id}', signed=False) % 10000
 
-    def bucket_for(self, guild: Guild, /) -> int:
+    def bucket_for(self, guild: Guild, /, *, aa_mode: bool = False) -> int:
         """Returns the assigned experiment bucket for a guild.
         Defaults to None (-1) if the guild is not in the experiment.
 
@@ -654,6 +660,9 @@ class GuildExperiment:
         -----------
         guild: :class:`Guild`
             The guild to compute experiment eligibility for.
+        aa_mode: :class:`bool`
+            Whether to return the bucket for A/A mode.
+            Does nothing if the experiment is not in A/A mode.
 
         Raises
         ------
@@ -665,16 +674,11 @@ class GuildExperiment:
         :class:`int`
             The experiment bucket.
         """
-        # Holdout must be fulfilled
-        if self.holdout and not self.holdout.is_eligible(guild):
-            return -1
-
         hash_result = self.result_for(guild)
 
         # Overrides take precedence
-        # And yes, they can be assigned to a user ID
         for override in self.overrides:
-            if guild.id in override.ids or guild.owner_id in override.ids:
+            if guild.id in override.ids:
                 return override.bucket
 
         for overrides in self.overrides_formatted:
@@ -684,7 +688,11 @@ class GuildExperiment:
                     return pop_bucket
 
         # a/a mode is always -1 without an override
-        if self.aa_mode:
+        if self.aa_mode and not aa_mode:
+            return -1
+
+        # Holdout must not be fulfilled
+        if self.holdout and self.holdout.is_blocked(guild):
             return -1
 
         for population in self.populations:
@@ -793,6 +801,8 @@ class UserExperiment:
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, UserExperiment):
             return self.hash == other.hash
+        elif isinstance(other, GuildExperiment):
+            return False
         return NotImplemented
 
     @property
