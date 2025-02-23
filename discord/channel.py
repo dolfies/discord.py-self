@@ -3217,7 +3217,16 @@ class GroupChannel(discord.abc.Messageable, discord.abc.Connectable, discord.abc
         self.last_pin_timestamp: Optional[datetime.datetime] = utils.parse_time(data.get('last_pin_timestamp'))
         self.managed: bool = data.get('managed', False)
         self.application_id: Optional[int] = utils._get_as_snowflake(data, 'application_id')
-        self.nicks: Dict[User, str] = {utils.get(self.recipients, id=int(k)): v for k, v in data.get('nicks', {}).items()}  # type: ignore
+        self.nicks: Dict[User, str] = self._unroll_nicks(data.get('nicks', []))
+
+    def _unroll_nicks(self, data: List[dict]) -> Dict[User, str]:
+        ret = {}
+        for entry in data:
+            user_id = int(entry['id'])
+            user = utils.get(self.recipients, id=user_id)
+            if user:
+                ret[user] = entry['nick']
+        return ret
 
     def _get_voice_client_key(self) -> Tuple[int, str]:
         return self.me.id, 'self_id'
