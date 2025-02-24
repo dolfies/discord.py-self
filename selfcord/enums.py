@@ -1426,7 +1426,8 @@ class OperatingSystem(Enum):
 
     android = -1
     ios = -2
-    unknown = -3
+    playstation = -3
+    unknown = -99
 
     @classmethod
     def from_string(cls, value: str) -> Self:
@@ -1435,9 +1436,11 @@ class OperatingSystem(Enum):
             'win32': cls.windows,
             'macos': cls.macos,
             'darwin': cls.macos,
+            'osx': cls.macos,
             'linux': cls.linux,
             'android': cls.android,
             'ios': cls.ios,
+            'playstation': cls.playstation,
             'unknown': cls.unknown,
         }
         return lookup.get(value, create_unknown_value(cls, value))

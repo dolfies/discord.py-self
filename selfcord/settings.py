@@ -1136,6 +1136,8 @@ class UserSettings(_ProtoSettings):
         state = self._state
         require_version = self.data_version if require_version == True else require_version
         ret = await state.http.edit_proto_settings(1, self.dict_to_base64(payload), require_version or None)
+        # TODO: What do we do with out of date settings here?
+
         return UserSettings(state, ret['settings'])
 
 

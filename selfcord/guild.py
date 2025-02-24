@@ -2220,8 +2220,8 @@ class Guild(Hashable):
         widget_channel: Optional[Snowflake] = MISSING,
         mfa_level: MFALevel = MISSING,
         raid_alerts_disabled: bool = MISSING,
-        invites_disabled_until: datetime = MISSING,
-        dms_disabled_until: datetime = MISSING,
+        invites_disabled_until: Optional[datetime] = MISSING,
+        dms_disabled_until: Optional[datetime] = MISSING,
     ) -> Guild:
         r"""|coro|
 
@@ -2463,19 +2463,16 @@ class Guild(Hashable):
         if verification_level is not MISSING:
             if not isinstance(verification_level, VerificationLevel):
                 raise TypeError('verification_level field must be of type VerificationLevel')
-
             fields['verification_level'] = verification_level.value
 
         if explicit_content_filter is not MISSING:
             if not isinstance(explicit_content_filter, ContentFilter):
                 raise TypeError('explicit_content_filter field must be of type ContentFilter')
-
             fields['explicit_content_filter'] = explicit_content_filter.value
 
         if system_channel_flags is not MISSING:
             if not isinstance(system_channel_flags, SystemChannelFlags):
                 raise TypeError('system_channel_flags field must be of type SystemChannelFlags')
-
             fields['system_channel_flags'] = system_channel_flags.value
 
         if any(feat is not MISSING for feat in (community, discoverable, invites_disabled, raid_alerts_disabled)):
@@ -2556,31 +2553,6 @@ class Guild(Hashable):
 
         data = await http.edit_guild(self.id, reason=reason, **fields)
         return Guild(data=data, state=self._state)
-
-    async def top_channels(self) -> List[Union[TextChannel, VoiceChannel, StageChannel, PartialMessageable]]:
-        """|coro|
-
-        Retrieves the top 10 most read channels in the guild. Channels are returned in order of descending usage.
-
-        .. note::
-
-            For guilds without many members, this may return an empty list.
-
-        .. versionadded:: 2.1
-
-        Raises
-        -------
-        HTTPException
-            Retrieving the top channels failed.
-
-        Returns
-        --------
-        List[Union[:class:`TextChannel`, :class:`VoiceChannel`, :class:`StageChannel`, :class:`PartialMessageable`]]
-            The top 10 most read channels. Falls back to :class:`PartialMessageable` if the channel is not found in cache.
-        """
-        state = self._state
-        data = await state.http.get_top_guild_channels(self.id)
-        return [self.get_channel(int(c)) or PartialMessageable(id=int(c), state=state, guild_id=self.id) for c in data]  # type: ignore
 
     async def webhook_channels(self) -> List[Union[TextChannel, VoiceChannel, StageChannel, PartialMessageable]]:
         """|coro|

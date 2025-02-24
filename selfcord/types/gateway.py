@@ -61,7 +61,7 @@ from .user import (
     User,
     UserGuildSettings,
 )
-from .voice import GuildVoiceState, PrivateVoiceState, VoiceState
+from .voice import GuildVoiceState, PrivateVoiceState, VoiceServerUpdate, VoiceState
 
 T = TypeVar('T')
 
@@ -121,8 +121,8 @@ class ReadyEvent(ResumedEvent):
 
 class ClientInfo(TypedDict):
     version: int
-    os: str
-    client: str
+    os: Literal['windows', 'osx', 'linux', 'android', 'ios', 'playstation', 'unknown']
+    client: Literal['web', 'desktop', 'mobile', 'unknown']
 
 
 class Session(TypedDict):
@@ -442,12 +442,7 @@ GuildScheduledEventUserAdd = GuildScheduledEventUserRemove = _GuildScheduledEven
 
 VoiceStateUpdateEvent = Union[GuildVoiceState, PrivateVoiceState]
 
-
-class VoiceServerUpdateEvent(TypedDict):
-    token: str
-    guild_id: Snowflake
-    channel_id: Snowflake
-    endpoint: Optional[str]
+VoiceServerUpdateEvent = VoiceServerUpdate
 
 
 class TypingStartEvent(TypedDict):
@@ -645,7 +640,7 @@ class GuildSubscribePayload(BaseGuildSubscribePayload):
     guild_id: Snowflake
 
 
-BulkGuildSubscribePayload = Dict[Snowflake, BaseGuildSubscribePayload]
+BulkGuildSubscribePayload = Dict[str, BaseGuildSubscribePayload]
 
 
 class _GuildMemberListGroup(TypedDict):

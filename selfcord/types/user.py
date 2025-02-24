@@ -150,6 +150,7 @@ ProtoSettingsType = Literal[1, 2, 3]
 
 class ProtoSettings(TypedDict):
     settings: str
+    out_of_date: NotRequired[bool]
 
 
 class _ConsentSettings(TypedDict):
