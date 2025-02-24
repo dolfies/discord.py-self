@@ -48,6 +48,7 @@ from typing import (
     Sequence,
     Set,
 )
+import warnings
 import weakref
 import inspect
 from math import ceil
@@ -264,7 +265,10 @@ class MemberSidebar:
         self.safe_override = False  # >.<
         self._limit_override: Optional[int] = None
 
-        self.channels = [str(channel.id) for channel in (channels or self.get_channels(1 if chunk else 5))]
+        if channels:
+            self.channels = self.validate_channels(channels)
+        else:
+            self.channels = self.get_channels(1 if chunk else 5)
         self.ranges = self.get_ranges()
         self.subscribing: bool = False
         self.buffer: List[Member] = []
@@ -338,42 +342,42 @@ class MemberSidebar:
         return ret
 
     def handle_manual_override(self, group_members: int) -> None:
-        # Certain guilds like MidJourney have their member list groups manually set
+        # Certain guilds like Midjourney have their member list groups manually set
         # In these cases, the online group is removed, and most online members are not retrievable
         # We must update the limit to the "real" online count, and recalculate the ranges
         self._limit_override = group_members
         if self.ranges:
             self.ranges = self.get_ranges(start=self.ranges[0][0])
 
-    def get_channels(self, amount: int) -> List[abcSnowflake]:
+    def validate_channels(self, channels: List[abcSnowflake]) -> Sequence[Snowflake]:
         guild = self.guild
-        ret = set()
+        ids = set()
 
-        channels = [
-            channel
-            for channel in self.guild.channels
-            if channel.permissions_for(guild.default_role).read_messages  # "everyone" id
-            and channel.permissions_for(guild.me).read_messages  # type: ignore
-        ]
-        if guild.rules_channel is not None:  # micro-optimization
-            channels.insert(0, guild.rules_channel)
+        for channel in channels:
+            real_channel = guild.get_channel(channel.id)
+            if real_channel is None:
+                raise ValueError(f'Channel {channel!r} not found in guild {guild.id}')
 
-        while len(ret) < amount and channels:
-            channel = channels.pop()
-            for role in guild.roles:
-                if not channel.permissions_for(role).read_messages:
-                    break
+            # Attempt to account for member list ID bug
+            if real_channel._can_everyone(Permissions.read_messages):
+                ids.add("everyone")
             else:
-                for ow in channel._overwrites:
-                    if ow.is_member():
-                        allow = Permissions(ow.allow)
-                        deny = Permissions(ow.deny)
-                        overwrite = PermissionOverwrite.from_pair(allow, deny)
-                        if not overwrite.read_messages:
-                            break
-                ret.add(channel)
+                ids.add(real_channel.member_list_id)
 
-        return list(ret)
+        if len(ids) > 1:
+            # This is only a warning because it's not a critical issue and can have false positives
+            warnings.warn(
+                f'Member list scraping for guild ID {guild.id} with multiple member list IDs may lead to undefined behavior',
+                RuntimeWarning,
+            )
+
+        return [channel.id for channel in channels]
+
+    def get_channels(self, amount: int) -> Sequence[Snowflake]:
+        # Because of a Discord bug, not all of these channels will have the
+        # "everyone" member list ID, however they will all functionally have
+        # an identical member list
+        return [channel.id for channel in self.guild.channels if channel._can_everyone(Permissions.read_messages)][:amount]
 
     def add_members(self, members: List[Member]) -> None:
         members = list(set(members))
@@ -574,12 +578,21 @@ class GuildSubscriptions:
         self._thread_member_lists: Dict[int, utils.SnowflakeList] = {}
         self._channels: Dict[int, Dict[int, List[Tuple[int, int]]]] = {}
 
-    def _initial_update(self, guilds: List[Guild]):
+    def _initial_update(self, guilds: List[Guild], /):
         # The client is subscribed to all guilds with < 75k members on connect
         # This function is currently unused because I don't want to rely on this behavior
         for guild in guilds:
             if guild._member_count and guild._member_count < 75000:
                 self._subscribed.add(guild.id)
+
+    def _initial_thread_subscription(self, guild_id: int, /):
+        # On GUILD_CREATE, the client is given some subscriptions sometimes
+        # The field is called "has_threads_subscription", but I'm
+        # pretty sure it subscribes you to all the default features
+        self._subscribed.add(guild_id)
+        self._typing.add(guild_id)
+        self._threads.add(guild_id)
+        self._activities.add(guild_id)
 
     def _cancel(self) -> None:
         if self._task:
@@ -841,14 +854,14 @@ class GuildSubscriptions:
             raise TypeError('Cannot subscribe to guild without subscribing to typing')
 
         payload: gw.BaseGuildSubscribePayload = {}
-        values = channels.copy()
+        values: Dict[Snowflake, List[Tuple[int, int]]] = {str(channel_id): ranges for channel_id, ranges in channels.items()}
         if not replace:
             existing = self._channels.get(guild.id)
             if existing:
-                values = {**existing, **channels}
+                values = {**existing, **values}
 
         for channel_id, ranges in channels.items():
-            values[channel_id] = ranges
+            values[str(channel_id)] = ranges
 
         payload['channels'] = values
         await self._checked_add({str(guild.id): payload})
@@ -3082,6 +3095,9 @@ class ConnectionState:
         guild = self._get_create_guild(data)
         if guild is None:
             return
+
+        if data.get('has_threads_subscription'):
+            self.subscriptions._initial_thread_subscription(guild.id)
 
         if self._subscribe_guilds and not guild.unavailable:
             asyncio.ensure_future(self.subscribe_guild(guild), loop=self.loop)

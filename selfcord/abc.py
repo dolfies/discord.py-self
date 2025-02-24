@@ -100,6 +100,7 @@ if TYPE_CHECKING:
         StageChannel,
         CategoryChannel,
     )
+    from .permissions import flag_value
     from .poll import Poll
     from .threads import Thread
     from .types.channel import (
@@ -690,10 +691,34 @@ class GuildChannel:
     def _sorting_bucket(self) -> int:
         raise NotImplementedError
 
+    def _can_everyone(self, permission: flag_value) -> bool:
+        if self.permissions_for(self.guild.default_role).value & permission.flag != permission.flag:
+            return False
+        for overwrite in self._overwrites:
+            if overwrite.deny & permission.flag == permission.flag:
+                return False
+        return True
+
+    def _is_everyone_member_list(self) -> bool:
+        # This should use _can_everyone(Permissions.read_messages) but Discord's implementation is flawed
+        # so we must use the flawed implementation to be compatible
+        if not self.guild.default_role.permissions.read_messages:
+            return False
+        for overwrite in self._overwrites:
+            if overwrite.deny & Permissions.read_messages.flag == Permissions.read_messages.flag:
+                return False
+        return True
+
     @property
-    def member_list_id(self) -> Union[str, Literal["everyone"]]:
-        if self.permissions_for(self.guild.default_role).read_messages:
-            return "everyone"
+    def member_list_id(self) -> Union[str, Literal['everyone']]:
+        """:class:`str`: The ID of the member list for this channel.
+
+        A member list ID of ``everyone`` indicates that everyone can view the channel.
+
+        .. versionadded:: 2.1
+        """
+        if self._is_everyone_member_list():
+            return 'everyone'
 
         overwrites = []
         for overwrite in self._overwrites:
