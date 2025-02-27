@@ -1344,6 +1344,14 @@ class ApplicationFlags(BaseFlags):
         return 1 << 9
 
     @flag_value
+    def social_layer_integration_limited(self):
+        """:class:`bool`: Returns ``True`` if the application has limited access to the social layer SDK.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 10
+
+    @flag_value
     def gateway_presence(self):
         """:class:`bool`: Returns ``True`` if the application is verified and is allowed to
         receive presence information over the gateway.
@@ -1401,6 +1409,11 @@ class ApplicationFlags(BaseFlags):
         return 1 << 20
 
     @flag_value
+    def application_command_migrated(self):
+        # Unknown
+        return 1 << 21
+
+    @flag_value
     def application_command_badge(self):
         """:class:`bool`: Returns ``True`` if the application has registered global application commands."""
         return 1 << 23
@@ -1411,6 +1424,15 @@ class ApplicationFlags(BaseFlags):
         This means that it has had any global command executed in the past 30 days.
         """
         return 1 << 24
+
+    @flag_value
+    def active_grace_period(self):
+        """:class:`bool`: Returns ``True`` if the application has not had any global command executed in
+        the past 30 days and has lost the active flag.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 25
 
     @flag_value
     def iframe_modal(self):

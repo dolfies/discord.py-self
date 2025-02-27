@@ -351,6 +351,25 @@ class ExperimentPopulation:
     def __contains__(self, item: Guild, /) -> bool:
         return self.bucket_for(item) != -1
 
+    def is_eligible(self, guild: Guild, /) -> bool:
+        """Checks whether the guild is eligible for the population.
+
+        .. note::
+
+            This function is not intended to be used directly. Instead, use :func:`GuildExperiment.bucket_for`.
+
+        Parameters
+        -----------
+        guild: :class:`Guild`
+            The guild to check.
+
+        Returns
+        --------
+        :class:`bool`
+            Whether the guild is eligible for the population.
+        """
+        return self.filters.is_eligible(guild)
+
     def bucket_for(self, guild: Guild, _result: Optional[int] = None, /) -> int:
         """Returns the assigned experiment bucket within a population for a guild.
         Defaults to None (-1) if the guild is not in the population.
@@ -374,11 +393,11 @@ class ExperimentPopulation:
         :class:`int`
             The experiment bucket.
         """
-        if _result is None:
-            _result = self.experiment.result_for(guild)
-
         if not self.filters.is_eligible(guild):
             return -1
+
+        if _result is None:
+            _result = self.experiment.result_for(guild)
 
         for rollout in self.rollouts:
             for start, end in rollout.ranges:
@@ -662,6 +681,7 @@ class GuildExperiment:
             The guild to compute experiment eligibility for.
         aa_mode: :class:`bool`
             Whether to return the bucket for A/A mode.
+            Otherwise, always returns None (-1) for populations in A/A mode.
             Does nothing if the experiment is not in A/A mode.
 
         Raises
@@ -674,18 +694,16 @@ class GuildExperiment:
         :class:`int`
             The experiment bucket.
         """
-        hash_result = self.result_for(guild)
-
         # Overrides take precedence
         for override in self.overrides:
             if guild.id in override.ids:
                 return override.bucket
 
+        hash_result = self.result_for(guild)
         for overrides in self.overrides_formatted:
             for override in overrides:
-                pop_bucket = override.bucket_for(guild, hash_result)
-                if pop_bucket != -1:
-                    return pop_bucket
+                if override.is_eligible(guild):
+                    return override.bucket_for(guild, hash_result)
 
         # a/a mode is always -1 without an override
         if self.aa_mode and not aa_mode:
@@ -696,9 +714,8 @@ class GuildExperiment:
             return -1
 
         for population in self.populations:
-            pop_bucket = population.bucket_for(guild, hash_result)
-            if pop_bucket != -1:
-                return pop_bucket
+            if population.is_eligible(guild):
+                return population.bucket_for(guild, hash_result)
 
         return -1
 
