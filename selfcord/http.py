@@ -624,6 +624,7 @@ class HTTPClient:
         self.debug_options: Optional[Sequence[str]] = debug_options
         self.rpc_proxy: Optional[str] = rpc_proxy
 
+        self.tracer = None
         if debug_options and 'trace' in debug_options:
             self.tracer = utils.IDGenerator()
 
