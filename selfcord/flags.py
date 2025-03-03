@@ -76,6 +76,7 @@ __all__ = (
     'ReadStateFlags',
     'InviteFlags',
     'AttachmentFlags',
+    'EmbedFlags',
     'RoleFlags',
 )
 
