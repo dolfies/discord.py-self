@@ -569,7 +569,10 @@ class DiscordWebSocket:
             _log.debug('Unknown event %s.', event)
         else:
             _log.debug('Parsing event %s.', event)
-            func(data)
+            try:
+                func(data)
+            except Exception as exc:
+                _log.warning('Parsing event %s encountered an exception. Please open an issue with this traceback:', event, exc_info=exc)
 
         # Remove the dispatched listeners
         removed = []

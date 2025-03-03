@@ -89,7 +89,7 @@ from .threads import Thread, ThreadMember
 from .sticker import GuildSticker
 from .settings import UserSettings, GuildSettings, ChannelSettings, TrackingSettings
 from .interactions import Interaction
-from .permissions import Permissions, PermissionOverwrite
+from .permissions import Permissions
 from .modal import Modal
 from .member import VoiceState
 from .application import IntegrationApplication, PartialApplication, Achievement
