@@ -159,6 +159,10 @@ class HTTPException(DiscordException):
             self.text = message or ''
             self.json = {'code': 0, 'message': message or ''}
 
+        if self.code == 40333:
+            # Cloudflare access denied
+            self.text = 'Cloudflare access denied (code: 1020)'
+
         fmt = '{0.status} {0.reason} (error code: {1})'
         if len(self.text):
             fmt += ': {2}'
@@ -183,12 +187,17 @@ class RateLimited(DiscordException):
     retry_after: :class:`float`
         The amount of seconds that the client should wait before retrying
         the request.
+    cloudflare: :class:`bool`
+        Whether the rate limit was issued by Cloudflare.
+
+        .. versionadded:: 2.1
     """
 
-    __slots__ = ('retry_after',)
+    __slots__ = ('retry_after', 'cloudflare')
 
-    def __init__(self, retry_after: float):
+    def __init__(self, retry_after: float, *, cloudflare: bool = False):
         self.retry_after = retry_after
+        self.cloudflare = cloudflare
         super().__init__(f'Too many requests. Retry in {retry_after:.2f} seconds.')
 
 

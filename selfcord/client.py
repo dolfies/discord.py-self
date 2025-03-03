@@ -287,6 +287,19 @@ class Client:
         A list of preferred RTC regions to connect to. This overrides Discord's suggested list.
 
         .. versionadded:: 2.1
+    canary: :class:`bool`
+        Whether to forcefully route all requests to the canary API. This is useful for testing new features.
+
+        Note that this doesn't use the canary release channel.
+
+        .. versionadded:: 2.1
+    apm_tracing: :class:`bool`
+        Whether to enable Application Performance Monitoring (APM) tracing.
+
+        This will print debug logs for every HTTP request made by the library with an APM trace URL
+        that Discord employees can view.
+
+        .. versionadded:: 2.1
 
     Attributes
     -----------
@@ -316,6 +329,8 @@ class Client:
             captcha=self.handle_captcha,
             max_ratelimit_timeout=max_ratelimit_timeout,
             locale=lambda: self._connection.locale,
+            debug_options=self._get_debug_options(**options),
+            rpc_proxy=options.pop('rpc_proxy', None),
         )
 
         self._handlers: Dict[str, Callable[..., None]] = {
@@ -365,6 +380,18 @@ class Client:
             client=self,
             **options,
         )
+
+    def _get_debug_options(self, **options: Any) -> Sequence[str]:
+        # The list is as follows:
+        # trace, canary, logGatewayEvents, logOverlayEvents, logAnalyticsEvents, sourceMapsEnabled, axeEnabled, cssDebuggingEnabled, layoutDebuggingEnabled
+        # analyticsDebuggerEnabled, bugReporterEnabled, idleStatusIndicatorEnabled, onlyShowPreviewAppCollections, disableAppCollectionsCache, isStreamInfoOverlayEnabled, preventPopoutClose
+        # Only the first two seem to have any API implications
+        debug_options = options.pop('debug_options', None) or ['bugReporterEnabled']
+        if options.pop('canary', None):
+            debug_options.insert(0, 'canary')
+        if options.pop('trace', None):
+            debug_options.insert(0, 'trace')
+        return debug_options
 
     def _handle_ready(self) -> None:
         self._ready.set()

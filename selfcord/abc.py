@@ -2086,6 +2086,10 @@ class Messageable:
         the destination for an indefinite period of time, or 10 seconds if the context manager
         is called using ``await``.
 
+        The returned context manager contains ``message_send_cooldown`` and ``thread_create_cooldown``
+        attributes that are integers representing the time left until the channel's slowmode
+        expires. These attributes are updated from every typing request sent to the API.
+
         Example Usage: ::
 
             async with channel.typing():
@@ -2105,6 +2109,9 @@ class Messageable:
 
         .. versionchanged:: 2.0
             Added functionality to ``await`` the context manager to send a typing indicator for 10 seconds.
+
+        .. versionchanged:: 2.1
+            Added ``message_send_cooldown`` and ``thread_create_cooldown`` attributes to the context manager.
         """
         return Typing(self)
 

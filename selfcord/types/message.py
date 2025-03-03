@@ -291,3 +291,8 @@ class CloudAttachment(TypedDict):
 
 class CloudAttachments(TypedDict):
     attachments: List[CloudAttachment]
+
+
+class TypingResponse(TypedDict):
+    message_send_cooldown_ms: int
+    thread_create_cooldown_ms: int

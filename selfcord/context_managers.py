@@ -29,8 +29,10 @@ from typing import TYPE_CHECKING, Generator, Optional, Type, TypeVar
 
 if TYPE_CHECKING:
     from .abc import Messageable, MessageableChannel
+    from .types.message import TypingResponse
 
     from types import TracebackType
+    from typing_extensions import Self
 
     BE = TypeVar('BE', bound=BaseException)
 
@@ -54,6 +56,12 @@ class Typing:
         self.loop: asyncio.AbstractEventLoop = messageable._state.loop
         self.messageable: Messageable = messageable
         self.channel: Optional[MessageableChannel] = None
+        self.message_send_cooldown: int = 0
+        self.thread_create_cooldown: int = 0
+
+    def _update(self, data: TypingResponse) -> None:
+        self.message_send_cooldown = data.get('message_send_cooldown_ms', 0)
+        self.thread_create_cooldown = data.get('thread_create_cooldown_ms', 0)
 
     async def _get_channel(self) -> MessageableChannel:
         if self.channel:
@@ -62,11 +70,14 @@ class Typing:
         self.channel = channel = await self.messageable._get_channel()
         return channel
 
-    async def wrapped_typer(self) -> None:
+    async def wrapped_typer(self) -> Self:
         channel = await self._get_channel()
-        await channel._state.http.send_typing(channel.id)
+        data = await channel._state.http.send_typing(channel.id)
+        if data:
+            self._update(data)
+        return self
 
-    def __await__(self) -> Generator[None, None, None]:
+    def __await__(self) -> Generator[None, None, Self]:
         return self.wrapped_typer().__await__()
 
     async def do_typing(self) -> None:
@@ -75,7 +86,9 @@ class Typing:
 
         while True:
             await asyncio.sleep(5)
-            await typing(channel.id)
+            data = await typing(channel.id)
+            if data:
+                self._update(data)
 
     async def __aenter__(self) -> None:
         channel = await self._get_channel()

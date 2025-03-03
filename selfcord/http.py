@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from random import choice, choices
+import re
 import ssl
 import string
 from typing import (
@@ -595,6 +596,8 @@ class HTTPClient:
         captcha: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = None,
         max_ratelimit_timeout: Optional[float] = None,
         locale: Callable[[], str] = lambda: 'en-US',
+        debug_options: Optional[Sequence[str]] = None,
+        rpc_proxy: Optional[str] = None,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.__session: aiohttp.ClientSession = MISSING
@@ -608,6 +611,7 @@ class HTTPClient:
         # When this reaches 256 elements, it will try to evict based off of expiry
         self._buckets: Dict[str, Ratelimit] = {}
         self._global_over: asyncio.Event = MISSING
+        self.user_id: Optional[int] = None
         self.token: Optional[str] = None
         self.ack_token: Optional[str] = None
         self.proxy: Optional[str] = proxy
@@ -617,6 +621,11 @@ class HTTPClient:
         self.captcha_handler: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = captcha
         self.max_ratelimit_timeout: Optional[float] = max(30.0, max_ratelimit_timeout) if max_ratelimit_timeout else None
         self.get_locale: Callable[[], str] = locale
+        self.debug_options: Optional[Sequence[str]] = debug_options
+        self.rpc_proxy: Optional[str] = rpc_proxy
+
+        if debug_options and 'trace' in debug_options:
+            self.tracer = utils.IDGenerator()
 
         self.super_properties: Dict[str, Any] = {}
         self.encoded_super_properties: str = MISSING
@@ -746,7 +755,6 @@ class HTTPClient:
             'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent,
             'X-Discord-Locale': self.get_locale(),
-            'X-Debug-Options': 'bugReporterEnabled',
             'X-Super-Properties': self.encoded_super_properties,
         }
 
@@ -761,6 +769,12 @@ class HTTPClient:
         else:
             if timezone:
                 headers['X-Discord-Timezone'] = timezone
+
+        if self.debug_options:
+            headers['X-Debug-Options'] = ','.join(self.debug_options)
+
+        if self.rpc_proxy:
+            headers['X-RPC-Proxy'] = self.rpc_proxy
 
         if self.token is not None and kwargs.get('auth', True):
             headers['Authorization'] = self.token
@@ -793,6 +807,7 @@ class HTTPClient:
         response: Optional[aiohttp.ClientResponse] = None
         data: Optional[Union[Dict[str, Any], str]] = None
         failed = 0  # Number of 500'd requests
+        trace_id = None
         async with ratelimit:
             for tries in range(5):
                 if files:
@@ -806,12 +821,22 @@ class HTTPClient:
                         form_data.add_field(**params)
                     kwargs['data'] = form_data
 
+                if self.tracer:
+                    trace_id = self.tracer.generate(self.user_id or 0)
+                    headers['X-Client-Trace-ID'] = trace_id
+
                 if failed:
                     headers['X-Failed-Requests'] = str(failed)
 
                 try:
                     async with self.__session.request(method, url, **kwargs) as response:
-                        _log.debug('%s %s with %s has returned %s.', method, url, kwargs.get('data'), response.status)
+                        log_fmt = '%s %s with %s has returned %s.'
+                        log_params = [method, url, kwargs.get('data'), response.status]
+                        if trace_id is not None:
+                            log_fmt += '\nTrace URL: https://datadog.selfcord.tools/apm/traces?query=@http.x_client_trace_id:"%s"&showAllSpans=true'
+                            log_params.append(trace_id)
+                        _log.debug(log_fmt, *log_params)
+
                         data = await json_or_text(response)
 
                         # Update and use rate limit information if the bucket header is present
@@ -856,13 +881,14 @@ class HTTPClient:
                                     )
 
                         # 202s must be retried
-                        if response.status == 202 and isinstance(data, dict) and data['code'] == 110000:
-                            # We update the `attempts` query parameter
-                            params = kwargs.get('params')
-                            if not params:
-                                kwargs['params'] = {'attempts': 1}
-                            else:
-                                params['attempts'] = (params.get('attempts') or 0) + 1
+                        if response.status == 202 and isinstance(data, dict):
+                            if data['code'] == 110000:
+                                # We update the `attempts` query parameter
+                                params = kwargs.get('params')
+                                if not params:
+                                    kwargs['params'] = {'attempts': 1}
+                                else:
+                                    params['attempts'] = (params.get('attempts') or 0) + 1
 
                             # Sometimes retry_after is 0, but that's undesirable
                             retry_after: float = data['retry_after'] or 5
@@ -877,9 +903,21 @@ class HTTPClient:
 
                         # Rate limited
                         if response.status == 429:
-                            if not response.headers.get('Via') or isinstance(data, str):
-                                # Banned by Cloudflare more than likely.
-                                raise HTTPException(response, data)
+                            if isinstance(data, str):
+                                # Cloudflare ban
+                                is_global = False
+                                retry_after = int(response.headers.get('Retry-After', '0'))
+                                if not retry_after:
+                                    # Unhandleable
+                                    result = re.search(r'<span>(\d{3,4})</span>', data)
+                                    code = int(result.group(1)) if result else 'Unknown'
+                                    raise HTTPException(response, f'Cloudflare ban (code: {code})')
+                            else:
+                                is_global: bool = data.get('global', False)
+                                retry_after: float = data.get('retry_after', int(response.headers.get('Retry-After', 0)))
+
+                            # Cloudflare rate limit
+                            is_cloudflare = not response.headers.get('Via')
 
                             if ratelimit.remaining > 0:
                                 # According to night
@@ -894,7 +932,11 @@ class HTTPClient:
                                     ratelimit.remaining,
                                 )
 
-                            retry_after: float = data['retry_after']
+                            if 'Retry-After' in response.headers:
+                                # Sometimes Cloudflare rate limits will have their retry_after field in milliseconds
+                                if int(response.headers['Retry-After']) == int(retry_after / 1000):
+                                    retry_after /= 1000.0
+
                             if self.max_ratelimit_timeout and retry_after > self.max_ratelimit_timeout:
                                 _log.warning(
                                     'We are being rate limited. %s %s responded with 429. Timeout of %.2f was too long, erroring instead.',
@@ -902,7 +944,7 @@ class HTTPClient:
                                     url,
                                     retry_after,
                                 )
-                                raise RateLimited(retry_after)
+                                raise RateLimited(retry_after, cloudflare=is_cloudflare)
 
                             fmt = 'We are being rate limited. %s %s responded with 429. Retrying in %.2f seconds.'
                             _log.warning(fmt, method, url, retry_after)
@@ -914,10 +956,12 @@ class HTTPClient:
                             )
 
                             # Check if it's a global rate limit
-                            is_global = data.get('global', False)
                             if is_global:
                                 _log.warning('Global rate limit has been hit. Retrying in %.2f seconds.', retry_after)
                                 self._global_over.clear()
+
+                            if is_cloudflare:
+                                _log.warning('Cloudflare rate limit has been hit. Retrying in %.2f seconds.', retry_after)
 
                             await asyncio.sleep(retry_after)
                             _log.debug('Done sleeping for the rate limit. Retrying...')
@@ -1070,6 +1114,7 @@ class HTTPClient:
     # Login management
 
     def _token(self, token: str) -> None:
+        # This should NEVER be called with a token for a different user
         self.token = token
         self.ack_token = None
 
@@ -1084,6 +1129,8 @@ class HTTPClient:
                 raise LoginFailure('Improper token has been passed') from exc
             raise
 
+        self.ack_token = None
+        self.user_id = int(data['id'])
         return data
 
     # Self user
@@ -1211,7 +1258,7 @@ class HTTPClient:
 
         return self.request(Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id), json=payload)
 
-    def send_typing(self, channel_id: Snowflake) -> Response[None]:
+    def send_typing(self, channel_id: Snowflake) -> Response[Optional[message.TypingResponse]]:
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
 
     async def ack_message(

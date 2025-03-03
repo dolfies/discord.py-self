@@ -77,7 +77,8 @@ import warnings
 import aiohttp
 import logging
 import zlib
-
+import struct
+import time
 import yarl
 
 try:
@@ -1818,6 +1819,26 @@ else:
                 return unsigned_val
             else:
                 return -((unsigned_val ^ 0xFFFFFFFF) + 1)
+
+
+class IDGenerator:
+    def __init__(self):
+        self.prefix = random.randint(0, 0xFFFFFFFF) & 0xFFFFFFFF
+        self.creation_time = int(time.time() * 1000)
+        self.sequence = 0
+
+    def generate(self, user_id: int = 0):
+        uuid = bytearray(24)
+        # Lowest signed 32 bits
+        struct.pack_into("<I", uuid, 0, user_id & 0xFFFFFFFF)
+        struct.pack_into("<I", uuid, 4, user_id >> 32)
+        struct.pack_into("<I", uuid, 8, self.prefix)
+        # Lowest signed 32 bits
+        struct.pack_into("<I", uuid, 12, self.creation_time & 0xFFFFFFFF)
+        struct.pack_into("<I", uuid, 16, self.creation_time >> 32)
+        struct.pack_into("<I", uuid, 20, self.sequence)
+        self.sequence += 1
+        return b64encode(uuid).decode("utf-8")
 
 
 if HAS_ZSTD:

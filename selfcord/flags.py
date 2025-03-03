@@ -1297,6 +1297,11 @@ class ApplicationFlags(BaseFlags):
     __slots__ = ()
 
     @flag_value
+    def embedded_released(self):
+        """:class:`bool`: Returns ``True`` if the embedded application is released to the public."""
+        return 1 << 1
+
+    @flag_value
     def managed_emoji(self):
         """:class:`bool`: Returns ``True`` if the application has the ability to create managed emoji."""
         return 1 << 2
