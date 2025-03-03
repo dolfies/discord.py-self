@@ -25,6 +25,8 @@ DEALINGS IN THE SOFTWARE.
 from typing import List, Literal, TypedDict
 from typing_extensions import NotRequired, Required
 
+from .snowflake import Snowflake
+
 
 class EmbedFooter(TypedDict):
     text: str
@@ -38,25 +40,14 @@ class EmbedField(TypedDict):
     inline: NotRequired[bool]
 
 
-class EmbedThumbnail(TypedDict, total=False):
+class EmbedMedia(TypedDict, total=False):
     url: Required[str]
     proxy_url: str
     height: int
     width: int
-
-
-class EmbedVideo(TypedDict, total=False):
-    url: str
-    proxy_url: str
-    height: int
-    width: int
-
-
-class EmbedImage(TypedDict, total=False):
-    url: Required[str]
-    proxy_url: str
-    height: int
-    width: int
+    flags: int
+    placeholder_version: int
+    placeholder: str
 
 
 class EmbedProvider(TypedDict, total=False):
@@ -71,7 +62,19 @@ class EmbedAuthor(TypedDict, total=False):
     proxy_icon_url: str
 
 
-EmbedType = Literal['rich', 'image', 'video', 'gifv', 'article', 'link', 'auto_moderation_message', 'poll_result']
+EmbedType = Literal[
+    'rich',
+    'image',
+    'video',
+    'gifv',
+    'article',
+    'link',
+    'auto_moderation_message',
+    'auto_moderation_notification',
+    'poll_result',
+    'post_preview',
+    'application_news',
+]
 
 
 class Embed(TypedDict, total=False):
@@ -82,9 +85,11 @@ class Embed(TypedDict, total=False):
     timestamp: str
     color: int
     footer: EmbedFooter
-    image: EmbedImage
-    thumbnail: EmbedThumbnail
-    video: EmbedVideo
+    image: EmbedMedia
+    thumbnail: EmbedMedia
+    video: EmbedMedia
     provider: EmbedProvider
     author: EmbedAuthor
     fields: List[EmbedField]
+    reference_id: Snowflake
+    flags: int

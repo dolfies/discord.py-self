@@ -29,6 +29,9 @@ from typing import Any, Dict, List, Mapping, Optional, Protocol, TYPE_CHECKING, 
 
 from . import utils
 from .colour import Colour
+from .flags import AttachmentFlags, EmbedFlags
+from .utils import _get_as_snowflake
+
 
 # fmt: off
 __all__ = (
@@ -76,11 +79,9 @@ if TYPE_CHECKING:
         proxy_url: Optional[str]
         height: Optional[int]
         width: Optional[int]
-
-    class _EmbedVideoProxy(Protocol):
-        url: Optional[str]
-        height: Optional[int]
-        width: Optional[int]
+        flags: AttachmentFlags
+        placeholder_version: Optional[int]
+        placeholder: Optional[str]
 
     class _EmbedProviderProxy(Protocol):
         name: Optional[str]
@@ -130,7 +131,7 @@ class Embed:
     type: :class:`str`
         The type of embed. Usually "rich".
         This can be set during initialisation.
-        Possible strings for embed types can be found on discord's
+        Possible strings for embed types can be found on Discord's
         :ddocs:`api docs <resources/message#embed-object-embed-types>`
     description: Optional[:class:`str`]
         The description of the embed.
@@ -146,12 +147,18 @@ class Embed:
     colour: Optional[Union[:class:`Colour`, :class:`int`]]
         The colour code of the embed. Aliased to ``color`` as well.
         This can be set during initialisation.
+    reference_id: Optional[:class:`int`]
+        The ID of the message this embed was generated from.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
         'title',
         'url',
         'type',
+        'description',
+        'reference_id',
         '_timestamp',
         '_colour',
         '_footer',
@@ -161,7 +168,7 @@ class Embed:
         '_provider',
         '_author',
         '_fields',
-        'description',
+        '_flags',
     )
 
     def __init__(
@@ -180,6 +187,8 @@ class Embed:
         self.type: EmbedType = type
         self.url: Optional[str] = url
         self.description: Optional[str] = description
+        self._flags: int = 0
+        self.reference_id: Optional[int] = None
 
         if self.title is not None:
             self.title = str(self.title)
@@ -214,6 +223,8 @@ class Embed:
         self.type = data.get('type', None)
         self.description = data.get('description', None)
         self.url = data.get('url', None)
+        self.reference_id = _get_as_snowflake(data, 'reference_id')
+        self._flags = data.get('flags', 0)
 
         if self.title is not None:
             self.title = str(self.title)
@@ -304,7 +315,16 @@ class Embed:
             and self.image == other.image
             and self.provider == other.provider
             and self.video == other.video
+            and self._flags == other._flags
         )
+
+    @property
+    def flags(self) -> EmbedFlags:
+        """:class:`EmbedFlags`: The flags of this embed.
+
+        .. versionadded:: 2.1
+        """
+        return EmbedFlags._from_value(self._flags or 0)
 
     @property
     def colour(self) -> Optional[Colour]:
@@ -394,15 +414,18 @@ class Embed:
 
         Possible attributes you can access are:
 
-        - ``url``
-        - ``proxy_url``
-        - ``width``
-        - ``height``
+        - ``url`` for the image URL.
+        - ``proxy_url`` for the proxied image URL.
+        - ``width`` for the image width.
+        - ``height`` for the image height.
+        - ``flags`` for the image's attachment flags.
 
         If the attribute has no value then ``None`` is returned.
         """
-        # Lying to the type checker for better developer UX.
-        return EmbedProxy(getattr(self, '_image', {}))  # type: ignore
+        # Lying to the type checker for better developer UX
+        data = getattr(self, '_image', {})
+        data['flags'] = AttachmentFlags._from_value(data.get('flags', 0))
+        return EmbedProxy(data)  # type: ignore
 
     def set_image(self, *, url: Optional[Any]) -> Self:
         """Sets the image for the embed content.
@@ -435,15 +458,18 @@ class Embed:
 
         Possible attributes you can access are:
 
-        - ``url``
-        - ``proxy_url``
-        - ``width``
-        - ``height``
+        - ``url`` for the thumbnail URL.
+        - ``proxy_url`` for the proxied thumbnail URL.
+        - ``width`` for the thumbnail width.
+        - ``height`` for the thumbnail height.
+        - ``flags`` for the thumbnail's attachment flags.
 
         If the attribute has no value then ``None`` is returned.
         """
-        # Lying to the type checker for better developer UX.
-        return EmbedProxy(getattr(self, '_thumbnail', {}))  # type: ignore
+        # Lying to the type checker for better developer UX
+        data = getattr(self, '_thumbnail', {})
+        data['flags'] = AttachmentFlags._from_value(data.get('flags', 0))
+        return EmbedProxy(data)  # type: ignore
 
     def set_thumbnail(self, *, url: Optional[Any]) -> Self:
         """Sets the thumbnail for the embed content.
@@ -471,19 +497,23 @@ class Embed:
         return self
 
     @property
-    def video(self) -> _EmbedVideoProxy:
+    def video(self) -> _EmbedMediaProxy:
         """Returns an ``EmbedProxy`` denoting the video contents.
 
         Possible attributes include:
 
         - ``url`` for the video URL.
+        - ``proxy_url`` for the proxied video URL.
         - ``height`` for the video height.
         - ``width`` for the video width.
+        - ``flags`` for the video's attachment flags.
 
         If the attribute has no value then ``None`` is returned.
         """
-        # Lying to the type checker for better developer UX.
-        return EmbedProxy(getattr(self, '_video', {}))  # type: ignore
+        # Lying to the type checker for better developer UX
+        data = getattr(self, '_video', {})
+        data['flags'] = AttachmentFlags._from_value(data.get('flags', 0))
+        return EmbedProxy(data)  # type: ignore
 
     @property
     def provider(self) -> _EmbedProviderProxy:

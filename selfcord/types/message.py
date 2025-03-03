@@ -29,13 +29,13 @@ from typing_extensions import NotRequired, Required
 
 from .snowflake import Snowflake, SnowflakeList
 from .member import Member, UserWithMember
-from .user import User
+from .user import PartialUser
 from .emoji import PartialEmoji
 from .embed import Embed
 from .channel import ChannelType
 from .components import MessageActionRow
 from .interactions import MessageInteraction
-from .application import BaseApplication
+from .application import BaseApplication, PartialApplication
 from .sticker import StickerItem
 from .threads import Thread, ThreadMember
 from .poll import Poll
@@ -76,6 +76,7 @@ class Attachment(TypedDict):
     size: int
     url: str
     proxy_url: str
+    title: NotRequired[str]
     height: NotRequired[Optional[int]]
     width: NotRequired[Optional[int]]
     description: NotRequired[str]
@@ -85,6 +86,11 @@ class Attachment(TypedDict):
     duration_secs: NotRequired[float]
     waveform: NotRequired[str]
     flags: NotRequired[int]
+    placeholder_version: NotRequired[int]
+    placeholder: NotRequired[str]
+    clip_created_at: NotRequired[str]
+    clip_participants: NotRequired[List[PartialUser]]
+    application: NotRequired[PartialApplication]
 
 
 MessageActivityType = Literal[1, 2, 3, 5]
@@ -187,7 +193,7 @@ class MessageSnapshot(TypedDict):
 
 class Message(PartialMessage):
     id: Snowflake
-    author: User
+    author: PartialUser
     content: str
     timestamp: str
     edited_timestamp: Optional[str]

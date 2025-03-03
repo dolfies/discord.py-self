@@ -76,7 +76,7 @@ from .channel import PartialMessageable
 from .interactions import Interaction
 from .commands import MessageCommand
 from .abc import _handle_commands
-from .application import IntegrationApplication
+from .application import IntegrationApplication, PartialApplication
 from .poll import Poll
 
 if TYPE_CHECKING:
@@ -190,8 +190,7 @@ class Attachment(Hashable):
         to is deleted, then this will 404.
     proxy_url: :class:`str`
         The proxy URL. This is a cached version of the :attr:`~Attachment.url` in the
-        case of images. When the message is deleted, this URL might be valid for a few
-        minutes or not valid at all.
+        case of images.
     content_type: Optional[:class:`str`]
         The attachment's `media type <https://en.wikipedia.org/wiki/Media_type>`_
 
@@ -216,6 +215,18 @@ class Attachment(Hashable):
         The normalised version of the attachment's filename.
 
         .. versionadded:: 2.1
+    clip_created_at: Optional[:class:`datetime.datetime`]
+        When the clip this attachment represents was created.
+
+        .. versionadded:: 2.1
+    clip_participants: List[:class:`User`]
+        The participants in the clip this attachment represents.
+
+        .. versionadded:: 2.1
+    application: Optional[:class:`PartialApplication`]
+        The application of the game this clip was taken from.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
@@ -234,6 +245,9 @@ class Attachment(Hashable):
         'waveform',
         '_flags',
         'title',
+        'clip_created_at',
+        'clip_participants',
+        'application',
     )
 
     def __init__(self, *, data: AttachmentPayload, state: ConnectionState):
@@ -250,6 +264,11 @@ class Attachment(Hashable):
         self.ephemeral: bool = data.get('ephemeral', False)
         self.duration: Optional[float] = data.get('duration_secs')
         self.title: Optional[str] = data.get('title')
+        self.clip_created_at: Optional[datetime.datetime] = utils.parse_time(data.get('clip_created_at'))
+        self.clip_participants: List[User] = [state.create_user(d) for d in data.get('clip_participants', [])]
+        self.application: Optional[PartialApplication] = (
+            PartialApplication(data=data['application'], state=state) if 'application' in data else None
+        )
 
         waveform = data.get('waveform')
         self.waveform: Optional[bytes] = utils._base64_to_bytes(waveform) if waveform is not None else None
@@ -263,14 +282,14 @@ class Attachment(Hashable):
 
     def is_spoiler(self) -> bool:
         """:class:`bool`: Whether this attachment contains a spoiler."""
-        return self.filename.startswith('SPOILER_')
+        return self.filename.startswith('SPOILER_') or self.flags.spoiler
 
     def is_voice_message(self) -> bool:
-        """:class:`bool`: Whether this attachment is a voice message.
+        """:class:`bool`: Whether this attachment can be sent in a voice message
 
         .. versionadded:: 2.1
         """
-        return self.waveform is not None
+        return self.waveform is not None and self.duration is not None
 
     def __repr__(self) -> str:
         return f'<Attachment id={self.id} filename={self.filename!r} url={self.url!r}>'
