@@ -48,6 +48,7 @@ class ClientStatus(TypedDict, total=False):
     desktop: StatusType
     mobile: StatusType
     web: StatusType
+    embedded: StatusType
 
 
 class ActivityTimestamps(TypedDict, total=False):

@@ -1769,7 +1769,10 @@ class PaymentFlags(BaseFlags):
 
     @flag_value
     def user_refunded(self):
-        """:class:`bool`: Returns ``True`` if the payment has been self-refunded"""
+        """:class:`bool`: Returns ``True`` if the payment has been self-refunded.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 2
 
     @flag_value
@@ -1780,13 +1783,17 @@ class PaymentFlags(BaseFlags):
     # TODO: The below are assumptions
 
     @flag_value
+    def pending(self):
+        """:class:`bool`: Returns ``True`` if the automatic payment is pending manual authorization by the user.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 4
+
+    @flag_value
     def temporary_authorization(self):
         """:class:`bool`: Returns ``True`` if the payment is a temporary authorization."""
         return 1 << 5
-
-    @flag_value
-    def unknown(self):
-        return 1 << 6
 
 
 @fill_with_flags()

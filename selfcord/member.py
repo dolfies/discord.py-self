@@ -463,6 +463,14 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         """:class:`Status`: The member's status on the web client, if applicable."""
         return try_enum(Status, self.presence.client_status.web or 'offline')
 
+    @property
+    def embedded_status(self) -> Status:
+        """:class:`Status`: The member's status on an embedded client, if applicable.
+
+        .. versionadded:: 2.1
+        """
+        return try_enum(Status, self.presence.client_status.embedded or 'offline')
+
     def is_on_mobile(self) -> bool:
         """:class:`bool`: A helper function that determines if a member is active on a mobile device."""
         return self.presence.client_status.mobile is not None

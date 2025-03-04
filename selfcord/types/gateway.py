@@ -32,6 +32,7 @@ from .application import BaseAchievement
 from .audit_log import AuditLogEntry
 from .automod import AutoModerationAction, AutoModerationRuleTriggerType
 from .channel import ChannelType, DMChannel, GroupDMChannel, StageInstance
+from .directory import DirectoryEntry, PartialDirectoryEntry
 from .emoji import Emoji, PartialEmoji
 from .entitlements import Entitlement, GatewayGift
 from .experiment import GuildExperiment, UserExperiment
@@ -714,3 +715,11 @@ class PollVoteActionEvent(TypedDict):
     message_id: Snowflake
     guild_id: NotRequired[Snowflake]
     answer_id: int
+
+
+class DirectoryEntryEvent(DirectoryEntry):
+    guild_id: Snowflake
+
+
+class DirectoryEntryDeleteEvent(PartialDirectoryEntry):
+    guild_id: Snowflake

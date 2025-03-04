@@ -1693,6 +1693,11 @@ class HTTPClient:
             Route('GET', '/channels/{channel_id}/directory-entries/list', channel_id=channel_id), params=params
         )
 
+    def get_directory_entry(self, channel_id: Snowflake, entity_id: Snowflake) -> Response[directory.DirectoryEntry]:
+        return self.request(
+            Route('GET', '/channels/{channel_id}/directory-entry/{entity_id}', channel_id=channel_id, entity_id=entity_id)
+        )
+
     def get_directory_counts(self, channel_id: Snowflake) -> Response[directory.DirectoryCounts]:
         return self.request(Route('GET', '/channels/{channel_id}/directory-entries/counts', channel_id=channel_id))
 
@@ -1758,8 +1763,13 @@ class HTTPClient:
             Route('DELETE', '/channels/{channel_id}/directory-entry/{entity_id}', channel_id=channel_id, entity_id=entity_id)
         )
 
-    def get_directory_broadcast_info(self, guild_id: Snowflake, type: int) -> Response[directory.DirectoryBroadcast]:
+    def get_directory_broadcast_info(
+        self, guild_id: Snowflake, type: int, entity_id: Optional[int] = None
+    ) -> Response[directory.DirectoryBroadcast]:
         params = {'type': type}
+        if entity_id is not None:
+            params['entity_id'] = entity_id
+
         return self.request(Route('GET', '/guilds/{guild_id}/directory-entries/broadcast', guild_id=guild_id), params=params)
 
     # Thread management
