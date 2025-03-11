@@ -2536,6 +2536,10 @@ class Messageable:
 
         .. versionadded:: 2.1
 
+        .. note::
+
+            Method returns only user-installed commands.
+
         Raises
         ------
         ~discord.HTTPException
