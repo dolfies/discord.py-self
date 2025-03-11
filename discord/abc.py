@@ -2529,7 +2529,7 @@ class Messageable:
             most_relevant=most_relevant,
         )
 
-    async def user_installed_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
+    async def user_application_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
         """|coro|
 
         Returns a list of user-installed commands available.
