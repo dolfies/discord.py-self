@@ -569,7 +569,7 @@ class GuildExperiment:
         An experiment that blocks the rollout of this experiment.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
-    trigger_debugging:
+    trigger_debugging: :class:`bool`
         Whether experiment analytics trigger debugging is enabled.
     """
 
@@ -776,9 +776,12 @@ class UserExperiment:
         Whether the user has an explicit bucket override.
     population: :class:`int`
         The internal population group for the user, or None (-1) if manually overridden.
+    holdout: Optional[:class:`UserExperiment`]
+        An experiment that blocks the rollout of this experiment.
+        Only present if the user is in the holdout.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
-    trigger_debugging:
+    trigger_debugging: :class:`bool`
         Whether experiment analytics trigger debugging is enabled.
     """
 
@@ -793,10 +796,11 @@ class UserExperiment:
         '_result',
         'aa_mode',
         'trigger_debugging',
+        'holdout',
     )
 
     def __init__(self, *, state: ConnectionState, data: AssignmentPayload):
-        (hash, revision, bucket, override, population, hash_result, aa_mode, trigger_debugging, *_) = data
+        (hash, revision, bucket, override, population, hash_result, aa_mode, trigger_debugging, holdout_name, holdout_revision, holdout_bucket, *_) = data
 
         self._state = state
         self._name: Optional[str] = None
@@ -808,6 +812,29 @@ class UserExperiment:
         self._result: int = hash_result
         self.aa_mode: bool = aa_mode == 1
         self.trigger_debugging: bool = trigger_debugging == 1
+
+        self.holdout: Optional[UserExperiment] = None
+        if holdout_name is not None:
+            holdout_hash = murmurhash32(holdout_name, signed=False)
+            self.holdout = state.experiments.get(holdout_hash) or UserExperiment.from_holdout(state, holdout_hash, holdout_name, holdout_revision, holdout_bucket)
+
+    @classmethod
+    def from_holdout(cls, state: ConnectionState, hash: int, name: str, revision: Optional[int], bucket: Optional[int]) -> UserExperiment:
+        self = cls.__new__(cls)
+        self._state = state
+        self._name = name
+        self.hash = hash
+        self.revision = revision or 0
+        self.assignment = bucket or -1
+
+        # Most of these fields are defaults
+        self.override = False
+        self.population = 0
+        self._result = -1
+        self.aa_mode = False
+        self.trigger_debugging = False
+        self.holdout = None
+        return self
 
     def __repr__(self) -> str:
         return f'<UserExperiment hash={self.hash}{f" name={self._name!r}" if self._name else ""} bucket={self.bucket}>'
@@ -855,9 +882,11 @@ class UserExperiment:
         :exc:`ValueError`
             The experiment name is unset without a precomputed result.
         """
-        if self._result:
+        if self._result >= 0:
             return self._result
         elif not self.name:
             raise ValueError('The experiment name must be set to compute the result')
         else:
-            return murmurhash32(f'{self.name}:{self._state.self_id}', signed=False) % 10000
+            result = murmurhash32(f'{self.name}:{self._state.self_id}', signed=False) % 10000
+            self._result = result
+            return result

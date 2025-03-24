@@ -446,11 +446,11 @@ class Attachment(Hashable):
     def to_dict(self) -> AttachmentPayload:
         result: AttachmentPayload = {
             'filename': self.filename,
+            'flags': self._flags,
             'id': self.id,
             'proxy_url': self.proxy_url,
             'size': self.size,
             'url': self.url,
-            'spoiler': self.is_spoiler(),
         }
         if self.height:
             result['height'] = self.height
@@ -460,6 +460,8 @@ class Attachment(Hashable):
             result['content_type'] = self.content_type
         if self.description is not None:
             result['description'] = self.description
+        if self.title is not None:
+            result['title'] = self.title
         return result
 
 
