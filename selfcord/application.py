@@ -74,8 +74,8 @@ if TYPE_CHECKING:
     from .types.application import (
         EULA as EULAPayload,
         Achievement as AchievementPayload,
-        ActivityStatistics as ActivityStatisticsPayload,
         Application as ApplicationPayload,
+        ApplicationActivityStatistics as ApplicationActivityStatisticsPayload,
         ApplicationExecutable as ApplicationExecutablePayload,
         ApplicationInstallParams as ApplicationInstallParamsPayload,
         Asset as AssetPayload,
@@ -94,6 +94,7 @@ if TYPE_CHECKING:
         PartialApplication as PartialApplicationPayload,
         ThirdPartySKU as ThirdPartySKUPayload,
         UnverifiedApplication as UnverifiedApplicationPayload,
+        UserActivityStatistics as UserActivityStatisticsPayload,
         WhitelistedUser as WhitelistedUserPayload,
     )
     from .types.user import PartialUser as PartialUserPayload
@@ -1018,6 +1019,10 @@ class ApplicationActivityStatistics:
 
     .. versionadded:: 2.0
 
+    .. versionchanged:: 2.1
+
+        ``updated_at`` was renamed to ``last_played_at``.
+
     Attributes
     -----------
     application_id: :class:`int`
@@ -1026,18 +1031,25 @@ class ApplicationActivityStatistics:
         The ID of the user.
     duration: :class:`int`
         How long the user has ever played the game in seconds.
+        This will be the last session duration for global statistics, and the total duration otherwise.
     sku_duration: :class:`int`
-        How long the user has ever played the game on Discord in seconds.
-    updated_at: :class:`datetime.datetime`
+        How long the user has ever played the game through Discord in seconds.
+        Only provided for the current user.
+    first_played_at: Optional[:class:`datetime.datetime`]
+        When the user first played the game.
+        Only provided for the current user.
+
+        .. versionadded:: 2.1
+    last_played_at: :class:`datetime.datetime`
         When the user last played the game.
     """
 
-    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'updated_at', '_state')
+    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'first_played_at', 'last_played_at', '_state')
 
     def __init__(
         self,
         *,
-        data: Union[ActivityStatisticsPayload, GlobalActivityStatisticsPayload],
+        data: Union[ApplicationActivityStatisticsPayload, GlobalActivityStatisticsPayload, UserActivityStatisticsPayload],
         state: ConnectionState,
         application_id: Optional[int] = None,
     ) -> None:
@@ -1046,10 +1058,13 @@ class ApplicationActivityStatistics:
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
-        self.updated_at: datetime = utils.parse_time(data.get('last_played_at', data.get('updated_at'))) or utils.utcnow()
+        self.first_played_at: Optional[datetime] = utils.parse_time(data.get('first_played_at'))
+        self.last_played_at: datetime = (
+            utils.parse_time(data.get('last_played_at', data.get('updated_at'))) or utils.utcnow()
+        )
 
     def __repr__(self) -> str:
-        return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.updated_at!r}>'
+        return f'<ApplicationActivityStatistics user_id={self.user_id} duration={self.duration} last_played_at={self.last_played_at!r}>'
 
     @property
     def user(self) -> Optional[User]:
@@ -1063,7 +1078,7 @@ class ApplicationActivityStatistics:
 
         Raises
         ------
-        HTTPException
+        HTTPExceptionq
             Fetching the application failed.
         """
         state = self._state
@@ -2934,6 +2949,126 @@ class Application(PartialApplication):
             self._update(data)
 
         return self.bot
+
+    @overload
+    async def request_intents(
+        self,
+        intents: ApplicationFlags,
+        description: str,
+        *,
+        presence_use_case: str = ...,
+        presence_supplemental_material: str = ...,
+        presence_store_off_platform: bool = ...,
+        presence_retention: bool = ...,
+        presence_encrypted: bool = ...,
+        presence_opt_out_stored: bool = ...,
+        presence_contact_deletion: str = ...,
+        guild_members_use_case: str = ...,
+        guild_members_supplemental_material: str = ...,
+        guild_members_store_off_platform: bool = ...,
+        guild_members_retention: bool = ...,
+        guild_members_encrypted: bool = ...,
+        guild_members_contact_deletion: str = ...,
+        message_content_use_case: str = ...,
+        message_content_supplemental_material: str = ...,
+        message_content_store_off_platform: bool = ...,
+        message_content_retention: bool = ...,
+        message_content_encrypted: bool = ...,
+        message_content_opt_out_stored: bool = ...,
+        message_content_ai_training: bool = ...,
+        message_content_privacy_policy_public: bool = ...,
+        message_content_privacy_policy_location: str = ...,
+        message_content_privacy_policy_example: str = ...,
+        message_content_contact_deletion: str = ...,
+    ) -> None:
+        ...
+
+    @overload
+    async def request_intents(self, intents: ApplicationFlags, description: str) -> None:
+        ...
+
+    async def request_intents(self, intents: ApplicationFlags, description: str, **kwargs: Any) -> None:
+        """|coro|
+
+        Requests the specified Gateway intents for this application.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        intents: :class:`ApplicationFlags`
+            The intents to request.
+        description: :class:`str`
+            The description of the application (50-2000 characters).
+        presence_use_case: :class:`str`
+            The use case for requesting the presence intent (50-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_presence`.
+        presence_supplemental_material: :class:`str`
+            The supplemental material for the requested presence intent (5-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_presence`.
+        presence_store_off_platform: :class:`bool`
+            Whether the application stores presence data off-platform.
+            Required if requesting :attr:`ApplicationFlags.gateway_presence`.
+        presence_retention: :class:`bool`
+            Whether the application retains presence data for 30 days or less.
+        presence_encrypted: :class:`bool`
+            Whether the application encrypts stored presence data at rest.
+        presence_opt_out_stored: :class:`bool`
+            Whether application users can opt out of having their presence data stored.
+        presence_contact_deletion: :class:`str`
+            How application users can request the deletion of their presence data (25-2000 characters).
+        guild_members_use_case: :class:`str`
+            The use case for requesting the guild members intent (50-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_guild_members`.
+        guild_members_supplemental_material: :class:`str`
+            The supplemental material for the requested guild members intent (5-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_guild_members`.
+        guild_members_store_off_platform: :class:`bool`
+            Whether the application stores guild member data off-platform.
+            Required if requesting :attr:`ApplicationFlags.gateway_guild_members`.
+        guild_members_retention: :class:`bool`
+            Whether the application retains guild member data for 30 days or less.
+        guild_members_encrypted: :class:`bool`
+            Whether the application encrypts stored guild member data at rest.
+        guild_members_contact_deletion: :class:`str`
+            How application users can request the deletion of their guild member data (25-2000 characters).
+        message_content_use_case: :class:`str`
+            The use case for requesting the message content intent (50-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_message_content`.
+        message_content_supplemental_material: :class:`str`
+            The supplemental material for the requested message content intent (5-2000 characters).
+            Required if requesting :attr:`ApplicationFlags.gateway_message_content`.
+        message_content_store_off_platform: :class:`bool`
+            Whether the application stores message content data off-platform.
+            Required if requesting :attr:`ApplicationFlags.gateway_message_content`.
+        message_content_retention: :class:`bool`
+            Whether the application retains message content data for 30 days or less.
+        message_content_encrypted: :class:`bool`
+            Whether the application encrypts stored message content data at rest.
+        message_content_opt_out_stored: :class:`bool`
+            Whether application users can opt out of having their message content data stored.
+        message_content_ai_training: :class:`bool`
+            Whether the application uses message content data for AI training.
+        message_content_privacy_policy_public: :class:`bool`
+            Whether the application has a public privacy policy detailing how message content data is used.
+        message_content_privacy_policy_location: :class:`str`
+            Where the application's privacy policy can be found (25-2000 characters).
+        message_content_privacy_policy_example: :class:`str`
+            A link to or screenshots of the application's privacy policy (25-2000 characters).
+        message_content_contact_deletion: :class:`str`
+            How application users can request the deletion of their message content data (25-2000 characters).
+        """
+        payload = {'application_description': description, 'intents_flags_requested': intents._to_intents()}
+        for key, value in kwargs.items():
+            if value in (MISSING, None):
+                continue
+            if key.endswith('use_case'):
+                key += '_description'
+            elif key.endswith('supplemental_material'):
+                key = key.replace('supplemental_material', 'use_case_supplemental_material_description')
+            payload[f'intents_gateway_{key}'] = value
+
+        await self._state.http.request_app_intents(self.id, payload)
 
     async def whitelisted(self) -> List[ApplicationTester]:
         """|coro|

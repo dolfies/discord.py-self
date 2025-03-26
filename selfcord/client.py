@@ -3575,7 +3575,7 @@ class Client:
     async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
         """|coro|
 
-        Retrieves the available activity usage statistics for your owned applications.
+        Retrieves the available activity usage statistics for the games you play.
 
         .. versionadded:: 2.0
 
@@ -3593,12 +3593,17 @@ class Client:
         data = await state.http.get_activity_statistics()
         return [ApplicationActivityStatistics(state=state, data=d) for d in data]
 
-    async def relationship_activity_statistics(self) -> List[ApplicationActivityStatistics]:
+    async def global_activity_statistics(self) -> List[ApplicationActivityStatistics]:
         """|coro|
 
-        Retrieves the available activity usage statistics for your relationships' owned applications.
+        Retrieves the available activity usage statistics for the games your friends and
+        implicit relationships play.
 
         .. versionadded:: 2.0
+
+        .. versionchanged:: 2.1
+
+            Renamed from ``relationship_activity_statistics()`` to ``global_activity_statistics()``.
 
         Raises
         -------
