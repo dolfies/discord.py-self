@@ -778,7 +778,7 @@ class UserExperiment:
         The internal population group for the user, or None (-1) if manually overridden.
     holdout: Optional[:class:`UserExperiment`]
         An experiment that blocks the rollout of this experiment.
-        Only present if the user is in the holdout.
+        Only present if the user has an assignment in the holdout.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
     trigger_debugging: :class:`bool`
@@ -800,7 +800,20 @@ class UserExperiment:
     )
 
     def __init__(self, *, state: ConnectionState, data: AssignmentPayload):
-        (hash, revision, bucket, override, population, hash_result, aa_mode, trigger_debugging, holdout_name, holdout_revision, holdout_bucket, *_) = data
+        (
+            hash,
+            revision,
+            bucket,
+            override,
+            population,
+            hash_result,
+            aa_mode,
+            trigger_debugging,
+            holdout_name,
+            holdout_revision,
+            holdout_bucket,
+            *_,
+        ) = data
 
         self._state = state
         self._name: Optional[str] = None
@@ -816,10 +829,14 @@ class UserExperiment:
         self.holdout: Optional[UserExperiment] = None
         if holdout_name is not None:
             holdout_hash = murmurhash32(holdout_name, signed=False)
-            self.holdout = state.experiments.get(holdout_hash) or UserExperiment.from_holdout(state, holdout_hash, holdout_name, holdout_revision, holdout_bucket)
+            self.holdout = state.experiments.get(holdout_hash) or UserExperiment.from_holdout(
+                state, holdout_hash, holdout_name, holdout_revision, holdout_bucket
+            )
 
     @classmethod
-    def from_holdout(cls, state: ConnectionState, hash: int, name: str, revision: Optional[int], bucket: Optional[int]) -> UserExperiment:
+    def from_holdout(
+        cls, state: ConnectionState, hash: int, name: str, revision: Optional[int], bucket: Optional[int]
+    ) -> UserExperiment:
         self = cls.__new__(cls)
         self._state = state
         self._name = name

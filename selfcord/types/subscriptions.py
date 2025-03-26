@@ -38,6 +38,7 @@ class PremiumGuildSubscription(TypedDict):
     user: NotRequired[PartialUser]
     ended: bool
     ends_at: NotRequired[str]
+    pause_ends_at: Optional[str]
 
 
 class PremiumGuildSubscriptionSlot(TypedDict):
