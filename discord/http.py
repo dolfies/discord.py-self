@@ -762,7 +762,7 @@ class HTTPClient:
         # This header isn't really necessary
         # Timezones are annoying, so if it errors, we don't care
         try:
-            from tzlocal import get_localzone_name
+            from tzlocal import get_localzone_name # type: ignore
 
             timezone = get_localzone_name()
         except Exception:
@@ -907,7 +907,7 @@ class HTTPClient:
                             if isinstance(data, str):
                                 # Cloudflare ban
                                 is_global = False
-                                retry_after = int(response.headers.get('Retry-After', '0'))
+                                retry_after = float(response.headers.get('Retry-After', '0'))
                                 if not retry_after:
                                     # Unhandleable
                                     result = re.search(r'<span>(\d{3,4})</span>', data)
@@ -915,7 +915,7 @@ class HTTPClient:
                                     raise HTTPException(response, f'Cloudflare ban (code: {code})')
                             else:
                                 is_global: bool = data.get('global', False)
-                                retry_after: float = data.get('retry_after', int(response.headers.get('Retry-After', 0)))
+                                retry_after: float = data.get('retry_after', float(response.headers.get('Retry-After', 0)))
 
                             # Cloudflare rate limit
                             is_cloudflare = not response.headers.get('Via')
@@ -935,7 +935,7 @@ class HTTPClient:
 
                             if 'Retry-After' in response.headers:
                                 # Sometimes Cloudflare rate limits will have their retry_after field in milliseconds
-                                if int(response.headers['Retry-After']) == int(retry_after / 1000):
+                                if float(response.headers['Retry-After']) == float(retry_after / 1000):
                                     retry_after /= 1000.0
 
                             if self.max_ratelimit_timeout and retry_after > self.max_ratelimit_timeout:
