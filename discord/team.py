@@ -146,7 +146,7 @@ class Team(Hashable):
                 }
                 self.members.append(TeamMember(self, self._state, member))
 
-        if 'payout_account_status' in data:
+        if data.get('payout_account_status'):
             self.payout_account_status = try_enum(PayoutAccountStatus, data.get('payout_account_status'))
         if 'stripe_connect_account_id' in data:
             self.stripe_connect_account_id = data.get('stripe_connect_account_id')

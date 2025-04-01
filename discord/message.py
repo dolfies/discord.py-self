@@ -282,14 +282,12 @@ class Attachment(Hashable):
 
     def is_spoiler(self) -> bool:
         """:class:`bool`: Whether this attachment contains a spoiler."""
+        # The flag is technically always present but no harm to check both
         return self.filename.startswith('SPOILER_') or self.flags.spoiler
 
     def is_voice_message(self) -> bool:
-        """:class:`bool`: Whether this attachment can be sent in a voice message
-
-        .. versionadded:: 2.1
-        """
-        return self.waveform is not None and self.duration is not None
+        """:class:`bool`: Whether this attachment is a voice message."""
+        return self.duration is not None and self.waveform is not None
 
     def __repr__(self) -> str:
         return f'<Attachment id={self.id} filename={self.filename!r} url={self.url!r}>'
@@ -446,11 +444,11 @@ class Attachment(Hashable):
     def to_dict(self) -> AttachmentPayload:
         result: AttachmentPayload = {
             'filename': self.filename,
+            'flags': self._flags,
             'id': self.id,
             'proxy_url': self.proxy_url,
             'size': self.size,
             'url': self.url,
-            'spoiler': self.is_spoiler(),
         }
         if self.height:
             result['height'] = self.height
@@ -460,6 +458,8 @@ class Attachment(Hashable):
             result['content_type'] = self.content_type
         if self.description is not None:
             result['description'] = self.description
+        if self.title is not None:
+            result['title'] = self.title
         return result
 
 

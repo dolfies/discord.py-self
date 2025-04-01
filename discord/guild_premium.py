@@ -81,7 +81,22 @@ class PremiumGuildSubscription(Hashable):
         Whether the guild premium subscription has ended.
     ends_at: Optional[:class:`datetime.datetime`]
         When the guild premium subscription ends.
+    pause_ends_at: Optional[:class:`datetime.datetime`]
+        When the guild premium subscription pause ends, reactivating the subscription.
+
+        .. versionadded:: 2.1
     """
+
+    __slots__ = (
+        'id',
+        'guild_id',
+        'user_id',
+        'user',
+        'ended',
+        'ends_at',
+        'pause_ends_at',
+        '_state',
+    )
 
     def __init__(self, *, state: ConnectionState, data: PremiumGuildSubscriptionPayload):
         self._state = state
@@ -96,6 +111,7 @@ class PremiumGuildSubscription(Hashable):
         self.user = state.store_user(data['user']) if 'user' in data else state.user
         self.ended = data.get('ended', False)
         self.ends_at: Optional[datetime] = parse_time(data.get('ends_at'))
+        self.pause_ends_at: Optional[datetime] = parse_time(data.get('pause_ends_at'))
 
     def __repr__(self) -> str:
         return f'<PremiumGuildSubscription id={self.id} guild_id={self.guild_id} user_id={self.user_id} ended={self.ended}>'
@@ -132,9 +148,9 @@ class PremiumGuildSubscription(Hashable):
 
 
 class PremiumGuildSubscriptionSlot(Hashable):
-    """Represents a premium guild subscription (boost) slot.
+    """Represents a premium guild subscription slot.
 
-    This is a slot that can be used on a guild (to boost it).
+    This slot can be used on a guild (to boost it).
 
     .. container:: operations
 

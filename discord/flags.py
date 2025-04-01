@@ -1297,6 +1297,19 @@ class ApplicationFlags(BaseFlags):
 
     __slots__ = ()
 
+    def _to_intents(self) -> int:
+        # Start with a base value of 0
+        intents = 0
+
+        if self.gateway_presence_limited or self.gateway_presence:
+            intents |= 1 << 12
+        if self.gateway_guild_members_limited or self.gateway_guild_members:
+            intents |= 1 << 14
+        if self.gateway_message_content_limited or self.gateway_message_content:
+            intents |= 1 << 18
+
+        return intents
+
     @flag_value
     def embedded_released(self):
         """:class:`bool`: Returns ``True`` if the embedded application is released to the public."""
@@ -2770,6 +2783,11 @@ class ReadStateFlags(BaseFlags):
     def thread(self):
         """:class:`bool`: Returns ``True`` if the read state is for a thread."""
         return 1 << 1
+
+    @flag_value
+    def mention_low_importance(self):
+        """:class:`bool`: Returns ``True`` if the read state's badge is of low importance."""
+        return 1 << 2
 
 
 @fill_with_flags()

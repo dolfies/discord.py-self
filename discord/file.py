@@ -59,15 +59,25 @@ def _strip_spoiler(filename: str) -> Tuple[str, bool]:
 
 
 class _FileBase:
-    __slots__ = ('_filename', 'spoiler', 'description')
+    __slots__ = ('_filename', 'spoiler', 'description', 'title', 'remix')
 
-    def __init__(self, filename: str, *, spoiler: bool = False, description: Optional[str] = None):
+    def __init__(
+        self,
+        filename: str,
+        *,
+        spoiler: bool = False,
+        description: Optional[str] = None,
+        title: Optional[str] = None,
+        remix: bool = False,
+    ) -> None:
         self._filename, filename_spoiler = _strip_spoiler(filename)
         if spoiler is MISSING:
             spoiler = filename_spoiler
 
         self.spoiler: bool = spoiler
         self.description: Optional[str] = description
+        self.title: Optional[str] = title
+        self.remix: bool = remix
 
     @property
     def filename(self) -> str:
@@ -85,10 +95,16 @@ class _FileBase:
         payload: PartialAttachmentPayload = {
             'id': str(index),
             'filename': self.filename,
+            # n.b. this is set by the filename anyway
+            # 'is_spoiler': self.spoiler,
         }
 
         if self.description is not None:
             payload['description'] = self.description
+        if self.title is not None:
+            payload['title'] = self.title
+        if self.remix:
+            payload['is_remix'] = True
 
         return payload
 
@@ -125,10 +141,18 @@ class File(_FileBase):
     spoiler: :class:`bool`
         Whether the attachment is a spoiler. If left unspecified, the :attr:`~File.filename` is used
         to determine if the file is a spoiler.
+    remix: :class:`bool`
+        Whether the attachment is a remix.
+
+        .. versionadded:: 2.1
     description: Optional[:class:`str`]
         The file description to display, currently only supported for images.
 
         .. versionadded:: 2.0
+    title: Optional[:class:`str`]
+        The normalized attachment filename or title of the clip.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = ('fp', '_original_pos', '_owner', '_closer', '_cs_md5', '_cs_size')
@@ -140,6 +164,8 @@ class File(_FileBase):
         *,
         spoiler: bool = MISSING,
         description: Optional[str] = None,
+        title: Optional[str] = None,
+        remix: bool = False,
     ):
         if isinstance(fp, io.IOBase):
             if not (fp.seekable() and fp.readable()):
@@ -164,7 +190,7 @@ class File(_FileBase):
             else:
                 filename = getattr(fp, 'name', 'untitled')
 
-        super().__init__(filename, spoiler=spoiler, description=description)
+        super().__init__(filename, spoiler=spoiler, description=description, title=title, remix=remix)
 
     @cached_slot_property('_cs_md5')
     def md5(self):
@@ -230,15 +256,18 @@ class CloudFile(_FileBase):
 
         .. note::
 
-            This URL cannot be used to download the file,
-            it is merely used to send the file to Discord.
+            This URL cannot be used to download the file, it is merely used to send the file to Discord.
     upload_filename: :class:`str`
         The filename that Discord has assigned to the file.
     spoiler: :class:`bool`
         Whether the attachment is a spoiler. If left unspecified, the :attr:`~CloudFile.filename` is used
         to determine if the file is a spoiler.
+    remix: :class:`bool`
+        Whether the attachment is a remix.
     description: Optional[:class:`str`]
         The file description to display, currently only supported for images.
+    title: Optional[:class:`str`]
+        The normalized attachment filename or title of the clip.
     """
 
     __slots__ = ('url', 'upload_filename', '_state')
@@ -251,9 +280,11 @@ class CloudFile(_FileBase):
         *,
         spoiler: bool = MISSING,
         description: Optional[str] = None,
+        title: Optional[str] = None,
+        remix: bool = False,
         state: ConnectionState,
     ):
-        super().__init__(filename, spoiler=spoiler, description=description)
+        super().__init__(filename, spoiler=spoiler, description=description, title=title, remix=remix)
         self.url = url
         self.upload_filename = upload_filename
         self._state = state
@@ -261,7 +292,15 @@ class CloudFile(_FileBase):
     @classmethod
     async def from_file(cls, *, file: File, state: ConnectionState, data: CloudAttachmentPayload) -> Self:
         await state.http.upload_to_cloud(data['upload_url'], file)
-        return cls(data['upload_url'], file._filename, data['upload_filename'], description=file.description, state=state)
+        return cls(
+            data['upload_url'],
+            file._filename,
+            data['upload_filename'],
+            state=state,
+            description=file.description,
+            title=file.title,
+            remix=file.remix,
+        )
 
     @property
     def upload_id(self) -> str:

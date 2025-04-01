@@ -103,7 +103,7 @@ if TYPE_CHECKING:
     from .sticker import GuildSticker, StickerItem
     from .file import File
     from .user import BaseUser, ClientUser, User
-    from .guild import Guild, GuildChannel as GuildChannelType
+    from .guild import Guild, GuildChannel as GuildChannelType, UserGuild
     from .settings import ChannelSettings
     from .read_state import ReadState
     from .types.channel import (
@@ -4653,7 +4653,7 @@ class PartialMessageable(discord.abc.Messageable, Hashable):
         return self
 
     @classmethod
-    def _from_webhook_channel(cls, guild: Guild, channel: WebhookChannelPayload) -> Self:
+    def _from_webhook_channel(cls, guild: Union[Guild, UserGuild], channel: WebhookChannelPayload) -> Self:
         return cls(
             state=guild._state,
             id=int(channel['id']),

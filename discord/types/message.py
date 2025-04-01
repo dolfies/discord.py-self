@@ -275,17 +275,27 @@ MessageSearchSortType = Literal['timestamp', 'relevance']
 MessageSearchSortOrder = Literal['desc', 'asc']
 
 
-class PartialAttachment(TypedDict):
-    id: NotRequired[Snowflake]
-    filename: str
-    description: NotRequired[str]
-    uploaded_filename: NotRequired[str]
+class PartialAttachment(TypedDict, total=False):
+    id: Snowflake
+    filename: Required[str]
+    description: str
+    uploaded_filename: str
+    title: str
+    duration_secs: float
+    waveform: str
+    is_spoiler: bool
+    is_remix: bool
+    is_clip: bool
+    application_id: Snowflake
+    clip_created_at: str
+    clip_participant_ids: SnowflakeList
 
 
 class UploadedAttachment(TypedDict):
     id: NotRequired[Snowflake]
     filename: str
     file_size: int
+    is_clip: NotRequired[bool]
 
 
 class CloudAttachment(TypedDict):

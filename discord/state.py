@@ -1762,7 +1762,7 @@ class ConnectionState:
             channel.last_message_id = message.id  # type: ignore
 
         read_state = self.get_read_state(channel.id)
-        if message.author.id == self.self_id:
+        if message.author.id == self.self_id and message.type != MessageType.poll_result:
             # Implicitly mark our own messages as read
             read_state.last_acked_id = message.id
         if (
@@ -3252,7 +3252,9 @@ class ConnectionState:
 
         channel = guild.get_channel(int(data['directory_channel_id']))
         if channel is None:
-            _log.debug('GUILD_DIRECTORY_ENTRY_CREATE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id'])
+            _log.debug(
+                'GUILD_DIRECTORY_ENTRY_CREATE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id']
+            )
             return
 
         entry = DirectoryEntry(data=data, state=self, channel=channel)  # type: ignore # channel should always be a DirectoryChannel
@@ -3266,7 +3268,9 @@ class ConnectionState:
 
         channel = guild.get_channel(int(data['directory_channel_id']))
         if channel is None:
-            _log.debug('GUILD_DIRECTORY_ENTRY_UPDATE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id'])
+            _log.debug(
+                'GUILD_DIRECTORY_ENTRY_UPDATE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id']
+            )
             return
 
         entry = DirectoryEntry(data=data, state=self, channel=channel)  # type: ignore # channel should always be a DirectoryChannel
@@ -3280,7 +3284,9 @@ class ConnectionState:
 
         channel = guild.get_channel(int(data['directory_channel_id']))
         if channel is None:
-            _log.debug('GUILD_DIRECTORY_ENTRY_DELETE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id'])
+            _log.debug(
+                'GUILD_DIRECTORY_ENTRY_DELETE referencing unknown channel ID: %s. Discarding.', data['directory_channel_id']
+            )
             return
 
         entry = DirectoryEntry(data=data, state=self, channel=channel)  # type: ignore # channel should always be a DirectoryChannel
