@@ -1079,6 +1079,11 @@ class SKU(Hashable):
 
     .. versionadded:: 2.0
 
+    .. versionchanged:: 2.1
+
+        Removed the non-functional ``create_discount()``
+        and ``delete_discount()`` methods.
+
     Attributes
     -----------
     id: :class:`int`
@@ -1496,7 +1501,7 @@ class SKU(Hashable):
         if manifest_labels is not MISSING:
             payload['manifest_labels'] = [m.id for m in manifest_labels] if manifest_labels else []
 
-        data = await self._state.http.edit_sku(self.id, **payload)
+        data = await self._state.http.edit_sku(self.id, payload)
         self._update(data)
 
     async def subscription_plans(
@@ -1688,54 +1693,6 @@ class SKU(Hashable):
 
         data = await self._state.http.create_store_listing(self.application_id, self.id, payload)
         return StoreListing(data=data, state=self._state, application=self.application)
-
-    async def create_discount(self, user: Snowflake, percent_off: int, *, ttl: int = 3600) -> None:
-        """|coro|
-
-        Creates a discount for this SKU for a user.
-
-        This discount will be applied to the user's next purchase of this SKU.
-
-        Parameters
-        ----------
-        user: :class:`User`
-            The user to create the discount for.
-        percent_off: :class:`int`
-            The discount in the form of a percentage off the price to give the user.
-        ttl: :class:`int`
-            How long the discount should last for in seconds.
-            Minimum 60 seconds, maximum 3600 seconds.
-
-        Raises
-        ------
-        Forbidden
-            You do not have permissions to create the discount.
-        HTTPException
-            Creating the discount failed.
-        """
-        await self._state.http.create_sku_discount(self.id, user.id, percent_off, ttl)
-
-    async def delete_discount(self, user: Snowflake) -> None:
-        """|coro|
-
-        Deletes a discount for this SKU for a user.
-
-        You do not need to call this after a discounted purchase has been made,
-        as the discount will be automatically consumed and deleted.
-
-        Parameters
-        ----------
-        user: :class:`User`
-            The user to delete the discount for.
-
-        Raises
-        ------
-        Forbidden
-            You do not have permissions to delete the discount.
-        HTTPException
-            Deleting the discount failed.
-        """
-        await self._state.http.delete_sku_discount(self.id, user.id)
 
     async def create_gift_batch(
         self,

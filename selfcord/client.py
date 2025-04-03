@@ -50,7 +50,7 @@ from typing import (
 
 import aiohttp
 
-from .user import _UserTag, User, ClientUser, Note
+from .user import _UserTag, RecentAvatar, User, ClientUser, Note
 from .invite import Invite
 from .template import Template
 from .widget import Widget
@@ -5582,3 +5582,28 @@ class Client:
         else:
             data = await http.pomelo_attempt_unauthed(username)
         return data['taken']
+
+    async def recent_avatars(self) -> List[RecentAvatar]:
+        """|coro|
+
+        Retrieves the recent avatars for the current user.
+
+        For premium users, the six most recent avatars will be returned.
+        Otherwise, only two will be returned.
+
+        .. versionadded:: 2.1
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the recent avatars failed.
+
+        Returns
+        -------
+        List[:class:`.RecentAvatar`]
+            The recent avatars.
+        """
+        state = self._connection
+        user = state.user
+        data = await state.http.get_recent_avatars()
+        return [RecentAvatar(user=user, data=d) for d in data['avatars']]  # type: ignore # user will be present here

@@ -93,6 +93,10 @@ class User(APIUser, total=False):
     nsfw_allowed: Optional[bool]
 
 
+class UserWithToken(User):
+    token: str
+
+
 class UserAvatarDecorationData(TypedDict):
     asset: str
     sku_id: NotRequired[Snowflake]
@@ -264,3 +268,13 @@ class FriendToken(TypedDict):
 
 class Report(TypedDict):
     report_id: Snowflake
+
+
+class UserAvatar(TypedDict):
+    id: Snowflake
+    storage_hash: str
+    description: Optional[str]
+
+
+class UserAvatars(TypedDict):
+    avatars: List[UserAvatar]

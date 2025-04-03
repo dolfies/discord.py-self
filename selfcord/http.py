@@ -1140,7 +1140,7 @@ class HTTPClient:
         params = {'with_analytics_token': str(with_analytics_token).lower()}
         return self.request(Route('GET', '/users/@me'), params=params)
 
-    def edit_profile(self, payload: Dict[str, Any]) -> Response[user.User]:
+    def edit_profile(self, payload: Dict[str, Any]) -> Response[user.UserWithToken]:
         return self.request(Route('PATCH', '/users/@me'), json=payload)
 
     def pomelo(self, username: str) -> Response[user.User]:
@@ -1163,6 +1163,12 @@ class HTTPClient:
     def pomelo_attempt_unauthed(self, username: str) -> Response[user.PomeloAttempt]:
         payload = {'username': username}
         return self.request(Route('POST', '/unique-username/username-attempt-unauthed'), json=payload, auth=False)
+
+    def get_recent_avatars(self) -> Response[user.UserAvatars]:
+        return self.request(Route('GET', '/users/@me/avatars'))
+
+    def delete_recent_avatar(self, avatar_id: Snowflake) -> Response[None]:
+        return self.request(Route('DELETE', '/users/@me/avatars/{avatar_id}', avatar_id=avatar_id))
 
     # PM functionality
 
