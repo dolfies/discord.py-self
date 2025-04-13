@@ -24,16 +24,19 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Dict
-
 import argparse
+import importlib.metadata
+import platform
 import sys
 from pathlib import Path, PurePath, PureWindowsPath
+from typing import Dict, Optional, Tuple
+
+import aiohttp
+import curl_cffi
+import curl_cffi.requests.impersonate
+import selfcord_protos
 
 import selfcord
-import importlib.metadata
-import aiohttp
-import platform
 
 
 def show_version() -> None:
@@ -47,6 +50,8 @@ def show_version() -> None:
         if version:
             entries.append(f'    - selfcord.py metadata: v{version}')
 
+    entries.append(f'    - discord-protos v{discord_protos.__version__}')
+    entries.append(f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__} impersonating {curl_cffi.requests.impersonate.DEFAULT_CHROME})')  # type: ignore
     entries.append(f'- aiohttp v{aiohttp.__version__}')
     uname = platform.uname()
     entries.append('- system info: {0.system} {0.release} {0.version}'.format(uname))
