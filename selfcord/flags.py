@@ -2855,6 +2855,12 @@ class InviteFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the invite is enhanced."""
         return 1 << 2
 
+    @flag_value
+    def application_bypass(self):
+        """:class:`bool`: Returns ``True`` if the invite bypasses guild join requests and adds the user directly to the guild with :attr:`selfcord.Member.pending` set to ``False``."""
+        return 1 << 3
+
+
 
 @fill_with_flags()
 class AttachmentFlags(BaseFlags):

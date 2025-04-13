@@ -1585,6 +1585,7 @@ class GuildChannel:
         temporary: bool = False,
         unique: bool = True,
         guest: bool = False,
+        application_bypass: bool = False,
         target_type: Optional[InviteTarget] = None,
         target_user: Optional[User] = None,
         target_application: Optional[Snowflake] = None,
@@ -1616,9 +1617,14 @@ class GuildChannel:
             Defaults to ``False``.
 
             .. versionadded:: 2.1
+        application_bypass: :class:`bool`
+            Denotes that the invite bypasses guild join requests and adds the user directly to the guild with :attr:`selfcord.Member.pending` set to ``False``.
+            Requires that manual approval is enabled for the guild.
+
+            .. versionadded:: 2.1
         unique: :class:`bool`
             Indicates if a unique invite URL should be created. Defaults to ``True``.
-            If this is set to ``False`` then it will return a previously created
+            If this is set to ``False`` then it may return a previously created
             invite.
         target_type: Optional[:class:`~selfcord.InviteTarget`]
             The type of target for the voice channel invite, if any.
@@ -1653,9 +1659,12 @@ class GuildChannel:
             raise ValueError('target_type parameter must be InviteTarget.stream, or InviteTarget.embedded_application')
         if target_type == InviteTarget.unknown:
             target_type = None
+
         flags = InviteFlags()
         if guest:
             flags.guest = True
+        if application_bypass:
+            flags.application_bypass = True
 
         data = await self._state.http.create_invite(
             self.id,
