@@ -31,17 +31,26 @@ from discord import utils
 @pytest.mark.asyncio
 async def test_build_number():
     async with aiohttp.ClientSession() as session:
-        assert await utils._get_build_number(session) is not None
+        assert await utils.Headers._get_build_number(session) is not None
 
 
 @pytest.mark.asyncio
 async def test_browser_version():
     async with aiohttp.ClientSession() as session:
-        assert await utils._get_browser_version(session) is not None
+        assert await utils.Headers._get_browser_version(session) is not None
 
 
 @pytest.mark.asyncio
-async def test_user_agent():
-    async with aiohttp.ClientSession() as session:
-        browser_version = await utils._get_browser_version(session)
-        assert utils._get_user_agent(browser_version) is not None
+async def test_utilities():
+    chromium_version = 135
+    hdrs = utils.Headers(platform='Windows',
+        major_version=chromium_version,
+        super_properties={},
+        encoded_super_properties=''
+    )
+    client_hints = hdrs.client_hints
+
+    assert hdrs._get_user_agent(chromium_version, 'Edg') == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+    assert client_hints['Sec-CH-UA'] == '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"'
+    assert client_hints['Sec-CH-UA-Mobile'] == '?0'
+    assert client_hints['Sec-CH-UA-Platform'] == '"Windows"'

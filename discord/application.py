@@ -1078,7 +1078,7 @@ class ApplicationActivityStatistics:
 
         Raises
         ------
-        HTTPExceptionq
+        HTTPException
             Fetching the application failed.
         """
         state = self._state

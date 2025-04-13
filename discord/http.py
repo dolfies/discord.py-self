@@ -1326,7 +1326,9 @@ class HTTPClient:
         return data
 
     async def ack_user_feature(self, type: int, entity_id: Snowflake) -> read_state.AcknowledgementToken:
-        data: read_state.AcknowledgementToken = await self.request(Route('POST', '/users/@me/{type}/{entity_id}/ack', type=type, entity_id=entity_id), json={})
+        data: read_state.AcknowledgementToken = await self.request(
+            Route('POST', '/users/@me/{type}/{entity_id}/ack', type=type, entity_id=entity_id), json={}
+        )
         self.ack_token = data.get('token') if data else None
         return data
 
