@@ -250,12 +250,19 @@ class Manifest(TypedDict):
     url: Optional[str]
 
 
-class ActivityStatistics(TypedDict):
-    application_id: NotRequired[Snowflake]
-    user_id: NotRequired[Snowflake]
+class _BaseActivityStatistics(TypedDict):
     total_duration: int
-    total_discord_sku_duration: NotRequired[int]
     last_played_at: str
+
+
+class UserActivityStatistics(_BaseActivityStatistics):
+    application_id: Snowflake
+    total_discord_sku_duration: NotRequired[int]
+    first_played_at: Optional[str]
+
+
+class ApplicationActivityStatistics(_BaseActivityStatistics):
+    user_id: Snowflake
 
 
 class GlobalActivityStatistics(TypedDict):

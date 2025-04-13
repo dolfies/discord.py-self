@@ -86,7 +86,7 @@ class Relationship(Hashable):
             Renamed ``nickname`` to :attr:`nick`.
     since: Optional[:class:`datetime.datetime`]
         When the relationship was created.
-        Only available for type :class:`RelationshipType.incoming_request`.
+        Not available for all relationship types.
 
         .. versionadded:: 2.0
     """
@@ -157,7 +157,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return try_enum(Status, self.presence.client_status.status)
 
@@ -169,7 +169,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return self.presence.client_status.status
 
@@ -181,7 +181,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return try_enum(Status, self.presence.client_status.mobile or 'offline')
 
@@ -193,7 +193,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return try_enum(Status, self.presence.client_status.desktop or 'offline')
 
@@ -205,9 +205,21 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return try_enum(Status, self.presence.client_status.web or 'offline')
+
+    @property
+    def embedded_status(self) -> Status:
+        """:class:`Status`: The user's status on an embedded client, if applicable.
+
+        .. versionadded:: 2.1
+
+        .. note::
+
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
+        """
+        return try_enum(Status, self.presence.client_status.embedded or 'offline')
 
     def is_on_mobile(self) -> bool:
         """:class:`bool`: A helper function that determines if a user is active on a mobile device.
@@ -216,7 +228,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
         """
         return self.presence.client_status.mobile is not None
 
@@ -229,7 +241,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
 
         .. note::
 
@@ -248,7 +260,7 @@ class Relationship(Hashable):
 
         .. note::
 
-            This is only reliably provided for type :class:`RelationshipType.friend`.
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
 
         .. note::
 

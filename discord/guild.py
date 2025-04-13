@@ -168,6 +168,11 @@ class BulkBanResult(NamedTuple):
     failed: List[Object]
 
 
+class DirectoryBroadcastEligibility(NamedTuple):
+    can_broadcast: bool
+    has_broadcast: bool
+
+
 class _GuildLimit(NamedTuple):
     emoji: int
     stickers: int
@@ -276,6 +281,27 @@ class UserGuild(Hashable):
             Whether you are a member of this guild.
         """
         return True
+
+    async def webhook_channels(self) -> List[PartialMessageable]:
+        """|coro|
+
+        Retrieves the channels that the current user can create webhooks in for the guild.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the webhook channels failed.
+
+        Returns
+        --------
+        List[ :class:`PartialMessageable`]
+            The channels that the current user can create webhooks in. Any :class:`PartialMessageable` will have its :attr:`PartialMessageable.name` filled in.
+        """
+        state = self._state
+        data = await state.http.get_guild_webhook_channels(self.id)
+        return [PartialMessageable._from_webhook_channel(self, c) for c in data]
 
     async def leave(self) -> None:
         """|coro|
@@ -2220,8 +2246,8 @@ class Guild(Hashable):
         widget_channel: Optional[Snowflake] = MISSING,
         mfa_level: MFALevel = MISSING,
         raid_alerts_disabled: bool = MISSING,
-        invites_disabled_until: datetime = MISSING,
-        dms_disabled_until: datetime = MISSING,
+        invites_disabled_until: Optional[datetime] = MISSING,
+        dms_disabled_until: Optional[datetime] = MISSING,
     ) -> Guild:
         r"""|coro|
 
@@ -2463,19 +2489,16 @@ class Guild(Hashable):
         if verification_level is not MISSING:
             if not isinstance(verification_level, VerificationLevel):
                 raise TypeError('verification_level field must be of type VerificationLevel')
-
             fields['verification_level'] = verification_level.value
 
         if explicit_content_filter is not MISSING:
             if not isinstance(explicit_content_filter, ContentFilter):
                 raise TypeError('explicit_content_filter field must be of type ContentFilter')
-
             fields['explicit_content_filter'] = explicit_content_filter.value
 
         if system_channel_flags is not MISSING:
             if not isinstance(system_channel_flags, SystemChannelFlags):
                 raise TypeError('system_channel_flags field must be of type SystemChannelFlags')
-
             fields['system_channel_flags'] = system_channel_flags.value
 
         if any(feat is not MISSING for feat in (community, discoverable, invites_disabled, raid_alerts_disabled)):
@@ -2556,31 +2579,6 @@ class Guild(Hashable):
 
         data = await http.edit_guild(self.id, reason=reason, **fields)
         return Guild(data=data, state=self._state)
-
-    async def top_channels(self) -> List[Union[TextChannel, VoiceChannel, StageChannel, PartialMessageable]]:
-        """|coro|
-
-        Retrieves the top 10 most read channels in the guild. Channels are returned in order of descending usage.
-
-        .. note::
-
-            For guilds without many members, this may return an empty list.
-
-        .. versionadded:: 2.1
-
-        Raises
-        -------
-        HTTPException
-            Retrieving the top channels failed.
-
-        Returns
-        --------
-        List[Union[:class:`TextChannel`, :class:`VoiceChannel`, :class:`StageChannel`, :class:`PartialMessageable`]]
-            The top 10 most read channels. Falls back to :class:`PartialMessageable` if the channel is not found in cache.
-        """
-        state = self._state
-        data = await state.http.get_top_guild_channels(self.id)
-        return [self.get_channel(int(c)) or PartialMessageable(id=int(c), state=state, guild_id=self.id) for c in data]  # type: ignore
 
     async def webhook_channels(self) -> List[Union[TextChannel, VoiceChannel, StageChannel, PartialMessageable]]:
         """|coro|
@@ -4207,7 +4205,6 @@ class Guild(Hashable):
         data = await self._state.http.create_role(self.id, reason=reason, **fields)
         role = Role(guild=self, data=data, state=self._state)
 
-        # TODO: add to cache
         return role
 
     async def edit_role_positions(self, positions: Mapping[Snowflake, int], *, reason: Optional[str] = None) -> List[Role]:
@@ -4655,6 +4652,9 @@ class Guild(Hashable):
             users = (User(data=raw_user, state=self._state) for raw_user in data.get('users', []))
             user_map = {user.id: user for user in users}
 
+            integrations = (Integration(data=raw_i, guild=self) for raw_i in data.get('integrations', []))
+            integration_map = {integration.id: integration for integration in integrations}
+
             automod_rules = (
                 AutoModRule(data=raw_rule, guild=self, state=self._state)
                 for raw_rule in data.get('auto_moderation_rules', [])
@@ -4674,6 +4674,7 @@ class Guild(Hashable):
                 yield AuditLogEntry(
                     data=raw_entry,
                     users=user_map,
+                    integrations=integration_map,
                     automod_rules=automod_rule_map,
                     webhooks=webhook_map,
                     guild=self,
@@ -5252,7 +5253,6 @@ class Guild(Hashable):
         self_mute: bool = False,
         self_deaf: bool = False,
         self_video: bool = False,
-        preferred_region: Optional[str] = MISSING,
     ) -> None:
         """|coro|
 
@@ -5273,8 +5273,7 @@ class Guild(Hashable):
         self_deaf: :class:`bool`
             Indicates if the client should be self-deafened.
         self_video: :class:`bool`
-            Indicates if the client is using video. Untested & unconfirmed
-            (do not use).
+            Indicates if the client is using video. Do not use.
         """
         state = self._state
         ws = state.ws
@@ -5571,12 +5570,19 @@ class Guild(Hashable):
         data = await self._state.http.migrate_command_scope(self.id)
         return list(map(int, data['integration_ids_with_app_commands']))
 
-    async def directory_broadcast_eligibility(self) -> bool:
+    async def directory_broadcast_eligibility(
+        self, scheduled_event: Optional[Snowflake] = None, /
+    ) -> DirectoryBroadcastEligibility:
         """|coro|
 
         Checks if scheduled events can be broadcasted to the directories the guild is in.
 
         .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        scheduled_event: Optional[:class:`ScheduledEvent`]
+            The scheduled event to check eligibility for.
 
         Raises
         -------
@@ -5585,11 +5591,15 @@ class Guild(Hashable):
 
         Returns
         --------
-        :class:`bool`
-            Whether the guild is eligible to broadcast scheduled events to directories.
+        tuple[:class:`bool`, :class:`bool`]
+            Whether the guild is eligible to broadcast scheduled events to directories
+            and whether the given scheduled event has been broadcasted, if applicable.
+            This is also accessible as a namedtuple with ``can_broadcast`` and ``has_broadcast`` fields.
         """
-        data = await self._state.http.get_directory_broadcast_info(self.id, 1)
-        return data['can_broadcast']
+        data = await self._state.http.get_directory_broadcast_info(
+            self.id, 1, scheduled_event.id if scheduled_event else None
+        )
+        return DirectoryBroadcastEligibility(data['can_broadcast'], data.get('has_broadcast', False))
 
     @property
     def invites_paused_until(self) -> Optional[datetime]:

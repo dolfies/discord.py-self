@@ -89,6 +89,9 @@ UserExperiment = Tuple[
     int,  # hash_result
     Literal[0, 1],  # aa_mode
     Literal[0, 1],  # trigger_debugging
+    Optional[str],  # holdout_name
+    Optional[int],  # holdout_revision
+    Optional[int],  # holdout_bucket
 ]
 
 

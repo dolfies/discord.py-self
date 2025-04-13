@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 import discord.abc
-from .asset import Asset
+from .asset import Asset, AssetMixin
 from .colour import Colour
 from .enums import (
     Locale,
@@ -39,6 +39,7 @@ from .enums import (
 )
 from .errors import ClientException, NotFound
 from .flags import PublicUserFlags, PrivateUserFlags, PremiumUsageFlags, PurchasedFlags
+from .mixins import Hashable
 from .relationship import Relationship
 from .utils import (
     _bytes_to_base64_data,
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
         APIUser as APIUserPayload,
         PartialUser as PartialUserPayload,
         User as UserPayload,
+        UserAvatar as UserAvatarPayload,
         UserAvatarDecorationData,
     )
     from .types.snowflake import Snowflake
@@ -78,6 +80,7 @@ __all__ = (
     'User',
     'ClientUser',
     'Note',
+    'RecentAvatar',
 )
 
 
@@ -860,7 +863,8 @@ class ClientUser(BaseUser):
         *,
         username: str = MISSING,
         global_name: Optional[str] = MISSING,
-        avatar: Optional[bytes] = MISSING,
+        avatar: Optional[Union[bytes, RecentAvatar]] = MISSING,
+        avatar_description: str = MISSING,
         avatar_decoration: Optional[bytes] = MISSING,
         password: str = MISSING,
         new_password: str = MISSING,
@@ -909,9 +913,14 @@ class ClientUser(BaseUser):
         discriminator: :class:`int`
             The new discriminator you wish to change to.
             This is a legacy concept that is no longer used. Can only be used if you have Nitro.
-        avatar: Optional[:class:`bytes`]
+        avatar: Optional[Union[:class:`bytes`, :class:`RecentAvatar`]]
             A :term:`py:bytes-like object` representing the image to upload.
+            Can also be a :class:`RecentAvatar` object.
             Could be ``None`` to denote no avatar.
+        avatar_description: Optional[:class:`str`]
+            The description of the user's newly-uploaded avatar, used for displaying in recent avatars.
+            Formatted typically as "{filename}, added {date}".
+            Not applicable when setting a :class:`RecentAvatar`.
         avatar_decoration: Optional[:class:`bytes`]
             A :term:`py:bytes-like object` representing the image to upload.
             Could be ``None`` to denote no avatar decoration.
@@ -982,10 +991,15 @@ class ClientUser(BaseUser):
             args['password'] = password
 
         if avatar is not MISSING:
-            if avatar is not None:
+            if isinstance(avatar, RecentAvatar):
+                args['avatar_id'] = avatar.id
+            elif avatar is not None:
                 args['avatar'] = _bytes_to_base64_data(avatar)
             else:
                 args['avatar'] = None
+
+        if avatar_description is not MISSING:
+            args['avatar_description'] = avatar_description
 
         if avatar_decoration is not MISSING:
             if avatar_decoration is not None:
@@ -1050,7 +1064,7 @@ class ClientUser(BaseUser):
             except KeyError:
                 pass
 
-        return ClientUser(state=self._state, data=data)
+        return ClientUser(state=self._state, data=data)  # type: ignore # ???
 
 
 class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
@@ -1266,3 +1280,76 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
         await self._state.http.add_relationship(
             self.id, friend_token=friend_token or None, action=RelationshipAction.send_friend_request
         )
+
+
+class RecentAvatar(AssetMixin, Hashable):
+    """Represents a user's recent avatar.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two avatars are equal.
+
+        .. describe:: x != y
+
+            Checks if two avatars are not equal.
+
+        .. describe:: hash(x)
+
+            Return the avatars's hash.
+
+        .. describe:: str(x)
+
+            Returns the avatars's description.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    user: :class:`ClientUser`
+        The user that this avatar belongs to.
+    id: :class:`int`
+        The ID of the avatar.
+    hash: :class:`str`
+        The CDN hash of the avatar.
+    description: Optional[:class:`str`]
+        The description specified when the avatar was uploaded. Typically in the format "{filename}, added {date}".
+    """
+
+    __slots__ = ('user', 'id', 'hash', 'description')
+
+    def __init__(self, *, data: UserAvatarPayload, user: ClientUser) -> None:
+        self.user: ClientUser = user
+        self.id: int = int(data['id'])
+        self.hash: str = data['storage_hash']
+        self.description: Optional[str] = data.get('description')
+
+    def __repr__(self) -> str:
+        return f'<ApplicationAsset id={self.id} description={self.description!r}>'
+
+    def __str__(self) -> str:
+        return self.description or ''
+
+    @property
+    def animated(self) -> bool:
+        """:class:`bool`: Indicates if the asset is animated."""
+        return self.hash.startswith('a_')
+
+    @property
+    def url(self) -> str:
+        """:class:`str`: Returns the URL of the asset."""
+        format = 'gif' if self.animated else 'png'
+        return f'{Asset.BASE}/avatars/{self.user.id}/archived/{self.id}/{self.hash}.{format}?size=1024'
+
+    async def delete(self) -> None:
+        """|coro|
+
+        Deletes the recent avatar.
+
+        Raises
+        ------
+        HTTPException
+            Deleting the avatar failed.
+        """
+        await self.user._state.http.delete_recent_avatar(self.id)

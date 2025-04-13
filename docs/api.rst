@@ -382,6 +382,20 @@ Debug
                     message or :class:`str` to denote a regular text message.
     :type payload: Union[:class:`bytes`, :class:`str`]
 
+Directory Entries
+~~~~~~~~~~~~~~~~~~
+
+.. function:: on_directory_entry_create(directory_entry)
+              on_directory_entry_update(directory_entry)
+              on_directory_entry_delete(directory_entry)
+
+    Called when an entry is created, updated, or deleted in a directory channel.
+
+    .. versionadded:: 2.1
+
+    :param directory_entry: The directory entry that was created, updated, or deleted.
+    :type directory_entry: :class:`DirectoryEntry`
+
 Gateway
 ~~~~~~~~
 
@@ -2007,6 +2021,12 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.1
 
+    .. attribute:: poll_result
+
+        The system message sent when a poll has closed.
+
+        .. versionadded:: 2.1
+
 .. class:: InviteType
 
     Specifies the type of :class:`Invite`.
@@ -2617,7 +2637,7 @@ of :class:`enum.Enum`.
         When this is the action, the type of :attr:`~AuditLogEntry.extra` is
         set to an unspecified proxy object with two attributes:
 
-        - ``channel``: A :class:`TextChannel` or :class:`Object` with the channel ID where the members were moved.
+        - ``channel``: An :class:`abc.Connectable` or :class:`Object` with the channel ID where the members were moved.
         - ``count``: An integer specifying how many members were moved.
 
         .. versionadded:: 1.3
@@ -4606,6 +4626,12 @@ of :class:`enum.Enum`.
 
         The SKU is an adventure game.
 
+    .. attribute:: arcade
+
+        The SKU is an arcade game.
+
+        .. versionadded:: 2.1
+
     .. attribute:: artillery
 
         The SKU is an artillery game.
@@ -4698,6 +4724,12 @@ of :class:`enum.Enum`.
 
         The SKU is a hockey game.
 
+    .. attribute:: indie
+
+        The SKU is an indie game.
+
+        .. versionadded:: 2.1
+
     .. attribute:: life_simulator
 
         The SKU is a life simulator.
@@ -4708,13 +4740,29 @@ of :class:`enum.Enum`.
 
     .. attribute:: massively_multiplayer
 
-        The SKU is a massively multiplayer game.
+        The SKU is a massively multiplayer online game.
 
-    .. attribute:: music
+    .. attribute:: metroidvania
 
-        The SKU is a music game.
+        The SKU is a Metroidvania game.
 
-    .. attribute:: party
+    .. attribute:: mmorpg
+
+        The SKU is a MMORPG.
+
+    .. attribute:: moba
+
+        The SKU is a MOBA.
+
+    .. attribute:: music_rhythm
+
+        The SKU is a rhythm game.
+
+    .. attribute:: open_world
+
+        The SKU is an open-world game.
+
+    .. attribute:: party_mini_game
 
         The SKU is a party game.
 
@@ -4729,6 +4777,12 @@ of :class:`enum.Enum`.
     .. attribute:: point_and_click
 
         The SKU is a point-and-click game.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: psychological_horror
+
+        The SKU is a psychological horror game.
 
     .. attribute:: puzzle
 
@@ -4794,13 +4848,31 @@ of :class:`enum.Enum`.
 
         The SKU is a survival game.
 
-    .. attribute:: tennis
+    .. attribute:: survival_horror
 
-        The SKU is a tennis game.
+        The SKU is a survival horror game.
 
-    .. attribute:: third_person_shooter
+    .. attribute:: tactical
 
-        The SKU is a third-person shooter.
+        The SKU is a tactical game.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: tower_defense
+
+        The SKU is a tower defense game.
+
+    .. attribute:: track_field
+
+        The SKU is a track and field game.
+
+    .. attribute:: train_simulator
+
+        The SKU is a train simulator game.
+
+    .. attribute:: trivia_board_game
+
+        The SKU is a trivia/board game.
 
     .. attribute:: turn_based_strategy
 
@@ -5163,6 +5235,24 @@ of :class:`enum.Enum`.
     .. attribute:: linux
 
         Represents Linux.
+
+    .. attribute:: android
+
+        Represents Android.
+
+    .. attribute:: ios
+
+        Represents iOS.
+
+    .. attribute:: playstation
+
+        Represents PlayStation.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: unknown
+
+        Represents an unknown operating system.
 
 .. class:: StickerAnimationOptions
 
@@ -6115,17 +6205,25 @@ of :class:`enum.Enum`.
 
     .. versionadded:: 2.1
 
-    .. attribute:: reply
+    .. attribute:: default
 
-        A message reply.
+        A standard reference used by message replies (:attr:`MessageType.reply`),
+        crossposted messaged created by a followed channel integration, and messages of type:
+
+        - :attr:`MessageType.pins_add`
+        - :attr:`MessageType.channel_follow_add`
+        - :attr:`MessageType.thread_created`
+        - :attr:`MessageType.thread_starter_message`
+        - :attr:`MessageType.poll_result`
+        - :attr:`MessageType.context_menu_command`
 
     .. attribute:: forward
 
         A forwarded message.
 
-    .. attribute:: default
+    .. attribute:: reply
 
-        An alias for :attr:`.reply`.
+        An alias for :attr:`.default`.
 
 .. _discord-api-audit-logs:
 
@@ -7049,6 +7147,11 @@ User
 .. attributetable:: Note
 
 .. autoclass:: Note()
+    :members:
+
+.. attributetable:: RecentAvatar
+
+.. autoclass:: RecentAvatar()
     :members:
 
 Affinity
@@ -8367,6 +8470,11 @@ Flags
 .. attributetable:: ChannelFlags
 
 .. autoclass:: ChannelFlags()
+    :members:
+
+.. attributetable:: EmbedFlags
+
+.. autoclass:: EmbedFlags()
     :members:
 
 .. attributetable:: FriendSourceFlags

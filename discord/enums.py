@@ -322,6 +322,7 @@ class MessageType(Enum):
     guild_incident_report_raid = 38
     guild_incident_report_false_alarm = 39
     purchase_notification = 44
+    poll_result = 46
 
 
 class SpeakingState(Enum):
@@ -1349,6 +1350,7 @@ class SKUGenre(Enum):
     action_adventure = 9
     action_rpg = 2
     adventure = 8
+    arcade = 68
     artillery = 50
     baseball = 34
     basketball = 35
@@ -1372,6 +1374,7 @@ class SKUGenre(Enum):
     golf = 40
     hack_and_slash = 4
     hockey = 41
+    indie = 67
     life_simulator = 31
     light_gun = 24
     massively_multiplayer = 18
@@ -1383,6 +1386,7 @@ class SKUGenre(Enum):
     party_mini_game = 63
     pinball = 64
     platformer = 5
+    point_and_click = 69
     psychological_horror = 12
     puzzle = 57
     rpg = 22
@@ -1401,6 +1405,7 @@ class SKUGenre(Enum):
     surfing_wakeboarding = 46
     survival = 7
     survival_horror = 14
+    tactical = 66
     tower_defense = 52
     track_field = 45
     train_simulator = 30
@@ -1425,7 +1430,8 @@ class OperatingSystem(Enum):
 
     android = -1
     ios = -2
-    unknown = -3
+    playstation = -3
+    unknown = -99
 
     @classmethod
     def from_string(cls, value: str) -> Self:
@@ -1434,9 +1440,11 @@ class OperatingSystem(Enum):
             'win32': cls.windows,
             'macos': cls.macos,
             'darwin': cls.macos,
+            'osx': cls.macos,
             'linux': cls.linux,
             'android': cls.android,
             'ios': cls.ios,
+            'playstation': cls.playstation,
             'unknown': cls.unknown,
         }
         return lookup.get(value, create_unknown_value(cls, value))
@@ -1445,12 +1453,8 @@ class OperatingSystem(Enum):
         lookup = {
             OperatingSystem.windows: 'win32',
             OperatingSystem.macos: 'darwin',
-            OperatingSystem.linux: 'linux',
-            OperatingSystem.android: 'android',
-            OperatingSystem.ios: 'ios',
-            OperatingSystem.unknown: 'unknown',
         }
-        return lookup[self]
+        return lookup.get(self, self.name)
 
     def __str__(self):
         return self.to_string()

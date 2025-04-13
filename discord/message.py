@@ -76,7 +76,7 @@ from .channel import PartialMessageable
 from .interactions import Interaction
 from .commands import MessageCommand
 from .abc import _handle_commands
-from .application import IntegrationApplication
+from .application import IntegrationApplication, PartialApplication
 from .poll import Poll
 
 if TYPE_CHECKING:
@@ -190,8 +190,7 @@ class Attachment(Hashable):
         to is deleted, then this will 404.
     proxy_url: :class:`str`
         The proxy URL. This is a cached version of the :attr:`~Attachment.url` in the
-        case of images. When the message is deleted, this URL might be valid for a few
-        minutes or not valid at all.
+        case of images.
     content_type: Optional[:class:`str`]
         The attachment's `media type <https://en.wikipedia.org/wiki/Media_type>`_
 
@@ -216,6 +215,18 @@ class Attachment(Hashable):
         The normalised version of the attachment's filename.
 
         .. versionadded:: 2.1
+    clip_created_at: Optional[:class:`datetime.datetime`]
+        When the clip this attachment represents was created.
+
+        .. versionadded:: 2.1
+    clip_participants: List[:class:`User`]
+        The participants in the clip this attachment represents.
+
+        .. versionadded:: 2.1
+    application: Optional[:class:`PartialApplication`]
+        The application of the game this clip was taken from.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
@@ -234,6 +245,9 @@ class Attachment(Hashable):
         'waveform',
         '_flags',
         'title',
+        'clip_created_at',
+        'clip_participants',
+        'application',
     )
 
     def __init__(self, *, data: AttachmentPayload, state: ConnectionState):
@@ -250,6 +264,11 @@ class Attachment(Hashable):
         self.ephemeral: bool = data.get('ephemeral', False)
         self.duration: Optional[float] = data.get('duration_secs')
         self.title: Optional[str] = data.get('title')
+        self.clip_created_at: Optional[datetime.datetime] = utils.parse_time(data.get('clip_created_at'))
+        self.clip_participants: List[User] = [state.create_user(d) for d in data.get('clip_participants', [])]
+        self.application: Optional[PartialApplication] = (
+            PartialApplication(data=data['application'], state=state) if 'application' in data else None
+        )
 
         waveform = data.get('waveform')
         self.waveform: Optional[bytes] = utils._base64_to_bytes(waveform) if waveform is not None else None
@@ -263,14 +282,12 @@ class Attachment(Hashable):
 
     def is_spoiler(self) -> bool:
         """:class:`bool`: Whether this attachment contains a spoiler."""
-        return self.filename.startswith('SPOILER_')
+        # The flag is technically always present but no harm to check both
+        return self.filename.startswith('SPOILER_') or self.flags.spoiler
 
     def is_voice_message(self) -> bool:
-        """:class:`bool`: Whether this attachment is a voice message.
-
-        .. versionadded:: 2.1
-        """
-        return self.waveform is not None
+        """:class:`bool`: Whether this attachment is a voice message."""
+        return self.duration is not None and self.waveform is not None
 
     def __repr__(self) -> str:
         return f'<Attachment id={self.id} filename={self.filename!r} url={self.url!r}>'
@@ -427,11 +444,11 @@ class Attachment(Hashable):
     def to_dict(self) -> AttachmentPayload:
         result: AttachmentPayload = {
             'filename': self.filename,
+            'flags': self._flags,
             'id': self.id,
             'proxy_url': self.proxy_url,
             'size': self.size,
             'url': self.url,
-            'spoiler': self.is_spoiler(),
         }
         if self.height:
             result['height'] = self.height
@@ -441,6 +458,8 @@ class Attachment(Hashable):
             result['content_type'] = self.content_type
         if self.description is not None:
             result['description'] = self.description
+        if self.title is not None:
+            result['title'] = self.title
         return result
 
 
@@ -632,6 +651,11 @@ class MessageReference:
         .. versionadded:: 2.1
     message_id: Optional[:class:`int`]
         The id of the message referenced.
+        This can be ``None`` when this message reference was retrieved from
+        a system message of one of the following types:
+
+        - :attr:`MessageType.channel_follow_add`
+        - :attr:`MessageType.thread_created`
     channel_id: :class:`int`
         The channel id of the message referenced.
     guild_id: Optional[:class:`int`]
@@ -1791,9 +1815,16 @@ class Message(PartialMessage, Hashable):
         The call that the message refers to. This is only applicable to messages of type
         :attr:`MessageType.call`.
     reference: Optional[:class:`~discord.MessageReference`]
-        The message that this message references. This is only applicable to messages of
-        type :attr:`MessageType.pins_add`, crossposted messages created by a
-        followed channel integration, or message replies.
+        The message that this message references. This is only applicable to
+        message replies (:attr:`MessageType.reply`), crossposted messages created by
+        a followed channel integration, forwarded messages, and messages of type:
+
+        - :attr:`MessageType.pins_add`
+        - :attr:`MessageType.channel_follow_add`
+        - :attr:`MessageType.thread_created`
+        - :attr:`MessageType.thread_starter_message`
+        - :attr:`MessageType.poll_result`
+        - :attr:`MessageType.context_menu_command`
 
         .. versionadded:: 1.5
 
@@ -1980,15 +2011,15 @@ class Message(PartialMessage, Hashable):
         self._state: ConnectionState = state
         self.webhook_id: Optional[int] = utils._get_as_snowflake(data, 'webhook_id')
         self.reactions: List[Reaction] = [Reaction(message=self, data=d) for d in data.get('reactions', [])]
-        self.attachments: List[Attachment] = [Attachment(data=a, state=self._state) for a in data['attachments']]
-        self.embeds: List[Embed] = [Embed.from_dict(a) for a in data['embeds']]
+        self.attachments: List[Attachment] = [Attachment(data=a, state=self._state) for a in data.get('attachments', [])]
+        self.embeds: List[Embed] = [Embed.from_dict(a) for a in data.get('embeds', [])]
         self.activity: Optional[MessageActivityPayload] = data.get('activity')
-        self._edited_timestamp: Optional[datetime.datetime] = utils.parse_time(data['edited_timestamp'])
+        self._edited_timestamp: Optional[datetime.datetime] = utils.parse_time(data.get('edited_timestamp'))
         self.type: MessageType = try_enum(MessageType, data['type'])
-        self.pinned: bool = data['pinned']
+        self.pinned: bool = data.get('pinned', False)
         self.flags: MessageFlags = MessageFlags._from_value(data.get('flags', 0))
-        self.mention_everyone: bool = data['mention_everyone']
-        self.tts: bool = data['tts']
+        self.mention_everyone: bool = data.get('mention_everyone', False)
+        self.tts: bool = data.get('tts', False)
         self.content: str = data['content']
         self.nonce: Optional[Union[int, str]] = data.get('nonce')
         self.position: Optional[int] = data.get('position')
@@ -2063,6 +2094,13 @@ class Message(PartialMessage, Hashable):
 
                     # The channel will be the correct type here
                     ref.resolved = self.__class__(channel=chan, data=resolved, state=state)  # type: ignore
+
+            if self.type is MessageType.poll_result:
+                if isinstance(self.reference.resolved, self.__class__):
+                    self._state._update_poll_results(self, self.reference.resolved)
+                else:
+                    if self.reference.message_id:
+                        self._state._update_poll_results(self, self.reference.message_id)
 
         self.message_snapshots: List[MessageSnapshot] = MessageSnapshot._from_value(state, data.get('message_snapshots'), self.reference)  # type: ignore
 
@@ -2443,6 +2481,7 @@ class Message(PartialMessage, Hashable):
             MessageType.chat_input_command,
             MessageType.context_menu_command,
             MessageType.thread_starter_message,
+            MessageType.poll_result,
         )
 
     def is_acked(self) -> bool:
@@ -2612,6 +2651,14 @@ class Message(PartialMessage, Hashable):
             guild_product_purchase = self.purchase_notification.guild_product_purchase
             if guild_product_purchase is not None:
                 return f'{self.author.name} has purchased {guild_product_purchase.product_name}!'
+
+        if self.type is MessageType.poll_result:
+            embed = self.embeds[0]  # Will always have 1 embed
+            poll_title = utils.get(
+                embed.fields,
+                name='poll_question_text',
+            )
+            return f'{self.author.display_name}\'s poll {poll_title.value} has closed.'  # type: ignore
 
         # Fallback for unknown message types
         return self.content

@@ -259,7 +259,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         "Nitro boost" on the guild, if available. This could be ``None``.
     timed_out_until: Optional[:class:`datetime.datetime`]
         An aware datetime object that specifies the date and time in UTC that the member's time out will expire.
-        This will be set to ``None`` if the user is not timed out.
+        This will be set to ``None`` or a time in the past if the user is not timed out.
 
         .. versionadded:: 2.0
     """
@@ -463,6 +463,14 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         """:class:`Status`: The member's status on the web client, if applicable."""
         return try_enum(Status, self.presence.client_status.web or 'offline')
 
+    @property
+    def embedded_status(self) -> Status:
+        """:class:`Status`: The member's status on an embedded client, if applicable.
+
+        .. versionadded:: 2.1
+        """
+        return try_enum(Status, self.presence.client_status.embedded or 'offline')
+
     def is_on_mobile(self) -> bool:
         """:class:`bool`: A helper function that determines if a member is active on a mobile device."""
         return self.presence.client_status.mobile is not None
@@ -508,7 +516,9 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             role = g.get_role(role_id)
             if role:
                 result.append(role)
-        result.append(g.default_role)
+        default_role = g.default_role
+        if default_role:
+            result.append(default_role)
         result.sort()
         return result
 

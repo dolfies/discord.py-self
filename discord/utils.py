@@ -77,7 +77,8 @@ import warnings
 import aiohttp
 import logging
 import zlib
-
+import struct
+import time
 import yarl
 
 try:
@@ -120,7 +121,7 @@ __all__ = (
 )
 
 DISCORD_EPOCH = 1420070400000
-DEFAULT_FILE_SIZE_LIMIT_BYTES = 26214400
+DEFAULT_FILE_SIZE_LIMIT_BYTES = 10485760
 
 _log = logging.getLogger(__name__)
 
@@ -1739,8 +1740,8 @@ class Headers:
     For now, this is NOT user-customizable and always emulates Chrome on Windows.
     """
 
-    FALLBACK_BUILD_NUMBER = 9999  # Used in marketing and dev portal :)
-    FALLBACK_BROWSER_VERSION = 131
+    FALLBACK_BUILD_NUMBER = 9999
+    FALLBACK_BROWSER_VERSION = 135
 
     def __init__(
         self,
@@ -1945,6 +1946,26 @@ class Headers:
         else:
             greasey_major_version = greasey_version
         return (greasey_brand, greasey_major_version)
+
+
+class IDGenerator:
+    def __init__(self):
+        self.prefix = random.randint(0, 0xFFFFFFFF) & 0xFFFFFFFF
+        self.creation_time = int(time.time() * 1000)
+        self.sequence = 0
+
+    def generate(self, user_id: int = 0):
+        uuid = bytearray(24)
+        # Lowest signed 32 bits
+        struct.pack_into("<I", uuid, 0, user_id & 0xFFFFFFFF)
+        struct.pack_into("<I", uuid, 4, user_id >> 32)
+        struct.pack_into("<I", uuid, 8, self.prefix)
+        # Lowest signed 32 bits
+        struct.pack_into("<I", uuid, 12, self.creation_time & 0xFFFFFFFF)
+        struct.pack_into("<I", uuid, 16, self.creation_time >> 32)
+        struct.pack_into("<I", uuid, 20, self.sequence)
+        self.sequence += 1
+        return b64encode(uuid).decode("utf-8")
 
 
 if HAS_ZSTD:

@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Dict, Final, Iterator, List, Optional, Sequenc
 
 from .enums import HubType, try_enum
 from .metadata import Metadata
-from .utils import SequenceProxy, SnowflakeList, murmurhash32, utcnow
+from .utils import SequenceProxy, SnowflakeList, cached_slot_property, murmurhash32, utcnow
 
 if TYPE_CHECKING:
     from .abc import Snowflake
@@ -351,6 +351,25 @@ class ExperimentPopulation:
     def __contains__(self, item: Guild, /) -> bool:
         return self.bucket_for(item) != -1
 
+    def is_eligible(self, guild: Guild, /) -> bool:
+        """Checks whether the guild is eligible for the population.
+
+        .. note::
+
+            This function is not intended to be used directly. Instead, use :func:`GuildExperiment.bucket_for`.
+
+        Parameters
+        -----------
+        guild: :class:`Guild`
+            The guild to check.
+
+        Returns
+        --------
+        :class:`bool`
+            Whether the guild is eligible for the population.
+        """
+        return self.filters.is_eligible(guild)
+
     def bucket_for(self, guild: Guild, _result: Optional[int] = None, /) -> int:
         """Returns the assigned experiment bucket within a population for a guild.
         Defaults to None (-1) if the guild is not in the population.
@@ -374,11 +393,11 @@ class ExperimentPopulation:
         :class:`int`
             The experiment bucket.
         """
-        if _result is None:
-            _result = self.experiment.result_for(guild)
-
         if not self.filters.is_eligible(guild):
             return -1
+
+        if _result is None:
+            _result = self.experiment.result_for(guild)
 
         for rollout in self.rollouts:
             for start, end in rollout.ranges:
@@ -438,12 +457,12 @@ class ExperimentOverride:
 
     @property
     def ids(self) -> Sequence[int]:
-        """Sequence[:class:`int`]: The eligible guild/user IDs for the override."""
+        """Sequence[:class:`int`]: The eligible guild IDs for the override."""
         return SequenceProxy(self._ids)
 
 
 class HoldoutExperiment:
-    """Represents an experiment dependency.
+    """Represents an experiment holdout.
 
     .. container:: operations
 
@@ -456,14 +475,14 @@ class HoldoutExperiment:
     Attributes
     -----------
     dependent: :class:`GuildExperiment`
-        The experiment that depends on this experiment.
+        The experiment that this holdout blocks.
     name: :class:`str`
         The name of the dependency.
     bucket: :class:`int`
         The required bucket of the dependency.
     """
 
-    __slots__ = ('dependent', 'name', 'bucket')
+    __slots__ = ('dependent', 'name', 'bucket', '_hash')
 
     def __init__(self, dependent: GuildExperiment, name: str, bucket: int):
         self.dependent = dependent
@@ -471,23 +490,27 @@ class HoldoutExperiment:
         self.bucket: int = bucket
 
     def __repr__(self) -> str:
-        return f'<HoldoutExperiment dependent={self.dependent!r} name={self.name!r} bucket={self.bucket}>'
+        return f'<HoldoutExperiment name={self.name!r} bucket={self.bucket}>'
 
     def __contains__(self, item: Guild) -> bool:
-        return self.is_eligible(item)
+        return self.is_blocked(item)
+
+    @cached_slot_property('_hash')
+    def hash(self) -> int:
+        """:class:`int`: The 32-bit unsigned Murmur3 hash of the dependency name."""
+        return murmurhash32(self.name, signed=False)
 
     @property
     def experiment(self) -> Optional[GuildExperiment]:
         """Optional[:class:`GuildExperiment`]: The experiment dependency, if found."""
-        experiment_hash = murmurhash32(self.name, signed=False)
-        experiment = self.dependent._state.guild_experiments.get(experiment_hash)
+        experiment = self.dependent._state.guild_experiments.get(self.hash)
         if experiment and not experiment.name:
             # Backfill the name
             experiment._name = self.name
         return experiment
 
-    def is_eligible(self, guild: Guild, /) -> bool:
-        """Checks whether the guild fulfills the dependency.
+    def is_blocked(self, guild: Guild, /) -> bool:
+        """Checks whether the guild is blocked by the holdout.
 
         .. note::
 
@@ -501,12 +524,12 @@ class HoldoutExperiment:
         Returns
         --------
         :class:`bool`
-            Whether the guild fulfills the dependency.
+            Whether the guild is blocked by the holdout.
         """
         experiment = self.experiment
-        if experiment is None:
-            # We don't have the experiment, so we can't check
-            return True
+        if self.hash == self.dependent.hash or experiment is None:
+            # We don't have the experiment so there is no holdout
+            return False
 
         return experiment.bucket_for(guild) == self.bucket
 
@@ -543,10 +566,10 @@ class GuildExperiment:
     overrides_formatted: List[List[:class:`ExperimentPopulation`]]
         Additional rollout populations for the experiment.
     holdout: Optional[:class:`HoldoutExperiment`]
-        The experiment this experiment depends on, if any.
+        An experiment that blocks the rollout of this experiment.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
-    trigger_debugging:
+    trigger_debugging: :class:`bool`
         Whether experiment analytics trigger debugging is enabled.
     """
 
@@ -604,6 +627,8 @@ class GuildExperiment:
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, GuildExperiment):
             return self.hash == other.hash
+        elif isinstance(other, UserExperiment):
+            return False
         return NotImplemented
 
     @property
@@ -646,7 +671,7 @@ class GuildExperiment:
 
         return murmurhash32(f'{self.name}:{guild.id}', signed=False) % 10000
 
-    def bucket_for(self, guild: Guild, /) -> int:
+    def bucket_for(self, guild: Guild, /, *, aa_mode: bool = False) -> int:
         """Returns the assigned experiment bucket for a guild.
         Defaults to None (-1) if the guild is not in the experiment.
 
@@ -654,6 +679,10 @@ class GuildExperiment:
         -----------
         guild: :class:`Guild`
             The guild to compute experiment eligibility for.
+        aa_mode: :class:`bool`
+            Whether to return the bucket for A/A mode.
+            Otherwise, always returns None (-1) for populations in A/A mode.
+            Does nothing if the experiment is not in A/A mode.
 
         Raises
         ------
@@ -665,32 +694,28 @@ class GuildExperiment:
         :class:`int`
             The experiment bucket.
         """
-        # Holdout must be fulfilled
-        if self.holdout and not self.holdout.is_eligible(guild):
-            return -1
-
-        hash_result = self.result_for(guild)
-
         # Overrides take precedence
-        # And yes, they can be assigned to a user ID
         for override in self.overrides:
-            if guild.id in override.ids or guild.owner_id in override.ids:
+            if guild.id in override.ids:
                 return override.bucket
 
+        hash_result = self.result_for(guild)
         for overrides in self.overrides_formatted:
             for override in overrides:
-                pop_bucket = override.bucket_for(guild, hash_result)
-                if pop_bucket != -1:
-                    return pop_bucket
+                if override.is_eligible(guild):
+                    return override.bucket_for(guild, hash_result)
 
         # a/a mode is always -1 without an override
-        if self.aa_mode:
+        if self.aa_mode and not aa_mode:
+            return -1
+
+        # Holdout must not be fulfilled
+        if self.holdout and self.holdout.is_blocked(guild):
             return -1
 
         for population in self.populations:
-            pop_bucket = population.bucket_for(guild, hash_result)
-            if pop_bucket != -1:
-                return pop_bucket
+            if population.is_eligible(guild):
+                return population.bucket_for(guild, hash_result)
 
         return -1
 
@@ -751,9 +776,12 @@ class UserExperiment:
         Whether the user has an explicit bucket override.
     population: :class:`int`
         The internal population group for the user, or None (-1) if manually overridden.
+    holdout: Optional[:class:`UserExperiment`]
+        An experiment that blocks the rollout of this experiment.
+        Only present if the user has an assignment in the holdout.
     aa_mode: :class:`bool`
         Whether the experiment is in A/A mode.
-    trigger_debugging:
+    trigger_debugging: :class:`bool`
         Whether experiment analytics trigger debugging is enabled.
     """
 
@@ -768,10 +796,24 @@ class UserExperiment:
         '_result',
         'aa_mode',
         'trigger_debugging',
+        'holdout',
     )
 
     def __init__(self, *, state: ConnectionState, data: AssignmentPayload):
-        (hash, revision, bucket, override, population, hash_result, aa_mode, trigger_debugging, *_) = data
+        (
+            hash,
+            revision,
+            bucket,
+            override,
+            population,
+            hash_result,
+            aa_mode,
+            trigger_debugging,
+            holdout_name,
+            holdout_revision,
+            holdout_bucket,
+            *_,
+        ) = data
 
         self._state = state
         self._name: Optional[str] = None
@@ -784,6 +826,33 @@ class UserExperiment:
         self.aa_mode: bool = aa_mode == 1
         self.trigger_debugging: bool = trigger_debugging == 1
 
+        self.holdout: Optional[UserExperiment] = None
+        if holdout_name is not None:
+            holdout_hash = murmurhash32(holdout_name, signed=False)
+            self.holdout = state.experiments.get(holdout_hash) or UserExperiment.from_holdout(
+                state, holdout_hash, holdout_name, holdout_revision, holdout_bucket
+            )
+
+    @classmethod
+    def from_holdout(
+        cls, state: ConnectionState, hash: int, name: str, revision: Optional[int], bucket: Optional[int]
+    ) -> UserExperiment:
+        self = cls.__new__(cls)
+        self._state = state
+        self._name = name
+        self.hash = hash
+        self.revision = revision or 0
+        self.assignment = bucket or -1
+
+        # Most of these fields are defaults
+        self.override = False
+        self.population = 0
+        self._result = -1
+        self.aa_mode = False
+        self.trigger_debugging = False
+        self.holdout = None
+        return self
+
     def __repr__(self) -> str:
         return f'<UserExperiment hash={self.hash}{f" name={self._name!r}" if self._name else ""} bucket={self.bucket}>'
 
@@ -793,6 +862,8 @@ class UserExperiment:
     def __eq__(self, other: object, /) -> bool:
         if isinstance(other, UserExperiment):
             return self.hash == other.hash
+        elif isinstance(other, GuildExperiment):
+            return False
         return NotImplemented
 
     @property
@@ -828,9 +899,11 @@ class UserExperiment:
         :exc:`ValueError`
             The experiment name is unset without a precomputed result.
         """
-        if self._result:
+        if self._result >= 0:
             return self._result
         elif not self.name:
             raise ValueError('The experiment name must be set to compute the result')
         else:
-            return murmurhash32(f'{self.name}:{self._state.self_id}', signed=False) % 10000
+            result = murmurhash32(f'{self.name}:{self._state.self_id}', signed=False) % 10000
+            self._result = result
+            return result

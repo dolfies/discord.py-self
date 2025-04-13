@@ -23,7 +23,7 @@ body:
     attributes:
       label: Code
       description: >
-        Relevant code that shows the bug.
+        Minimum reproducable code that shows the bug.
       render: python
   - type: textarea
     attributes:
@@ -50,15 +50,19 @@ body:
     attributes:
       label: Checklist
       description: >
-        Let's make sure this issue is valid!
+        Let's make sure this issue is valid! **Opening multiple issues without looking over the checklist properly will result in a ban.**
       options:
         - label: I have confirmed I am using unmodified discord.py-self and not the upstream discord.py.
           required: true
+        - label: I am using a user token (and it isn't visible in the code).
+          required: true
         - label: I have searched the open issues for duplicates.
           required: true
-        - label: I have shared the entire traceback.
+        - label: I have searched closed issues for resolved duplicates.
           required: true
-        - label: I am using a user token (and it isn't visible in the code).
+        - label: I have confirmed the development version doesn't resolve the issue.
+          required: true
+        - label: I have shared the entire traceback.
           required: true
   - type: textarea
     attributes:

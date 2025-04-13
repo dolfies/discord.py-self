@@ -29,13 +29,13 @@ from typing_extensions import NotRequired, Required
 
 from .snowflake import Snowflake, SnowflakeList
 from .member import Member, UserWithMember
-from .user import User
+from .user import PartialUser
 from .emoji import PartialEmoji
 from .embed import Embed
 from .channel import ChannelType
 from .components import MessageActionRow
 from .interactions import MessageInteraction
-from .application import BaseApplication
+from .application import BaseApplication, PartialApplication
 from .sticker import StickerItem
 from .threads import Thread, ThreadMember
 from .poll import Poll
@@ -76,15 +76,20 @@ class Attachment(TypedDict):
     size: int
     url: str
     proxy_url: str
+    title: NotRequired[str]
     height: NotRequired[Optional[int]]
     width: NotRequired[Optional[int]]
     description: NotRequired[str]
     content_type: NotRequired[str]
-    spoiler: NotRequired[bool]
     ephemeral: NotRequired[bool]
     duration_secs: NotRequired[float]
     waveform: NotRequired[str]
     flags: NotRequired[int]
+    placeholder_version: NotRequired[int]
+    placeholder: NotRequired[str]
+    clip_created_at: NotRequired[str]
+    clip_participants: NotRequired[List[PartialUser]]
+    application: NotRequired[PartialApplication]
 
 
 MessageActivityType = Literal[1, 2, 3, 5]
@@ -167,6 +172,7 @@ MessageType = Literal[
     38,
     39,
     44,
+    46,
 ]
 
 
@@ -186,7 +192,7 @@ class MessageSnapshot(TypedDict):
 
 class Message(PartialMessage):
     id: Snowflake
-    author: User
+    author: PartialUser
     content: str
     timestamp: str
     edited_timestamp: Optional[str]
@@ -269,17 +275,27 @@ MessageSearchSortType = Literal['timestamp', 'relevance']
 MessageSearchSortOrder = Literal['desc', 'asc']
 
 
-class PartialAttachment(TypedDict):
-    id: NotRequired[Snowflake]
-    filename: str
-    description: NotRequired[str]
-    uploaded_filename: NotRequired[str]
+class PartialAttachment(TypedDict, total=False):
+    id: Snowflake
+    filename: Required[str]
+    description: str
+    uploaded_filename: str
+    title: str
+    duration_secs: float
+    waveform: str
+    is_spoiler: bool
+    is_remix: bool
+    is_clip: bool
+    application_id: Snowflake
+    clip_created_at: str
+    clip_participant_ids: SnowflakeList
 
 
 class UploadedAttachment(TypedDict):
     id: NotRequired[Snowflake]
     filename: str
     file_size: int
+    is_clip: NotRequired[bool]
 
 
 class CloudAttachment(TypedDict):
@@ -290,3 +306,8 @@ class CloudAttachment(TypedDict):
 
 class CloudAttachments(TypedDict):
     attachments: List[CloudAttachment]
+
+
+class TypingResponse(TypedDict):
+    message_send_cooldown_ms: int
+    thread_create_cooldown_ms: int

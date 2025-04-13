@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, Optional, TypedDict
 from typing_extensions import NotRequired
 
 
@@ -50,14 +50,16 @@ class PartialPaymentSource(TypedDict):
     last_4: NotRequired[str]
     type: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     payment_gateway: Literal[1, 2, 3, 4, 5, 6]
+    payment_gateway_source_id: NotRequired[str]
     invalid: bool
     flags: int
+    deleted_at: Optional[str]
     expires_month: NotRequired[int]
     expires_year: NotRequired[int]
     email: NotRequired[str]
     bank: NotRequired[str]
     username: NotRequired[str]
-    screen_status: int  # TODO: Figure this out
+    # screen_status: int  # TODO: Figure this out
 
 
 class PaymentSource(PartialPaymentSource):

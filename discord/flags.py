@@ -76,6 +76,7 @@ __all__ = (
     'ReadStateFlags',
     'InviteFlags',
     'AttachmentFlags',
+    'EmbedFlags',
     'RoleFlags',
 )
 
@@ -1296,6 +1297,24 @@ class ApplicationFlags(BaseFlags):
 
     __slots__ = ()
 
+    def _to_intents(self) -> int:
+        # Start with a base value of 0
+        intents = 0
+
+        if self.gateway_presence_limited or self.gateway_presence:
+            intents |= 1 << 12
+        if self.gateway_guild_members_limited or self.gateway_guild_members:
+            intents |= 1 << 14
+        if self.gateway_message_content_limited or self.gateway_message_content:
+            intents |= 1 << 18
+
+        return intents
+
+    @flag_value
+    def embedded_released(self):
+        """:class:`bool`: Returns ``True`` if the embedded application is released to the public."""
+        return 1 << 1
+
     @flag_value
     def managed_emoji(self):
         """:class:`bool`: Returns ``True`` if the application has the ability to create managed emoji."""
@@ -1342,6 +1361,14 @@ class ApplicationFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 1 << 9
+
+    @flag_value
+    def social_layer_integration_limited(self):
+        """:class:`bool`: Returns ``True`` if the application has limited access to the social layer SDK.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 10
 
     @flag_value
     def gateway_presence(self):
@@ -1401,6 +1428,11 @@ class ApplicationFlags(BaseFlags):
         return 1 << 20
 
     @flag_value
+    def application_command_migrated(self):
+        # Unknown
+        return 1 << 21
+
+    @flag_value
     def application_command_badge(self):
         """:class:`bool`: Returns ``True`` if the application has registered global application commands."""
         return 1 << 23
@@ -1411,6 +1443,15 @@ class ApplicationFlags(BaseFlags):
         This means that it has had any global command executed in the past 30 days.
         """
         return 1 << 24
+
+    @flag_value
+    def active_grace_period(self):
+        """:class:`bool`: Returns ``True`` if the application has not had any global command executed in
+        the past 30 days and has lost the active flag.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 25
 
     @flag_value
     def iframe_modal(self):
@@ -1557,7 +1598,11 @@ class PaymentSourceFlags(BaseFlags):
         return 1 << 0
 
     @flag_value
-    def unknown(self):
+    def successful_payment(self):
+        """:class:`bool`: Returns ``True`` if the payment source has been successfully used.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 1
 
 
@@ -1737,7 +1782,10 @@ class PaymentFlags(BaseFlags):
 
     @flag_value
     def user_refunded(self):
-        """:class:`bool`: Returns ``True`` if the payment has been self-refunded"""
+        """:class:`bool`: Returns ``True`` if the payment has been self-refunded.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 2
 
     @flag_value
@@ -1748,13 +1796,17 @@ class PaymentFlags(BaseFlags):
     # TODO: The below are assumptions
 
     @flag_value
+    def pending(self):
+        """:class:`bool`: Returns ``True`` if the automatic payment is pending manual authorization by the user.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 4
+
+    @flag_value
     def temporary_authorization(self):
         """:class:`bool`: Returns ``True`` if the payment is a temporary authorization."""
         return 1 << 5
-
-    @flag_value
-    def unknown(self):
-        return 1 << 6
 
 
 @fill_with_flags()
@@ -2001,6 +2053,14 @@ class LibraryApplicationFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the library application is free for premium users."""
         return 1 << 4
 
+    @flag_value
+    def overlay_v3_disabled(self):
+        """:class:`bool`: Returns ``True`` if the library application has the new Discord overlay implementation disabled.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 5
+
 
 @fill_with_flags()
 class ApplicationDiscoveryFlags(BaseFlags):
@@ -2245,8 +2305,10 @@ class FriendSourceFlags(BaseFlags):
     __slots__ = ()
 
     @classmethod
-    def _from_dict(cls, data: dict) -> Self:
+    def _from_dict(cls, data: Optional[dict]) -> Self:
         self = cls()
+        if not data:
+            return self
         if data.get('mutual_friends'):
             self.mutual_friends = True
         if data.get('mutual_guilds'):
@@ -2722,6 +2784,11 @@ class ReadStateFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the read state is for a thread."""
         return 1 << 1
 
+    @flag_value
+    def mention_low_importance(self):
+        """:class:`bool`: Returns ``True`` if the read state's badge is of low importance."""
+        return 1 << 2
+
 
 @fill_with_flags()
 class InviteFlags(BaseFlags):
@@ -2788,6 +2855,12 @@ class InviteFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the invite is enhanced."""
         return 1 << 2
 
+    @flag_value
+    def application_bypass(self):
+        """:class:`bool`: Returns ``True`` if the invite bypasses guild join requests and adds the user directly to the guild with :attr:`discord.Member.pending` set to ``False``."""
+        return 1 << 3
+
+
 
 @fill_with_flags()
 class AttachmentFlags(BaseFlags):
@@ -2851,6 +2924,83 @@ class AttachmentFlags(BaseFlags):
     def remix(self):
         """:class:`bool`: Returns ``True`` if the attachment has been edited using the remix feature."""
         return 1 << 2
+
+    @flag_value
+    def spoiler(self):
+        """:class:`bool`: Returns ``True`` if the attachment was marked as a spoiler."""
+        return 1 << 3
+
+    @flag_value
+    def contains_explicit_media(self):
+        """:class:`bool`: Returns ``True`` if the attachment is flagged as explicit media."""
+        return 1 << 4
+
+    @flag_value
+    def animated(self):
+        """:class:`bool`: Returns ``True`` if the attachment is an animated image."""
+        return 1 << 5
+
+
+@fill_with_flags()
+class EmbedFlags(BaseFlags):
+    r"""Wraps up the Discord Embed flags
+
+    .. versionadded:: 2.1
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two EmbedFlags are equal.
+
+        .. describe:: x != y
+
+            Checks if two EmbedFlags are not equal.
+
+        .. describe:: x | y, x |= y
+
+            Returns an EmbedFlags instance with all enabled flags from
+            both x and y.
+
+        .. describe:: x ^ y, x ^= y
+
+            Returns an EmbedFlags instance with only flags enabled on
+            only one of x or y, not on both.
+
+        .. describe:: ~x
+
+            Returns an EmbedFlags instance with all flags inverted from x.
+
+        .. describe:: hash(x)
+
+            Returns the flag's hash.
+
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    Attributes
+    ----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties
+        rather than using this raw value.
+    """
+
+    @flag_value
+    def contains_explicit_media(self):
+        """:class:`bool`: Returns ``True`` if the embed was flagged as sensitive content."""
+        return 1 << 4
+
+    @flag_value
+    def content_inventory_entry(self):
+        """:class:`bool`: Returns ``True`` if the embed is a legacy content inventory entry."""
+        return 1 << 5
 
 
 @fill_with_flags()

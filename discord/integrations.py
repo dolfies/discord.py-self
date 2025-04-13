@@ -49,6 +49,7 @@ if TYPE_CHECKING:
         Integration as IntegrationPayload,
         IntegrationAccount as IntegrationAccountPayload,
         IntegrationType,
+        PartialIntegration as PartialIntegrationPayload,
         StreamIntegration as StreamIntegrationPayload,
     )
 
@@ -95,6 +96,10 @@ class Integration:
         Whether the integration is currently enabled.
     account: :class:`IntegrationAccount`
         The account linked to this integration.
+    application_id: Optional[:class:`int`]
+        The application ID of the integration, if applicable.
+
+        .. versionadded:: 2.1
     user: Optional[:class:`User`]
         The user that added this integration, if available.
     """
@@ -106,11 +111,12 @@ class Integration:
         'type',
         'name',
         'account',
+        'application_id',
         'user',
         'enabled',
     )
 
-    def __init__(self, *, data: IntegrationPayload, guild: Guild) -> None:
+    def __init__(self, *, data: Union[PartialIntegrationPayload, IntegrationPayload], guild: Guild) -> None:
         self.guild: Guild = guild
         self._state: ConnectionState = guild._state
         self._from_data(data)
@@ -118,11 +124,12 @@ class Integration:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} name={self.name!r}>"
 
-    def _from_data(self, data: IntegrationPayload) -> None:
+    def _from_data(self, data: Union[PartialIntegrationPayload, IntegrationPayload]) -> None:
         self.id: int = int(data['id'])
         self.type: IntegrationType = data['type']
         self.name: str = data['name']
         self.account: IntegrationAccount = IntegrationAccount(data['account'])
+        self.application_id: Optional[int] = _get_as_snowflake(data, 'application_id')
 
         user = data.get('user')
         self.user: Optional[User] = User(state=self._state, data=user) if user else None

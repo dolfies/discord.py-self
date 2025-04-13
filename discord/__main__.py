@@ -28,7 +28,7 @@ import argparse
 import importlib.metadata
 import platform
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath, PureWindowsPath
 from typing import Dict, Optional, Tuple
 
 import aiohttp
@@ -50,7 +50,7 @@ def show_version() -> None:
             entries.append(f'    - discord.py-self metadata: v{version}')
 
     entries.append(f'- discord-protos v{discord_protos.__version__}')
-    entries.append(f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__})')
+    entries.append(f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__})')  # type: ignore
     entries.append(f'- aiohttp v{aiohttp.__version__}')
     uname = platform.uname()
     entries.append('- system info: {0.system} {0.release} {0.version}'.format(uname))
@@ -223,8 +223,14 @@ def to_path(parser: argparse.ArgumentParser, name: str, *, replace_spaces: bool 
         )
         if len(name) <= 4 and name.upper() in forbidden:
             parser.error('invalid directory name given, use a different one')
+    path = PurePath(name)
+    if isinstance(path, PureWindowsPath) and path.drive:
+        drive, rest = path.parts[0], path.parts[1:]
+        transformed = tuple(map(lambda p: p.translate(_translation_table), rest))
+        name = drive + '\\'.join(transformed)
 
-    name = name.translate(_translation_table)
+    else:
+        name = name.translate(_translation_table)
     if replace_spaces:
         name = name.replace(' ', '-')
     return Path(name)

@@ -79,3 +79,4 @@ class DirectoryEntry(PartialDirectoryEntry):
 
 class DirectoryBroadcast(TypedDict):
     can_broadcast: bool
+    has_broadcast: NotRequired[bool]

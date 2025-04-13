@@ -50,10 +50,11 @@ if TYPE_CHECKING:
         Payment as PaymentPayload,
     )
 
-__all__ = (
-    'Payment',
-    'EntitlementPayment',
-)
+__all__ = ('Payment', 'EntitlementPayment', 'BRAINTREE_KEY', 'STRIPE_KEY', 'ADYEN_KEY')
+
+BRAINTREE_KEY = 'production_ktzp8hfp_49pp2rp4phym7387'
+STRIPE_KEY = 'pk_live_CUQtlpQUF0vufWpnpUmQvcdi'
+ADYEN_KEY = 'live_E3OQ33V6GVGTXOVQZEAFQJ6DJIDVG6SY'
 
 
 class Payment(Hashable):

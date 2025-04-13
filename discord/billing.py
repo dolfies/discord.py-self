@@ -34,7 +34,7 @@ from .enums import (
 )
 from .flags import PaymentSourceFlags
 from .mixins import Hashable
-from .utils import MISSING
+from .utils import MISSING, parse_time
 
 if TYPE_CHECKING:
     from datetime import date
@@ -220,12 +220,18 @@ class PaymentSource(Hashable):
         The type of the payment source.
     payment_gateway: :class:`PaymentGateway`
         The payment gateway of the payment source.
+    payment_gateway_source_id: Optional[:class:`str`]
+        The ID of the payment source in the payment gateway.
+
+        .. versionadded:: 2.1
     default: :class:`bool`
         Whether the payment source is the default payment source.
     invalid: :class:`bool`
         Whether the payment source is invalid.
     expires_at: Optional[:class:`datetime.date`]
         When the payment source expires. This is only available for cards.
+    deleted_at: Optional[:class:`datetime.datetime`]
+        When the payment source was deleted.
     email: Optional[:class:`str`]
         The email address associated with the payment source, if any.
         This is only available for PayPal.
@@ -246,9 +252,11 @@ class PaymentSource(Hashable):
         'billing_address',
         'type',
         'payment_gateway',
+        'payment_gateway_source_id',
         'default',
         'invalid',
         'expires_at',
+        'deleted_at',
         'email',
         'bank',
         'username',
@@ -273,6 +281,7 @@ class PaymentSource(Hashable):
 
         self.type: PaymentSourceType = try_enum(PaymentSourceType, data['type'])
         self.payment_gateway: PaymentGateway = try_enum(PaymentGateway, data['payment_gateway'])
+        self.payment_gateway_source_id: Optional[str] = data.get('payment_gateway_source_id')
         self.default: bool = data.get('default', False)
         self.invalid: bool = data['invalid']
         self._flags: int = data.get('flags', 0)
@@ -280,6 +289,7 @@ class PaymentSource(Hashable):
         month = data.get('expires_month')
         year = data.get('expires_year')
         self.expires_at: Optional[date] = datetime(year=year, month=month or 1, day=1).date() if year else None
+        self.deleted_at: Optional[datetime] = parse_time(data.get('deleted_at'))
 
         self.email: Optional[str] = data.get('email')
         self.bank: Optional[str] = data.get('bank')
