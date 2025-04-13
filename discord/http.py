@@ -688,7 +688,7 @@ class HTTPClient:
         self.__session = requests.AsyncSession(impersonate=impersonate)  # type: ignore # strings do indeed work here
         self._started = True
 
-    async def ws_connect(self, url: str, **kwargs) -> requests.WebSocket:
+    async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
         await self.startup()
 
         headers: Dict[str, Any] = {
@@ -709,7 +709,7 @@ class HTTPClient:
             kwargs['proxy_auth'] = proxy_auth
 
         session = self.__session
-        return await session.ws_connect(url, headers=headers, impersonate=session.impersonate, timeout=30.0, **kwargs)
+        return await session.ws_connect(url, headers=headers, timeout=30.0, **kwargs)
 
     @property
     def browser_version(self) -> int:

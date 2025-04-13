@@ -35,7 +35,7 @@ import traceback
 from typing import Any, Callable, Coroutine, Dict, List, TYPE_CHECKING, NamedTuple, Optional, Sequence, TypeVar, Tuple
 
 from curl_cffi import CurlError
-from curl_cffi.requests import WebSocket
+from curl_cffi.requests import AsyncWebSocket
 from curl_cffi.const import CurlWsFlag
 import yarl
 
@@ -87,12 +87,9 @@ class WebSocketClosure(Exception):
 
     __slots__ = ('code', 'reason')
 
-    CLOSE_CODE = struct.Struct("!H")
-
-    def __init__(self, msg: bytes):
-        # HACK: Unpack code and reason from raw message
-        self.code: int = self.CLOSE_CODE.unpack(msg[:2])[0]
-        self.reason: str = msg[2:].decode('utf-8')
+    def __init__(self, socket: AsyncWebSocket):
+        self.code: int = socket.close_code or -1
+        self.reason: str = socket.close_reason or ''
         super().__init__(f'WebSocket closed with {self.code} (reason: {self.reason!r})')
 
 
@@ -297,8 +294,8 @@ class DiscordWebSocket:
     BULK_GUILD_SUBSCRIBE  = 37
     # fmt: on
 
-    def __init__(self, socket: WebSocket, *, loop: asyncio.AbstractEventLoop) -> None:
-        self.socket: WebSocket = socket
+    def __init__(self, socket: AsyncWebSocket, *, loop: asyncio.AbstractEventLoop) -> None:
+        self.socket: AsyncWebSocket = socket
         self.loop: asyncio.AbstractEventLoop = loop
 
         # An empty dispatcher to prevent crashes
@@ -315,7 +312,10 @@ class DiscordWebSocket:
         self._decompressor: utils._DecompressionContext = utils._ActiveDecompressionContext()
         self._close_code: Optional[int] = None
         self._rate_limiter: GatewayRatelimiter = GatewayRatelimiter()
-        self._send_lock: asyncio.Lock = asyncio.Lock()
+
+        self._hello_trace: List[str] = []
+        self._session_trace: List[str] = []
+        self._resume_trace: List[str] = []
 
         # Presence state tracking
         self.afk: bool = False
@@ -544,6 +544,7 @@ class DiscordWebSocket:
                 return
 
             if op == self.HELLO:
+                self._hello_trace = data.get('_trace', [])
                 interval = data['heartbeat_interval'] / 1000.0
                 self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
                 # Send a heartbeat immediately
@@ -568,7 +569,7 @@ class DiscordWebSocket:
             return
 
         if event == 'READY':
-            self._trace = data.get('_trace', [])
+            self._session_trace = data.get('_trace', [])
             self.sequence = msg['s']
             self.session_id = data['session_id']
             self.gateway = yarl.URL(data['resume_gateway_url'])
@@ -577,6 +578,7 @@ class DiscordWebSocket:
             await self.voice_state()  # Initial OP 4
 
         elif event == 'RESUMED':
+            self._resume_trace = data.get('_trace', [])
             _log.info('Gateway has successfully RESUMED session %s.', self.session_id)
 
         try:
@@ -641,15 +643,17 @@ class DiscordWebSocket:
             The websocket connection was terminated for unhandled reasons.
         """
         try:
-            msg, flags = await asyncio.wait_for(self.socket.arecv(), timeout=self._max_heartbeat_timeout)
+            msg, flags = await asyncio.wait_for(self.socket.recv(), timeout=self._max_heartbeat_timeout)
             if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
                 await self.received_message(msg)
             elif flags & CurlWsFlag.CLOSE:
-                err = WebSocketClosure(msg)
-                _log.info(f'Got close {err.code} reason {err.reason}')
-                raise WebSocketClosure(msg)
+                socket = self.socket
+                _log.info(f'Gateway received close {socket.close_code} reason {socket.close_reason}')
+                raise WebSocketClosure(socket)
         except (asyncio.TimeoutError, CurlError, WebSocketClosure) as e:
             if isinstance(e, CurlError) and e.code == 52:
+                # This means the connection is closed
+                # The close mechanism should take care of this if we ever race here
                 _log.debug('Gateway received CURLE_GOT_NOTHING, ignoring...')
                 return
 
@@ -663,13 +667,14 @@ class DiscordWebSocket:
                 _log.debug('Timed out receiving packet. Attempting a reconnect.')
                 raise ReconnectWebSocket from None
 
-            code = self._close_code or getattr(e, 'code', None)
-            reason = getattr(e, 'reason', None)
+            socket = self.socket
+            code = self._close_code or socket.close_code
+            reason = socket.close_reason
             if isinstance(e, CurlError):
                 _log.debug('Received error %s', e)
                 reason = str(e)
 
-            _log.info(f'Got code {code} and reason {reason}')
+            _log.info(f'Gateway received close code {code} and reason {reason!r}.')
 
             if self._can_handle_close(code or None):
                 _log.debug('Websocket closed with %s, attempting a reconnect.', code)
@@ -679,8 +684,7 @@ class DiscordWebSocket:
                 raise ConnectionClosed(code, reason) from None
 
     async def _sendstr(self, data: str, /) -> None:
-        async with self._send_lock:
-            await self.socket.asend(data.encode('utf-8'))
+        await self.socket.send(data.encode('utf-8'))
 
     async def debug_send(self, data: str, /) -> None:
         await self._rate_limiter.block()
@@ -857,13 +861,7 @@ class DiscordWebSocket:
             self._keep_alive = None
 
         self._close_code = code
-        socket = self.socket
-
-        # HACK: The close implementation in curl-cffi is currently broken so we do it ourselves
-        data = struct.pack('!H', code) + reason
-        await socket.asend(data, CurlWsFlag.CLOSE)
-        socket.keep_running = False
-        await self.loop.run_in_executor(None, socket.curl.close)  # TODO: Do I need an executor here?
+        await self.socket.close(code, reason)
         _log.info('Finished closing websocket')
 
 
@@ -924,26 +922,24 @@ class DiscordVoiceWebSocket:
 
     def __init__(
         self,
-        socket: WebSocket,
+        socket: AsyncWebSocket,
         loop: asyncio.AbstractEventLoop,
         *,
-        hook: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
+        hook: Optional[Callable[..., Coroutine[Any, Any, None]]] = None,
     ) -> None:
-        self.ws: WebSocket = socket
+        self.ws: AsyncWebSocket = socket
         self.loop: asyncio.AbstractEventLoop = loop
         self._keep_alive: Optional[VoiceKeepAliveHandler] = None
         self._close_code: Optional[int] = None
         self.secret_key: Optional[List[int]] = None
-        self._send_lock: asyncio.Lock = asyncio.Lock()
         if hook:
-            self._hook = hook
+            self._hook = hook  # type: ignore
 
     async def _hook(self, *args: Any) -> None:
         pass
 
     async def _sendstr(self, data: str, /) -> None:
-        async with self._send_lock:
-            await self.ws.asend(data.encode('utf-8'))
+        await self.ws.send(data.encode('utf-8'))
 
     async def send_as_json(self, data: Any) -> None:
         _log.debug('Voice gateway sending: %s.', data)
@@ -1003,7 +999,7 @@ class DiscordVoiceWebSocket:
 
         return ws
 
-    async def select_protocol(self, ip: str, port: int, mode: int) -> None:
+    async def select_protocol(self, ip: str, port: int, mode: str) -> None:
         payload = {
             'op': self.SELECT_PROTOCOL,
             'd': {
@@ -1137,24 +1133,18 @@ class DiscordVoiceWebSocket:
 
     async def poll_event(self) -> None:
         # This exception is handled up the chain
-        msg, flags = await asyncio.wait_for(self.ws.arecv(), timeout=self._max_heartbeat_timeout)
+        msg, flags = await asyncio.wait_for(self.ws.recv(), timeout=self._max_heartbeat_timeout)
+
         if flags & CurlWsFlag.TEXT:
             await self.received_message(utils._from_json(msg))
         elif flags & CurlWsFlag.CLOSE:
-            _log.debug('Voice received %s.', msg)
-            # TODO: hack
-            data = WebSocketClosure(msg)
-            raise ConnectionClosed(data.code, data.reason)
+            socket = self.ws
+            _log.info(f'Voice socket received close code {socket.close_code} reason {socket.close_reason!r}')
+            raise ConnectionClosed(socket.close_code or self._close_code, socket.close_reason or '')
 
     async def close(self, code: int = 1000, reason: bytes = b'') -> None:
         if self._keep_alive:
             self._keep_alive.stop()
 
         self._close_code = code
-        socket = self.ws
-
-        # HACK: The close implementation in curl-cffi is currently broken so we do it ourselves
-        data = struct.pack('!H', code) + reason
-        await socket.asend(data, CurlWsFlag.CLOSE)
-        socket.keep_running = False
-        await self.loop.run_in_executor(None, socket.curl.close)  # TODO: Do I need an executor here?
+        await self.ws.close(code, reason)
