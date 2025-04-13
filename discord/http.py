@@ -30,7 +30,6 @@ import logging
 import re
 import ssl
 import string
-import warnings
 from collections import deque
 from http import HTTPStatus
 from random import choice, choices
@@ -157,25 +156,13 @@ CIPHERS = (
     'AES256-SHA',
 )
 
+_CLOUDFLARE_REGEX = re.compile(r'<span>(\d{3,4})</span>')
 _log = logging.getLogger(__name__)
-
-
-def _gen_accept_encoding_header():
-    return 'gzip, deflate, br' if aiohttp.http_parser.HAS_BROTLI else 'gzip, deflate'  # type: ignore
 
 
 # For some reason, the Discord voice websocket expects this header to be
 # completely lowercase while aiohttp respects spec and does it as case-insensitive
 aiohttp.hdrs.WEBSOCKET = 'websocket'  # type: ignore
-try:
-    # Support brotli if installed
-    aiohttp.client_reqrep.ClientRequest.DEFAULT_HEADERS[aiohttp.hdrs.ACCEPT_ENCODING] = _gen_accept_encoding_header()  # type: ignore
-except Exception:
-    # aiohttp does it for us on newer versions anyway
-    pass
-
-# HACK: Ignore event loop warnings from curl_cffi
-warnings.filterwarnings('ignore', module='curl_cffi')
 
 
 async def json_or_text(response: Union[aiohttp.ClientResponse, requests.Response]) -> Union[Dict[str, Any], str]:
@@ -497,7 +484,7 @@ class Ratelimit:
         if use_clock or not reset_after:
             utc = datetime.timezone.utc
             now = datetime.datetime.now(utc)
-            reset = datetime.datetime.fromtimestamp(float(headers['X-Ratelimit-Reset']), utc)
+            reset = datetime.datetime.fromtimestamp(float(headers['X-Ratelimit-Reset']), utc)  # type: ignore
             self.reset_after = (reset - now).total_seconds()
         else:
             self.reset_after = float(reset_after)
@@ -613,7 +600,7 @@ class HTTPClient:
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.__asession: aiohttp.ClientSession = MISSING
-        self.__session: requests.AsyncSession = MISSING
+        self.__session: requests.AsyncSession[requests.Response] = MISSING
         # Route key -> Bucket hash
         self._bucket_hashes: Dict[str, str] = {}
         # Bucket Hash + Major Parameters -> Rate limit
@@ -678,14 +665,11 @@ class HTTPClient:
         try:
             impersonate = requests.impersonate.DEFAULT_CHROME
         except AttributeError:
-            # Legacy version
-            impersonate = f'chrome{self.browser_version}'
-            if not impersonate in requests.BrowserType:
-                chromes = [b.value for b in requests.BrowserType if b.value.startswith('chrome')]
-                impersonate = max(chromes, key=lambda c: int(c[6:].split('_')[0]))
+            # Breaking change
+            impersonate = 'chrome'
 
         _log.info('Found TLS fingerprint target "%s".', impersonate)
-        self.__session = requests.AsyncSession(impersonate=impersonate)  # type: ignore # strings do indeed work here
+        self.__session = requests.AsyncSession(impersonate=impersonate)
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
@@ -906,8 +890,8 @@ class HTTPClient:
                                     discord_hash or route_key,
                                 )
 
-                    # 202s must be retried
-                    if response.status_code == 202 and isinstance(data, dict) and data['code'] == 110000:
+                    # 202s must be retried, we check for error group 11xxxx
+                    if response.status_code == 202 and isinstance(data, dict) and data['code'] in range(110000, 119999):
                         # We update the `attempts` query parameter
                         params = kwargs.get('params')
                         if not params:
@@ -934,7 +918,7 @@ class HTTPClient:
                             retry_after = int(response.headers.get('Retry-After', '0'))
                             if not retry_after:
                                 # Unhandleable
-                                result = re.search(r'<span>(\d{3,4})</span>', data)
+                                result = _CLOUDFLARE_REGEX.search(data)
                                 code = int(result.group(1)) if result else 'Unknown'
                                 raise HTTPException(response, f'Cloudflare ban (code: {code})')
                         else:
@@ -959,7 +943,7 @@ class HTTPClient:
 
                         if 'Retry-After' in response.headers:
                             # Sometimes Cloudflare rate limits will have their retry_after field in milliseconds
-                            if int(response.headers['Retry-After']) == int(retry_after / 1000):
+                            if int(response.headers['Retry-After']) == int(retry_after / 1000):  # type: ignore
                                 retry_after /= 1000.0
 
                         if self.max_ratelimit_timeout and retry_after > self.max_ratelimit_timeout:
@@ -1018,8 +1002,7 @@ class HTTPClient:
 
                 # libcurl errors
                 except requests.RequestsError as e:
-                    # Outdated library might be missing the code
-                    if tries < 4 and getattr(e, 'code', None) in (23, 28, 35):
+                    if tries < 4 and e.code in (23, 28, 35):
                         failed += 1
                         await asyncio.sleep(1 + tries * 2)
                         continue
@@ -1055,7 +1038,7 @@ class HTTPClient:
 
             raise RuntimeError('Unreachable code in HTTP handling')
 
-    # TODO: All the below could be rewritten to use curl_cffi, but I'm not sure
+    # All the below could be rewritten to use curl_cffi, but I'm not sure
     # about the performance and we aren't concerned about fingerprinting here
 
     async def get_from_cdn(self, url: str) -> bytes:
