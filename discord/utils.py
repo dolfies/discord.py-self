@@ -74,7 +74,6 @@ from threading import Timer
 import types
 import typing
 import warnings
-import aiohttp
 import logging
 import zlib
 import struct

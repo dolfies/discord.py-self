@@ -30,7 +30,7 @@ from .utils import _get_as_snowflake
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
-    from curl_cffi.requests import Response as CurlResponse, WebSocket
+    from curl_cffi.requests import Response as CurlResponse
     from requests import Response
     from typing_extensions import TypeGuard
 
