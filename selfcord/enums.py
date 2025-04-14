@@ -1152,28 +1152,36 @@ AppCommandType = ApplicationCommandType
 
 
 class ConnectionType(Enum):
+    amazon_music = 'amazon-music'
     battle_net = 'battlenet'
+    bluesky = 'bluesky'
+    bungie = 'bungie'
     contacts = 'contacts'
     crunchyroll = 'crunchyroll'
+    domain = 'domain'
     ebay = 'ebay'
     epic_games = 'epicgames'
     facebook = 'facebook'
     github = 'github'
     instagram = 'instagram'
     league_of_legends = 'leagueoflegends'
+    mastodon = 'mastodon'
     paypal = 'paypal'
     playstation = 'playstation'
+    playstation_stg = 'playstation-stg'
     reddit = 'reddit'
+    roblox = 'roblox'
     riot_games = 'riotgames'
     samsung = 'samsung'
+    soundcloud = 'soundcloud'
     spotify = 'spotify'
     skype = 'skype'
     steam = 'steam'
     tiktok = 'tiktok'
     twitch = 'twitch'
     twitter = 'twitter'
-    youtube = 'youtube'
     xbox = 'xbox'
+    youtube = 'youtube'
 
     def __str__(self) -> str:
         return self.value
