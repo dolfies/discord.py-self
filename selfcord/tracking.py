@@ -44,7 +44,7 @@ __all__ = ()
 class ContextPropertiesMeta(type):
     if TYPE_CHECKING:
 
-        def __getattribute__(self, name: str) -> Callable[[], Self]:
+        def __getattribute__(self, name: str) -> Callable[[], ContextProperties]:
             ...
 
     def __new__(cls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]):
@@ -53,14 +53,14 @@ class ContextPropertiesMeta(type):
         sources = attrs.get('SOURCES', {})
 
         def build_location(location: str) -> classmethod:
-            def f(cls) -> Self:
+            def f(cls) -> ContextProperties:
                 data = {'location': location}
                 return cls(data)
 
             return classmethod(f)
 
         def build_source(source: str) -> classmethod:
-            def f(cls) -> Self:
+            def f(cls) -> ContextProperties:
                 data = {'source': source}
                 return cls(data)
 

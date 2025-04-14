@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
 from .enums import ExpireBehaviour, try_enum
 from .user import User
@@ -49,7 +49,6 @@ if TYPE_CHECKING:
         Integration as IntegrationPayload,
         IntegrationAccount as IntegrationAccountPayload,
         IntegrationType,
-        PartialIntegration as PartialIntegrationPayload,
         StreamIntegration as StreamIntegrationPayload,
     )
 
@@ -86,6 +85,10 @@ class Integration:
     -----------
     id: :class:`int`
         The integration ID.
+
+        .. note::
+
+            An ID of ``-1`` is used to represent the Twitch Partner integration.
     name: :class:`str`
         The integration name.
     guild: :class:`Guild`
@@ -116,7 +119,7 @@ class Integration:
         'enabled',
     )
 
-    def __init__(self, *, data: Union[PartialIntegrationPayload, IntegrationPayload], guild: Guild) -> None:
+    def __init__(self, *, data: IntegrationPayload, guild: Guild) -> None:
         self.guild: Guild = guild
         self._state: ConnectionState = guild._state
         self._from_data(data)
@@ -124,11 +127,11 @@ class Integration:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} name={self.name!r}>"
 
-    def _from_data(self, data: Union[PartialIntegrationPayload, IntegrationPayload]) -> None:
-        self.id: int = int(data['id'])
+    def _from_data(self, data: IntegrationPayload) -> None:
+        self.id: int = int(data['id']) if data['id'].isdigit() else -1
         self.type: IntegrationType = data['type']
-        self.name: str = data['name']
         self.account: IntegrationAccount = IntegrationAccount(data['account'])
+        self.name: str = data.get('name', self.account.name)
         self.application_id: Optional[int] = _get_as_snowflake(data, 'application_id')
 
         user = data.get('user')
@@ -157,7 +160,22 @@ class Integration:
             Deleting the integration failed.
         """
         await self._state.http.delete_integration(self.guild.id, self.id, reason=reason)
-        self.enabled = False
+
+    async def join(self) -> None:
+        """|coro|
+
+        Joins the Twitch integration's guild. Can only be used with integrations found in your connections.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        Forbidden
+            You do not have permission to join the integration's guild.
+        HTTPException
+            Joining the integration's guild failed.
+        """
+        await self._state.http.join_integration(self.id)
 
 
 class StreamIntegration(Integration):
@@ -258,14 +276,15 @@ class StreamIntegration(Integration):
         payload: Dict[str, Any] = {}
         if expire_behaviour is not MISSING:
             payload['expire_behavior'] = int(expire_behaviour)
-
         if expire_grace_period is not MISSING:
             payload['expire_grace_period'] = expire_grace_period
-
         if enable_emoticons is not MISSING:
             payload['enable_emoticons'] = enable_emoticons
 
         await self._state.http.edit_integration(self.guild.id, self.id, **payload)
+        self.expire_behaviour = expire_behaviour if expire_behaviour is not MISSING else self.expire_behaviour
+        self.expire_grace_period = expire_grace_period if expire_grace_period is not MISSING else self.expire_grace_period
+        self.enable_emoticons = enable_emoticons if enable_emoticons is not MISSING else self.enable_emoticons
 
     async def sync(self) -> None:
         """|coro|
@@ -326,7 +345,7 @@ class StreamIntegration(Integration):
         HTTPException
             Enabling the integration failed.
         """
-        await self._state.http.create_integration(self.guild.id, self.type, self.id, reason=reason)
+        await self._state.http.create_integration(self.guild.id, self.type, self.account.id, reason=reason)
         self.enabled = True
 
 

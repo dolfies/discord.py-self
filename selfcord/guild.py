@@ -526,8 +526,7 @@ class Guild(Hashable):
         '_incidents_data',
     )
 
-    _PREMIUM_GUILD_LIMITS: ClassVar[Dict[Optional[int], _GuildLimit]] = {
-        None: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
+    _PREMIUM_GUILD_LIMITS: ClassVar[Dict[int, _GuildLimit]] = {
         0: _GuildLimit(emoji=50, stickers=5, bitrate=96e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
         1: _GuildLimit(emoji=100, stickers=15, bitrate=128e3, filesize=utils.DEFAULT_FILE_SIZE_LIMIT_BYTES),
         2: _GuildLimit(emoji=150, stickers=30, bitrate=256e3, filesize=52428800),
@@ -3296,10 +3295,10 @@ class Guild(Hashable):
 
         return Template(state=self._state, data=data)
 
-    async def create_integration(self, *, type: IntegrationType, id: int, reason: Optional[str] = None) -> None:
+    async def create_integration(self, *, type: IntegrationType, id: Union[str, int], reason: Optional[str] = None) -> None:
         """|coro|
 
-        Attaches an integration to the guild. This "enables" an existing integration.
+        Attaches an integration to the guild.
 
         You must have :attr:`~Permissions.manage_guild` to do this.
 
@@ -3308,9 +3307,9 @@ class Guild(Hashable):
         Parameters
         -----------
         type: :class:`str`
-            The integration type (e.g. Twitch).
-        id: :class:`int`
-            The integration ID.
+            The integration type (``twitch`` or ``youtube``).
+        id: :class:`str`
+            The integration account ID.
         reason: Optional[:class:`str`]
             The reason for creating this integration. Shows up on the audit log.
 

@@ -38,14 +38,24 @@ class IntegrationAccount(TypedDict):
     name: str
 
 
+class IntegrationGuild(TypedDict):
+    id: Snowflake
+    name: str
+    icon: Optional[str]
+
+
 IntegrationExpireBehavior = Literal[0, 1]
 
 
-class PartialIntegration(TypedDict):
-    id: Snowflake
-    name: str
+class ConnectionIntegration(TypedDict):
+    id: str
     type: IntegrationType
     account: IntegrationAccount
+    guild: IntegrationGuild
+
+
+class PartialIntegration(ConnectionIntegration):
+    name: str
     application_id: NotRequired[Snowflake]
 
 
@@ -72,10 +82,6 @@ class BotIntegration(BaseIntegration):
     application: IntegrationApplication
     scopes: List[str]
     role_connections_metadata: NotRequired[List[RoleConnectionMetadata]]
-
-
-class ConnectionIntegration(BaseIntegration):
-    guild: Guild
 
 
 Integration = Union[BaseIntegration, StreamIntegration, BotIntegration, ConnectionIntegration]

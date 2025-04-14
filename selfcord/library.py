@@ -227,7 +227,12 @@ class LibraryApplication:
         app = find(lambda a: _get_as_snowflake(a, 'application_id') == self.application.id, data)
         return ApplicationActivityStatistics(
             data=app
-            or {'application_id': self.application.id, 'total_duration': 0, 'last_played_at': '1970-01-01T00:00:00+00:00', 'first_played_at': None},
+            or {
+                'application_id': self.application.id,
+                'total_duration': 0,
+                'last_played_at': '1970-01-01T00:00:00+00:00',
+                'first_played_at': None,
+            },
             state=state,
         )
 

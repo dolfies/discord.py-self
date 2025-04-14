@@ -350,9 +350,11 @@ class BaseUser(_UserTag):
     def _to_minimal_user_json(self) -> APIUserPayload:
         decoration: Optional[UserAvatarDecorationData] = None
         if self._avatar_decoration is not None:
-            decoration = {'asset': self._avatar_decoration, 'expires_at': self._avatar_decoration_expires_at}
-            if self._avatar_decoration_sku_id is not None:
-                decoration['sku_id'] = self._avatar_decoration_sku_id
+            decoration = {
+                'asset': self._avatar_decoration,
+                'sku_id': self._avatar_decoration_sku_id,  # type: ignore
+                'expires_at': self._avatar_decoration_expires_at,
+            }
 
         user: APIUserPayload = {
             'username': self.name,

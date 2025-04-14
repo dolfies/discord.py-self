@@ -204,8 +204,8 @@ class Connection(PartialConnection):
     )
 
     def __init__(self, *, data: ConnectionPayload, state: ConnectionState):
-        self._update(data)
         self._state = state
+        self._update(data)
         self.access_token: Optional[str] = None
 
     def _update(self, data: ConnectionPayload):
@@ -236,7 +236,7 @@ class Connection(PartialConnection):
         guild_id = int(guild_data['id'])
         guild = state._get_guild(guild_id)
         if guild is None:
-            guild = state.create_guild(guild_data)
+            guild = state.create_guild(guild_data)  # type: ignore
         return guild
 
     async def edit(
