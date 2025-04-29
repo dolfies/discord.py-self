@@ -595,6 +595,7 @@ class HTTPClient:
         extra_headers: Optional[Mapping[str, str]] = None,
         debug_options: Optional[Sequence[str]] = None,
         rpc_proxy: Optional[str] = None,
+        http_options: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.__asession: aiohttp.ClientSession = MISSING
@@ -621,6 +622,7 @@ class HTTPClient:
         self.extra_headers: Mapping[str, str] = extra_headers or {}
         self.debug_options: Optional[Sequence[str]] = debug_options
         self.rpc_proxy: Optional[str] = rpc_proxy
+        self.http_options: Dict[str, Any] = http_options or {}
 
         self.tracer = None
         if debug_options and 'trace' in debug_options:
@@ -672,7 +674,7 @@ class HTTPClient:
         impersonate = getattr(rnet.Impersonate, f'Chrome{highest}')
 
         _log.info('Found TLS fingerprint target "Chrome%s".', highest)
-        self.__session = rnet.Client(impersonate=impersonate, user_agent=headers.user_agent, proxies=self._get_proxies(self.proxy, self.proxy_auth))
+        self.__session = rnet.Client(impersonate=impersonate, user_agent=headers.user_agent, proxies=self._get_proxies(self.proxy, self.proxy_auth), **self.http_options)
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> rnet.WebSocket:

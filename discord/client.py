@@ -323,6 +323,7 @@ class Client:
             locale=lambda: self._connection.locale,
             debug_options=self._get_debug_options(**options),
             rpc_proxy=options.pop('rpc_proxy', None),
+            http_options=options.pop('http_options', None),
         )
 
         self._handlers: Dict[str, Callable[..., None]] = {
