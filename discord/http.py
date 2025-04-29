@@ -31,7 +31,6 @@ import re
 import ssl
 import string
 from collections import deque
-from http import HTTPStatus
 from random import choice, choices
 from typing import (
     TYPE_CHECKING,

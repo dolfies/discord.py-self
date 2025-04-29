@@ -24,6 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, Dict, Final, List, Optional, Tuple, Union
 
 from .utils import _get_as_snowflake
@@ -164,11 +165,11 @@ class HTTPException(DiscordException):
             # Cloudflare access denied
             self.text = 'Cloudflare access denied (code: 1020)'
 
-        fmt = '{0.status_code} {0.status!s} (error code: {1})'
+        fmt = '{0} {1} (error code: {2})'
         if len(self.text):
-            fmt += ': {2}'
+            fmt += ': {3}'
 
-        super().__init__(fmt.format(self.response, self.code, self.text))
+        super().__init__(fmt.format(self.status, HTTPStatus(self.status).phrase, self.code, self.text))
 
 
 class RateLimited(DiscordException):
