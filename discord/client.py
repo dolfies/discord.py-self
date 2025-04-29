@@ -308,22 +308,18 @@ class Client:
     def __init__(self, **options: Any) -> None:
         self.loop: asyncio.AbstractEventLoop = _loop
         # self.ws is set in the connect method
-        self.ws: DiscordWebSocket = None  # type: ignore
+        self.ws: DiscordWebSocket = MISSING
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
 
-        proxy: Optional[str] = options.pop('proxy', None)
-        proxy_auth: Optional[aiohttp.BasicAuth] = options.pop('proxy_auth', None)
-        unsync_clock: bool = options.pop('assume_unsync_clock', True)
-        max_ratelimit_timeout: Optional[float] = options.pop('max_ratelimit_timeout', None)
         self.captcha_handler: Optional[Callable[[CaptchaRequired, Client], Awaitable[str]]] = options.pop(
             'captcha_handler', None
         )
         self.http: HTTPClient = HTTPClient(
-            proxy=proxy,
-            proxy_auth=proxy_auth,
-            unsync_clock=unsync_clock,
+            proxy=options.pop('proxy', None),
+            proxy_auth=options.pop('proxy_auth', None),
+            unsync_clock=options.pop('assume_unsync_clock', True),
             captcha=self.handle_captcha,
-            max_ratelimit_timeout=max_ratelimit_timeout,
+            max_ratelimit_timeout=options.pop('max_ratelimit_timeout', None),
             locale=lambda: self._connection.locale,
             debug_options=self._get_debug_options(**options),
             rpc_proxy=options.pop('rpc_proxy', None),
@@ -962,7 +958,8 @@ class Client:
             except ReconnectWebSocket as e:
                 _log.debug('Got a request to %s the websocket.', e.op)
                 self.dispatch('disconnect')
-                ws_params.update(sequence=self.ws.sequence, resume=e.resume, session=self.ws.session_id)
+                if self.ws:
+                    ws_params.update(sequence=self.ws.sequence, resume=e.resume, session=self.ws.session_id)
                 if e.resume:
                     ws_params['gateway'] = self.ws.gateway
                 continue
@@ -1034,7 +1031,7 @@ class Client:
                     # If an error happens during disconnects, disregard it
                     pass
 
-            if self.ws is not None and self.ws.open:
+            if self.ws and self.ws.open:
                 await self.ws.close(code=1000)
 
             await self.http.close()

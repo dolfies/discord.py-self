@@ -60,7 +60,7 @@ intersphinx_mapping = {
   'py': ('https://docs.python.org/3', None),
   'aio': ('https://docs.aiohttp.org/en/stable/', None),
   'req': ('https://requests.readthedocs.io/en/latest/', None),
-  'curl_cffi': ('https://curl-cffi.readthedocs.io/en/latest/', None),
+  'rnet': ('https://rnet.readthedocs.io/en/latest/', None),
 }
 
 rst_prolog = """

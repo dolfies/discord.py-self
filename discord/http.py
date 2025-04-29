@@ -55,7 +55,7 @@ from typing import (
 from urllib.parse import quote as _uriquote
 
 import aiohttp
-from curl_cffi import requests, CurlMime
+import rnet
 
 from . import utils
 from .enums import InviteType, NetworkConnectionType, RelationshipAction
@@ -156,24 +156,20 @@ CIPHERS = (
     'AES256-SHA',
 )
 
+_METHOD_MAP: Dict[str, rnet.Method] = {}
+for method in dir(rnet.Method):
+    if method.isupper():
+        _METHOD_MAP[method] = getattr(rnet.Method, method)
+
 _CLOUDFLARE_REGEX = re.compile(r'<span>(\d{3,4})</span>')
 _log = logging.getLogger(__name__)
 
 
-# For some reason, the Discord voice websocket expects this header to be
-# completely lowercase while aiohttp respects spec and does it as case-insensitive
-aiohttp.hdrs.WEBSOCKET = 'websocket'  # type: ignore
-
-
-async def json_or_text(response: Union[aiohttp.ClientResponse, requests.Response]) -> Union[Dict[str, Any], str]:
-    if isinstance(response, aiohttp.ClientResponse):
-        text = await response.text(encoding='utf-8')
-    else:
-        text = await response.atext()
+async def json_or_text(response: Union[aiohttp.ClientResponse, rnet.Response]) -> Union[Dict[str, Any], str]:
+    text = await response.text()
 
     try:
-        if response.headers['content-type'] == 'application/json':
-            return utils._from_json(text)
+        return utils._from_json(text)
     except KeyError:
         # Thanks Cloudflare
         pass
@@ -384,10 +380,10 @@ class Route:
     BASE: ClassVar[str] = f'https://discord.com/api/v{INTERNAL_API_VERSION}'
 
     def __init__(
-        self, method: requests.session.HttpMethod, path: str, *, metadata: Optional[str] = None, **parameters: Any
+        self, method: str, path: str, *, metadata: Optional[str] = None, **parameters: Any
     ) -> None:
         self.path: str = path
-        self.method: requests.session.HttpMethod = method
+        self.method: str = method
         # Metadata is a special string used to differentiate between known sub rate limits
         # Since these can't be handled generically, this is the next best way to do so.
         self.metadata: Optional[str] = metadata
@@ -473,17 +469,17 @@ class Ratelimit:
         self.reset_after = 0.0
         self.dirty = False
 
-    def update(self, response: Union[aiohttp.ClientResponse, requests.Response], *, use_clock: bool = False) -> None:
+    def update(self, response: rnet.Response, *, use_clock: bool = False) -> None:
         headers = response.headers
-        self.limit = int(headers.get('X-Ratelimit-Limit', 1))
+        self.limit = int(headers['X-Ratelimit-Limit'] or 1)
 
         if self.dirty:
-            self.remaining = min(int(headers.get('X-Ratelimit-Remaining', 0)), self.limit - self.outgoing)
+            self.remaining = min(int(headers['X-Ratelimit-Remaining'] or 0), self.limit - self.outgoing)
         else:
-            self.remaining = int(headers.get('X-Ratelimit-Remaining', 0))
+            self.remaining = int(headers['X-Ratelimit-Remaining'] or 0)
             self.dirty = True
 
-        reset_after = headers.get('X-Ratelimit-Reset-After')
+        reset_after = headers['X-Ratelimit-Reset-After']
         if use_clock or not reset_after:
             utc = datetime.timezone.utc
             now = datetime.datetime.now(utc)
@@ -603,7 +599,7 @@ class HTTPClient:
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.__asession: aiohttp.ClientSession = MISSING
-        self.__session: requests.AsyncSession[requests.Response] = MISSING
+        self.__session: rnet.Client = MISSING
         # Route key -> Bucket hash
         self._bucket_hashes: Dict[str, str] = {}
         # Bucket Hash + Major Parameters -> Rate limit
@@ -643,7 +639,7 @@ class HTTPClient:
                 pass
 
     def clear(self) -> None:
-        if self.__session and self.__session._closed:
+        if self.__session:
             self.__session = MISSING
         if self.__asession and self.__asession.closed:
             self.__asession = MISSING
@@ -657,25 +653,30 @@ class HTTPClient:
 
         if self.connector is MISSING or self.connector.closed:
             self.connector = aiohttp.TCPConnector(limit=0)
-        self.__asession = session = await _gen_session(aiohttp.ClientSession(connector=self.connector))
-        self.headers = headers = await utils.Headers.default(session, self.proxy, self.proxy_auth)
+        self.__asession = session = await _gen_session(aiohttp.ClientSession(connector=self.connector, proxy=self.proxy, proxy_auth=self.proxy_auth))
+        self.headers = headers = await utils.Headers.default(session)
         _log.info(
             'Found user agent "%s", build number %s.',
             headers.user_agent,
             headers.super_properties.get('client_build_number'),
         )
 
-        try:
-            impersonate = requests.impersonate.DEFAULT_CHROME
-        except AttributeError:
-            # Breaking change
-            impersonate = 'chrome'
+        highest = 0
+        for name in dir(rnet.Impersonate):
+            if name.startswith('Chrome'):
+                try:
+                    version = int(name[6:])
+                except ValueError:
+                    continue
+                if version > highest:
+                    highest = version
+        impersonate = getattr(rnet.Impersonate, f'Chrome{highest}')
 
-        _log.info('Found TLS fingerprint target "%s".', impersonate)
-        self.__session = requests.AsyncSession(impersonate=impersonate)
+        _log.info('Found TLS fingerprint target "Chrome%s".', highest)
+        self.__session = rnet.Client(impersonate=impersonate, user_agent=headers.user_agent, proxies=self._get_proxies(self.proxy, self.proxy_auth))
         self._started = True
 
-    async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
+    async def ws_connect(self, url: str, **kwargs) -> rnet.WebSocket:
         await self.startup()
 
         headers: Dict[str, Any] = {
@@ -686,17 +687,14 @@ class HTTPClient:
             'User-Agent': self.user_agent,
         }
 
-        proxy = kwargs.pop('proxy', self.proxy)
-        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth)
-        if proxy is not None:
-            kwargs['proxies'] = {'all': proxy}
-        if proxy_auth is not None:
-            if isinstance(proxy_auth, aiohttp.BasicAuth):
-                proxy_auth = (proxy_auth.login, proxy_auth.password)
-            kwargs['proxy_auth'] = proxy_auth
-
         session = self.__session
-        return await session.ws_connect(url, headers=headers, timeout=30.0, **kwargs)
+        return await session.websocket(url, headers=headers, **kwargs)
+
+    def _get_proxies(self, proxy: Optional[str], proxy_auth: Optional[aiohttp.BasicAuth]) -> Optional[List[rnet.Proxy]]:
+        if proxy is None:
+            return
+
+        return [rnet.Proxy.all(proxy, *(proxy_auth or (None, None)))]
 
     @property
     def browser_version(self) -> int:
@@ -749,7 +747,7 @@ class HTTPClient:
         ratelimit = self.get_ratelimit(key)
 
         # Header creation
-        # NOTE: Many browser-specific headers are missing here because curl_cffi fills them in
+        # NOTE: Many browser-specific headers are missing here because rnet fills them in
         headers = {
             **self.headers.client_hints,
             'Cache-Control': 'no-cache',
@@ -792,7 +790,7 @@ class HTTPClient:
         payload = kwargs.pop('json', None)
         if payload is not None:
             headers['Content-Type'] = 'application/json'
-            kwargs['data'] = utils._to_json(payload)
+            kwargs['body'] = utils._to_json(payload)
 
         if 'context_properties' in kwargs:
             props = kwargs.pop('context_properties')
@@ -806,19 +804,12 @@ class HTTPClient:
         kwargs['headers'] = headers
 
         # Proxy support
-        proxy = kwargs.pop('proxy', self.proxy)
-        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth)
-        if proxy is not None:
-            kwargs['proxies'] = {'all': proxy}
-        if proxy_auth is not None:
-            if isinstance(proxy_auth, aiohttp.BasicAuth):
-                proxy_auth = (proxy_auth.login, proxy_auth.password)
-            kwargs['proxy_auth'] = proxy_auth
+        kwargs['proxies'] = self._get_proxies(kwargs.pop('proxy', self.proxy), kwargs.pop('proxy_auth', self.proxy_auth))
 
         if not self._global_over.is_set():
             await self._global_over.wait()
 
-        response: Optional[requests.Response] = None
+        response: Optional[rnet.Response] = None
         data: Optional[Union[Dict[str, Any], str]] = None
         failed = 0  # Number of 500'd requests
         trace_id = None
@@ -829,7 +820,7 @@ class HTTPClient:
                         f.reset(seek=tries)
 
                 if form:
-                    kwargs['multipart'] = CurlMime.from_list(form)
+                    kwargs['form'] = [(k, v) for d in form for k, v in d.items()]
 
                 if self.tracer:
                     trace_id = self.tracer.generate(self.user_id or 0)
@@ -839,12 +830,10 @@ class HTTPClient:
                     headers['X-Failed-Requests'] = str(failed)
 
                 try:
-                    response = await self.__session.request(method, url, **kwargs, stream=True)
-                    response.status = response.status_code  # type: ignore
-                    response.reason = HTTPStatus(response.status_code).phrase
+                    response = await self.__session.request(_METHOD_MAP[method], url, **kwargs)
 
                     log_fmt = '%s %s with %s has returned %s.'
-                    log_params = [method, url, kwargs.get('data'), response.status_code]
+                    log_params = [method, url, kwargs.get('data'), response.status]
                     if trace_id is not None:
                         log_fmt += '\nTrace URL: https://datadog.discord.tools/apm/traces?query=@http.x_client_trace_id:"%s"&showAllSpans=true'
                         log_params.append(trace_id)
@@ -853,7 +842,7 @@ class HTTPClient:
                     data = await json_or_text(response)
 
                     # Update and use rate limit information if the bucket header is present
-                    discord_hash = response.headers.get('X-Ratelimit-Bucket')
+                    discord_hash = response.headers['X-Ratelimit-Bucket']
                     # I am unsure if X-Ratelimit-Bucket is always available
                     # However, X-Ratelimit-Remaining has been a consistent cornerstone that worked
                     has_ratelimit_headers = 'X-Ratelimit-Remaining' in response.headers
@@ -909,7 +898,7 @@ class HTTPClient:
                         continue
 
                     # Request was successful so just return the text/json
-                    if 300 > response.status_code >= 200:
+                    if 300 > response.status >= 200:
                         _log.debug('%s %s has received %s.', method, url, data)
                         return data
 
@@ -918,7 +907,7 @@ class HTTPClient:
                         if isinstance(data, str):
                             # Cloudflare ban
                             is_global = False
-                            retry_after = int(response.headers.get('Retry-After', '0'))
+                            retry_after = int(response.headers['Retry-After'] or 0)
                             if not retry_after:
                                 # Unhandleable
                                 result = _CLOUDFLARE_REGEX.search(data)
@@ -926,10 +915,10 @@ class HTTPClient:
                                 raise HTTPException(response, f'Cloudflare ban (code: {code})')
                         else:
                             is_global: bool = data.get('global', False)
-                            retry_after: float = data.get('retry_after', int(response.headers.get('Retry-After', 0)))
+                            retry_after: float = data.get('retry_after', int(response.headers['Retry-After'] or 0))
 
                         # Cloudflare rate limit
-                        is_cloudflare = not response.headers.get('Via')
+                        is_cloudflare = not response.headers['Via']
 
                         if ratelimit.remaining > 0:
                             # According to night
@@ -986,32 +975,32 @@ class HTTPClient:
                         continue
 
                     # Unconditional retry
-                    if response.status_code in {502, 504, 507, 522, 523, 524}:
+                    if response.status in {502, 504, 507, 522, 523, 524}:
                         failed += 1
                         await asyncio.sleep(1 + tries * 2)
                         continue
 
                     # Usual error cases
-                    if response.status_code == 403:
+                    if response.status == 403:
                         raise Forbidden(response, data)
-                    elif response.status_code == 404:
+                    elif response.status == 404:
                         raise NotFound(response, data)
-                    elif response.status_code >= 500:
+                    elif response.status >= 500:
                         raise DiscordServerError(response, data)
                     else:
                         if isinstance(data, dict) and 'captcha_key' in data:
                             raise CaptchaRequired(response, data)  # type: ignore
                         raise HTTPException(response, data)
 
-                # libcurl errors
-                except requests.RequestsError as e:
-                    if tries < 4 and e.code in (23, 28, 35):
+                # Rquest errors
+                except (rnet.ConnectionError, rnet.ConnectionResetError, rnet.TimeoutError, rnet.RequestError) as e:
+                    if tries < 4:
                         failed += 1
                         await asyncio.sleep(1 + tries * 2)
                         continue
                     raise
 
-                # This is handling exceptions from the request
+                # Handling exceptions from the request (this should no longer be used?)
                 except OSError as e:
                     # Connection reset by peer
                     if tries < 4 and e.errno in (54, 10054):
@@ -1034,14 +1023,14 @@ class HTTPClient:
 
             if response is not None:
                 # We've run out of retries, raise
-                if response.status_code >= 500:
+                if response.status >= 500:
                     raise DiscordServerError(response, data)
 
                 raise HTTPException(response, data)
 
             raise RuntimeError('Unreachable code in HTTP handling')
 
-    # All the below could be rewritten to use curl_cffi, but I'm not sure
+    # All the below could be rewritten to use rnet, but I'm not sure
     # about the performance and we aren't concerned about fingerprinting here
 
     async def get_from_cdn(self, url: str) -> bytes:
@@ -1131,8 +1120,6 @@ class HTTPClient:
     async def close(self) -> None:
         if self.__asession:
             await self.__asession.close()
-        if self.__session:
-            await self.__session.close()
 
     # Login management
 

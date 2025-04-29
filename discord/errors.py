@@ -30,7 +30,7 @@ from .utils import _get_as_snowflake
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
-    from curl_cffi.requests import Response as CurlResponse
+    from rnet import Response as RquestResponse
     from requests import Response
     from typing_extensions import TypeGuard
 
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
         FormErrorWrapper as FormErrorWrapperPayload,
     )
 
-    _ResponseType = Union[ClientResponse, CurlResponse, Response]
+    _ResponseType = Union[ClientResponse, RquestResponse, Response]
 
 __all__ = (
     'DiscordException',
@@ -117,9 +117,9 @@ class HTTPException(DiscordException):
 
     Attributes
     ------------
-    response: Union[:class:`curl_cffi.requests.Response`, :class:`aiohttp.ClientResponse`]
+    response: Union[:class:`rnet.Response`, :class:`aiohttp.ClientResponse`]
         The response of the failed HTTP request. This is an instance of
-        :class:`curl_cffi.requests.Response` or :class:`aiohttp.ClientResponse`.
+        :class:`rnet.Response` or :class:`aiohttp.ClientResponse`.
         In some cases this could also be a :class:`requests.Response`.
     text: :class:`str`
         The text of the error. Could be an empty string.
@@ -139,7 +139,7 @@ class HTTPException(DiscordException):
 
     def __init__(self, response: _ResponseType, message: Optional[Union[str, Dict[str, Any]]]):
         self.response: _ResponseType = response
-        self.status: int = response.status  # type: ignore # This attribute is filled by the library even if using requests
+        self.status: int = getattr(response, 'status_code', response.status)  # type: ignore
         self.code: int = 0
         self.text: str
         self.json: ErrorPayload
@@ -164,7 +164,7 @@ class HTTPException(DiscordException):
             # Cloudflare access denied
             self.text = 'Cloudflare access denied (code: 1020)'
 
-        fmt = '{0.status} {0.reason} (error code: {1})'
+        fmt = '{0.status_code} {0.status!s} (error code: {1})'
         if len(self.text):
             fmt += ': {2}'
 

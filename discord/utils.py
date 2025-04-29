@@ -1756,12 +1756,12 @@ class Headers:
 
     @classmethod
     async def default(
-        cls: type[Self], session: ClientSession, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
+        cls: type[Self], session: ClientSession
     ) -> Self:
         """Creates a new :class:`Headers` instance using the default fetching mechanisms."""
         try:
             properties, encoded = await asyncio.wait_for(
-                cls.get_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
+                cls.get_api_properties(session, 'web'), timeout=3
             )
         except Exception:
             _log.info('Info API temporarily down. Falling back to manual retrieval...')
@@ -1774,13 +1774,13 @@ class Headers:
             )
 
         try:
-            bn = await cls._get_build_number(session, proxy=proxy, proxy_auth=proxy_auth)
+            bn = await cls._get_build_number(session)
         except Exception:
             _log.critical('Could not retrieve client build number. Falling back to hardcoded value...')
             bn = cls.FALLBACK_BUILD_NUMBER
 
         try:
-            bv = await cls._get_browser_version(session, proxy=proxy, proxy_auth=proxy_auth)
+            bv = await cls._get_browser_version(session)
         except Exception:
             _log.critical('Could not retrieve browser version. Falling back to hardcoded value...')
             bv = cls.FALLBACK_BROWSER_VERSION
@@ -1824,11 +1824,11 @@ class Headers:
 
     @staticmethod
     async def get_api_properties(
-        session: ClientSession, type: str, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
+        session: ClientSession, type: str
     ) -> Tuple[Dict[str, Any], str]:
         """Fetches client properties from the API."""
         async with session.post(
-            f'https://cordapi.dolfi.es/api/v2/properties/{type}', proxy=proxy, proxy_auth=proxy_auth
+            f'https://cordapi.dolfi.es/api/v2/properties/{type}'
         ) as resp:
             resp.raise_for_status()
             json = await resp.json()
@@ -1836,17 +1836,17 @@ class Headers:
 
     @staticmethod
     async def _get_build_number(
-        session: ClientSession, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
+        session: ClientSession
     ) -> int:
         """Fetches client build number."""
-        async with session.get('https://discord.com/login', proxy=proxy, proxy_auth=proxy_auth) as resp:
+        async with session.get('https://discord.com/login') as resp:
             app = await resp.text()
             match = _SENTRY_ASSET_REGEX.search(app)
             if match is None:
                 raise RuntimeError('Could not find sentry asset file')
             sentry = match.group(1)
 
-        async with session.get(f'https://static.discord.com/assets/{sentry}.js', proxy=proxy, proxy_auth=proxy_auth) as resp:
+        async with session.get(f'https://static.discord.com/assets/{sentry}.js') as resp:
             build = await resp.text()
             match = _BUILD_NUMBER_REGEX.search(build)
             if match is None:
@@ -1855,13 +1855,11 @@ class Headers:
 
     @staticmethod
     async def _get_browser_version(
-        session: ClientSession, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
+        session: ClientSession
     ) -> int:
         """Fetches the latest Windows 10/Chrome major browser version."""
         async with session.get(
             'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions',
-            proxy=proxy,
-            proxy_auth=proxy_auth,
         ) as response:
             data = await response.json()
             return int(data['versions'][0]['version'].split('.')[0])
