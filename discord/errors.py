@@ -140,7 +140,7 @@ class HTTPException(DiscordException):
 
     def __init__(self, response: _ResponseType, message: Optional[Union[str, Dict[str, Any]]]):
         self.response: _ResponseType = response
-        self.status: int = getattr(response, 'status_code', response.status)  # type: ignore
+        self.status: int = getattr(response, 'status', response.status_code)  # type: ignore
         self.code: int = 0
         self.text: str
         self.json: ErrorPayload
