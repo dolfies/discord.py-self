@@ -204,7 +204,7 @@ class Client:
 
             If this is set to ``False``, the following consequences will occur:
 
-            - Large guilds (over 75,000 members) will not dispatch any non-stateful events (e.g. :func:`.on_message`, :func:`.on_reaction_add`, :func:`.on_typing`, etc.)
+            - Large guilds (over 75,000 members) may not dispatch any non-stateful events (e.g. :func:`.on_message`, :func:`.on_reaction_add`, :func:`.on_typing`, etc.)
             - :attr:`~Guild.threads` will only contain threads the client has joined.
             - Guilds will not be chunkable and member events (e.g. :func:`.on_member_update`) will not be dispatched.
                 - Most :func:`.on_user_update` occurences will not be dispatched.
@@ -382,7 +382,9 @@ class Client:
         # trace, canary, logGatewayEvents, logOverlayEvents, logAnalyticsEvents, sourceMapsEnabled, axeEnabled, cssDebuggingEnabled, layoutDebuggingEnabled
         # analyticsDebuggerEnabled, bugReporterEnabled, idleStatusIndicatorEnabled, onlyShowPreviewAppCollections, disableAppCollectionsCache, isStreamInfoOverlayEnabled, preventPopoutClose
         # Only the first two seem to have any API implications
-        debug_options = options.pop('debug_options', None) or ['bugReporterEnabled']
+        debug_options = options.pop('debug_options', None)
+        if debug_options is None:
+            debug_options = ['bugReporterEnabled']
         if options.pop('canary', None):
             debug_options.insert(0, 'canary')
         if options.pop('trace', None):
