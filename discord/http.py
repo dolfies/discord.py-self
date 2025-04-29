@@ -674,9 +674,7 @@ class HTTPClient:
         impersonate = getattr(rnet.Impersonate, f'Chrome{highest}')
 
         _log.info('Found TLS fingerprint target "Chrome%s".', highest)
-        if self.proxy:
-            self.http_options['proxies'] = self._get_proxies(self.proxy, self.proxy_auth)
-        self.__session = rnet.Client(impersonate=impersonate, user_agent=headers.user_agent, **self.http_options)
+        self.__session = rnet.Client(impersonate=impersonate, user_agent=headers.user_agent, proxies=self._get_proxies(self.proxy, self.proxy_auth), **self.http_options)
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> rnet.WebSocket:
