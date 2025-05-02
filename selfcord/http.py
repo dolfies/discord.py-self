@@ -1024,11 +1024,13 @@ class HTTPClient:
                 except CaptchaRequired as e:
                     # The way captcha handling works is completely transparent
                     # The user is expected to provide a handler that will be called to return a solution
-                    # Then, we just insert the solution + rqtoken (if applicable) into the headers and retry the request
+                    # Then, we just insert the solution + session into the headers and retry the request
                     if captcha_handler is None or tries == 4:
                         raise
                     else:
                         headers['X-Captcha-Key'] = await captcha_handler(e)
+                        if e.session_id:
+                            headers['X-Captcha-Session-Id'] = e.session_id
                         if e.rqtoken:
                             headers['X-Captcha-Rqtoken'] = e.rqtoken
 
