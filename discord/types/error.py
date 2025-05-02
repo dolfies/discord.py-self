@@ -53,6 +53,7 @@ class CaptchaRequired(TypedDict):
     captcha_key: List[str]
     captcha_service: NotRequired[CaptchaService]
     captcha_sitekey: Optional[str]
+    captcha_session_id: NotRequired[str]
     captcha_rqdata: NotRequired[str]
     captcha_rqtoken: NotRequired[str]
     should_serve_invisible: NotRequired[bool]

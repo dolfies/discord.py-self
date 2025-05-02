@@ -249,6 +249,8 @@ class CaptchaRequired(HTTPException):
         The CAPTCHA service to use. Usually ``hcaptcha``.
 
         .. versionadded:: 2.1
+    session_id: Optional[:class:`str`]
+        The CAPTCHA session ID.
     rqdata: Optional[:class:`str`]
         The enterprise hCaptcha request data.
 
@@ -267,6 +269,7 @@ class CaptchaRequired(HTTPException):
         'errors',
         'service',
         '_sitekey',
+        'session_id',
         'rqdata',
         'rqtoken',
         'should_serve_invisible',
@@ -281,6 +284,7 @@ class CaptchaRequired(HTTPException):
         self.errors: List[str] = message['captcha_key']
         self.service: CaptchaService = message.get('captcha_service', 'recaptcha')
         self._sitekey: str | None = message.get('captcha_sitekey')
+        self.session_id: Optional[str] = message.get('captcha_session_id')
         self.rqdata: Optional[str] = message.get('captcha_rqdata')
         self.rqtoken: Optional[str] = message.get('captcha_rqtoken')
         self.should_serve_invisible: bool = message.get('should_serve_invisible', False)
