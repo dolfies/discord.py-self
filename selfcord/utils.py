@@ -79,6 +79,7 @@ import zlib
 import struct
 import time
 import yarl
+import uuid
 
 try:
     import orjson  # type: ignore
@@ -1740,19 +1741,22 @@ class Headers:
     """
 
     FALLBACK_BUILD_NUMBER = 9999
-    FALLBACK_BROWSER_VERSION = 135
+    FALLBACK_BROWSER_VERSION = 136
 
     def __init__(
         self,
+        *,
         platform: Literal['Windows', 'macOS', 'Linux', 'Android', 'iOS'],
         major_version: int,
         super_properties: Dict[str, Any],
         encoded_super_properties: str,
+        extra_gateway_properties: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.platform = platform
         self.major_version = major_version
         self.super_properties = super_properties
         self.encoded_super_properties = encoded_super_properties
+        self.extra_gateway_properties = extra_gateway_properties or {}
 
     @classmethod
     async def default(
@@ -1760,7 +1764,7 @@ class Headers:
     ) -> Self:
         """Creates a new :class:`Headers` instance using the default fetching mechanisms."""
         try:
-            properties, encoded = await asyncio.wait_for(
+            properties, extra, encoded = await asyncio.wait_for(
                 cls.get_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
             )
         except Exception:
@@ -1771,6 +1775,7 @@ class Headers:
                 major_version=int(properties['browser_version'].split('.')[0]),
                 super_properties=properties,
                 encoded_super_properties=encoded,
+                extra_gateway_properties=extra,
             )
 
         try:
@@ -1789,6 +1794,7 @@ class Headers:
             'os': 'Windows',
             'browser': 'Chrome',
             'device': '',
+            'system_locale': 'en-US',
             'browser_user_agent': cls._get_user_agent(bv),
             'browser_version': f'{bv}.0.0.0',
             'os_version': '10',
@@ -1797,10 +1803,10 @@ class Headers:
             'referrer_current': '',
             'referring_domain_current': '',
             'release_channel': 'stable',
-            'system_locale': 'en-US',
             'client_build_number': bn,
             'client_event_source': None,
             'has_client_mods': False,
+            'client_heartbeat_session_id': str(uuid.uuid4()),
         }
 
         return cls(
@@ -1808,31 +1814,45 @@ class Headers:
             major_version=bv,
             super_properties=properties,
             encoded_super_properties=b64encode(_to_json(properties).encode()).decode('utf-8'),
+            extra_gateway_properties={
+                'client_app_state': None,
+                'is_fast_connect': False,
+            },
         )
 
     @cached_property
     def user_agent(self) -> str:
+        """Returns the user agent to be used for HTTP requests."""
         return self.super_properties['browser_user_agent']
 
     @cached_property
     def client_hints(self) -> Dict[str, str]:
+        """Returns the client hints to be used for HTTP requests."""
         return {
             'Sec-CH-UA': ', '.join([f'"{brand}";v="{version}"' for brand, version in self.generate_brand_version_list()]),
             'Sec-CH-UA-Mobile': '?1' if self.platform in ('Android', 'iOS') else '?0',
             'Sec-CH-UA-Platform': f'"{self.platform}"',
         }
 
+    @property
+    def gateway_properties(self) -> Dict[str, Any]:
+        """Returns the properties to be used for the Gateway."""
+        return {
+            **self.super_properties,
+            **self.extra_gateway_properties,
+        }
+
     @staticmethod
     async def get_api_properties(
         session: ClientSession, type: str, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
-    ) -> Tuple[Dict[str, Any], str]:
+    ) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
         """Fetches client properties from the API."""
         async with session.post(
             f'https://cordapi.dolfi.es/api/v2/properties/{type}', proxy=proxy, proxy_auth=proxy_auth
         ) as resp:
             resp.raise_for_status()
             json = await resp.json()
-            return json['properties'], json['encoded']
+            return json['properties'], json['extra_gateway_properties'], json['encoded']
 
     @staticmethod
     async def _get_build_number(

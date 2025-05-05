@@ -269,7 +269,7 @@ class DiscordWebSocket:
         shard_count: Optional[int]
         gateway: yarl.URL
         _max_heartbeat_timeout: float
-        _super_properties: Dict[str, Any]
+        _headers: utils.Headers
         _transport_compression: bool
 
     # fmt: off
@@ -316,6 +316,7 @@ class DiscordWebSocket:
         self._hello_trace: List[str] = []
         self._session_trace: List[str] = []
         self._resume_trace: List[str] = []
+        self._initial_identify: bool = False
 
         # Presence state tracking
         self.afk: bool = False
@@ -381,7 +382,7 @@ class DiscordWebSocket:
         ws.session_id = session
         ws.sequence = sequence
         ws._max_heartbeat_timeout = client._connection.heartbeat_timeout
-        ws._super_properties = client.http.headers.super_properties
+        ws._headers = client.http.headers
         ws._transport_compression = compress
         ws.afk = client._connection._afk
         ws.idle_since = client._connection._idle_since
@@ -458,24 +459,22 @@ class DiscordWebSocket:
         #     presence['status'] = self._connection._status or 'unknown'
         #     presence['activities'] = self._connection._activities
 
-        # TODO: Implement client state
+        properties = self._headers.gateway_properties
+        if not self._initial_identify:
+            # As of right now, the first IDENTIFY in the client is missing
+            # client_heartbeat_session_id because of weird codepaths
+            properties.pop('client_heartbeat_session_id', None)
+
         payload = {
             'op': self.IDENTIFY,
             'd': {
                 'token': self.token,
                 'capabilities': self.capabilities.value,
-                'properties': self._super_properties,
+                'properties': properties,
                 'presence': presence,
                 'compress': not self._transport_compression,  # We require at least one form of compression
                 'client_state': {
-                    'api_code_version': 0,
                     'guild_versions': {},
-                    # 'highest_last_message_id': '0',
-                    # 'initial_guild_id': None,
-                    # 'private_channels_version': '0',
-                    # 'read_state_version': 0,
-                    # 'user_guild_settings_version': -1,
-                    # 'user_settings_version': -1,
                 },
             },
         }
@@ -483,6 +482,7 @@ class DiscordWebSocket:
         await self.call_hooks('before_identify', initial=self._initial_identify)
         await self.send_as_json(payload)
         _log.debug('Gateway has sent the IDENTIFY payload.')
+        self._initial_identify = True
 
     async def resume(self) -> None:
         """Sends the RESUME packet."""
