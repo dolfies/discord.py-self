@@ -155,9 +155,9 @@ class InviteGuild(TypedDict):
     features: List[str]
     vanity_url_code: Optional[str]
     premium_subscription_count: NotRequired[int]
+    premium_tier: int
     nsfw: bool
     nsfw_level: NSFWLevel
-    welcome_screen: NotRequired[WelcomeScreen]
 
 
 class GuildWithCounts(Guild, _GuildCounts):

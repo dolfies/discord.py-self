@@ -2681,7 +2681,7 @@ class HTTPClient:
         return self.request(Route('POST', '/channels/{channel_id}/call/ring', channel_id=channel_id), json=payload)
 
     def stop_ringing(self, channel_id: Snowflake, *recipients: Snowflake) -> Response[None]:
-        payload = {'recipients': recipients}
+        payload = {'recipients': recipients} if recipients else {}
         return self.request(Route('POST', '/channels/{channel_id}/call/stop-ringing', channel_id=channel_id), json=payload)
 
     def change_call_voice_region(self, channel_id: int, voice_region: str) -> Response[None]:
