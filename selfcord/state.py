@@ -162,6 +162,7 @@ class ChunkRequest:
         'buffer',
         'last_buffer',
         'waiters',
+        'reverse',
     )
 
     def __init__(
@@ -174,6 +175,7 @@ class ChunkRequest:
         cache: bool = True,
         oneshot: bool = True,
         nonce: Optional[str] = None,
+        reverse: bool = False,
     ) -> None:
         self.guild_id: int = guild_id
         self.resolver: Callable[[int], Any] = resolver
@@ -186,17 +188,18 @@ class ChunkRequest:
         self.buffer: List[Member] = []
         self.last_buffer: Optional[List[Member]] = None
         self.waiters: List[asyncio.Future[List[Member]]] = []
+        self.reverse: bool = reverse
 
     def add_members(self, members: List[Member]) -> None:
-        unique_members = set(members)
+        if self.reverse:
+            members = members[::-1]
+
         if self.limit is not None:
             if self.remaining <= 0:
                 return
 
-            members = list(unique_members)[: self.remaining]
-            self.remaining -= len(unique_members)
-        else:
-            members = list(unique_members)
+            members = members[: self.remaining]
+            self.remaining -= len(members)
 
         self.buffer.extend(members)
 
@@ -1484,7 +1487,7 @@ class ConnectionState:
         cache: bool = False,
     ) -> List[Member]:
         guild_id = guild.id
-        request = ChunkRequest(guild.id, self.loop, self._get_guild, limit=limit, cache=cache, oneshot=False)
+        request = ChunkRequest(guild.id, self.loop, self._get_guild, limit=limit, cache=cache, oneshot=False, reverse=True)
         self._chunk_requests[request.nonce] = request
 
         # Unlike query members, this OP is paginated
@@ -1507,14 +1510,13 @@ class ConnectionState:
                 break
 
             # Sort the members by joined_at timestamp and grab the oldest one
-            request.buffer.sort(key=lambda m: m.joined_at or utils.utcnow())
             old_continuation_token = continuation_token
-            continuation_token = request.buffer[0].id
+            continuation_token = request.buffer[-1].id
             if continuation_token == old_continuation_token:
                 break
 
         self._chunk_requests.pop(request.nonce, None)
-        return list(set(request.buffer))
+        return list(request.buffer)
 
     async def _delay_ready(self) -> None:
         manager = self.subscriptions
