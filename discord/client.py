@@ -319,7 +319,6 @@ class Client:
             'captcha_handler', None
         )
         self.http: HTTPClient = HTTPClient(
-            loop=self.loop,
             proxy=proxy,
             proxy_auth=proxy_auth,
             unsync_clock=unsync_clock,
@@ -854,7 +853,6 @@ class Client:
         loop = asyncio.get_running_loop()
         self.loop = loop
         self._connection.loop = loop
-        self.http.loop = loop
         await self._connection.async_setup()
 
         self._ready = asyncio.Event()

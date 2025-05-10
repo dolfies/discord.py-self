@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import io
 import logging
 import re
 import ssl
@@ -592,7 +591,6 @@ class HTTPClient:
         self,
         connector: Optional[aiohttp.BaseConnector] = None,
         *,
-        loop: asyncio.AbstractEventLoop,
         proxy: Optional[str] = None,
         proxy_auth: Optional[aiohttp.BasicAuth] = None,
         unsync_clock: bool = True,
@@ -604,7 +602,6 @@ class HTTPClient:
         rpc_proxy: Optional[str] = None,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
-        self.loop: asyncio.AbstractEventLoop = loop
         self.__asession: aiohttp.ClientSession = MISSING
         self.__session: requests.AsyncSession[requests.Response] = MISSING
         # Route key -> Bucket hash
@@ -725,20 +722,6 @@ class HTTPClient:
             self._try_clear_expired_ratelimits()
         return value
 
-    def _parse_form_data(self, form: List[Dict[str, Any]]) -> asyncio.Future[CurlMime]:
-        def _inner_parse():
-            mime = CurlMime()
-            for part in form:
-                _data = part['data'].read() if isinstance(part['data'], io.IOBase) else part['data']
-                mime.addpart(
-                    part['name'],
-                    data=_data,
-                    filename=part.get('filename'),
-                    content_type=part.get('content_type'),
-                )
-            return mime
-        return self.loop.run_in_executor(None, _inner_parse)
-
     async def request(
         self,
         route: Route,
@@ -846,7 +829,7 @@ class HTTPClient:
                         f.reset(seek=tries)
 
                 if form:
-                    kwargs['multipart'] = await self._parse_form_data(form)
+                    kwargs['multipart'] = CurlMime.from_list(form)
 
                 if self.tracer:
                     trace_id = self.tracer.generate(self.user_id or 0)
