@@ -371,7 +371,7 @@ def handle_message_parameters(
             multipart.append(
                 {
                     'name': f'files[{index}]',
-                    'data': file.fp,
+                    'data': file.fp.read(),
                     'filename': file.filename,
                     'content_type': 'application/octet-stream',
                 }
