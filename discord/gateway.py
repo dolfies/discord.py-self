@@ -861,7 +861,13 @@ class DiscordWebSocket:
             self._keep_alive = None
 
         self._close_code = code
-        await self.socket.close(code, reason)
+        try:
+            await self.socket.close(code, reason)
+        except CurlError as e:
+            if 'WS_SEND' in str(e) and 'Broken pipe' in str(e):
+                pass
+            else:
+                raise
         _log.info('Finished closing websocket')
 
 
