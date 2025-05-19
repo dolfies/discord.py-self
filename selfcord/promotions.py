@@ -113,6 +113,7 @@ class Promotion(Hashable):
 
     __slots__ = (
         'id',
+        '_type',
         'trial_id',
         'starts_at',
         'ends_at',
@@ -145,6 +146,7 @@ class Promotion(Hashable):
         promotion: PromotionPayload = data.get('promotion', data)
 
         self.id: int = int(promotion['id'])
+        self._type = promotion.get('promotion_type', 0)  # Unknown enum, observed values 0-2
         self.trial_id: Optional[int] = _get_as_snowflake(promotion, 'trial_id')
         self.starts_at: datetime = parse_time(promotion['start_date'])
         self.ends_at: datetime = parse_time(promotion['end_date'])
@@ -152,8 +154,8 @@ class Promotion(Hashable):
         self.code: Optional[str] = data.get('code')
         self._flags: int = promotion.get('flags', 0)
 
-        self.outbound_title: str = promotion['outbound_title']
-        self.outbound_description: str = promotion['outbound_redemption_modal_body']
+        self.outbound_title: str = promotion.get('outbound_title', '')
+        self.outbound_description: str = promotion.get('outbound_redemption_modal_body', '')
         self.outbound_link: str = promotion.get(
             'outbound_redemption_page_link',
             promotion.get('outbound_redemption_url_format', '').replace('{code}', self.code or '{code}'),
@@ -163,7 +165,7 @@ class Promotion(Hashable):
         self.inbound_description: Optional[str] = promotion.get('inbound_body_text')
         self.inbound_link: Optional[str] = promotion.get('inbound_help_center_link')
         self.inbound_restricted_countries: List[str] = promotion.get('inbound_restricted_countries', [])
-        self.terms_and_conditions: str = promotion['outbound_terms_and_conditions']
+        self.terms_and_conditions: str = promotion.get('outbound_terms_and_conditions', '')
 
     @property
     def flags(self) -> PromotionFlags:

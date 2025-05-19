@@ -36,14 +36,15 @@ class Promotion(TypedDict):
     trial_id: NotRequired[Snowflake]
     start_date: str
     end_date: str
+    promotion_type: int
     flags: int
-    outbound_title: str
+    outbound_title: NotRequired[str]
     outbound_redemption_modal_body: str
     outbound_redemption_page_link: NotRequired[str]
     outbound_redemption_url_format: NotRequired[str]
     outbound_restricted_countries: NotRequired[List[str]]
     outbound_terms_and_conditions: str
-    inbound_title: NotRequired[str]
+    inbound_header_text: NotRequired[str]
     inbound_body_text: NotRequired[str]
     inbound_help_center_link: NotRequired[str]
     inbound_restricted_countries: NotRequired[List[str]]
