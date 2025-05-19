@@ -2679,7 +2679,6 @@ class Guild(Hashable):
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
-        friend_token: str = MISSING,
     ) -> MemberProfile:
         """|coro|
 
@@ -2723,7 +2722,6 @@ class Guild(Hashable):
             with_mutual_guilds=with_mutual_guilds,
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
-            friend_token=friend_token or None,
         )
         if 'guild_member_profile' not in data:
             raise InvalidData('Member is not in this guild')

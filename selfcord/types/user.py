@@ -262,10 +262,6 @@ class FriendSuggestion(TypedDict):
     from_suggested_user_contacts: NotRequired[bool]
 
 
-class FriendToken(TypedDict):
-    friend_token: str
-
-
 class Report(TypedDict):
     report_id: Snowflake
 

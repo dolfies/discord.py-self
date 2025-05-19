@@ -618,7 +618,6 @@ class BaseUser(_UserTag):
         with_mutual_guilds: bool = True,
         with_mutual_friends_count: bool = False,
         with_mutual_friends: bool = True,
-        friend_token: str = MISSING,
     ) -> UserProfile:
         """|coro|
 
@@ -641,10 +640,6 @@ class BaseUser(_UserTag):
             This fills in :attr:`UserProfile.mutual_friends` and :attr:`UserProfile.mutual_friends_count`.
 
             .. versionadded:: 2.0
-        friend_token: :class:`str`
-            The friend token to use for fetching the profile.
-
-            .. versionadded:: 2.1
 
         Raises
         -------
@@ -664,7 +659,6 @@ class BaseUser(_UserTag):
             with_mutual_guilds=with_mutual_guilds,
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
-            friend_token=friend_token,
         )
 
     async def fetch_mutual_friends(self) -> List[User]:
@@ -1259,18 +1253,10 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
         """
         await self._state.http.remove_relationship(self.id, action=RelationshipAction.unfriend)
 
-    async def send_friend_request(self, *, friend_token: str = MISSING) -> None:
+    async def send_friend_request(self) -> None:
         """|coro|
 
         Sends the user a friend request.
-
-        Parameters
-        -----------
-        friend_token: :class:`str`
-            The friend token to use for sending the friend request.
-            This will bypass the user's friend request settings.
-
-            .. versionadded:: 2.1
 
         Raises
         -------
@@ -1279,9 +1265,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
         HTTPException
             Sending the friend request failed.
         """
-        await self._state.http.add_relationship(
-            self.id, friend_token=friend_token or None, action=RelationshipAction.send_friend_request
-        )
+        await self._state.http.add_relationship(self.id, action=RelationshipAction.send_friend_request)
 
 
 class RecentAvatar(AssetMixin, Hashable):
