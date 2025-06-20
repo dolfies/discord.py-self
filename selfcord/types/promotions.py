@@ -42,6 +42,7 @@ class Promotion(TypedDict):
     outbound_redemption_modal_body: str
     outbound_redemption_page_link: NotRequired[str]
     outbound_redemption_url_format: NotRequired[str]
+    outbound_redemption_end_date: NotRequired[str]
     outbound_restricted_countries: NotRequired[List[str]]
     outbound_terms_and_conditions: str
     inbound_header_text: NotRequired[str]

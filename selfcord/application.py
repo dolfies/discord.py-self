@@ -1022,13 +1022,16 @@ class ApplicationActivityStatistics:
     .. versionchanged:: 2.1
 
         ``updated_at`` was renamed to ``last_played_at``.
+        ``application`` was turned into a property.
 
     Attributes
     -----------
     application_id: :class:`int`
-        The ID of the application.
+        The ID of the application the statistics are for.
+    application: Optional[:class:`PartialApplication`]
+        The application the statistics are for, if available.
     user_id: :class:`int`
-        The ID of the user.
+        The ID of the user associated with the statistics.
     duration: :class:`int`
         How long the user has ever played the game in seconds.
         This will be the last session duration for global statistics, and the total duration otherwise.
@@ -1044,17 +1047,31 @@ class ApplicationActivityStatistics:
         When the user last played the game.
     """
 
-    __slots__ = ('application_id', 'user_id', 'duration', 'sku_duration', 'first_played_at', 'last_played_at', '_state')
+    __slots__ = (
+        'application_id',
+        'application',
+        '_user',
+        'user_id',
+        'duration',
+        'sku_duration',
+        'first_played_at',
+        'last_played_at',
+        '_state',
+    )
 
     def __init__(
         self,
         *,
         data: Union[ApplicationActivityStatisticsPayload, GlobalActivityStatisticsPayload, UserActivityStatisticsPayload],
         state: ConnectionState,
-        application_id: Optional[int] = None,
+        application: Optional[PartialApplication] = None,
     ) -> None:
         self._state = state
-        self.application_id = application_id or int(data['application_id'])  # type: ignore
+        self.application_id = application.id if application else int(data['application_id'])  # type: ignore
+        self.application: Optional[PartialApplication] = (
+            application or (PartialApplication(state=state, data=data['application']) if 'application' in data else None)
+        )
+        self._user = state.create_user(data['user']) if 'user' in data else None
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
@@ -1069,21 +1086,7 @@ class ApplicationActivityStatistics:
     @property
     def user(self) -> Optional[User]:
         """Optional[:class:`User`]: Returns the user associated with the statistics, if available."""
-        return self._state.get_user(self.user_id)
-
-    async def application(self) -> PartialApplication:
-        """|coro|
-
-        Returns the application associated with the statistics.
-
-        Raises
-        ------
-        HTTPException
-            Fetching the application failed.
-        """
-        state = self._state
-        data = await state.http.get_partial_application(self.application_id)
-        return PartialApplication(state=state, data=data)
+        return self._user or self._state.get_user(self.user_id)
 
 
 class ManifestLabel(Hashable):
@@ -2407,7 +2410,7 @@ class PartialApplication(_BaseApplication):
         state = self._state
         app_id = self.id
         data = await state.http.get_app_activity_statistics(app_id)
-        return [ApplicationActivityStatistics(data=activity, state=state, application_id=app_id) for activity in data]
+        return [ApplicationActivityStatistics(data=activity, state=state, application=self) for activity in data]
 
 
 class Application(PartialApplication):
@@ -3555,8 +3558,7 @@ class Application(PartialApplication):
         before: Optional[SnowflakeTime] = None,
         after: Optional[SnowflakeTime] = None,
         oldest_first: bool = MISSING,
-        with_payments: bool = False,
-        exclude_ended: bool = False,
+        include_ended: bool = False,
     ) -> AsyncIterator[Entitlement]:
         """Returns an :term:`asynchronous iterator` that enables receiving this application's entitlements.
 
@@ -3600,10 +3602,16 @@ class Application(PartialApplication):
         oldest_first: :class:`bool`
             If set to ``True``, return entitlements in oldest->newest order. Defaults to ``True`` if
             ``after`` is specified, otherwise ``False``.
-        with_payments: :class:`bool`
-            Whether to include partial payment info in the response.
-        exclude_ended: :class:`bool`
+        include_ended: :class:`bool`
             Whether to exclude entitlements that have ended.
+
+            .. versionchanged:: 2.1
+
+                Renamed from ``exclude_ended`` to ``include_ended``.
+        include_deleted: :class:`bool`
+            Whether to include deleted entitlements in the results.
+
+            .. versionadded:: 2.1
 
         Raises
         ------
@@ -3627,8 +3635,8 @@ class Application(PartialApplication):
                 user_id=user.id if user else None,
                 guild_id=guild.id if guild else None,
                 sku_ids=[sku.id for sku in skus] if skus else None,
-                with_payments=with_payments,
-                exclude_ended=exclude_ended,
+                exclude_ended=not include_ended,
+                exclude_deleted=not include_ended,
             )
 
             if data:
@@ -3648,8 +3656,8 @@ class Application(PartialApplication):
                 user_id=user.id if user else None,
                 guild_id=guild.id if guild else None,
                 sku_ids=[sku.id for sku in skus] if skus else None,
-                with_payments=with_payments,
-                exclude_ended=exclude_ended,
+                exclude_ended=not include_ended,
+                exclude_deleted=not include_ended,
             )
             if data:
                 if limit is not None:

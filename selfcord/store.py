@@ -1854,7 +1854,7 @@ class SKU(Hashable):
         payment_source_token: Optional[str] = None,
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
-        gateway_checkout_context: Optional[str] = None,
+        gateway_checkout_context: Optional[MetadataObject] = None,
     ) -> Tuple[List[Entitlement], List[LibraryApplication], Optional[Gift]]:
         """|coro|
 
@@ -1893,7 +1893,7 @@ class SKU(Hashable):
             The purchase token to use.
         return_url: Optional[:class:`str`]
             The URL to return to after the payment is complete.
-        gateway_checkout_context: Optional[:class:`str`]
+        gateway_checkout_context: Optional[Dict[:class:`str`, Any]]
             The current checkout context.
 
         Raises
@@ -2240,7 +2240,7 @@ class SubscriptionPlan(Hashable):
             The purchase token to use.
         return_url: Optional[:class:`str`]
             The URL to return to after the payment is complete.
-        gateway_checkout_context: Optional[:class:`str`]
+        gateway_checkout_context: Optional[Dict[:class:`str`, Any]]
             The current checkout context.
 
         Raises

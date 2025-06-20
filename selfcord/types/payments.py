@@ -34,7 +34,6 @@ from .subscriptions import PartialSubscription
 
 
 class PartialPayment(TypedDict):
-    # TODO: There might be more, but I don't have an example payload
     id: Snowflake
     amount: int
     tax: int

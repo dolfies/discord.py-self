@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional, Union
 
-from .enums import PaymentSourceType, try_enum
+from .enums import PaymentSourceType, PromotionType, try_enum
 from .flags import PromotionFlags
 from .mixins import Hashable
 from .subscriptions import SubscriptionTrial
@@ -80,6 +80,10 @@ class Promotion(Hashable):
     ----------
     id: :class:`int`
         The promotion ID.
+    type: :class:`PromotionType`
+        The type of promotion.
+
+        .. versionadded:: 2.1
     trial_id: Optional[:class:`int`]
         The trial ID of the inbound promotion, if applicable.
     starts_at: :class:`datetime.datetime`
@@ -97,6 +101,10 @@ class Promotion(Hashable):
         The description of the outbound promotion.
     outbound_link: :class:`str`
         The redemption page of the outbound promotion, used to claim it.
+    outbound_redemption_ends_at: Optional[:class:`datetime.datetime`]
+        The end date of the outbound promotion's redemption period.
+
+        .. versionadded:: 2.1
     outbound_restricted_countries: List[:class:`str`]
         The countries that the outbound promotion is not available in.
     inbound_title: Optional[:class:`str`]
@@ -113,7 +121,7 @@ class Promotion(Hashable):
 
     __slots__ = (
         'id',
-        '_type',
+        'type',
         'trial_id',
         'starts_at',
         'ends_at',
@@ -122,6 +130,7 @@ class Promotion(Hashable):
         'outbound_title',
         'outbound_description',
         'outbound_link',
+        'outbound_redemption_ends_at',
         'outbound_restricted_countries',
         'inbound_title',
         'inbound_description',
@@ -146,7 +155,7 @@ class Promotion(Hashable):
         promotion: PromotionPayload = data.get('promotion', data)
 
         self.id: int = int(promotion['id'])
-        self._type = promotion.get('promotion_type', 0)  # Unknown enum, observed values 0-2
+        self.type = try_enum(PromotionType, promotion.get('type', 0))
         self.trial_id: Optional[int] = _get_as_snowflake(promotion, 'trial_id')
         self.starts_at: datetime = parse_time(promotion['start_date'])
         self.ends_at: datetime = parse_time(promotion['end_date'])
@@ -160,6 +169,7 @@ class Promotion(Hashable):
             'outbound_redemption_page_link',
             promotion.get('outbound_redemption_url_format', '').replace('{code}', self.code or '{code}'),
         )
+        self.outbound_redemption_ends_at: Optional[datetime] = parse_time(promotion.get('outbound_redemption_end_date'))
         self.outbound_restricted_countries: List[str] = promotion.get('outbound_restricted_countries', [])
         self.inbound_title: Optional[str] = promotion.get('inbound_header_text')
         self.inbound_description: Optional[str] = promotion.get('inbound_body_text')

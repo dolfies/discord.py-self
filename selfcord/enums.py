@@ -1718,6 +1718,14 @@ class ReactionType(Enum):
     burst = 1
 
 
+class PromotionType(Enum):
+    bogo = 1
+    partner = 2
+    third_party_inbound = 3
+    third_party_outbound = 4
+    marketing_moment = 5
+
+
 def create_unknown_value(cls: Type[E], val: Any) -> E:
     value_cls = cls._enum_value_cls_  # type: ignore # This is narrowed below
     name = f'unknown_{val}'

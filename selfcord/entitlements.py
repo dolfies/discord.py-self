@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, List, Optional
 from .enums import EntitlementType, GiftStyle, PremiumType, try_enum
 from .flags import GiftFlags
 from .mixins import Hashable
-from .payments import EntitlementPayment
 from .promotions import Promotion
 from .store import SKU, StoreListing, SubscriptionPlan
 from .subscriptions import Subscription, SubscriptionTrial
@@ -122,9 +121,6 @@ class Entitlement(Hashable):
             This is a partial object without price information.
     sku: Optional[:class:`SKU`]
         The SKU the entitlement grants.
-    payment: Optional[:class:`EntitlementPayment`]
-        The payment made for the entitlement.
-        Not available in some contexts.
     """
 
     __slots__ = (
@@ -183,9 +179,6 @@ class Entitlement(Hashable):
             SubscriptionPlan(data=data['subscription_plan'], state=state) if 'subscription_plan' in data else None
         )
         self.sku: Optional[SKU] = SKU(data=data['sku'], state=state) if 'sku' in data else None
-        self.payment: Optional[EntitlementPayment] = (
-            EntitlementPayment(data=data['payment'], entitlement=self) if 'payment' in data else None
-        )
 
     def __repr__(self) -> str:
         return f'<Entitlement id={self.id} type={self.type!r} sku_id={self.sku_id} application_id={self.application_id}>'
@@ -313,6 +306,10 @@ class Gift:
 
     .. versionadded:: 2.0
 
+    .. versionchanged:: 2.1
+
+        The ``revoked`` attribute has been removed.
+
     Attributes
     ----------
     code: :class:`str`
@@ -336,8 +333,6 @@ class Gift:
         The number of times the gift has been used.
     redeemed: :class:`bool`
         Whether the user has redeemed the gift.
-    revoked: :class:`bool`
-        Whether the gift has been revoked.
     guild_id: Optional[:class:`int`]
         The ID of the guild the gift was redeemed in.
         Not available in all contexts.
@@ -371,7 +366,6 @@ class Gift:
         'max_uses',
         'uses',
         'redeemed',
-        'revoked',
         'guild_id',
         'channel_id',
         'store_listing',
@@ -403,7 +397,6 @@ class Gift:
         self.max_uses: int = data.get('max_uses', 0)
         self.uses: int = data.get('uses', 0)
         self.redeemed: bool = data.get('redeemed', False)
-        self.revoked: bool = data.get('revoked', False)
 
         self.guild_id: Optional[int] = _get_as_snowflake(data, 'guild_id')
         self.channel_id: Optional[int] = _get_as_snowflake(data, 'channel_id')
@@ -494,7 +487,7 @@ class Gift:
         channel: Optional[Union[:class:`TextChannel`, :class:`VoiceChannel`, :class:`StageChannel`, :class:`Thread`, :class:`DMChannel`, :class:`GroupChannel`]]
             The channel to redeem the gift in. This is usually the channel the gift was sent in.
             While this is optional, it is recommended to pass this in.
-        gateway_checkout_context: Optional[:class:`str`]
+        gateway_checkout_context: Optional[Dict[:class:`str`, Any]]
             The current checkout context.
 
         Raises

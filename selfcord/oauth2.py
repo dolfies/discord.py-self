@@ -150,11 +150,13 @@ class OAuth2Authorization:
         'approximate_guild_count',
         'guilds',
         'redirect_uri',
+        '_original_redirect_uri',
         'scopes',
         'response_type',
         'code_challenge_method',
         'code_challenge',
         'state',
+        'nonce',
         '_state',
     )
 
@@ -164,17 +166,21 @@ class OAuth2Authorization:
         _state: ConnectionState,
         data: OAuth2AuthorizationPayload,
         scopes: List[str],
-        response_type: Optional[str],
+        response_type: Optional[str] = None,
+        original_redirect_uri: Optional[str] = None,
         code_challenge_method: Optional[str] = None,
         code_challenge: Optional[str] = None,
-        state: Optional[str],
+        state: Optional[str] = None,
+        nonce: Optional[str] = None,
     ):
         self._state = _state
         self.scopes: List[str] = scopes
         self.response_type: Optional[str] = response_type
+        self._original_redirect_uri: Optional[str] = original_redirect_uri
         self.code_challenge_method: Optional[str] = code_challenge_method
         self.code_challenge: Optional[str] = code_challenge
         self.state: Optional[str] = state
+        self.nonce: Optional[str] = nonce
         self.authorized: bool = data['authorized']
         self.application: PartialApplication = PartialApplication(state=_state, data=data['application'])
         self.bot: Optional[User] = _state.store_user(data['bot']) if 'bot' in data else None
@@ -217,10 +223,11 @@ class OAuth2Authorization:
             self.application.id,
             self.scopes,
             self.response_type,
-            self.redirect_uri,
+            self._original_redirect_uri,
             self.code_challenge_method,
             self.code_challenge,
             self.state,
+            self.nonce,
             guild_id=guild.id if guild else None,
             webhook_channel_id=channel.id if channel else None,
             permissions=permissions.value if permissions else None,

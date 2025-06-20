@@ -43,14 +43,10 @@ from .subscriptions import Subscription
 from .utils import _get_as_snowflake, parse_time
 
 if TYPE_CHECKING:
-    from .entitlements import Entitlement
     from .state import ConnectionState
-    from .types.payments import (
-        PartialPayment as PartialPaymentPayload,
-        Payment as PaymentPayload,
-    )
+    from .types.payments import Payment as PaymentPayload
 
-__all__ = ('Payment', 'EntitlementPayment', 'BRAINTREE_KEY', 'STRIPE_KEY', 'ADYEN_KEY')
+__all__ = ('Payment', 'BRAINTREE_KEY', 'STRIPE_KEY', 'ADYEN_KEY')
 
 BRAINTREE_KEY = 'production_ktzp8hfp_49pp2rp4phym7387'
 STRIPE_KEY = 'pk_live_CUQtlpQUF0vufWpnpUmQvcdi'
@@ -79,6 +75,10 @@ class Payment(Hashable):
             Returns the payment's description.
 
     .. versionadded:: 2.0
+
+    .. versionchanged:: 2.1
+
+        Removed the ``refund()`` method due to an API change.
 
     Attributes
     ----------
@@ -246,72 +246,3 @@ class Payment(Hashable):
         """
         await self._state.http.void_payment(self.id)
         self.status = PaymentStatus.failed
-
-    async def refund(self, reason: RefundReason = RefundReason.other) -> None:
-        """|coro|
-
-        Refund the payment. Refunds can only be made for payments less than 5 days old.
-
-        Parameters
-        ----------
-        reason: :class:`RefundReason`
-            The reason for the refund.
-
-            .. versionadded:: 2.1
-
-        Raises
-        ------
-        HTTPException
-            Refunding the payment failed.
-        """
-        data = await self._state.http.refund_payment(self.id, int(reason))
-        self._update(data)
-
-
-class EntitlementPayment(Hashable):
-    """Represents a partial payment for an entitlement.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two payments are equal.
-
-        .. describe:: x != y
-
-            Checks if two payments are not equal.
-
-        .. describe:: hash(x)
-
-            Returns the payment's hash.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    ----------
-    entitlement: :class:`Entitlement`
-        The entitlement the payment is for.
-    id: :class:`int`
-        The ID of the payment.
-    amount: :class:`int`
-        The amount of the payment.
-    tax: :class:`int`
-        The amount of tax paid.
-    tax_inclusive: :class:`bool`
-        Whether the amount is inclusive of all taxes.
-    currency: :class:`str`
-        The currency the payment was made in.
-    """
-
-    __slots__ = ('entitlement', 'id', 'amount', 'tax', 'tax_inclusive', 'currency')
-
-    def __init__(self, *, data: PartialPaymentPayload, entitlement: Entitlement):
-        self.entitlement = entitlement
-        self.id: int = int(data['id'])
-        self.amount: int = data['amount']
-        self.tax: int = data.get('tax') or 0
-        self.tax_inclusive: bool = data.get('tax_inclusive', True)
-        self.currency: str = data.get('currency', 'usd')
-
-    def __repr__(self) -> str:
-        return f'<EntitlementPayment id={self.id} amount={self.amount} currency={self.currency}>'

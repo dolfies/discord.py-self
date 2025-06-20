@@ -348,7 +348,7 @@ class Invite(Hashable):
 
     .. versionchanged:: 2.1
 
-    The ``revoked`` attribute has been removed.
+        The ``revoked`` attribute has been removed.
 
     Attributes
     -----------

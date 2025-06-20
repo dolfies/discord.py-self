@@ -27,7 +27,6 @@ from __future__ import annotations
 from typing import List, Literal, Optional, TypedDict
 from typing_extensions import NotRequired
 
-from .payments import PartialPayment
 from .promotions import Promotion
 from .snowflake import Snowflake
 from .store import PublicSKU, PublicStoreListing
@@ -47,7 +46,7 @@ class Entitlement(TypedDict):
     branches: NotRequired[List[Snowflake]]
     gifter_user_id: NotRequired[Snowflake]
     gift_style: NotRequired[Literal[1, 2, 3]]
-    gift_batch_id: NotRequired[Snowflake]
+    gift_code_batch_id: NotRequired[Snowflake]
     gift_code_flags: NotRequired[int]
     deleted: bool
     consumed: NotRequired[bool]
@@ -56,7 +55,6 @@ class Entitlement(TypedDict):
     subscription_id: NotRequired[Snowflake]
     subscription_plan: NotRequired[PartialSubscriptionPlan]
     sku: NotRequired[PublicSKU]
-    payment: NotRequired[PartialPayment]
 
 
 class GatewayGift(TypedDict):
@@ -75,12 +73,12 @@ class Gift(GatewayGift):
     gift_style: NotRequired[Optional[Literal[1, 2, 3]]]
     flags: int
     max_uses: int
-    uses: int
     redeemed: bool
     revoked: NotRequired[bool]
     store_listing: NotRequired[PublicStoreListing]
     promotion: NotRequired[Promotion]
     subscription_trial: NotRequired[SubscriptionTrial]
+    subscription_plan_id: NotRequired[Snowflake]
     subscription_plan: NotRequired[SubscriptionPlan]
     user: NotRequired[PartialUser]
 

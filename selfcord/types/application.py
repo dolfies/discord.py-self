@@ -267,7 +267,9 @@ class ApplicationActivityStatistics(_BaseActivityStatistics):
 
 class GlobalActivityStatistics(TypedDict):
     application_id: Snowflake
+    application: NotRequired[PartialApplication]
     user_id: Snowflake
+    user: NotRequired[PartialUser]
     duration: int
     updated_at: str
 

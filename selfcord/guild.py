@@ -122,7 +122,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .voice_client import VoiceProtocol
     from .settings import GuildSettings
-    from .enums import ApplicationType
+    from .enums import ApplicationType, EntitlementType
     from .types.channel import (
         GuildChannel as GuildChannelPayload,
         TextChannel as TextChannelPayload,
@@ -4937,7 +4937,7 @@ class Guild(Hashable):
         return [PremiumGuildSubscription(state=state, data=sub) for sub in data]
 
     async def entitlements(
-        self, *, with_sku: bool = True, with_application: bool = True, exclude_deleted: bool = False
+        self, *, with_sku: bool = True, with_application: bool = True, include_ended: bool = True, include_deleted: bool = True, entitlement_type: Optional[EntitlementType] = None
     ) -> List[Entitlement]:
         """|coro|
 
@@ -4951,8 +4951,20 @@ class Guild(Hashable):
             Whether to include the SKU information in the returned entitlements.
         with_application: :class:`bool`
             Whether to include the application in the returned entitlements' SKUs.
-        exclude_deleted: :class:`bool`
+        include_ended: :class:`bool`
+            Whether to include ended entitlements.
+
+            .. versionadded:: 2.1
+        include_deleted: :class:`bool`
             Whether to exclude deleted entitlements.
+
+            .. versionchanged:: 2.1
+
+                Renamed from ``exclude_consumed`` to ``include_consumed``.
+        entitlement_type: Optional[:class:`.EntitlementType`]
+            The type of entitlement to retrieve. If ``None`` then all entitlements are returned.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
@@ -4966,7 +4978,7 @@ class Guild(Hashable):
         """
         state = self._state
         data = await state.http.get_guild_entitlements(
-            self.id, with_sku=with_sku, with_application=with_application, exclude_deleted=exclude_deleted
+            self.id, with_sku=with_sku, with_application=with_application, exclude_ended=not include_ended, exclude_deleted=not include_deleted, entitlement_type=int(entitlement_type) if entitlement_type else None
         )
         return [Entitlement(state=state, data=d) for d in data]
 

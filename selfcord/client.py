@@ -38,6 +38,7 @@ from typing import (
     Generator,
     List,
     Literal,
+    NamedTuple,
     Optional,
     overload,
     Sequence,
@@ -147,6 +148,11 @@ class _LoopSentinel:
 
 
 _loop: Any = _LoopSentinel()
+
+
+class RTCRegion(NamedTuple):
+    region: str
+    ips: List[str]
 
 
 class Client:
@@ -923,6 +929,7 @@ class Client:
         data = await state.http.static_login(token.strip())
         state.analytics_token = data.get('analytics_token', '')
         state.user = ClientUser(state=state, data=data)
+        state._users[state.user.id] = state.user  # type: ignore
         await self.setup_hook()
 
     async def connect(self, *, reconnect: bool = True) -> None:
@@ -3075,7 +3082,7 @@ class Client:
         data = await self.http.get_country_code()
         return data['country_code']
 
-    async def fetch_preferred_rtc_regions(self) -> List[Tuple[str, List[str]]]:
+    async def fetch_preferred_rtc_regions(self) -> List[RTCRegion]:
         """|coro|
 
         Retrieves the preferred RTC regions of the client.
@@ -3096,9 +3103,10 @@ class Client:
         -------
         List[Tuple[:class:`str`, List[:class:`str`]]]
             The region name and list of IPs for the closest voice regions.
+            This is also accessible as a namedtuple with ``region`` and ``ips`` attributes.
         """
         data = await self.http.get_preferred_voice_regions()
-        return [(v['region'], v['ips']) for v in data]
+        return [RTCRegion(v['region'], v['ips']) for v in data]
 
     async def create_dm(self, user: Snowflake, /) -> DMChannel:
         """|coro|
@@ -3517,7 +3525,7 @@ class Client:
     async def search_companies(self, query: str, /) -> List[Company]:
         """|coro|
 
-        Query your created companies.
+        Query companies registered on Discord.
 
         .. versionadded:: 2.0
 
@@ -3540,6 +3548,34 @@ class Client:
         data = await state.http.search_companies(query)
         return [Company(data=d) for d in data]
 
+    async def fetch_company(self, company_id: int, /) -> Company:
+        """|coro|
+
+        Retrieves a company with the given ID.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        company_id: :class:`int`
+            The ID of the company to fetch.
+
+        Raises
+        -------
+        NotFound
+            The company was not found.
+        HTTPException
+            Retrieving the company failed.
+
+        Returns
+        -------
+        :class:`.Company`
+            The retrieved company.
+        """
+        state = self._connection
+        data = await state.http.get_company(company_id)
+        return Company(data=data)
+
     async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
         """|coro|
 
@@ -3561,7 +3597,9 @@ class Client:
         data = await state.http.get_activity_statistics()
         return [ApplicationActivityStatistics(state=state, data=d) for d in data]
 
-    async def global_activity_statistics(self) -> List[ApplicationActivityStatistics]:
+    async def global_activity_statistics(
+        self, *, with_users: bool = True, with_applications: bool = True
+    ) -> List[ApplicationActivityStatistics]:
         """|coro|
 
         Retrieves the available activity usage statistics for the games your friends and
@@ -3584,7 +3622,7 @@ class Client:
             The activity statistics.
         """
         state = self._connection
-        data = await state.http.get_global_activity_statistics()
+        data = await state.http.get_global_activity_statistics(with_users=with_users, with_applications=with_applications)
         return [ApplicationActivityStatistics(state=state, data=d) for d in data]
 
     async def payment_sources(self) -> List[PaymentSource]:
@@ -3895,7 +3933,7 @@ class Client:
         payment_source_token: Optional[str] = None,
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
-        gateway_checkout_context: Optional[str] = None,
+        gateway_checkout_context: Optional[MetadataObject] = None,
         code: Optional[str] = None,
         metadata: Optional[MetadataObject] = None,
         guild: Optional[Snowflake] = None,
@@ -3922,7 +3960,7 @@ class Client:
             The purchase token to use.
         return_url: Optional[:class:`str`]
             The URL to return to after the payment is complete.
-        gateway_checkout_context: Optional[:class:`str`]
+        gateway_checkout_context: Optional[Dict[:class:`str`, Any]]
             The current checkout context.
         code: Optional[:class:`str`]
             Unknown.
@@ -4271,9 +4309,9 @@ class Client:
         scopes: Collection[str],
         response_type: Optional[str] = None,
         redirect_uri: Optional[str] = None,
-        code_challenge_method: Optional[str] = None,
         code_challenge: Optional[str] = None,
         state: Optional[str] = None,
+        nonce: Optional[str] = None,
     ) -> OAuth2Authorization:
         """|coro|
 
@@ -4294,12 +4332,12 @@ class Client:
             The redirect URI that will be used for the authorization, if using the full OAuth2 flow.
             If this isn't provided and ``response_type`` is provided, then the default redirect URI
             for the application will be provided in the returned authorization.
-        code_challenge_method: Optional[:class:`str`]
-            The code challenge method that will be used for the PKCE authorization, if using the full OAuth2 flow.
         code_challenge: Optional[:class:`str`]
-            The code challenge that will be used for the PKCE authorization, if using the full OAuth2 flow.
+            The code challenge that will be used for PKCE authorization, if using the full OAuth2 flow.
         state: Optional[:class:`str`]
-            The state that will be used for authorization security.
+            The state that will be used for authorization security. You will need to verify this yourself.
+        nonce: Optional[:class:`str`]
+            The nonce that will be used for OpenID Connect authorization security. You will need to verify this yourself.
 
         Raises
         -------
@@ -4317,18 +4355,21 @@ class Client:
             list(scopes),
             response_type,
             redirect_uri,
-            code_challenge_method,
+            'S256' if code_challenge else None,
             code_challenge,
             state,
+            nonce,
         )
         return OAuth2Authorization(
             _state=_state,
             data=data,
             scopes=list(scopes),
             response_type=response_type,
-            code_challenge_method=code_challenge_method,
+            original_redirect_uri=redirect_uri,
+            code_challenge_method='S256' if code_challenge else None,
             code_challenge=code_challenge,
             state=state,
+            nonce=nonce,
         )
 
     async def create_authorization(
@@ -4339,9 +4380,9 @@ class Client:
         scopes: Collection[str],
         response_type: Optional[str] = None,
         redirect_uri: Optional[str] = None,
-        code_challenge_method: Optional[str] = None,
         code_challenge: Optional[str] = None,
         state: Optional[str] = None,
+        nonce: Optional[str] = None,
         guild: Snowflake = MISSING,
         channel: Snowflake = MISSING,
         permissions: Permissions = MISSING,
@@ -4365,12 +4406,12 @@ class Client:
             The redirect URI to use for the authorization, if using the full OAuth2 flow.
             If this isn't provided and ``response_type`` is provided, then the default redirect URI
             for the application will be used.
-        code_challenge_method: Optional[:class:`str`]
-            The code challenge method to use for the PKCE authorization, if using the full OAuth2 flow.
         code_challenge: Optional[:class:`str`]
             The code challenge to use for the PKCE authorization, if using the full OAuth2 flow.
         state: Optional[:class:`str`]
-            The state to use for authorization security.
+            The state to use for authorization security. You will need to verify this yourself.
+        nonce: Optional[:class:`str`]
+            The nonce that will be used for OpenID Connect authorization security. You will need to verify this yourself.
         guild: :class:`.Guild`
             The guild to authorize for, if authorizing with the ``applications.commands`` or ``bot`` scopes.
         channel: Union[:class:`.TextChannel`, :class:`.VoiceChannel`, :class:`.StageChannel`]
@@ -4394,9 +4435,10 @@ class Client:
             list(scopes),
             response_type,
             redirect_uri,
-            code_challenge_method,
+            'S256' if code_challenge else None,
             code_challenge,
             state,
+            nonce,
             guild_id=guild.id if guild else None,
             webhook_channel_id=channel.id if channel else None,
             permissions=permissions.value if permissions else None,
@@ -4404,7 +4446,7 @@ class Client:
         return data['location']
 
     async def entitlements(
-        self, *, with_sku: bool = True, with_application: bool = True, entitlement_type: Optional[EntitlementType] = None
+        self, *, with_sku: bool = True, with_application: bool = True, include_ended: bool = True, entitlement_type: Optional[EntitlementType] = None
     ) -> List[Entitlement]:
         """|coro|
 
@@ -4419,6 +4461,10 @@ class Client:
         with_application: :class:`bool`
             Whether to include the application in the returned entitlements' SKUs.
             The premium subscription application is always returned.
+        include_ended: :class:`bool`
+            Whether to include ended entitlements in the returned list.
+
+            .. versionadded:: 2.1
         entitlement_type: Optional[:class:`.EntitlementType`]
             The type of entitlement to retrieve. If ``None`` then all entitlements are returned.
 
@@ -4436,6 +4482,7 @@ class Client:
         data = await state.http.get_user_entitlements(
             with_sku=with_sku,
             with_application=with_application,
+            exclude_ended=not include_ended,
             entitlement_type=int(entitlement_type) if entitlement_type else None,
         )
         return [Entitlement(state=state, data=d) for d in data]
@@ -4463,7 +4510,7 @@ class Client:
         data = await state.http.get_giftable_entitlements(state.country_code or 'US')
         return [Entitlement(state=state, data=d) for d in data]
 
-    async def premium_entitlements(self, *, exclude_consumed: bool = True) -> List[Entitlement]:
+    async def premium_entitlements(self, *, include_consumed: bool = True) -> List[Entitlement]:
         """|coro|
 
         Retrieves the entitlements this account has granted for the premium application.
@@ -4474,8 +4521,12 @@ class Client:
 
         Parameters
         -----------
-        exclude_consumed: :class:`bool`
-            Whether to exclude consumed entitlements.
+        include_consumed: :class:`bool`
+            Whether to include   consumed entitlements.
+
+            .. versionchanged:: 2.1
+
+                Renamed from ``exclude_consumed`` to ``include_consumed``.
 
         Raises
         -------
@@ -4488,20 +4539,26 @@ class Client:
             The entitlements retrieved.
         """
         return await self.fetch_entitlements(
-            self._connection.premium_subscriptions_application.id, exclude_consumed=exclude_consumed
+            self._connection.premium_subscriptions_application.id, include_consumed=include_consumed
         )
 
-    async def fetch_entitlements(self, application_id: int, /, *, exclude_consumed: bool = True) -> List[Entitlement]:
+    async def fetch_entitlements(self, application_id: int, /, *, include_consumed: bool = True) -> List[Entitlement]:
         """|coro|
 
         Retrieves the entitlements this account has granted for the given application.
+
+        .. versionadded:: 2.0
 
         Parameters
         -----------
         application_id: :class:`int`
             The ID of the application to fetch the entitlements for.
-        exclude_consumed: :class:`bool`
-            Whether to exclude consumed entitlements.
+        include_consumed: :class:`bool`
+            Whether to include consumed entitlements.
+
+            .. versionchanged:: 2.1
+
+                Renamed from ``exclude_consumed`` to ``include_consumed``.
 
         Raises
         -------
@@ -4514,7 +4571,7 @@ class Client:
             The entitlements retrieved.
         """
         state = self._connection
-        data = await state.http.get_user_app_entitlements(application_id, exclude_consumed=exclude_consumed)
+        data = await state.http.get_user_app_entitlements(application_id, exclude_consumed=not include_consumed)
         return [Entitlement(data=entitlement, state=state) for entitlement in data]
 
     async def fetch_gift(

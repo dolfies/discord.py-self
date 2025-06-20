@@ -1118,6 +1118,14 @@ class PurchasedFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the user has purchased Nitro basic."""
         return 1 << 3
 
+    @flag_value
+    def on_reverse_trial(self):
+        """:class:`bool`: Returns ``True`` if the user has a reverse trial active.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 4
+
 
 @fill_with_flags()
 class MemberCacheFlags(BaseFlags):
