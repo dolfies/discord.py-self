@@ -1722,6 +1722,7 @@ class Guild(Hashable):
         rtc_region: Optional[str] = MISSING,
         video_quality_mode: VideoQualityMode = MISSING,
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = MISSING,
+        nsfw: bool = MISSING,
     ) -> VoiceChannel:
         """|coro|
 
@@ -1759,6 +1760,10 @@ class Guild(Hashable):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 2.6
         reason: Optional[:class:`str`]
             The reason for creating this channel. Shows up on the audit log.
 
@@ -1794,6 +1799,9 @@ class Guild(Hashable):
                 raise TypeError('video_quality_mode must be of type VideoQualityMode')
             options['video_quality_mode'] = video_quality_mode.value
 
+        if nsfw is not MISSING:
+            options['nsfw'] = nsfw
+
         data = await self._create_channel(
             name, overwrites=overwrites, channel_type=ChannelType.voice, category=category, reason=reason, **options
         )
@@ -1815,6 +1823,7 @@ class Guild(Hashable):
         rtc_region: Optional[str] = MISSING,
         video_quality_mode: VideoQualityMode = MISSING,
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = MISSING,
+        nsfw: bool = MISSING,
     ) -> StageChannel:
         """|coro|
 
@@ -1858,6 +1867,10 @@ class Guild(Hashable):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 2.1
         reason: Optional[:class:`str`]
             The reason for creating this channel. Shows up on the audit log.
 
@@ -1893,6 +1906,9 @@ class Guild(Hashable):
             if not isinstance(video_quality_mode, VideoQualityMode):
                 raise TypeError('video_quality_mode must be of type VideoQualityMode')
             options['video_quality_mode'] = video_quality_mode.value
+
+        if nsfw is not MISSING:
+            options['nsfw'] = nsfw
 
         data = await self._create_channel(
             name,
@@ -2044,6 +2060,7 @@ class Guild(Hashable):
         category: Optional[CategoryChannel] = None,
         slowmode_delay: int = MISSING,
         nsfw: bool = MISSING,
+        media: bool = MISSING,
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = MISSING,
         reason: Optional[str] = None,
         default_auto_archive_duration: int = MISSING,
@@ -2100,8 +2117,13 @@ class Guild(Hashable):
             add reaction button.
         default_layout: :class:`ForumLayoutType`
             The default layout for posts in this forum.
+            This cannot be set if ``media`` is set to ``True``.
         available_tags: Sequence[:class:`ForumTag`]
             The available tags for this forum channel.
+        media: :class:`bool`
+            Whether to create a media forum channel.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
@@ -2153,7 +2175,7 @@ class Guild(Hashable):
             else:
                 raise ValueError(f'default_reaction_emoji parameter must be either Emoji, PartialEmoji, or str')
 
-        if default_layout is not MISSING:
+        if not media and default_layout is not MISSING:
             if not isinstance(default_layout, ForumLayoutType):
                 raise TypeError(
                     f'default_layout parameter must be a ForumLayoutType not {default_layout.__class__.__name__}'
@@ -2167,13 +2189,15 @@ class Guild(Hashable):
         data = await self._create_channel(
             name=name,
             overwrites=overwrites,
-            channel_type=ChannelType.forum,
+            channel_type=ChannelType.forum if not media else ChannelType.media,
             category=category,
             reason=reason,
             **options,
         )
 
-        channel = ForumChannel(state=self._state, guild=self, data=data)
+        channel = ForumChannel(
+            state=self._state, guild=self, data=data  # pyright: ignore[reportArgumentType] # it's the correct data
+        )
 
         # temporarily add to the cache
         self._channels[channel.id] = channel
@@ -3281,6 +3305,11 @@ class Guild(Hashable):
             The name of the template.
         description: :class:`str`
             The description of the template.
+
+        Returns
+        --------
+        :class:`Template`
+            The created template.
         """
         from .template import Template
 

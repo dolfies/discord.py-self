@@ -1,5 +1,5 @@
 include README.rst
 include LICENSE
 include requirements.txt
-include selfcord/bin/*.dll
+include selfcord/bin/*
 include selfcord/py.typed

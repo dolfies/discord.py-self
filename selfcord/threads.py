@@ -282,12 +282,12 @@ class Thread(Messageable, Hashable):
     def applied_tags(self) -> List[ForumTag]:
         """List[:class:`ForumTag`]: A list of tags applied to this thread."""
         tags = []
-        if self.parent is None or self.parent.type != ChannelType.forum:
+        if self.parent is None or self.parent.type not in (ChannelType.forum, ChannelType.media):
             return tags
 
         parent = self.parent
         for tag_id in self._applied_tags:
-            tag = parent.get_tag(tag_id)  # type: ignore
+            tag = parent.get_tag(tag_id)  # type: ignore # parent here will be ForumChannel instance
             if tag is not None:
                 tags.append(tag)
 
