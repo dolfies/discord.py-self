@@ -4966,7 +4966,13 @@ class Guild(Hashable):
         return [PremiumGuildSubscription(state=state, data=sub) for sub in data]
 
     async def entitlements(
-        self, *, with_sku: bool = True, with_application: bool = True, include_ended: bool = True, include_deleted: bool = True, entitlement_type: Optional[EntitlementType] = None
+        self,
+        *,
+        with_sku: bool = True,
+        with_application: bool = True,
+        include_ended: bool = True,
+        include_deleted: bool = True,
+        entitlement_type: Optional[EntitlementType] = None,
     ) -> List[Entitlement]:
         """|coro|
 
@@ -5007,7 +5013,12 @@ class Guild(Hashable):
         """
         state = self._state
         data = await state.http.get_guild_entitlements(
-            self.id, with_sku=with_sku, with_application=with_application, exclude_ended=not include_ended, exclude_deleted=not include_deleted, entitlement_type=int(entitlement_type) if entitlement_type else None
+            self.id,
+            with_sku=with_sku,
+            with_application=with_application,
+            exclude_ended=not include_ended,
+            exclude_deleted=not include_deleted,
+            entitlement_type=int(entitlement_type) if entitlement_type else None,
         )
         return [Entitlement(state=state, data=d) for d in data]
 

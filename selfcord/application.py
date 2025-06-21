@@ -1068,8 +1068,8 @@ class ApplicationActivityStatistics:
     ) -> None:
         self._state = state
         self.application_id = application.id if application else int(data['application_id'])  # type: ignore
-        self.application: Optional[PartialApplication] = (
-            application or (PartialApplication(state=state, data=data['application']) if 'application' in data else None)
+        self.application: Optional[PartialApplication] = application or (
+            PartialApplication(state=state, data=data['application']) if 'application' in data else None
         )
         self._user = state.create_user(data['user']) if 'user' in data else None
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore

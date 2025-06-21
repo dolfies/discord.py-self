@@ -3174,7 +3174,10 @@ class HTTPClient:
         after: Optional[Snowflake] = None,
         limit: int = 100,
     ) -> Response[List[entitlements.Entitlement]]:
-        params: Dict[str, Any] = {'exclude_ended': str(exclude_ended).lower(), 'exclude_deleted': str(exclude_deleted).lower()}
+        params: Dict[str, Any] = {
+            'exclude_ended': str(exclude_ended).lower(),
+            'exclude_deleted': str(exclude_deleted).lower(),
+        }
         if user_id:
             params['user_id'] = user_id
         if guild_id:
@@ -3237,17 +3240,23 @@ class HTTPClient:
         )
 
     def get_user_entitlements(
-        self, with_sku: bool = True, with_application: bool = True, exclude_ended: bool = False, entitlement_type: Optional[int] = None
+        self,
+        with_sku: bool = True,
+        with_application: bool = True,
+        exclude_ended: bool = False,
+        entitlement_type: Optional[int] = None,
     ) -> Response[List[entitlements.Entitlement]]:
-        params: Dict[str, Any] = {'with_sku': str(with_sku).lower(), 'with_application': str(with_application).lower(), 'exclude_ended': str(exclude_ended).lower()}
+        params: Dict[str, Any] = {
+            'with_sku': str(with_sku).lower(),
+            'with_application': str(with_application).lower(),
+            'exclude_ended': str(exclude_ended).lower(),
+        }
         if entitlement_type is not None:
             params['entitlement_type'] = entitlement_type
 
         return self.request(Route('GET', '/users/@me/entitlements'), params=params)
 
-    def get_giftable_entitlements(
-        self, country_code: Optional[str] = None
-    ) -> Response[List[entitlements.Entitlement]]:
+    def get_giftable_entitlements(self, country_code: Optional[str] = None) -> Response[List[entitlements.Entitlement]]:
         params = {}
         if country_code:
             params['country_code'] = country_code
@@ -3255,7 +3264,13 @@ class HTTPClient:
         return self.request(Route('GET', '/users/@me/entitlements/gifts'), params=params)
 
     def get_guild_entitlements(
-        self, guild_id: Snowflake, with_sku: bool = True, with_application: bool = True, exclude_ended: bool = False, exclude_deleted: bool = True, entitlement_type: Optional[int] = None
+        self,
+        guild_id: Snowflake,
+        with_sku: bool = True,
+        with_application: bool = True,
+        exclude_ended: bool = False,
+        exclude_deleted: bool = True,
+        entitlement_type: Optional[int] = None,
     ) -> Response[List[entitlements.Entitlement]]:
         params: Dict[str, Any] = {
             'with_sku': str(with_sku).lower(),
@@ -4541,7 +4556,7 @@ class HTTPClient:
         if state:
             params['state'] = state
         if nonce:
-            params['nonce'] = nonce 
+            params['nonce'] = nonce
 
         return self.request(Route('GET', '/oauth2/authorize'), params=params)
 
