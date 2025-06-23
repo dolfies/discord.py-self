@@ -2680,7 +2680,7 @@ class Client:
 
         .. versionchanged:: 2.1
 
-            Renamed from :meth:`notes` to :meth:`fetch_notes` for forward compatibility.
+            Renamed from ``notes`` to :meth:`fetch_notes` for forward compatibility.
             This method now returns a dictionary mapping user IDs to notes instead of a list of ``Note`` objects.
 
         Raises
@@ -2710,7 +2710,7 @@ class Client:
 
         .. versionchanged:: 2.1
 
-            This method now returns a :class:`str` instead of a :class:`.Note`.
+            This method now returns a :class:`str` instead of a ``Note``.
 
         Parameters
         -----------
