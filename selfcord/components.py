@@ -340,8 +340,8 @@ class SelectMenu(Component):
             message.channel,  # type: ignore # acc_channel is always correct here
             self.to_dict(options),
             message=message,
-
         )
+
 
 class SelectOption:
     """Represents a select menu's option.
