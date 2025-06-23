@@ -2671,12 +2671,17 @@ class Client:
         data = await self.http.get_sticker_pack(pack_id)
         return StickerPack(state=self._connection, data=data)
 
-    async def notes(self) -> List[Note]:
+    async def fetch_notes(self) -> Dict[int, str]:
         """|coro|
 
-        Retrieves a list of :class:`.Note` objects representing all your notes.
+        Retrieves all your user notes.
 
         .. versionadded:: 1.9
+
+        .. versionchanged:: 2.1
+
+            Renamed from :meth:`notes` to :meth:`fetch_notes` for forward compatibility.
+            This method now returns a dictionary mapping user IDs to notes instead of a list of ``Note`` objects.
 
         Raises
         -------
@@ -2685,23 +2690,27 @@ class Client:
 
         Returns
         --------
-        List[:class:`.Note`]
-            All your notes.
+        Dict[:class:`int`, :class:`str`]
+            A dictionary mapping user IDs to their notes.
         """
         state = self._connection
         data = await state.http.get_notes()
-        return [Note(state, int(id), note=note) for id, note in data.items()]
+        return {int(id): note for id, note in data.items()}
 
-    async def fetch_note(self, user_id: int, /) -> Note:
+    async def fetch_note(self, user_id: int, /) -> Optional[str]:
         """|coro|
 
-        Retrieves a :class:`.Note` for the specified user ID.
+        Retrieves a note for the specified user ID.
 
         .. versionadded:: 1.9
 
         .. versionchanged:: 2.0
 
             ``user_id`` parameter is now positional-only.
+
+        .. versionchanged:: 2.1
+
+            This method now returns a :class:`str` instead of a :class:`.Note`.
 
         Parameters
         -----------
@@ -2715,12 +2724,15 @@ class Client:
 
         Returns
         --------
-        :class:`.Note`
+        Optional[:class:`str`]
             The note you requested.
         """
-        note = Note(self._connection, int(user_id))
-        await note.fetch()
-        return note
+        try:
+            data = await self.http.get_note(user_id)
+        except NotFound:
+            # Bad UX to propagate the 404 for unknown notes
+            return None
+        return data.get('note')
 
     async def fetch_connections(self) -> List[Connection]:
         """|coro|
