@@ -26,7 +26,7 @@ This library is 100% compatible with regular ``discord.py-self``, and any docume
 Installing
 ----------
 
-**Python 3.8 or higher is required**
+**Python 3.9 or higher is required**
 
 This branch is synced with the master branch on every commit. Because of this, the branch always hosts the current development version.
 
