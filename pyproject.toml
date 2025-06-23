@@ -7,7 +7,7 @@ name = "selfcord.py"
 description = "A Python wrapper for the Discord user API"
 readme = { file = "README.rst", content-type = "text/x-rst" }
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 authors = [{ name = "Dolfies", email = "me@dolfi.es" }]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -15,6 +15,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
