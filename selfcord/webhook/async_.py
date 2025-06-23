@@ -1075,7 +1075,7 @@ class Webhook(BaseWebhook):
         if client is not MISSING:
             state = client._connection
             if session is MISSING:
-                session = client.http._HTTPClient__session  # type: ignore
+                session = client.http._HTTPClient__asession  # type: ignore
 
         if session is MISSING:
             raise TypeError('session or client must be given')
@@ -1098,7 +1098,7 @@ class Webhook(BaseWebhook):
 
         state = channel._state
         http = state.http
-        session = http._HTTPClient__session
+        session = http._HTTPClient__asession
         proxy_auth = http.proxy_auth
         proxy = http.proxy
         return cls(feed, session=session, state=state, proxy_auth=proxy_auth, proxy=proxy, token=state.http.token)
@@ -1106,7 +1106,7 @@ class Webhook(BaseWebhook):
     @classmethod
     def from_state(cls, data: WebhookPayload, state: ConnectionState) -> Self:
         http = state.http
-        session = http._HTTPClient__session  # type: ignore
+        session = http._HTTPClient__asession  # type: ignore
         proxy_auth = http.proxy_auth
         proxy = http.proxy
         return cls(data, session=session, state=state, proxy_auth=proxy_auth, proxy=proxy, token=state.http.token)
