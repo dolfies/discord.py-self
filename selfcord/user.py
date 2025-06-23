@@ -37,14 +37,13 @@ from .enums import (
     RelationshipType,
     try_enum,
 )
-from .errors import ClientException, NotFound
+from .errors import NotFound
 from .flags import PublicUserFlags, PrivateUserFlags, PremiumUsageFlags, PurchasedFlags
 from .mixins import Hashable
 from .relationship import Relationship
 from .utils import (
     _bytes_to_base64_data,
     _get_as_snowflake,
-    cached_slot_property,
     copy_doc,
     parse_timestamp,
     snowflake_time,
@@ -79,167 +78,8 @@ if TYPE_CHECKING:
 __all__ = (
     'User',
     'ClientUser',
-    'Note',
     'RecentAvatar',
 )
-
-
-class Note:
-    """Represents a Discord note.
-
-    .. container:: operations
-
-        .. describe:: x == y
-            Checks if two notes are equal.
-
-        .. describe:: x != y
-            Checks if two notes are not equal.
-
-        .. describe:: hash(x)
-            Returns the note's hash.
-
-        .. describe:: str(x)
-            Returns the note's content.
-            Raises :exc:`ClientException` if the note is not fetched.
-
-        .. describe:: bool(x)
-            Returns the note's content as a boolean.
-
-        .. describe:: len(x)
-            Returns the note's length.
-
-    .. versionadded:: 1.9
-
-    Attributes
-    -----------
-    user_id: :class:`int`
-        The user ID the note is for.
-    """
-
-    __slots__ = ('_state', '_value', 'user_id', '_user')
-
-    def __init__(
-        self, state: ConnectionState, user_id: int, *, user: Optional[User] = None, note: Optional[str] = MISSING
-    ) -> None:
-        self._state = state
-        self._value: Optional[str] = note
-        self.user_id: int = user_id
-        self._user: Optional[User] = user
-
-    @property
-    def note(self) -> Optional[str]:
-        """Optional[:class:`str`]: Returns the note.
-
-        There is an alias for this called :attr:`value`.
-
-        Raises
-        -------
-        ClientException
-            Attempted to access note without fetching it.
-        """
-        if self._value is MISSING:
-            raise ClientException('Note is not fetched')
-        return self._value
-
-    @property
-    def value(self) -> Optional[str]:
-        """Optional[:class:`str`]: Returns the note.
-
-        This is an alias of :attr:`note`.
-
-        Raises
-        -------
-        ClientException
-            Attempted to access note without fetching it.
-        """
-        return self.note
-
-    @property
-    def user(self) -> Optional[User]:
-        """Optional[:class:`User`]: Returns the user the note belongs to."""
-        return self._state.get_user(self.user_id) or self._user
-
-    async def fetch(self) -> Optional[str]:
-        """|coro|
-
-        Retrieves the note.
-
-        Raises
-        -------
-        HTTPException
-            Fetching the note failed.
-
-        Returns
-        --------
-        Optional[:class:`str`]
-            The note or ``None`` if it doesn't exist.
-        """
-        try:
-            data = await self._state.http.get_note(self.user_id)
-            self._value = data['note']
-            return data['note']
-        except NotFound:
-            # A 404 means the note doesn't exist
-            # However, this is bad UX, so we just return None
-            self._value = None
-            return None
-
-    async def edit(self, note: Optional[str]) -> None:
-        """|coro|
-
-        Modifies the note. Can be at most 256 characters.
-
-        Raises
-        -------
-        HTTPException
-            Changing the note failed.
-        """
-        await self._state.http.set_note(self.user_id, note=note)
-        self._value = note or ''
-
-    async def delete(self) -> None:
-        """|coro|
-
-        A shortcut to :meth:`.edit` that deletes the note.
-
-        Raises
-        -------
-        HTTPException
-            Deleting the note failed.
-        """
-        await self.edit(None)
-
-    def __repr__(self) -> str:
-        base = f'<Note user={self.user!r}'
-        note = self._value
-        if note is not MISSING:
-            note = note or ''
-            return f'{base} note={note!r}>'
-        return f'{base}>'
-
-    def __str__(self) -> str:
-        note = self._value
-        if note is MISSING:
-            raise ClientException('Note is not fetched')
-        return note or ''
-
-    def __bool__(self) -> bool:
-        return bool(str(self))
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Note) and self.user_id == other.user_id
-
-    def __ne__(self, other: object) -> bool:
-        if isinstance(other, Note):
-            return self._value != other._value or self.user_id != other.user_id
-        return True
-
-    def __hash__(self) -> int:
-        return hash((self._value, self.user_id))
-
-    def __len__(self) -> int:
-        note = str(self)
-        return len(note) if note else 0
 
 
 class _UserTag:
@@ -261,7 +101,6 @@ class BaseUser(_UserTag):
         'system',
         '_public_flags',
         'premium_type',
-        '_cs_note',
         '_state',
     )
 
@@ -527,18 +366,6 @@ class BaseUser(_UserTag):
             return self.global_name
         return self.name
 
-    @cached_slot_property('_cs_note')
-    def note(self) -> Note:
-        """:class:`Note`: Returns an object representing the user's note.
-
-        .. versionadded:: 2.0
-
-        .. note::
-
-            The underlying note is cached and updated from gateway events.
-        """
-        return Note(self._state, self.id, user=self)  # type: ignore
-
     def mentioned_in(self, message: Message) -> bool:
         """Checks if the user is mentioned in the specified message.
 
@@ -653,6 +480,63 @@ class BaseUser(_UserTag):
         data = await state.http.get_mutual_friends(self.id)
         return [state.store_user(u) for u in data]
 
+    async def fetch_note(self) -> Optional[str]:
+        """|coro|
+
+        Fetches the user's note.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Fetching the note failed.
+
+        Returns
+        --------
+        Optional[:class:`str`]
+            The user's note, or ``None`` if no note exists.
+        """
+        try:
+            data = await self._state.http.get_note(self.id)
+        except NotFound:
+            # Bad UX to propagate the 404 for unknown notes
+            return None
+        return data.get('note')
+
+    async def edit_note(self, note: Optional[str], /) -> None:
+        """|coro|
+
+        Edits the user's note.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        note: Optional[:class:`str`]
+            The new note to set for the user.
+
+        Raises
+        -------
+        HTTPException
+            Editing the note failed.
+        """
+        await self._state.http.set_note(self.id, note)
+
+    async def delete_note(self) -> None:
+        """|coro|
+
+        Deletes the user's note.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Deleting the note failed.
+        """
+        await self._state.http.set_note(self.id, '')
+
 
 class ClientUser(BaseUser):
     """Represents your Discord user.
@@ -676,7 +560,12 @@ class ClientUser(BaseUser):
             Returns the user's handle (e.g. ``name`` or ``name#discriminator``).
 
     .. versionchanged:: 2.0
+
         :attr:`Locale` is now a :class:`Locale` instead of a Optional[:class:`str`].
+
+    .. versionchanged:: 2.1
+
+        Removed the ``note`` attribute. See :meth:`fetch_note` and :meth:`edit_note` instead.
 
     Attributes
     -----------
@@ -718,10 +607,6 @@ class ClientUser(BaseUser):
         .. versionchanged:: 2.1
 
             This is now :attr:`PremiumType.none` instead of ``None`` if the user is not premium.
-    note: :class:`Note`
-        The user's note. Not pre-fetched.
-
-        .. versionadded:: 1.9
     nsfw_allowed: Optional[:class:`bool`]
         Specifies if the user should be allowed to access NSFW content.
         If ``None``, then the user's date of birth is not known.
@@ -745,7 +630,6 @@ class ClientUser(BaseUser):
         'mfa_enabled',
         'email',
         'phone',
-        'note',
         'bio',
         'nsfw_allowed',
         'desktop',
@@ -768,7 +652,6 @@ class ClientUser(BaseUser):
     def __init__(self, *, state: ConnectionState, data: UserPayload) -> None:
         self._state = state
         self._full_update(data)
-        self.note: Note = Note(state, self.id)
 
         # These are only supplied by the Gateway
         self.desktop: bool = False
@@ -1067,6 +950,10 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
         .. describe:: str(x)
 
             Returns the user's handle (e.g. ``name`` or ``name#discriminator``).
+
+    .. versionchanged:: 2.1
+
+        Removed the ``note`` attribute. See :meth:`fetch_note` and :meth:`edit_note` instead.
 
     Attributes
     -----------

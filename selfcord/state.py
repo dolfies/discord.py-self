@@ -58,7 +58,7 @@ from discord_protos import UserSettingsType
 from .errors import ClientException, InvalidData, NotFound
 from .guild import Guild
 from .activity import BaseActivity, create_activity, Session
-from .user import User, ClientUser, Note
+from .user import User, ClientUser
 from .emoji import Emoji
 from .mentions import AllowedMentions
 from .partial_emoji import PartialEmoji
@@ -1985,14 +1985,11 @@ class ConnectionState:
         # so we cannot have (old, new) event dispatches
         user_id = int(data['id'])
         text = data['note']
+        self.dispatch('raw_note_update', user_id, text)
+
         user = self.get_user(user_id)
         if user:
-            note = user.note
-            note._value = text
-        else:
-            note = Note(self, user_id, note=text)
-
-        self.dispatch('note_update', note)
+            self.dispatch('note_update', user, text)
 
     def parse_user_settings_proto_update(self, data: gw.ProtoSettingsEvent):
         type = UserSettingsType(data['settings']['type'])
@@ -2004,11 +2001,11 @@ class ConnectionState:
                 self.dispatch('settings_update', old_settings, settings)
                 self.dispatch('internal_settings_update', old_settings, settings)
         elif type == UserSettingsType.frecency_user_settings:
-            ...
+            pass
         elif type == UserSettingsType.test_settings:
-            _log.debug('Received test settings proto update. Data: %s', data['settings']['proto'])
+            pass
         else:
-            _log.warning('Unknown user settings proto type: %s', type.value)
+            _log.warning('USER_SETTINGS_PROTO_UPDATE referencing an unknown type: %s', type.value)
 
     def parse_user_guild_settings_update(self, data: gw.UserGuildSettingsEvent) -> None:
         guild_id = utils._get_as_snowflake(data, 'guild_id')

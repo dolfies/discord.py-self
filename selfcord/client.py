@@ -51,7 +51,7 @@ from typing import (
 
 import aiohttp
 
-from .user import _UserTag, RecentAvatar, User, ClientUser, Note
+from .user import _UserTag, RecentAvatar, User, ClientUser
 from .invite import Invite
 from .template import Template
 from .widget import Widget

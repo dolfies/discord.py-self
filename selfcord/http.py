@@ -4687,7 +4687,7 @@ class HTTPClient:
     def get_note(self, user_id: Snowflake) -> Response[user.Note]:
         return self.request(Route('GET', '/users/@me/notes/{user_id}', user_id=user_id))
 
-    def set_note(self, user_id: Snowflake, *, note: Optional[str] = None) -> Response[None]:
+    def set_note(self, user_id: Snowflake, note: Optional[str] = None) -> Response[None]:
         payload = {'note': note or ''}
         return self.request(Route('PUT', '/users/@me/notes/{user_id}', user_id=user_id), json=payload)
 
