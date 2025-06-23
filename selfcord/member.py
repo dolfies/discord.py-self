@@ -42,6 +42,7 @@ from .errors import ClientException
 from .colour import Colour
 from .object import Object
 from .flags import MemberFlags
+from .voice_client import VoiceClient
 
 __all__ = (
     'VoiceState',
@@ -77,7 +78,6 @@ if TYPE_CHECKING:
     from .types.voice import BaseVoiceState as VoiceStatePayload
     from .relationship import Relationship
     from .calls import PrivateCall
-    from .voice_client import VoiceClient
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     ConnectableChannel = Union[VocalGuildChannel, DMChannel, GroupChannel]
