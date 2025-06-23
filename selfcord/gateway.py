@@ -34,7 +34,7 @@ import traceback
 
 from typing import Any, Callable, Coroutine, Dict, List, TYPE_CHECKING, NamedTuple, Optional, Sequence, TypeVar, Tuple
 
-from curl_cffi import CurlError
+from curl_cffi import CurlError, WebSocketError
 from curl_cffi.requests import AsyncWebSocket
 from curl_cffi.const import CurlWsFlag
 import yarl
@@ -148,7 +148,7 @@ class KeepAliveHandler:  # Inspired by enhanced-selfcord.py/Gnome
         self.block_msg: str = 'Heartbeat blocked for more than %s seconds.'
         self.behind_msg: str = 'Can\'t keep up, websocket is %.1fs behind.'
         self.not_responding_msg: str = 'Gateway has stopped responding. Closing and restarting.'
-        self.no_stop_msg: str = 'An error occurred while stopping the gateway. Ignoring.'
+        self.no_stop_msg: str = 'An error occurred while stopping the Gateway. Ignoring.'
 
         self._stop: asyncio.Event = asyncio.Event()
         self._last_send: float = time.perf_counter()
@@ -223,11 +223,11 @@ class VoiceKeepAliveHandler(KeepAliveHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.recent_ack_latencies: deque[float] = deque(maxlen=20)
-        self.msg: str = 'Keeping voice websocket alive.'
+        self.msg: str = 'Keeping voice socket alive.'
         self.block_msg: str = 'Voice heartbeat blocked for more than %s seconds'
-        self.behind_msg: str = 'High socket latency, heartbeat is %.1fs behind'
-        self.not_responding_msg: str = 'Voice gateway has stopped responding. Closing and restarting.'
-        self.no_stop_msg: str = 'An error occurred while stopping the voice gateway. Ignoring.'
+        self.behind_msg: str = 'High voice socket latency, heartbeat is %.1fs behind'
+        self.not_responding_msg: str = 'Voice socket has stopped responding. Closing and restarting.'
+        self.no_stop_msg: str = 'An error occurred while stopping the voice socket. Ignoring.'
 
     def get_payload(self) -> Dict[str, Any]:
         return {
@@ -249,12 +249,12 @@ DWS = TypeVar('DWS', bound='DiscordWebSocket')
 
 
 class DiscordWebSocket:
-    """Implements a WebSocket for Discord's gateway v9.
+    """Implements a WebSocket for Discord's Gateway v9.
 
     Attributes
     -----------
     gateway
-        The gateway we are currently connected to.
+        The Gateway we are currently connected to.
     token
         The authentication token for Discord.
     """
@@ -648,21 +648,17 @@ class DiscordWebSocket:
                 await self.received_message(msg)
             elif flags & CurlWsFlag.CLOSE:
                 socket = self.socket
-                _log.info(f'Gateway received close {socket.close_code} reason {socket.close_reason}')
                 raise WebSocketClosure(socket)
         except (asyncio.TimeoutError, CurlError, WebSocketClosure) as e:
-            if isinstance(e, CurlError) and e.code == 52:
-                # This means the connection is closed
-                # The close mechanism should take care of this if we ever race here
-                _log.debug('Gateway received CURLE_GOT_NOTHING, ignoring...')
-                return
-
-            _log.info(f'Got poll exception {e}')
+            _log.debug(f'Got Gateway poll exception {e}', exc_info=True)
             # Ensure the keep alive handler is closed
             if self._keep_alive:
                 self._keep_alive.stop()
                 self._keep_alive = None
 
+            if isinstance(e, WebSocketError):
+                # Reconnect on WebSocketError
+                raise ReconnectWebSocket from None
             if isinstance(e, asyncio.TimeoutError):  # is this also CancelledError??
                 _log.debug('Timed out receiving packet. Attempting a reconnect.')
                 raise ReconnectWebSocket from None
@@ -671,7 +667,6 @@ class DiscordWebSocket:
             code = self._close_code or socket.close_code
             reason = socket.close_reason
             if isinstance(e, CurlError):
-                _log.debug('Received error %s', e)
                 reason = str(e)
 
             _log.info(f'Gateway received close code {code} and reason {reason!r}.')
@@ -855,14 +850,13 @@ class DiscordWebSocket:
         await self.send_as_json(payload)
 
     async def close(self, code: int = 4000, reason: bytes = b'') -> None:
-        _log.info(f'Closing websocket with code {code}')
+        _log.debug(f'Closing websocket with code {code}.')
         if self._keep_alive:
             self._keep_alive.stop()
             self._keep_alive = None
 
         self._close_code = code
         await self.socket.close(code, reason)
-        _log.info('Finished closing websocket')
 
 
 DVWS = TypeVar('DVWS', bound='DiscordVoiceWebSocket')
@@ -942,7 +936,7 @@ class DiscordVoiceWebSocket:
         await self.ws.send(data.encode('utf-8'))
 
     async def send_as_json(self, data: Any) -> None:
-        _log.debug('Voice gateway sending: %s.', data)
+        _log.debug('Voice socket sending: %s.', data)
         await self._sendstr(utils._to_json(data))
 
     send_heartbeat = send_as_json
@@ -1037,7 +1031,7 @@ class DiscordVoiceWebSocket:
         await self.send_as_json(payload)
 
     async def received_message(self, msg: Dict[str, Any]) -> None:
-        _log.debug('Voice gateway event: %s.', msg)
+        _log.debug('Voice socket event: %s.', msg)
         op = msg['op']
         data = msg['d']  # According to Discord this key is always given
 
@@ -1139,7 +1133,7 @@ class DiscordVoiceWebSocket:
             await self.received_message(utils._from_json(msg))
         elif flags & CurlWsFlag.CLOSE:
             socket = self.ws
-            _log.info(f'Voice socket received close code {socket.close_code} reason {socket.close_reason!r}')
+            _log.info(f'Voice socket received close code {socket.close_code} and reason {socket.close_reason!r}.')
             raise ConnectionClosed(socket.close_code or self._close_code, socket.close_reason or '')
 
     async def close(self, code: int = 1000, reason: bytes = b'') -> None:
