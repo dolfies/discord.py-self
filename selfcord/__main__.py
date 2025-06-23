@@ -34,7 +34,7 @@ from typing import Dict, Optional, Tuple
 import aiohttp
 import curl_cffi
 import curl_cffi.requests.impersonate
-import selfcord_protos
+from discord_protos import __version__ as protos_version  # Avoid breaking selfcord
 
 import selfcord
 
@@ -50,7 +50,7 @@ def show_version() -> None:
         if version:
             entries.append(f'    - selfcord.py metadata: v{version}')
 
-    entries.append(f'    - discord-protos v{discord_protos.__version__}')
+    entries.append(f'    - discord-protos v{protos_version}')
     entries.append(f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__} impersonating {curl_cffi.requests.impersonate.DEFAULT_CHROME})')  # type: ignore
     entries.append(f'- aiohttp v{aiohttp.__version__}')
     uname = platform.uname()
@@ -240,8 +240,6 @@ def to_path(parser: argparse.ArgumentParser, name: str, *, replace_spaces: bool 
 def newbot(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     new_directory = to_path(parser, args.directory) / to_path(parser, args.name)
 
-    # as a note exist_ok for Path is a 3.5+ only feature
-    # since we already checked above that we're >3.5
     try:
         new_directory.mkdir(exist_ok=True, parents=True)
     except OSError as exc:
