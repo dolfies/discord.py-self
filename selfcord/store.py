@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from .guild import Guild
     from .library import LibraryApplication
     from .state import ConnectionState
+    from .metadata import MetadataObject
     from .types.application import StoreAsset as StoreAssetPayload
     from .types.entitlements import Gift as GiftPayload
     from .types.snowflake import Snowflake as SnowflakeType
@@ -2202,7 +2203,7 @@ class SubscriptionPlan(Hashable):
         payment_source_token: Optional[str] = None,
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
-        gateway_checkout_context: Optional[str] = None,
+        gateway_checkout_context: Optional[MetadataObject] = None,
     ) -> Tuple[List[Entitlement], List[LibraryApplication], Optional[Gift]]:
         """|coro|
 

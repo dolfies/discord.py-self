@@ -32,7 +32,6 @@ from .enums import (
     PaymentGateway,
     PaymentStatus,
     RefundDisqualificationReason,
-    RefundReason,
     SubscriptionType,
     try_enum,
 )

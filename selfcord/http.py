@@ -3977,7 +3977,7 @@ class HTTPClient:
         payment_source_token: Optional[str] = None,
         purchase_token: Optional[str] = None,
         return_url: Optional[str] = None,
-        gateway_checkout_context: Optional[Dict[str, Any]] = None,
+        gateway_checkout_context: Optional[Mapping[str, Any]] = None,
     ) -> Response[store.SKUPurchase]:
         payload = {
             'gift': gift,
@@ -4198,7 +4198,7 @@ class HTTPClient:
         code: str,
         payment_source_id: Optional[Snowflake] = None,
         channel_id: Optional[Snowflake] = None,
-        gateway_checkout_context: Optional[Dict[str, Any]] = None,
+        gateway_checkout_context: Optional[Mapping[str, Any]] = None,
     ) -> Response[entitlements.Entitlement]:
         payload: Dict[str, Any] = {'channel_id': channel_id, 'gateway_checkout_context': gateway_checkout_context}
         if payment_source_id:
@@ -4280,7 +4280,7 @@ class HTTPClient:
         payment_source_token: Optional[str] = None,
         return_url: Optional[str] = None,
         purchase_token: Optional[str] = None,
-        gateway_checkout_context: Optional[Dict[str, Any]] = None,
+        gateway_checkout_context: Optional[Mapping[str, Any]] = None,
         code: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> Response[subscriptions.Subscription]:

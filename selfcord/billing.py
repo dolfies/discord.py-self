@@ -276,14 +276,14 @@ class PaymentSource(Hashable):
         self.country: Optional[str] = data.get('country')
         self.partial_card_number: Optional[str] = data.get('last_4')
         self.billing_address: Optional[BillingAddress] = (
-            BillingAddress.from_dict(data['billing_address'], state=self._state) if 'billing_address' in data else None  # type: ignore # ???
+            BillingAddress.from_dict(data['billing_address'], state=self._state) if 'billing_address' in data else None  # type: ignore
         )
 
         self.type: PaymentSourceType = try_enum(PaymentSourceType, data['type'])
         self.payment_gateway: PaymentGateway = try_enum(PaymentGateway, data['payment_gateway'])
         self.payment_gateway_source_id: Optional[str] = data.get('payment_gateway_source_id')
         self.default: bool = data.get('default', False)
-        self.invalid: bool = data['invalid']
+        self.invalid: bool = data.get('invalid', False)
         self._flags: int = data.get('flags', 0)
 
         month = data.get('expires_month')

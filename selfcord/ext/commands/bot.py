@@ -159,7 +159,7 @@ class BotBase(GroupMixin[None]):
         **options: Any,
     ) -> None:
         super().__init__(**options)
-        self.command_prefix: PrefixType[BotT] = command_prefix
+        self.command_prefix: PrefixType[BotT] = command_prefix  # type: ignore
         self.extra_events: Dict[str, List[CoroFunc]] = {}
         self.__cogs: Dict[str, Cog] = {}
         self.__extensions: Dict[str, types.ModuleType] = {}
@@ -381,7 +381,7 @@ class BotBase(GroupMixin[None]):
         if len(data) == 0:
             return True
 
-        return await selfcord.utils.async_all(f(ctx) for f in data)
+        return await selfcord.utils.async_all(f(ctx) for f in data)  # type: ignore
 
     async def is_owner(self, user: User, /) -> bool:
         """|coro|
@@ -1021,7 +1021,7 @@ class BotBase(GroupMixin[None]):
 
         if callable(prefix):
             # self will be a Bot or AutoShardedBot
-            ret = await selfcord.utils.maybe_coroutine(prefix, self, message)  # type: ignore
+            ret = await selfcord.utils.maybe_coroutine(prefix, self, message)
 
         if not isinstance(ret, str):
             try:

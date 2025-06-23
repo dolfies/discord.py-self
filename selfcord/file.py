@@ -190,7 +190,7 @@ class File(_FileBase):
             else:
                 filename = getattr(fp, 'name', 'untitled')
 
-        super().__init__(filename, spoiler=spoiler, description=description, title=title, remix=remix)
+        super().__init__(filename, spoiler=spoiler, description=description, title=title, remix=remix)  # type: ignore
 
     @cached_slot_property('_cs_md5')
     def md5(self):

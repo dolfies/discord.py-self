@@ -296,7 +296,7 @@ class FlagsMeta(type):
         case_insensitive: bool = MISSING,
         delimiter: str = MISSING,
         prefix: str = MISSING,
-    ) -> Self:
+    ) -> FlagsMeta:
         attrs['__commands_is_flag__'] = True
 
         try:
@@ -441,7 +441,7 @@ async def convert_flag(ctx: Context[BotT], argument: str, flag: Flag, annotation
             return await convert_flag(ctx, argument, flag, annotation)
         elif origin is Union and type(None) in annotation.__args__:
             # typing.Optional[x]
-            annotation = Union[tuple(arg for arg in annotation.__args__ if arg is not type(None))]  # type: ignore
+            annotation = Union[tuple(arg for arg in annotation.__args__ if arg is not type(None))]
             return await run_converters(ctx, annotation, argument, param)
         elif origin is dict:
             # typing.Dict[K, V] -> typing.Tuple[K, V]

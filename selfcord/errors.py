@@ -95,7 +95,7 @@ def _flatten_error_dict(d: FormErrorsPayload, key: str = '', /) -> Dict[str, str
 
     if is_wrapper(d) and not key:
         items.append(('miscellaneous', ' '.join(x.get('message', '') for x in d['_errors'])))
-        d.pop('_errors')  # type: ignore
+        d.pop('_errors')
 
     for k, v in d.items():
         new_key = key + '.' + k if key else k

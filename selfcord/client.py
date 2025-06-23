@@ -1289,7 +1289,7 @@ class Client:
         return any(session.client == ClientType.mobile for session in self._connection._sessions.values())
 
     @property
-    def activities(self) -> Tuple[ActivityTypes]:
+    def activities(self) -> Tuple[ActivityTypes, ...]:
         """Tuple[Union[:class:`.BaseActivity`, :class:`.Spotify`]]: Returns the activities
         the client is currently doing.
 
@@ -1329,7 +1329,7 @@ class Client:
             return activities[0]
 
     @property
-    def client_activities(self) -> Tuple[ActivityTypes]:
+    def client_activities(self) -> Tuple[ActivityTypes, ...]:
         """Tuple[Union[:class:`.BaseActivity`, :class:`.Spotify`]]: Returns the activities
         the client is currently doing through this library, if applicable.
 

@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
     from .abc import Snowflake
     from .guild import Guild
+    from .metadata import MetadataObject
     from .state import ConnectionState
     from .types.entitlements import (
         Entitlement as EntitlementPayload,
@@ -473,7 +474,7 @@ class Gift:
         payment_source: Optional[Snowflake] = None,
         *,
         channel: Optional[Snowflake] = None,
-        gateway_checkout_context: Optional[str] = None,
+        gateway_checkout_context: Optional[MetadataObject] = None,
     ) -> Entitlement:
         """|coro|
 

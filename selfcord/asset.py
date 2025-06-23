@@ -513,7 +513,7 @@ class Asset(AssetMixin):
             query['passthrough'] = 'false'
 
         url = str(url.with_query(query))
-        return Asset(state=self._state, url=url, key=self._key, animated=self._animated)
+        return self.__class__(state=self._state, url=url, key=self._key, animated=self._animated)
 
     def with_format(self, format: ValidAssetFormatTypes, /) -> Self:
         """Returns a new asset with the specified format.
@@ -552,7 +552,7 @@ class Asset(AssetMixin):
             query['passthrough'] = 'false'
 
         url = str(url.with_path(f'{path}.{format}').with_query(query))
-        return Asset(state=self._state, url=url, key=self._key, animated=self._animated)
+        return self.__class__(state=self._state, url=url, key=self._key, animated=self._animated)
 
     def with_static_format(self, format: ValidStaticFormatTypes, /) -> Self:
         """Returns a new asset with the specified static format.

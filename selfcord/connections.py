@@ -228,7 +228,7 @@ class Connection(PartialConnection):
 
         # Only sometimes in the payload
         try:
-            self.access_token: Optional[str] = data['access_token']
+            self.access_token: Optional[str] = data['access_token']  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             pass
 

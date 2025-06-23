@@ -28,7 +28,6 @@ from typing import List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired
 
 from .application import IntegrationApplication, RoleConnectionMetadata
-from .guild import Guild
 from .snowflake import Snowflake
 from .user import APIUser
 

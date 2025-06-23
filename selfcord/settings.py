@@ -1138,7 +1138,7 @@ class UserSettings(_ProtoSettings):
         ret = await state.http.edit_proto_settings(1, self.dict_to_base64(payload), require_version or None)
         # TODO: What do we do with out of date settings here?
 
-        return UserSettings(state, ret['settings'])
+        return self.__class__(state, ret['settings'])
 
 
 class GuildFolder:
@@ -1742,7 +1742,7 @@ class LegacyUserSettings:
             else:
                 setattr(self, '_' + key, value)
 
-    async def edit(self, **kwargs) -> Self:
+    async def edit(self, **kwargs) -> LegacyUserSettings:
         """|coro|
 
         Edits the client user's settings.

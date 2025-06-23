@@ -201,7 +201,7 @@ class Button(Component):
         self.label: Optional[str] = data.get('label')
         self.emoji: Optional[PartialEmoji]
         try:
-            self.emoji = PartialEmoji.from_dict(data['emoji'])
+            self.emoji = PartialEmoji.from_dict(data['emoji'])  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             self.emoji = None
 
@@ -304,7 +304,7 @@ class SelectMenu(Component):
         """:class:`ComponentType`: The type of component."""
         return ComponentType.select
 
-    def to_dict(self, options: Optional[Tuple[SelectOption]] = None) -> SelectInteractionData:
+    def to_dict(self, options: Optional[Tuple[SelectOption, ...]] = None) -> SelectInteractionData:
         return {
             'component_type': self.type.value,
             'custom_id': self.custom_id,
@@ -340,8 +340,8 @@ class SelectMenu(Component):
             message.channel,  # type: ignore # acc_channel is always correct here
             self.to_dict(options),
             message=message,
-        )
 
+        )
 
 class SelectOption:
     """Represents a select menu's option.
@@ -417,7 +417,7 @@ class SelectOption:
     @classmethod
     def from_dict(cls, data: SelectOptionPayload) -> SelectOption:
         try:
-            emoji = PartialEmoji.from_dict(data['emoji'])
+            emoji = PartialEmoji.from_dict(data['emoji'])  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             emoji = None
 

@@ -30,7 +30,6 @@ from .sticker import GuildSticker
 from .snowflake import Snowflake
 from .channel import GuildChannel, StageInstance
 from .voice import VoiceState
-from .welcome_screen import WelcomeScreen
 from .activity import PartialPresenceUpdate
 from .role import Role
 from .member import MemberWithUser
@@ -175,8 +174,8 @@ class GuildMFALevel(TypedDict):
 class ChannelPositionUpdate(TypedDict):
     id: Snowflake
     position: Optional[int]
-    lock_permissions: Optional[bool]
-    parent_id: Optional[Snowflake]
+    lock_permissions: NotRequired[Optional[bool]]
+    parent_id: NotRequired[Optional[Snowflake]]
 
 
 class _RolePositionRequired(TypedDict):

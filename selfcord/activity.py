@@ -294,7 +294,7 @@ class Activity(BaseActivity):
     def start(self) -> Optional[datetime.datetime]:
         """Optional[:class:`datetime.datetime`]: When the user started doing this activity in UTC, if applicable."""
         try:
-            timestamp = self.timestamps['start'] / 1000
+            timestamp = self.timestamps['start'] / 1000  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             return None
         else:
@@ -304,7 +304,7 @@ class Activity(BaseActivity):
     def end(self) -> Optional[datetime.datetime]:
         """Optional[:class:`datetime.datetime`]: When the user will stop doing this activity in UTC, if applicable."""
         try:
-            timestamp = self.timestamps['end'] / 1000
+            timestamp = self.timestamps['end'] / 1000  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             return None
         else:
@@ -314,7 +314,7 @@ class Activity(BaseActivity):
     def large_image_url(self) -> Optional[str]:
         """Optional[:class:`str`]: Returns a URL pointing to the large image asset of this activity, if applicable."""
         try:
-            large_image = self.assets['large_image']
+            large_image = self.assets['large_image']  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             return None
         else:
@@ -324,7 +324,7 @@ class Activity(BaseActivity):
     def small_image_url(self) -> Optional[str]:
         """Optional[:class:`str`]: Returns a URL pointing to the small image asset of this activity, if applicable."""
         try:
-            small_image = self.assets['small_image']
+            small_image = self.assets['small_image']  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             return None
         else:
@@ -546,7 +546,7 @@ class Streaming(BaseActivity):
         """
 
         try:
-            name = self.assets['large_image']
+            name = self.assets['large_image']  # pyright: ignore[reportTypedDictNotRequiredAccess]
         except KeyError:
             return None
         else:
@@ -1062,7 +1062,7 @@ def create_activity(data: Optional[ActivityPayload], state: ConnectionState) -> 
         return Game(**data)
     elif game_type is ActivityType.custom:
         try:
-            name = data.pop('name')  # type: ignore
+            name = data.pop('name')
         except KeyError:
             ret = Activity(**data)
         else:
