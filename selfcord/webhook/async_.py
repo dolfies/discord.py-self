@@ -149,8 +149,8 @@ class AsyncWebhookAdapter:
             headers['Content-Type'] = 'application/json'
             to_send = utils._to_json(payload)
 
-        if auth_token is not None:  # TODO: same as sync.py
-            headers['Authorization'] = f'{auth_token}'
+        if auth_token is not None:
+            headers['Authorization'] = auth_token
 
         if reason is not None:
             headers['X-Audit-Log-Reason'] = urlquote(reason)
@@ -1010,7 +1010,7 @@ class Webhook(BaseWebhook):
         if client is not MISSING:
             state = client._connection
             if session is MISSING:
-                session = client.http._HTTPClient__session  # type: ignore
+                session = client.http._HTTPClient__asession  # type: ignore
 
         if session is MISSING:
             raise TypeError('session or client must be given')
@@ -1049,7 +1049,7 @@ class Webhook(BaseWebhook):
 
             .. versionadded:: 2.0
         user_token: Optional[:class:`str`]
-            The bot authentication token for authenticated requests
+            The authentication token for authenticated requests
             involving the webhook.
 
             .. versionadded:: 2.0

@@ -134,11 +134,11 @@ class WebhookAdapter:
             self._locks[bucket] = lock = threading.Lock()
 
         if payload is not None:
-            headers['Content-Type'] = 'application/json; charset=utf-8'
+            headers['Content-Type'] = 'application/json'
             to_send = utils._to_json(payload).encode('utf-8')
 
-        if auth_token is not None:  # TODO: is this possible with users?
-            headers['Authorization'] = f'{auth_token}'
+        if auth_token is not None:
+            headers['Authorization'] = auth_token
 
         if reason is not None:
             headers['X-Audit-Log-Reason'] = urlquote(reason)
@@ -669,7 +669,7 @@ class SyncWebhook(BaseWebhook):
             will not close it. If not given, the ``requests``
             auto session creation functions are used instead.
         user_token: Optional[:class:`str`]
-            The bot authentication token for authenticated requests
+            The authentication token for authenticated requests
             involving the webhook.
 
         Raises
