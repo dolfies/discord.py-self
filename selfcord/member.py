@@ -68,7 +68,7 @@ if TYPE_CHECKING:
         UserWithMember as UserWithMemberPayload,
     )
     from .types.gateway import GuildMemberUpdateEvent
-    from .types.user import PartialUser as PartialUserPayload
+    from .types.user import AvatarDecorationData, PartialUser as PartialUserPayload
     from .abc import Snowflake
     from .state import ConnectionState, Presence
     from .message import Message
@@ -276,6 +276,8 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         '_user',
         '_state',
         '_avatar',
+        '_avatar_decoration_data',
+        '_banner',
         '_flags',
     )
 
@@ -304,7 +306,6 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         remove_friend: Callable[[], Awaitable[None]]
         fetch_mutual_friends: Callable[[], Awaitable[List[User]]]
         public_flags: PublicUserFlags
-        premium_type: Optional[PremiumType]
         banner: Optional[Asset]
         accent_color: Optional[Colour]
         accent_colour: Optional[Colour]
@@ -320,6 +321,8 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         self.nick: Optional[str] = data.get('nick', None)
         self.pending: bool = data.get('pending', False)
         self._avatar: Optional[str] = data.get('avatar')
+        self._avatar_decoration_data: Optional[AvatarDecorationData] = data.get('avatar_decoration_data')
+        self._banner: Optional[str] = data.get('banner')
         self._flags: int = data.get('flags', 0)
         self.timed_out_until: Optional[datetime.datetime] = utils.parse_time(data.get('communication_disabled_until'))
 
@@ -353,8 +356,11 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         self._roles = utils.SnowflakeList(map(int, data['roles']))
         self.nick = data.get('nick', None)
         self.pending = data.get('pending', False)
-        self.timed_out_until = utils.parse_time(data.get('communication_disabled_until'))
+        self._avatar = data.get('avatar')
+        self._avatar_decoration_data = data.get('avatar_decoration_data')
+        self._banner = data.get('banner')
         self._flags = data.get('flags', 0)
+        self.timed_out_until = utils.parse_time(data.get('communication_disabled_until'))
 
     @classmethod
     def _try_upgrade(cls, *, data: UserWithMemberPayload, guild: Guild, state: ConnectionState) -> Union[User, Self]:
@@ -382,6 +388,8 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         self._flags = member._flags
         self._state = member._state
         self._avatar = member._avatar
+        self._avatar_decoration_data = member._avatar_decoration_data
+        self._banner = member._banner
 
         # Reference will not be copied unless necessary by PRESENCE_UPDATE
         # See below
@@ -407,9 +415,10 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         self.timed_out_until = utils.parse_time(data.get('communication_disabled_until'))
         self._roles = utils.SnowflakeList(map(int, data['roles']))
         self._avatar = data.get('avatar')
+        self._banner = data.get('banner')
         self._flags = data.get('flags', 0)
 
-        attrs = {'joined_at', 'premium_since', '_roles', '_avatar', 'timed_out_until', 'nick', 'pending'}
+        attrs = {'joined_at', 'premium_since', '_roles', '_avatar', '_banner', 'timed_out_until', 'nick', 'pending'}
 
         if any(getattr(self, attr) != getattr(old, attr) for attr in attrs):
             return old
@@ -575,6 +584,85 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         if self._avatar is None:
             return None
         return Asset._from_guild_avatar(self._state, self.guild.id, self.id, self._avatar)
+
+    @property
+    def display_avatar_decoration(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns the member's display avatar decoration.
+
+        If the user has a guild avatar decoration, that is returned.
+        Otherwise, if they have a global avatar decoration, that is returned.
+        If the user has no avatar decoration set, then ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        return self.guild_avatar_decoration or self._user.avatar_decoration
+
+    @property
+    def display_avatar_decoration_sku_id(self) -> Optional[int]:
+        """Optional[:class:`int`]: Returns the member's display avatar decoration's SKU ID.
+
+        If the user has a guild avatar decoration, that is returned.
+        Otherwise, if they have a global avatar decoration, that is returned.
+        If the user has no avatar decoration set, then ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        return self.guild_avatar_decoration_sku_id or self._user.avatar_decoration_sku_id
+
+    @property
+    def guild_avatar_decoration(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns an :class:`Asset` for the guild avatar decoration the user has.
+
+        If the user does not have a guild avatar decoration, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._avatar_decoration_data is not None:
+            return Asset._from_avatar_decoration(self._state, self._avatar_decoration_data['asset'])
+
+    @property
+    def guild_avatar_decoration_sku_id(self) -> Optional[int]:
+        """Optional[:class:`int`]: Returns the guild avatar decoration's SKU ID.
+
+        If the user does not have a guild avatar decoration, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._avatar_decoration_data:
+            return utils._get_as_snowflake(self._avatar_decoration_data, 'sku_id')
+
+    @property
+    def guild_avatar_decoration_expires_at(self) -> Optional[datetime.datetime]:
+        """Optional[:class:`datetime.datetime`]: Returns the guild avatar decoration's expiration time.
+
+        If the user does not have an expiring guild avatar decoration, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._avatar_decoration_data:
+            return utils.parse_timestamp(self._avatar_decoration_data.get('expires_at'), ms=False)
+
+    @property
+    def display_banner(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns the member's displayed banner, if any.
+
+        This is the member's guild banner if available, otherwise it's their
+        global banner. If the member has no banner set then ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        return self.guild_banner or self._user.banner
+
+    @property
+    def guild_banner(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns an :class:`Asset` for the guild banner
+        the member has. If unavailable, ``None`` is returned.
+
+        .. versionadded:: 2.1
+        """
+        if self._banner is None:
+            return None
+        return Asset._from_guild_banner(self._state, self.guild.id, self.id, self._banner)
 
     @property
     def activities(self) -> Tuple[ActivityTypes, ...]:

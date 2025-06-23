@@ -36,12 +36,11 @@ class PartialUser(TypedDict):
     username: str
     discriminator: str
     avatar: Optional[str]
-    avatar_decoration_data: NotRequired[Optional[UserAvatarDecorationData]]
+    avatar_decoration_data: NotRequired[Optional[AvatarDecorationData]]
     public_flags: NotRequired[int]
     bot: NotRequired[bool]
     system: NotRequired[bool]
     global_name: Optional[str]
-    premium_type: NotRequired[PremiumType]
 
 
 ConnectionType = Literal[
@@ -91,15 +90,18 @@ class User(APIUser, total=False):
     phone: Optional[str]
     token: str
     nsfw_allowed: Optional[bool]
+    premium_type: PremiumType
+    desktop: bool
+    mobile: bool
 
 
 class UserWithToken(User):
     token: str
 
 
-class UserAvatarDecorationData(TypedDict):
+class AvatarDecorationData(TypedDict):
     asset: str
-    sku_id: NotRequired[Snowflake]
+    sku_id: Snowflake
     expires_at: Optional[int]
 
 

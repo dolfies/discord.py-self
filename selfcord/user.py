@@ -71,7 +71,7 @@ if TYPE_CHECKING:
         PartialUser as PartialUserPayload,
         User as UserPayload,
         UserAvatar as UserAvatarPayload,
-        UserAvatarDecorationData,
+        AvatarDecorationData,
     )
     from .types.snowflake import Snowflake
 
@@ -254,9 +254,7 @@ class BaseUser(_UserTag):
         'discriminator',
         'global_name',
         '_avatar',
-        '_avatar_decoration',
-        '_avatar_decoration_sku_id',
-        '_avatar_decoration_expires_at',
+        '_avatar_decoration_data',
         '_banner',
         '_accent_colour',
         'bot',
@@ -274,12 +272,9 @@ class BaseUser(_UserTag):
         global_name: Optional[str]
         bot: bool
         system: bool
-        premium_type: Optional[PremiumType]
         _state: ConnectionState
         _avatar: Optional[str]
-        _avatar_decoration: Optional[str]
-        _avatar_decoration_sku_id: Optional[int]
-        _avatar_decoration_expires_at: Optional[int]
+        _avatar_decoration_data: Optional[AvatarDecorationData]
         _banner: Optional[str]
         _accent_colour: Optional[int]
         _public_flags: int
@@ -314,17 +309,12 @@ class BaseUser(_UserTag):
         self.discriminator = data['discriminator']
         self.global_name = data.get('global_name')
         self._avatar = data['avatar']
+        self._avatar_decoration_data = data.get('avatar_decoration_data')
         self._banner = data.get('banner', None)
         self._accent_colour = data.get('accent_color', None)
         self._public_flags = data.get('public_flags', 0)
-        self.premium_type = try_enum(PremiumType, data['premium_type'] or 0) if 'premium_type' in data else None
         self.bot = data.get('bot', False)
         self.system = data.get('system', False)
-
-        decoration_data = data.get('avatar_decoration_data')
-        self._avatar_decoration = decoration_data.get('asset') if decoration_data else None
-        self._avatar_decoration_sku_id = _get_as_snowflake(decoration_data, 'sku_id') if decoration_data else None
-        self._avatar_decoration_expires_at = decoration_data.get('expires_at') if decoration_data else None
 
     @classmethod
     def _copy(cls, user: Self) -> Self:
@@ -335,9 +325,7 @@ class BaseUser(_UserTag):
         self.discriminator = user.discriminator
         self.global_name = user.global_name
         self._avatar = user._avatar
-        self._avatar_decoration = user._avatar_decoration
-        self._avatar_decoration_sku_id = user._avatar_decoration_sku_id
-        self._avatar_decoration_expires_at = user._avatar_decoration_expires_at
+        self._avatar_decoration_data = user._avatar_decoration_data
         self._banner = user._banner
         self._accent_colour = user._accent_colour
         self._public_flags = user._public_flags
@@ -348,19 +336,11 @@ class BaseUser(_UserTag):
         return self
 
     def _to_minimal_user_json(self) -> APIUserPayload:
-        decoration: Optional[UserAvatarDecorationData] = None
-        if self._avatar_decoration is not None:
-            decoration = {
-                'asset': self._avatar_decoration,
-                'sku_id': self._avatar_decoration_sku_id,  # type: ignore
-                'expires_at': self._avatar_decoration_expires_at,
-            }
-
         user: APIUserPayload = {
             'username': self.name,
             'id': self.id,
             'avatar': self._avatar,
-            'avatar_decoration_data': decoration,
+            'avatar_decoration_data': self._avatar_decoration_data,
             'discriminator': self.discriminator,
             'global_name': self.global_name,
             'bot': self.bot,
@@ -369,9 +349,6 @@ class BaseUser(_UserTag):
             'banner': self._banner,
             'accent_color': self._accent_colour,
         }
-        if self.premium_type is not None:
-            user['premium_type'] = self.premium_type.value
-
         return user
 
     @property
@@ -416,31 +393,26 @@ class BaseUser(_UserTag):
         return self.avatar or self.default_avatar
 
     @property
-    def premium(self) -> bool:
-        """Indicates if the user is a premium user (i.e. has Discord Nitro)."""
-        return bool(self.premium_type.value) if self.premium_type else False
-
-    @property
     def avatar_decoration(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns an :class:`Asset` for the avatar decoration the user has.
 
-        If the user does not have a avatar decoration, ``None`` is returned.
+        If the user does not have an avatar decoration, ``None`` is returned.
 
         .. versionadded:: 2.0
         """
-        if self._avatar_decoration is not None:
-            return Asset._from_avatar_decoration(self._state, self._avatar_decoration)
-        return None
+        if self._avatar_decoration_data is not None:
+            return Asset._from_avatar_decoration(self._state, self._avatar_decoration_data['asset'])
 
     @property
     def avatar_decoration_sku_id(self) -> Optional[int]:
         """Optional[:class:`int`]: Returns the avatar decoration's SKU ID.
 
-        If the user does not have a preset avatar decoration, ``None`` is returned.
+        If the user does not have an avatar decoration, ``None`` is returned.
 
         .. versionadded:: 2.1
         """
-        return self._avatar_decoration_sku_id
+        if self._avatar_decoration_data:
+            return _get_as_snowflake(self._avatar_decoration_data, 'sku_id')
 
     @property
     def avatar_decoration_expires_at(self) -> Optional[datetime]:
@@ -450,9 +422,8 @@ class BaseUser(_UserTag):
 
         .. versionadded:: 2.1
         """
-        if self._avatar_decoration_expires_at is None:
-            return None
-        return parse_timestamp(self._avatar_decoration_expires_at, ms=False)
+        if self._avatar_decoration_data:
+            return parse_timestamp(self._avatar_decoration_data.get('expires_at'), ms=False)
 
     @property
     def banner(self) -> Optional[Asset]:
@@ -799,6 +770,10 @@ class ClientUser(BaseUser):
         self._full_update(data)
         self.note: Note = Note(state, self.id)
 
+        # These are only supplied by the Gateway
+        self.desktop: bool = False
+        self.mobile: bool = False
+
     def __repr__(self) -> str:
         return (
             f'<ClientUser id={self.id} name={self.name!r} global_name={self.global_name!r}'
@@ -818,8 +793,12 @@ class ClientUser(BaseUser):
         self.premium_type = try_enum(PremiumType, data.get('premium_type') or 0)
         self.bio = data.get('bio') or None
         self.nsfw_allowed = data.get('nsfw_allowed')
-        self.desktop: bool = data.get('desktop', False)
-        self.mobile: bool = data.get('mobile', False)
+
+        try:
+            self.desktop = data['desktop']  # type: ignore
+            self.mobile = data['mobile']  # type: ignore
+        except KeyError:
+            pass
 
     def _update_self(self, *args: Any) -> None:
         # ClientUser is kept up to date by USER_UPDATEs only
@@ -829,6 +808,11 @@ class ClientUser(BaseUser):
     def locale(self) -> Locale:
         """:class:`Locale`: The IETF language tag used to identify the language the user is using."""
         return self._state.settings.locale if self._state.settings else try_enum(Locale, self._locale)
+
+    @property
+    def premium(self) -> bool:
+        """Indicates if the user is a premium user (i.e. has Discord Nitro)."""
+        return bool(self.premium_type.value)
 
     @property
     def flags(self) -> PrivateUserFlags:
@@ -943,7 +927,7 @@ class ClientUser(BaseUser):
 
             .. note::
 
-                This change cannot be undone and requires you to be in the pomelo rollout.
+                This change cannot be undone.
 
             .. versionadded:: 2.1
         global_name: Optional[:class:`str`]
@@ -1060,7 +1044,7 @@ class ClientUser(BaseUser):
             except KeyError:
                 pass
 
-        return ClientUser(state=self._state, data=data)  # type: ignore # ???
+        return self.__class__(state=self._state, data=data)  # type: ignore # ???
 
 
 class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
