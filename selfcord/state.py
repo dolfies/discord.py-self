@@ -92,7 +92,7 @@ from .interactions import Interaction
 from .permissions import Permissions
 from .modal import Modal
 from .member import VoiceState
-from .application import IntegrationApplication, PartialApplication, Achievement
+from .application import IntegrationApplication, PartialApplication
 from .connections import Connection
 from .payments import Payment
 from .entitlements import Entitlement, Gift
@@ -124,7 +124,6 @@ if TYPE_CHECKING:
     from .types.snowflake import Snowflake
     from .types.activity import Activity as ActivityPayload
     from .types.application import (
-        Achievement as AchievementPayload,
         IntegrationApplication as IntegrationApplicationPayload,
     )
     from .types.channel import DMChannel as DMChannelPayload
@@ -2072,17 +2071,6 @@ class ConnectionState:
     def parse_user_premium_guild_subscription_slot_update(self, data: gw.PremiumGuildSubscriptionSlotEvent) -> None:
         slot = PremiumGuildSubscriptionSlot(state=self, data=data)
         self.dispatch('premium_guild_subscription_slot_update', slot)
-
-    def parse_user_achievement_update(self, data: gw.AchievementUpdatePayload) -> None:
-        achievement: AchievementPayload = data.get('achievement')  # type: ignore
-        application_id = data.get('application_id')
-        if not achievement or not application_id:
-            _log.warning('USER_ACHIEVEMENT_UPDATE payload has invalid data: %s. Discarding.', list(data.keys()))
-            return
-
-        achievement['application_id'] = application_id
-        model = Achievement(state=self, data=achievement)
-        self.dispatch('achievement_update', model, data.get('percent_complete', 0))
 
     def parse_billing_popup_bridge_callback(self, data: gw.BillingPopupBridgeCallbackEvent) -> None:
         self.dispatch(

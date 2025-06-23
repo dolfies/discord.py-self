@@ -57,7 +57,7 @@ from .permissions import Permissions
 from .store import SKU, StoreAsset, StoreListing, SystemRequirements
 from .team import Team
 from .user import User, _UserTag
-from .utils import _bytes_to_base64_data, _parse_localizations
+from .utils import _bytes_to_base64_data
 
 if TYPE_CHECKING:
     from datetime import date
@@ -73,7 +73,6 @@ if TYPE_CHECKING:
     from .store import ContentRating
     from .types.application import (
         EULA as EULAPayload,
-        Achievement as AchievementPayload,
         Application as ApplicationPayload,
         ApplicationActivityStatistics as ApplicationActivityStatisticsPayload,
         ApplicationExecutable as ApplicationExecutablePayload,
@@ -102,7 +101,6 @@ if TYPE_CHECKING:
 __all__ = (
     'Company',
     'EULA',
-    'Achievement',
     'ThirdPartySKU',
     'EmbeddedActivityPlatformConfig',
     'EmbeddedActivityConfig',
@@ -217,193 +215,6 @@ class EULA(Hashable):
 
     def __str__(self) -> str:
         return self.name
-
-
-class Achievement(Hashable):
-    """Represents a Discord application achievement.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two achievements are equal.
-
-        .. describe:: x != y
-
-            Checks if two achievements are not equal.
-
-        .. describe:: hash(x)
-
-            Return the achievement's hash.
-
-        .. describe:: str(x)
-
-            Returns the achievement's name.
-
-    .. versionadded:: 2.0
-
-    Attributes
-    -----------
-    id: :class:`int`
-        The achievement's ID.
-    name: :class:`str`
-        The achievement's name.
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
-        The achievement's name localized to other languages, if available.
-    description: :class:`str`
-        The achievement's description.
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
-        The achievement's description localized to other languages, if available.
-    application_id: :class:`int`
-        The application ID that the achievement belongs to.
-    secure: :class:`bool`
-        Whether the achievement is secure.
-    secret: :class:`bool`
-        Whether the achievement is secret.
-    """
-
-    __slots__ = (
-        'id',
-        'name',
-        'name_localizations',
-        'description',
-        'description_localizations',
-        'application_id',
-        'secure',
-        'secret',
-        '_icon',
-        '_state',
-    )
-
-    if TYPE_CHECKING:
-        name: str
-        name_localizations: dict[Locale, str]
-        description: str
-        description_localizations: dict[Locale, str]
-
-    def __init__(self, *, data: AchievementPayload, state: ConnectionState):
-        self._state = state
-        self._update(data)
-
-    def _update(self, data: AchievementPayload):
-        self.id: int = int(data['id'])
-        self.application_id: int = int(data['application_id'])
-        self.secure: bool = data.get('secure', False)
-        self.secret: bool = data.get('secret', False)
-        self._icon = data.get('icon', data.get('icon_hash'))
-
-        self.name, self.name_localizations = _parse_localizations(data, 'name')
-        self.description, self.description_localizations = _parse_localizations(data, 'description')
-
-    def __repr__(self) -> str:
-        return f'<Achievement id={self.id} name={self.name!r}>'
-
-    def __str__(self) -> str:
-        return self.name
-
-    @property
-    def icon(self) -> Asset:
-        """:class:`Asset`: Returns the achievement's icon."""
-        return Asset._from_achievement_icon(self._state, self.application_id, self.id, self._icon)
-
-    async def edit(
-        self,
-        *,
-        name: str = MISSING,
-        name_localizations: Mapping[Locale, str] = MISSING,
-        description: str = MISSING,
-        description_localizations: Mapping[Locale, str] = MISSING,
-        icon: bytes = MISSING,
-        secure: bool = MISSING,
-        secret: bool = MISSING,
-    ) -> None:
-        """|coro|
-
-        Edits the achievement.
-
-        All parameters are optional.
-
-        Parameters
-        -----------
-        name: :class:`str`
-            The achievement's name.
-        name_localizations: Mapping[:class:`Locale`, :class:`str`]
-            The achievement's name localized to other languages.
-        description: :class:`str`
-            The achievement's description.
-        description_localizations: Mapping[:class:`Locale`, :class:`str`]
-            The achievement's description localized to other languages.
-        icon: :class:`bytes`
-            A :term:`py:bytes-like object` representing the new icon.
-        secure: :class:`bool`
-            Whether the achievement is secure.
-        secret: :class:`bool`
-            Whether the achievement is secret.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to edit the achievement.
-        HTTPException
-            Editing the achievement failed.
-        """
-        payload = {}
-        if secure is not MISSING:
-            payload['secure'] = secure
-        if secret is not MISSING:
-            payload['secret'] = secret
-        if icon is not MISSING:
-            payload['icon'] = utils._bytes_to_base64_data(icon)
-
-        if name is not MISSING or name_localizations is not MISSING:
-            localizations = (name_localizations or {}) if name_localizations is not MISSING else self.name_localizations
-            payload['name'] = {'default': name or self.name, 'localizations': {str(k): v for k, v in localizations.items()}}
-        if description is not MISSING or description_localizations is not MISSING:
-            localizations = (
-                (name_localizations or {}) if description_localizations is not MISSING else self.description_localizations
-            )
-            payload['description'] = {
-                'default': description or self.description,
-                'localizations': {str(k): v for k, v in localizations.items()},
-            }
-
-        data = await self._state.http.edit_achievement(self.application_id, self.id, payload)
-        self._update(data)
-
-    async def update(self, user: Snowflake, percent_complete: int) -> None:
-        """|coro|
-
-        Updates the achievement progress for a specific user.
-
-        Parameters
-        -----------
-        user: :class:`User`
-            The user to update the achievement for.
-        percent_complete: :class:`int`
-            The percent complete for the achievement.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to update the achievement.
-        HTTPException
-            Updating the achievement failed.
-        """
-        await self._state.http.update_user_achievement(self.application_id, self.id, user.id, percent_complete)
-
-    async def delete(self):
-        """|coro|
-
-        Deletes the achievement.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to delete the achievement.
-        HTTPException
-            Deleting the achievement failed.
-        """
-        await self._state.http.delete_achievement(self.application_id, self.id)
 
 
 class ThirdPartySKU:
@@ -2317,35 +2128,6 @@ class PartialApplication(_BaseApplication):
         data = await state.http.get_app_store_listing(self.id, country_code=state.country_code or 'US', localize=localize)
         return StoreListing(state=state, data=data, application=self)
 
-    async def achievements(self, completed: bool = True) -> List[Achievement]:
-        """|coro|
-
-        Retrieves the achievements for this application.
-
-        Parameters
-        -----------
-        completed: :class:`bool`
-            Whether to only include achievements the user has completed or can access.
-            This means secret achievements that are not yet unlocked will not be included.
-
-            If ``False``, then you require access to the application.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to fetch achievements.
-        HTTPException
-            Fetching the achievements failed.
-
-        Returns
-        --------
-        List[:class:`Achievement`]
-            The achievements retrieved.
-        """
-        state = self._state
-        data = (await state.http.get_my_achievements(self.id)) if completed else (await state.http.get_achievements(self.id))
-        return [Achievement(data=achievement, state=state) for achievement in data]
-
     async def entitlements(self, *, exclude_consumed: bool = True) -> List[Entitlement]:
         """|coro|
 
@@ -3463,90 +3245,6 @@ class Application(PartialApplication):
         state = self._state
         data = await state.http.create_sku(payload)
         return SKU(data=data, state=state, application=self)
-
-    async def fetch_achievement(self, achievement_id: int) -> Achievement:
-        """|coro|
-
-        Retrieves an achievement for this application.
-
-        Parameters
-        -----------
-        achievement_id: :class:`int`
-            The ID of the achievement to fetch.
-
-        Raises
-        ------
-        Forbidden
-            You do not have permissions to fetch the achievement.
-        HTTPException
-            Fetching the achievement failed.
-
-        Returns
-        -------
-        :class:`Achievement`
-            The achievement retrieved.
-        """
-        data = await self._state.http.get_achievement(self.id, achievement_id)
-        return Achievement(data=data, state=self._state)
-
-    async def create_achievement(
-        self,
-        *,
-        name: str,
-        name_localizations: Optional[Mapping[Locale, str]] = None,
-        description: str,
-        description_localizations: Optional[Mapping[Locale, str]] = None,
-        icon: bytes,
-        secure: bool = False,
-        secret: bool = False,
-    ) -> Achievement:
-        """|coro|
-
-        Creates an achievement for this application.
-
-        Parameters
-        -----------
-        name: :class:`str`
-            The name of the achievement.
-        name_localizations: Mapping[:class:`Locale`, :class:`str`]
-            The localized names of the achievement.
-        description: :class:`str`
-            The description of the achievement.
-        description_localizations: Mapping[:class:`Locale`, :class:`str`]
-            The localized descriptions of the achievement.
-        icon: :class:`bytes`
-            The icon of the achievement.
-        secure: :class:`bool`
-            Whether the achievement is secure.
-        secret: :class:`bool`
-            Whether the achievement is secret.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to create achievements.
-        HTTPException
-            Creating the achievement failed.
-
-        Returns
-        --------
-        :class:`Achievement`
-            The created achievement.
-        """
-        state = self._state
-        data = await state.http.create_achievement(
-            self.id,
-            name=name,
-            name_localizations={str(k): v for k, v in name_localizations.items()} if name_localizations else None,
-            description=description,
-            description_localizations={str(k): v for k, v in description_localizations.items()}
-            if description_localizations
-            else None,
-            icon=_bytes_to_base64_data(icon),
-            secure=secure,
-            secret=secret,
-        )
-        return Achievement(state=state, data=data)
 
     async def entitlements(
         self,
