@@ -762,7 +762,7 @@ class HTTPClient:
         # This header isn't really necessary
         # Timezones are annoying, so if it errors, we don't care
         try:
-            from tzlocal import get_localzone_name # type: ignore
+            from tzlocal import get_localzone_name
 
             timezone = get_localzone_name()
         except Exception:
