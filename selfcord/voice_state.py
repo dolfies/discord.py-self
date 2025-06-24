@@ -44,8 +44,9 @@ import socket
 import asyncio
 import logging
 import threading
-
 from typing import TYPE_CHECKING, Optional, Dict, List, Callable, Coroutine, Any, Tuple
+
+from curl_cffi import CurlError
 
 from .enums import Enum
 from .utils import MISSING, sane_wait_for
@@ -620,30 +621,72 @@ class VoiceConnectionState:
         self._socket_reader.resume()
 
     async def _poll_voice_ws(self, reconnect: bool) -> None:
+        """
+
+        try:
+            msg, flags = await asyncio.wait_for(self.socket.recv(), timeout=self._max_heartbeat_timeout)
+            if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
+                await self.received_message(msg)
+            elif flags & CurlWsFlag.CLOSE:
+                socket = self.socket
+                raise WebSocketClosure(socket)
+        except (asyncio.TimeoutError, CurlError, WebSocketClosure) as e:
+            _log.debug(f'Got Gateway poll exception {e}', exc_info=True)
+            # Ensure the keep alive handler is closed
+            if self._keep_alive:
+                self._keep_alive.stop()
+                self._keep_alive = None
+
+            if isinstance(e, WebSocketError):
+                # Probably closed
+                raise ReconnectWebSocket from None
+            if isinstance(e, asyncio.TimeoutError):  # is this also CancelledError??
+                _log.debug('Timed out receiving Gateway packet. Attempting a reconnect.')
+                raise ReconnectWebSocket from None
+
+            socket = self.socket
+            code = self._close_code or socket.close_code
+            reason = socket.close_reason
+            if isinstance(e, CurlError):
+                reason = str(e)
+
+            _log.info(f'Gateway received close code {code} and reason {reason!r}.')
+
+            if self._can_handle_close(code or None):
+                _log.debug('Websocket closed with %s, attempting a reconnect.', code)
+                raise ReconnectWebSocket from None
+            else:
+                _log.debug('Websocket closed with %s, cannot reconnect.', code)
+                raise ConnectionClosed(code, reason) from None
+        """
+
         backoff = ExponentialBackoff()
         while True:
             try:
                 await self.ws.poll_event()
             except asyncio.CancelledError:
                 return
-            except (ConnectionClosed, asyncio.TimeoutError) as exc:
-                if isinstance(exc, ConnectionClosed):
+            except (CurlError, ConnectionClosed, asyncio.TimeoutError) as exc:
+                if isinstance(exc, (ConnectionClosed, CurlError)):
                     # The following close codes are undocumented so I will document them here.
                     # 1000 - normal closure (obviously)
                     # 4014 - we were externally disconnected (voice channel deleted, we were moved, etc)
                     # 4015 - voice server has crashed
-                    if exc.code in (1000, 4015):
+
+                    code = getattr(exc, 'code', self.ws._close_code)
+
+                    if code in (1000, 4015):
                         # Don't call disconnect a second time if the websocket closed from a disconnect call
                         if not self._expecting_disconnect:
-                            _log.info('Disconnecting from voice normally, close code %d.', exc.code)
+                            _log.info('Disconnecting from voice normally, close code %d.', code)
                             await self.disconnect()
                         break
 
-                    if exc.code == 4014:
+                    if code == 4014:
                         # We were disconnected by discord
                         # This condition is a race between the main ws event and the voice ws closing
                         if self._disconnected.is_set():
-                            _log.info('Disconnected from voice by Discord, close code %d.', exc.code)
+                            _log.info('Disconnected from voice by Discord, close code %d.', code)
                             await self.disconnect()
                             break
 
@@ -659,7 +702,7 @@ class VoiceConnectionState:
                         else:
                             continue
 
-                    _log.debug('Not handling close code %s (%s).', exc.code, exc.reason or 'no reason')
+                    _log.debug('Not handling voice socket close code %s (reason: %s).', code, getattr(exc, 'reason', None) or 'No reason')
 
                 if not reconnect:
                     await self.disconnect()

@@ -90,7 +90,7 @@ class WebSocketClosure(Exception):
     def __init__(self, socket: AsyncWebSocket):
         self.code: int = socket.close_code or -1
         self.reason: str = socket.close_reason or ''
-        super().__init__(f'WebSocket closed with {self.code} (reason: {self.reason!r})')
+        super().__init__(f'Websocket closed with {self.code} (reason: {self.reason!r})')
 
 
 class EventListener(NamedTuple):
@@ -570,7 +570,7 @@ class DiscordWebSocket:
             self.session_id = data['session_id']
             self.gateway = yarl.URL(data['resume_gateway_url'])
 
-            _log.info('Connected to Gateway (Session ID: %s).', self.session_id)
+            _log.info('Connected to Gateway (session ID: %s).', self.session_id)
             await self.voice_state()  # Initial OP 4
 
         elif event == 'RESUMED':
@@ -630,7 +630,7 @@ class DiscordWebSocket:
         return is_improper_close or code not in (1000, 4004, 4010, 4011, 4012, 4013, 4014)
 
     async def poll_event(self) -> None:
-        """Polls for a DISPATCH event and handles the general gateway loop.
+        """Polls for a DISPATCH event and handles the general Gateway loop.
 
         Raises
         ------
@@ -651,11 +651,8 @@ class DiscordWebSocket:
                 self._keep_alive.stop()
                 self._keep_alive = None
 
-            if isinstance(e, WebSocketError):
-                # Reconnect on WebSocketError
-                raise ReconnectWebSocket from None
             if isinstance(e, asyncio.TimeoutError):  # is this also CancelledError??
-                _log.debug('Timed out receiving packet. Attempting a reconnect.')
+                _log.debug('Timed out receiving Gateway packet. Attempting a reconnect.')
                 raise ReconnectWebSocket from None
 
             socket = self.socket
@@ -674,7 +671,14 @@ class DiscordWebSocket:
                 raise ConnectionClosed(code, reason) from None
 
     async def _sendstr(self, data: str, /) -> None:
-        await self.socket.send(data.encode('utf-8'))
+        try:
+            await self.socket.send(data.encode('utf-8'))
+        except WebSocketError:
+            if self.socket.closed:
+                # Not much we can do here
+                _log.debug('Websocket is closed, cannot send data.')
+            else:
+                raise
 
     async def debug_send(self, data: str, /) -> None:
         await self._rate_limiter.block()
@@ -928,7 +932,14 @@ class DiscordVoiceWebSocket:
         pass
 
     async def _sendstr(self, data: str, /) -> None:
-        await self.ws.send(data.encode('utf-8'))
+        try:
+            await self.ws.send(data.encode('utf-8'))
+        except WebSocketError:
+            if self.ws.closed:
+                # Not much we can do here
+                _log.debug('Voice socket is closed, cannot send data.')
+            else:
+                raise
 
     async def send_as_json(self, data: Any) -> None:
         _log.debug('Voice socket sending: %s.', data)
@@ -973,7 +984,6 @@ class DiscordVoiceWebSocket:
         gateway = f'wss://{state.endpoint}/?v=4'
         client = state.voice_client
         http = client._state.http
-        # TODO: <compress=15> is not supported by curl
         socket = await http.ws_connect(gateway)
         ws = cls(socket, loop=client.loop, hook=hook)
         ws.gateway = gateway
