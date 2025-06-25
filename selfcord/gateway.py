@@ -669,6 +669,11 @@ class DiscordWebSocket:
             else:
                 _log.debug('Websocket closed with %s, cannot reconnect.', code)
                 raise ConnectionClosed(code, reason) from None
+        except asyncio.CancelledError:
+            if self._keep_alive:
+                self._keep_alive.stop()
+                self._keep_alive = None
+            return
 
     async def _sendstr(self, data: str, /) -> None:
         try:
