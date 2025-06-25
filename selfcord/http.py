@@ -607,6 +607,7 @@ class HTTPClient:
         extra_headers: Optional[Mapping[str, str]] = None,
         debug_options: Optional[Sequence[str]] = None,
         rpc_proxy: Optional[str] = None,
+        proxy_gateway: bool = True,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.loop: asyncio.AbstractEventLoop = loop
@@ -634,6 +635,7 @@ class HTTPClient:
         self.extra_headers: Mapping[str, str] = extra_headers or {}
         self.debug_options: Optional[Sequence[str]] = debug_options
         self.rpc_proxy: Optional[str] = rpc_proxy
+        self.proxy_gateway: bool = proxy_gateway
 
         self.tracer = None
         if debug_options and 'trace' in debug_options:
@@ -694,8 +696,8 @@ class HTTPClient:
             'User-Agent': self.user_agent,
         }
 
-        proxy = kwargs.pop('proxy', self.proxy)
-        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth)
+        proxy = kwargs.pop('proxy', self.proxy if self.proxy_gateway else None)
+        proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth if self.proxy_gateway else None)
         if proxy is not None:
             kwargs['proxies'] = {'all': proxy}
         if proxy_auth is not None:
@@ -703,8 +705,7 @@ class HTTPClient:
                 proxy_auth = (proxy_auth.login, proxy_auth.password)
             kwargs['proxy_auth'] = proxy_auth
 
-        session = self.__session
-        return await session.ws_connect(url, headers=headers, timeout=30.0, **kwargs)
+        return await self.__session.ws_connect(url, headers=headers, timeout=30.0, **kwargs)
 
     @property
     def browser_version(self) -> int:
