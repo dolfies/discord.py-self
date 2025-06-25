@@ -607,6 +607,7 @@ class HTTPClient:
         extra_headers: Optional[Mapping[str, str]] = None,
         debug_options: Optional[Sequence[str]] = None,
         rpc_proxy: Optional[str] = None,
+        interface: Optional[str] = None,
         proxy_gateway: bool = True,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
@@ -635,6 +636,7 @@ class HTTPClient:
         self.extra_headers: Mapping[str, str] = extra_headers or {}
         self.debug_options: Optional[Sequence[str]] = debug_options
         self.rpc_proxy: Optional[str] = rpc_proxy
+        self.interface: Optional[str] = interface
         self.proxy_gateway: bool = proxy_gateway
 
         self.tracer = None
@@ -698,6 +700,7 @@ class HTTPClient:
 
         proxy = kwargs.pop('proxy', self.proxy if self.proxy_gateway else None)
         proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth if self.proxy_gateway else None)
+        interface = kwargs.pop('interface', self.interface if self.proxy_gateway else None)
         if proxy is not None:
             kwargs['proxies'] = {'all': proxy}
         if proxy_auth is not None:
@@ -705,7 +708,7 @@ class HTTPClient:
                 proxy_auth = (proxy_auth.login, proxy_auth.password)
             kwargs['proxy_auth'] = proxy_auth
 
-        return await self.__session.ws_connect(url, headers=headers, timeout=30.0, **kwargs)
+        return await self.__session.ws_connect(url, headers=headers, interface=interface, timeout=30.0, **kwargs)
 
     @property
     def browser_version(self) -> int:
@@ -863,7 +866,7 @@ class HTTPClient:
                     headers['X-Failed-Requests'] = str(failed)
 
                 try:
-                    response = await self.__session.request(method, url, **kwargs, stream=True)
+                    response = await self.__session.request(method, url, **kwargs, stream=True, interface=self.interface)
                     response.status = response.status_code  # type: ignore
                     response.reason = HTTPStatus(response.status_code).phrase
 
