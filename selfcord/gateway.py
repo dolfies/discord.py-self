@@ -456,10 +456,6 @@ class DiscordWebSocket:
         #     presence['activities'] = self._connection._activities
 
         properties = self._headers.gateway_properties
-        if not self._initial_identify:
-            # As of right now, the first IDENTIFY in the client is missing
-            # client_heartbeat_session_id because of weird codepaths
-            properties.pop('client_heartbeat_session_id', None)
 
         payload = {
             'op': self.IDENTIFY,

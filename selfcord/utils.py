@@ -1807,6 +1807,7 @@ class Headers:
             'client_event_source': None,
             'has_client_mods': False,
             'client_launch_id': str(uuid.uuid4()),
+            'client_app_state': 'unfocused',
             'client_heartbeat_session_id': str(uuid.uuid4()),
         }
 
@@ -1816,8 +1817,10 @@ class Headers:
             super_properties=properties,
             encoded_super_properties=b64encode(_to_json(properties).encode()).decode('utf-8'),
             extra_gateway_properties={
-                'client_app_state': 'unfocused',
                 'is_fast_connect': False,
+                'latest_headless_tasks': [],
+                'latest_headless_task_run_seconds_before': None,
+                'gateway_connect_reasons': 'AppSkeleton',
             },
         )
 
