@@ -695,9 +695,7 @@ class HTTPClient:
         headers: Dict[str, Any] = {
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
-            'Pragma': 'no-cache',
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
             'User-Agent': self.user_agent,
         }
@@ -785,9 +783,7 @@ class HTTPClient:
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
-            'Pragma': 'no-cache',
             'Priority': 'u=0, i',
             'Referer': 'https://discord.com/channels/@me',
             'Sec-Fetch-Dest': 'empty',
