@@ -304,6 +304,11 @@ class Client:
         that Discord employees can view.
 
         .. versionadded:: 2.1
+    timezone: :class:`str`
+        The timezone name to announce to Discord, in the format of `Region/City`.
+        Defaults to system timezone.
+
+        .. versionadded:: 2.1
 
     Attributes
     -----------
@@ -335,6 +340,7 @@ class Client:
             debug_options=self._get_debug_options(**options),
             rpc_proxy=options.pop('rpc_proxy', None),
             proxy_gateway=options.pop('proxy_gateway', True),
+            timezone=options.pop('timezone', None) or None,
         )
 
         self._handlers: Dict[str, Callable[..., None]] = {

@@ -609,6 +609,7 @@ class HTTPClient:
         rpc_proxy: Optional[str] = None,
         interface: Optional[str] = None,
         proxy_gateway: bool = True,
+        timezone: Optional[str] = None,
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.loop: asyncio.AbstractEventLoop = loop
@@ -638,6 +639,7 @@ class HTTPClient:
         self.rpc_proxy: Optional[str] = rpc_proxy
         self.interface: Optional[str] = interface
         self.proxy_gateway: bool = proxy_gateway
+        self.timezone: Optional[str] = timezone
 
         self.tracer = None
         if debug_options and 'trace' in debug_options:
@@ -684,13 +686,15 @@ class HTTPClient:
             impersonate = 'chrome'
 
         _log.info('Found TLS fingerprint target "%s".', impersonate)
-        self.__session = requests.AsyncSession(impersonate=impersonate)
+        self.__session = requests.AsyncSession(impersonate=impersonate, default_headers=False)
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
         await self.startup()
 
         headers: Dict[str, Any] = {
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
@@ -776,12 +780,15 @@ class HTTPClient:
         ratelimit = self.get_ratelimit(key)
 
         # Header creation
-        # NOTE: Many browser-specific headers are missing here because curl_cffi fills them in
         headers = {
             **self.headers.client_hints,
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Cache-Control': 'no-cache',
             'Origin': 'https://discord.com',
             'Pragma': 'no-cache',
+            'Priority': 'u=0, i',
             'Referer': 'https://discord.com/channels/@me',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
@@ -791,17 +798,19 @@ class HTTPClient:
             'X-Super-Properties': self.headers.encoded_super_properties,
         }
 
-        # This header isn't really necessary
-        # Timezones are annoying, so if it errors, we don't care
-        try:
-            from tzlocal import get_localzone_name
-
-            timezone = get_localzone_name()
-        except Exception:
-            pass
+        if self.timezone is not None:
+            headers['X-Discord-Timezone'] = self.timezone
         else:
-            if timezone:
-                headers['X-Discord-Timezone'] = timezone
+            # Timezones are annoying, so if it errors, we don't care
+            try:
+                from tzlocal import get_localzone_name
+
+                timezone = get_localzone_name()
+            except Exception:
+                pass
+            else:
+                if timezone:
+                    headers['X-Discord-Timezone'] = timezone
 
         if self.debug_options:
             headers['X-Debug-Options'] = ','.join(self.debug_options)
@@ -868,7 +877,11 @@ class HTTPClient:
                 try:
                     response = await self.__session.request(method, url, **kwargs, stream=True, interface=self.interface)
                     response.status = response.status_code  # type: ignore
-                    response.reason = HTTPStatus(response.status_code).phrase
+                    try:
+                        response.reason = HTTPStatus(response.status_code).phrase
+                    except Exception:
+                        # Amazing behavior to send a status code of "0"
+                        response.reason = 'Illegal Status Code'
 
                     log_fmt = '%s %s with %s has returned %s.'
                     log_params = [method, url, kwargs.get('data'), response.status_code]
@@ -4846,6 +4859,9 @@ class HTTPClient:
 
     def get_country_code(self) -> Response[subscriptions.CountryCode]:
         return self.request(Route('GET', '/users/@me/billing/country-code'))
+
+    def get_location_info(self) -> Response[subscriptions.LocationInfo]:
+        return self.request(Route('GET', '/users/@me/billing/location-info'))
 
     def get_library_entries(
         self, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None
