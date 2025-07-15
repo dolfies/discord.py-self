@@ -466,7 +466,7 @@ class Colour:
 
         .. colour:: #2E2E34
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
         """
         return cls(0x2E2E34)
 
@@ -496,7 +496,7 @@ class Colour:
 
         .. colour:: #070709
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
         """
         return cls(0x070709)
 
@@ -508,7 +508,7 @@ class Colour:
 
         .. colour:: #FBFBFB
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
         """
         return cls(0xFBFBFB)
 
@@ -538,7 +538,7 @@ class Colour:
 
         .. colour:: #37373E
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
 
         """
         return cls(0x37373E)
@@ -562,7 +562,7 @@ class Colour:
 
         .. colour:: #131416
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
         """
         return cls(0x131416)
 

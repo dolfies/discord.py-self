@@ -73,10 +73,26 @@ class TrialOffer(TypedDict):
 
 class DiscountOffer(TypedDict):
     id: Snowflake
+    user_id: Snowflake
+    discount_id: Snowflake
+    discount: Discount
     expires_at: Optional[str]
     applied_at: Optional[str]
-    discount_id: Snowflake
-    user_id: Snowflake
+
+
+class Discount(TypedDict):
+    id: Snowflake
+    amount: int
+    starts_at: Optional[str]
+    ends_at: Optional[str]
+    status: int
+    plan_ids: List[Snowflake]
+    sku_group_ids: Optional[List[Snowflake]]
+    sku_ids: Optional[List[Snowflake]]
+    user_usage_limit: int
+    user_usage_limit_interval: int
+    user_usage_limit_interval_count: int
+    created_at: str
 
 
 class PromotionalPrice(TypedDict):

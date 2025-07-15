@@ -155,6 +155,11 @@ class RTCRegion(NamedTuple):
     ips: List[str]
 
 
+class LocationInfo(NamedTuple):
+    country_code: str
+    subdivision_code: str
+
+
 class Client:
     r"""Represents a client connection that connects to Discord.
     This class is used to interact with the Discord WebSocket and API.
@@ -3101,6 +3106,27 @@ class Client:
         data = await self.http.get_country_code()
         return data['country_code']
 
+    async def fetch_location_info(self) -> LocationInfo:
+        """|coro|
+
+        Retrieves the location information of the client.
+
+        .. versionadded:: 2.1
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the location information failed.
+
+        Returns
+        -------
+        Tuple[:class:`str`, :class:`str`]
+            The country code and subdivision code of the client.
+            This is also accessible as a namedtuple with ``country_code`` and ``subdivision_code`` attributes.
+        """
+        data = await self.http.get_location_info()
+        return LocationInfo(data['country_code'], data['subdivision_code'])
+
     async def fetch_preferred_rtc_regions(self) -> List[RTCRegion]:
         """|coro|
 
@@ -4230,12 +4256,18 @@ class Client:
         data = await state.http.get_user_offer(payment_gateway=int(payment_gateway) if payment_gateway else None)
         return UserOffer(data=data, state=state)
 
+    @utils.deprecated("Client.user_offer()")
     async def trial_offer(self) -> TrialOffer:
         """|coro|
 
         Retrieves the current trial offer for your account.
 
         .. versionadded:: 2.0
+
+        .. deprecated:: 2.1
+
+            This method is deprecated and will be removed in a future version.
+            Use :meth:`user_offer` instead.
 
         Raises
         -------

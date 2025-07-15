@@ -2009,6 +2009,10 @@ class SubscriptionPlan(Hashable):
 
     .. versionadded:: 2.0
 
+    .. versionchanged:: 2.1
+
+        Removed ``discount_price`` and ``fallback_discount_price`` due to an API change.
+
     Attributes
     ----------
     id: :class:`int`
@@ -2032,25 +2036,13 @@ class SubscriptionPlan(Hashable):
     price: Optional[:class:`int`]
         The price of the subscription plan.
         Not available in some contexts.
-    discount_price: Optional[:class:`int`]
-        The discounted price of the subscription plan.
-        This price is the one premium subscribers will pay, and is only available for premium subscribers.
     fallback_currency: Optional[:class:`str`]
         The fallback currency of the subscription plan's price.
-        This is the currency that will be used for gifting if the user's currency is not giftable.
+        This is the currency that will be used for gifting if the plan's currency is not giftable.
     fallback_price: Optional[:class:`int`]
         The fallback price of the subscription plan.
-        This is the price that will be used for gifting if the user's currency is not giftable.
-    fallback_discount_price: Optional[:class:`int`]
-        The fallback discounted price of the subscription plan.
-        This is the discounted price that will be used for gifting if the user's currency is not giftable.
+        This is the price that will be used for gifting if the plan's currency is not giftable.
     """
-
-    _INTERVAL_TABLE = {
-        SubscriptionInterval.day: 1,
-        SubscriptionInterval.month: 30,
-        SubscriptionInterval.year: 365,
-    }
 
     __slots__ = (
         'id',
@@ -2063,10 +2055,8 @@ class SubscriptionPlan(Hashable):
         'currency',
         'price_tier',
         'price',
-        'discount_price',
         'fallback_currency',
         'fallback_price',
-        'fallback_discount_price',
         '_state',
     )
 
@@ -2091,10 +2081,8 @@ class SubscriptionPlan(Hashable):
         self.currency: Optional[str] = data.get('currency')
         self.price_tier: Optional[int] = data.get('price_tier')
         self.price: Optional[int] = data.get('price')
-        self.discount_price: Optional[int] = data.get('discount_price')
         self.fallback_currency: Optional[str] = data.get('fallback_currency')
         self.fallback_price: Optional[int] = data.get('fallback_price')
-        self.fallback_discount_price: Optional[int] = data.get('fallback_discount_price')
 
     def __repr__(self) -> str:
         return f'<SubscriptionPlan id={self.id} name={self.name!r} sku_id={self.sku_id} interval={self.interval!r} interval_count={self.interval_count}>'
@@ -2105,12 +2093,31 @@ class SubscriptionPlan(Hashable):
     @property
     def duration(self) -> timedelta:
         """:class:`datetime.timedelta`: How long the subscription plan lasts."""
-        return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])
+        return timedelta(days=self.interval_count * self.interval.duration)
 
     @property
     def premium_type(self) -> Optional[PremiumType]:
         """Optional[:class:`PremiumType`]: The premium type of the subscription plan, if it is a premium subscription."""
         return PremiumType.from_sku_id(self.sku_id)
+
+    def get_price(self, context: SubscriptionPlanPurchaseType, /) -> SubscriptionPlanPrices:
+        """Returns the price of the subscription plan for a specific purchase context.
+        Falls back to the default price if no specific price is set for the context.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        ----------
+        context: :class:`SubscriptionPlanPurchaseType`
+            The purchase context to get the price for.
+
+
+        Returns
+        -------
+        :class:`SubscriptionPlanPrices`
+            The price of the subscription plan for the given context.
+        """
+        return self.prices.get(context, self.prices[SubscriptionPlanPurchaseType.default])
 
     async def gifts(self) -> List[Gift]:
         """|coro|

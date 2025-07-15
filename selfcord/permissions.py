@@ -349,7 +349,7 @@ class Permissions(BaseFlags):
         "Apps" permissions from the official Discord UI set to ``True``.
 
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
         """
         return cls(0b0000_0000_0000_0100_0000_0000_1000_0000_1000_0000_0000_0000_0000_0000_0000_0000)
 

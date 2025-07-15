@@ -69,7 +69,7 @@ if TYPE_CHECKING:
         DefaultReaction as DefaultReactionPayload,
     )
     from .types.invite import Invite as InvitePayload
-    from .types.role import Role as RolePayload
+    from .types.role import Role as RolePayload, RoleColours
     from .types.snowflake import Snowflake
     from .types.automod import AutoModerationAction
     from .types.integration import IntegrationType
@@ -144,7 +144,7 @@ def _transform_applied_forum_tags(entry: AuditLogEntry, data: List[Snowflake]) -
 
 
 def _transform_overloaded_flags(entry: AuditLogEntry, data: int) -> Union[int, flags.ChannelFlags, flags.InviteFlags]:
-    # The `flags` key is definitely overloaded. Right now it's for channels and threads but
+    # The `flags` key is definitely overloaded. Right now it's for channels, threads and invites but
     # I am aware of `member.flags` and `user.flags` existing. However, this does not impact audit logs
     # at the moment but better safe than sorry.
     channel_audit_log_types = (
@@ -385,6 +385,12 @@ class AuditLogChanges:
                     self._handle_trigger_attr_update(self.after, self.before, entry, trigger_attr, elem['new_value'])  # type: ignore
                 continue
 
+            # special case for colors to set secondary and tertiary colos/colour attributes
+            if attr == 'colors':
+                self._handle_colours(self.before, elem['old_value'])  # type: ignore  # should be a RoleColours dict
+                self._handle_colours(self.after, elem['new_value'])  # type: ignore  # should be a RoleColours dict
+                continue
+
             try:
                 key, transformer = self.TRANSFORMERS[attr]
             except (ValueError, KeyError):
@@ -500,6 +506,16 @@ class AuditLogChanges:
             getattr(trigger, attr).extend(data)
         except (AttributeError, TypeError):
             pass
+
+    def _handle_colours(self, diff: AuditLogDiff, colours: RoleColours):
+        # handle colours to multiple colour attributes
+        diff.color = diff.colour = Colour(colours['primary_color'])
+
+        secondary_colour = colours['secondary_color']
+        tertiary_colour = colours['tertiary_color']
+
+        diff.secondary_color = diff.secondary_colour = Colour(secondary_colour) if secondary_colour is not None else None
+        diff.tertiary_color = diff.tertiary_colour = Colour(tertiary_colour) if tertiary_colour is not None else None
 
     def _create_trigger(self, diff: AuditLogDiff, entry: AuditLogEntry) -> AutoModTrigger:
         # check if trigger has already been created
@@ -821,7 +837,6 @@ class AuditLogEntry(Hashable):
             'uses': changeset.uses,
             'flags': changeset.flags.value,
             'channel': None,  # type: ignore # the channel is passed to the Invite constructor directly
-            'inviter': changeset.inviter and changeset.inviter._to_minimal_user_json() or None,
         }
 
         obj = Invite(state=self._state, data=fake_payload, guild=self.guild, channel=changeset.channel)

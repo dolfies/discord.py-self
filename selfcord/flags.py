@@ -1099,13 +1099,23 @@ class PurchasedFlags(BaseFlags):
     __slots__ = ()
 
     @flag_value
-    def nitro_classic(self):
+    def premium_tier_1(self):
         """:class:`bool`: Returns ``True`` if the user has purchased Nitro classic."""
         return 1 << 0
 
+    @alias_flag_value
+    def nitro_classic(self):
+        """:class:`bool`: An alias for :attr:`premium_tier_1`."""
+        return 1 << 0
+
     @flag_value
-    def nitro(self):
+    def premium_tier_2(self):
         """:class:`bool`: Returns ``True`` if the user has purchased Nitro."""
+        return 1 << 1
+
+    @alias_flag_value
+    def nitro(self):
+        """:class:`bool`: An alias for :attr:`premium_tier_2`."""
         return 1 << 1
 
     @flag_value
@@ -1113,9 +1123,19 @@ class PurchasedFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the user has purchased a guild boost."""
         return 1 << 2
 
+    @alias_flag_value
+    def premium_guild_subscription(self):
+        """:class:`bool`: An alias for :attr:`guild_boost`."""
+        return 1 << 2
+
     @flag_value
-    def nitro_basic(self):
+    def premium_tier_3(self):
         """:class:`bool`: Returns ``True`` if the user has purchased Nitro basic."""
+        return 1 << 3
+
+    @alias_flag_value
+    def nitro_basic(self):
+        """:class:`bool`: An alias for :attr:`premium_tier_3`."""
         return 1 << 3
 
     @flag_value

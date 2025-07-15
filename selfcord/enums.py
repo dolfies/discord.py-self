@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
 from __future__ import annotations
 
 import types
@@ -1057,6 +1058,40 @@ class EmbeddedActivityReleasePhase(Enum):
 
 
 T = TypeVar('T')
+_UNICODE_LANG_MAP: Dict[str, str] = {
+    'bg': 'bg-BG',
+    'zh-CN': 'zh-CN',
+    'zh-TW': 'zh-TW',
+    'hr': 'hr-HR',
+    'cs': 'cs-CZ',
+    'da': 'da-DK',
+    'nl': 'nl-NL',
+    'en-US': 'en-US',
+    'en-GB': 'en-GB',
+    'fi': 'fi-FI',
+    'fr': 'fr-FR',
+    'de': 'de-DE',
+    'el': 'el-GR',
+    'hi': 'hi-IN',
+    'hu': 'hu-HU',
+    'id': 'id-ID',
+    'it': 'it-IT',
+    'ja': 'ja-JP',
+    'ko': 'ko-KR',
+    'lt': 'lt-LT',
+    'no': 'no-NO',
+    'pl': 'pl-PL',
+    'pt-BR': 'pt-BR',
+    'ro': 'ro-RO',
+    'ru': 'ru-RU',
+    'es-ES': 'es-ES',
+    'es-419': 'es-419',
+    'sv-SE': 'sv-SE',
+    'th': 'th-TH',
+    'tr': 'tr-TR',
+    'uk': 'uk-UA',
+    'vi': 'vi-VN',
+}
 
 
 class Locale(Enum):
@@ -1096,6 +1131,17 @@ class Locale(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+    @property
+    def language_code(self) -> str:
+        """:class:`str`: Returns the locale's BCP 47 language code in the format of ``language-COUNTRY``.
+
+        This is derived from a predefined mapping based on Discord's supported locales.
+        If no mapping exists for the current locale, this returns the raw locale value as a fallback.
+
+        .. versionadded:: 2.1
+        """
+        return _UNICODE_LANG_MAP.get(self.value, self.value)
 
 
 E = TypeVar('E', bound='Enum')
@@ -1263,6 +1309,7 @@ class SubscriptionDiscountType(Enum):
     entitlement = 2
     premium_legacy_upgrade_promotion = 3
     premium_trial = 4
+    default = 5
 
 
 class SubscriptionInterval(Enum):
@@ -1270,13 +1317,29 @@ class SubscriptionInterval(Enum):
     year = 2
     day = 3
 
+    @property
+    def duration(self) -> int:
+        _INTERVAL_TABLE = {
+            SubscriptionInterval.day: 1,
+            SubscriptionInterval.month: 30,
+            SubscriptionInterval.year: 365,
+        }
+        return _INTERVAL_TABLE[self]
+
 
 class SubscriptionPlanPurchaseType(Enum):
     default = 0
     gift = 1
     sale = 2
+    premium_tier_1 = 3
     nitro_classic = 3
+    premium_tier_2 = 4
     nitro = 4
+    mobile = 5
+    premium_tier_3 = 6
+    nitro_basic = 6
+    mobile_premium_tier_2 = 7
+    mobile_nitro = 7
 
 
 class PaymentStatus(Enum):

@@ -159,6 +159,10 @@ class CountryCode(TypedDict):
     country_code: str
 
 
+class LocationInfo(CountryCode):
+    subdivision_code: str
+
+
 class SubscriptionCountryPrice(CountryCode):
     prices: List[SubscriptionPrice]
 
