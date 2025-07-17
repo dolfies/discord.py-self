@@ -160,7 +160,7 @@ class CountryCode(TypedDict):
 
 
 class LocationInfo(CountryCode):
-    subdivision_code: str
+    subdivision_code: Optional[str]
 
 
 class SubscriptionCountryPrice(CountryCode):

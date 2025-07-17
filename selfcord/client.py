@@ -157,7 +157,7 @@ class RTCRegion(NamedTuple):
 
 class LocationInfo(NamedTuple):
     country_code: str
-    subdivision_code: str
+    subdivision_code: Optional[str]
 
 
 class Client:
@@ -327,20 +327,17 @@ class Client:
         self.ws: DiscordWebSocket = None  # type: ignore
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
 
-        proxy: Optional[str] = options.pop('proxy', None)
-        proxy_auth: Optional[aiohttp.BasicAuth] = options.pop('proxy_auth', None)
-        unsync_clock: bool = options.pop('assume_unsync_clock', True)
-        max_ratelimit_timeout: Optional[float] = options.pop('max_ratelimit_timeout', None)
         self.captcha_handler: Optional[Callable[[CaptchaRequired, Client], Awaitable[str]]] = options.pop(
             'captcha_handler', None
         )
         self.http: HTTPClient = HTTPClient(
             loop=self.loop,
-            proxy=proxy,
-            proxy_auth=proxy_auth,
-            unsync_clock=unsync_clock,
+            proxy=options.pop('proxy', None),
+            proxy_auth=options.pop('proxy_auth', None),
+            unsync_clock=options.pop('assume_unsync_clock', True),
             captcha=self.handle_captcha,
-            max_ratelimit_timeout=max_ratelimit_timeout,
+            max_ratelimit_timeout=options.pop('max_ratelimit_timeout', None),
+            default_ratelimit_limit=options.pop('default_ratelimit_limit', None) or 1,
             locale=lambda: self._connection.locale,
             debug_options=self._get_debug_options(**options),
             rpc_proxy=options.pop('rpc_proxy', None),
@@ -3120,7 +3117,7 @@ class Client:
 
         Returns
         -------
-        Tuple[:class:`str`, :class:`str`]
+        Tuple[:class:`str`, Optional[:class:`str`]]
             The country code and subdivision code of the client.
             This is also accessible as a namedtuple with ``country_code`` and ``subdivision_code`` attributes.
         """

@@ -442,19 +442,21 @@ class Ratelimit:
         'dirty',
         '_last_request',
         '_max_ratelimit_timeout',
+        '_default_ratelimit_limit',
         '_loop',
         '_pending_requests',
         '_sleeping',
     )
 
-    def __init__(self, max_ratelimit_timeout: Optional[float]) -> None:
-        self.limit: int = 1
+    def __init__(self, max_ratelimit_timeout: Optional[float], default_ratelimit_limit: int) -> None:
+        self.limit: int = default_ratelimit_limit
         self.remaining: int = self.limit
         self.outgoing: int = 0
         self.reset_after: float = 0.0
         self.expires: Optional[float] = None
         self.dirty: bool = False
         self._max_ratelimit_timeout: Optional[float] = max_ratelimit_timeout
+        self._default_ratelimit_limit: int = default_ratelimit_limit
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._pending_requests: deque[asyncio.Future[Any]] = deque()
         # Only a single rate limit object should be sleeping at a time.
@@ -476,7 +478,7 @@ class Ratelimit:
 
     def update(self, response: Union[aiohttp.ClientResponse, requests.Response], *, use_clock: bool = False) -> None:
         headers = response.headers
-        self.limit = int(headers.get('X-Ratelimit-Limit', 1))
+        self.limit = int(headers.get('X-Ratelimit-Limit', self._default_ratelimit_limit))
 
         if self.dirty:
             self.remaining = min(int(headers.get('X-Ratelimit-Remaining', 0)), self.limit - self.outgoing)
@@ -603,6 +605,7 @@ class HTTPClient:
         unsync_clock: bool = True,
         captcha: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = None,
         max_ratelimit_timeout: Optional[float] = None,
+        default_ratelimit_limit: int = 1,
         locale: Callable[[], str] = lambda: 'en-US',
         extra_headers: Optional[Mapping[str, str]] = None,
         debug_options: Optional[Sequence[str]] = None,
@@ -633,6 +636,7 @@ class HTTPClient:
         self.use_clock: bool = not unsync_clock
         self.captcha_handler: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = captcha
         self.max_ratelimit_timeout: Optional[float] = max(30.0, max_ratelimit_timeout) if max_ratelimit_timeout else None
+        self.default_ratelimit_limit: int = default_ratelimit_limit
         self.get_locale: Callable[[], str] = locale
         self.extra_headers: Mapping[str, str] = extra_headers or {}
         self.debug_options: Optional[Sequence[str]] = debug_options
@@ -732,7 +736,7 @@ class HTTPClient:
         try:
             value = self._buckets[key]
         except KeyError:
-            self._buckets[key] = value = Ratelimit(self.max_ratelimit_timeout)
+            self._buckets[key] = value = Ratelimit(self.max_ratelimit_timeout, self.default_ratelimit_limit)
             self._try_clear_expired_ratelimits()
         return value
 
