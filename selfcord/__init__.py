@@ -61,6 +61,7 @@ from .payments import *
 from .permissions import *
 from .player import *
 from .poll import *
+from .primary_guild import *
 from .profile import *
 from .promotions import *
 from .raw_models import *

@@ -612,9 +612,6 @@ class Role(Hashable):
             This function will now raise :exc:`ValueError` instead of
             ``InvalidArgument``.
 
-        .. versionchanged:: 2.6
-            The ``colour`` and ``color`` parameters now set the role's primary color.
-
         Parameters
         -----------
         name: :class:`str`

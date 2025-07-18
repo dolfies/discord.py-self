@@ -40,6 +40,7 @@ from .enums import (
 from .errors import NotFound
 from .flags import PublicUserFlags, PrivateUserFlags, PremiumUsageFlags, PurchasedFlags
 from .mixins import Hashable
+from .primary_guild import PrimaryGuild
 from .relationship import Relationship
 from .utils import (
     _bytes_to_base64_data,
@@ -71,6 +72,7 @@ if TYPE_CHECKING:
         User as UserPayload,
         UserAvatar as UserAvatarPayload,
         AvatarDecorationData,
+        PrimaryGuild as PrimaryGuildPayload,
     )
     from .types.snowflake import Snowflake
 
@@ -102,6 +104,7 @@ class BaseUser(_UserTag):
         '_public_flags',
         'premium_type',
         '_state',
+        '_primary_guild',
     )
 
     if TYPE_CHECKING:
@@ -117,6 +120,7 @@ class BaseUser(_UserTag):
         _banner: Optional[str]
         _accent_colour: Optional[int]
         _public_flags: int
+        _primary_guild: Optional[PrimaryGuildPayload]
 
     def __init__(self, *, state: ConnectionState, data: Union[UserPayload, PartialUserPayload]) -> None:
         self._state = state
@@ -154,6 +158,7 @@ class BaseUser(_UserTag):
         self._public_flags = data.get('public_flags', 0)
         self.bot = data.get('bot', False)
         self.system = data.get('system', False)
+        self._primary_guild = data.get('primary_guild', None)
 
     @classmethod
     def _copy(cls, user: Self) -> Self:
@@ -171,6 +176,7 @@ class BaseUser(_UserTag):
         self.bot = user.bot
         self.system = user.system
         self._state = user._state
+        self._primary_guild = user._primary_guild
 
         return self
 
@@ -187,6 +193,7 @@ class BaseUser(_UserTag):
             'public_flags': self._public_flags,
             'banner': self._banner,
             'accent_color': self._accent_colour,
+            'primary_guild': self._primary_guild,
         }
         return user
 
@@ -365,6 +372,16 @@ class BaseUser(_UserTag):
         if self.global_name:
             return self.global_name
         return self.name
+
+    @property
+    def primary_guild(self) -> PrimaryGuild:
+        """:class:`PrimaryGuild`: Returns the user's primary guild.
+
+        .. versionadded:: 2.1
+        """
+        if self._primary_guild is not None:
+            return PrimaryGuild(state=self._state, data=self._primary_guild)
+        return PrimaryGuild._default(self._state)
 
     def mentioned_in(self, message: Message) -> bool:
         """Checks if the user is mentioned in the specified message.
@@ -1003,6 +1020,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             self._public_flags,
             self._avatar_decoration_data,
             self.global_name,
+            self._primary_guild,
         )
         modified = (
             user['username'],
@@ -1011,6 +1029,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             user.get('public_flags', 0),
             user.get('avatar_decoration_data'),
             user.get('global_name'),
+            user.get('primary_guild'),
         )
         if original != modified:
             to_return = User._copy(self)

@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from .types.voice import BaseVoiceState as VoiceStatePayload
     from .relationship import Relationship
     from .calls import PrivateCall
+    from .primary_guild import PrimaryGuild
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     ConnectableChannel = Union[VocalGuildChannel, DMChannel, GroupChannel]
@@ -313,6 +314,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
         banner: Optional[Asset]
         accent_color: Optional[Colour]
         accent_colour: Optional[Colour]
+        primary_guild: PrimaryGuild
 
     def __init__(self, *, data: MemberWithUserPayload, guild: Guild, state: ConnectionState):
         self._state: ConnectionState = state

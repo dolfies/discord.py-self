@@ -41,6 +41,7 @@ class PartialUser(TypedDict):
     bot: NotRequired[bool]
     system: NotRequired[bool]
     global_name: Optional[str]
+    primary_guild: NotRequired[Optional[PrimaryGuild]]
 
 
 ConnectionType = Literal[
@@ -103,6 +104,13 @@ class AvatarDecorationData(TypedDict):
     asset: str
     sku_id: Snowflake
     expires_at: Optional[int]
+
+
+class PrimaryGuild(TypedDict):
+    identity_guild_id: Optional[int]
+    identity_enabled: Optional[bool]
+    tag: Optional[str]
+    badge: Optional[str]
 
 
 class PomeloAttempt(TypedDict):
