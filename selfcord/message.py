@@ -267,7 +267,7 @@ class Attachment(Hashable):
         self.clip_created_at: Optional[datetime.datetime] = utils.parse_time(data.get('clip_created_at'))
         self.clip_participants: List[User] = [state.create_user(d) for d in data.get('clip_participants', [])]
         self.application: Optional[PartialApplication] = (
-            PartialApplication(data=data['application'], state=state) if 'application' in data else None
+            PartialApplication(data=data['application'], state=state) if data.get('application') else None  # type: ignore
         )
 
         waveform = data.get('waveform')

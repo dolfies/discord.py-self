@@ -323,7 +323,7 @@ class VoiceConnectionState:
             )
             return
 
-        self.endpoint, _, _ = endpoint.rpartition(':')
+        self.endpoint = endpoint
         if self.endpoint.startswith('wss://'):
             # Just in case, strip it off since we're going to add it later
             self.endpoint = self.endpoint[6:]
@@ -603,7 +603,10 @@ class VoiceConnectionState:
         self._disconnected.clear()
 
     async def _connect_websocket(self, resume: bool) -> DiscordVoiceWebSocket:
-        ws = await DiscordVoiceWebSocket.from_connection_state(self, resume=resume, hook=self.hook)
+        seq_ack = -1
+        if self.ws is not MISSING:
+            seq_ack = self.ws.seq_ack
+        ws = await DiscordVoiceWebSocket.from_connection_state(self, resume=resume, hook=self.hook, seq_ack=seq_ack)
         self.state = ConnectionFlowState.websocket_connected
         return ws
 
@@ -632,18 +635,20 @@ class VoiceConnectionState:
                     # The following close codes are undocumented so I will document them here.
                     # 1000 - normal closure (obviously)
                     # 4014 - we were externally disconnected (voice channel deleted, we were moved, etc)
-                    # 4015 - voice server has crashed
+                    # 4015 - voice server has crashed, we should resume
+                    # 4021 - rate limited, we should not reconnect
+                    # 4022 - call terminated, similar to 4014
 
                     code = getattr(exc, 'code', self.ws._close_code)
 
-                    if code in (1000, 4015):
+                    if code == 1000:
                         # Don't call disconnect a second time if the websocket closed from a disconnect call
                         if not self._expecting_disconnect:
                             _log.info('Disconnecting from voice normally, close code %d.', code)
                             await self.disconnect()
                         break
 
-                    if code == 4014:
+                    if code in (4014, 4022):
                         # We were disconnected by discord
                         # This condition is a race between the main ws event and the voice ws closing
                         if self._disconnected.is_set():
@@ -661,6 +666,32 @@ class VoiceConnectionState:
                                 await self.disconnect()
                             break
                         else:
+                            continue
+
+                    if code == 4021:
+                        _log.warning('We are being rate limited while trying to connect to voice. Disconnecting...')
+                        if self.state is not ConnectionFlowState.disconnected:
+                            await self.disconnect()
+                        break
+
+                    if exc.code == 4015:
+                        _log.info('Disconnected from voice, attempting a resume...')
+                        try:
+                            await self._connect(
+                                reconnect=reconnect,
+                                timeout=self.timeout,
+                                self_deaf=(self.self_voice_state or self).self_deaf,
+                                self_mute=(self.self_voice_state or self).self_mute,
+                                self_video=(self.self_voice_state or self).self_video,
+                                resume=True,
+                            )
+                        except asyncio.TimeoutError:
+                            _log.info('Could not resume the voice connection. Disconnecting...')
+                            if self.state is not ConnectionFlowState.disconnected:
+                                await self.disconnect()
+                            break
+                        else:
+                            _log.info('Successfully resumed voice connection.')
                             continue
 
                     _log.debug(
