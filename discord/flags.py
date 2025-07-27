@@ -2751,6 +2751,14 @@ class MemberFlags(BaseFlags):
         """
         return 1 << 4
 
+    def automod_quarantined_guild_tag(self):
+        """:class:`bool`: Returns ``True`` if the member's has been
+        quarantined by AutoMod due to their guild tag.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 10
+
 
 @fill_with_flags()
 class ReadStateFlags(BaseFlags):
