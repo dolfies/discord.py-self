@@ -721,7 +721,7 @@ class AuditLogEntry(Hashable):
                 self.extra = _AuditLogProxyAutoModAction(
                     automod_rule_name=extra['auto_moderation_rule_name'],
                     automod_rule_trigger_type=enums.try_enum(
-                        enums.AutoModRuleTriggerType, extra['auto_moderation_rule_trigger_type']
+                        enums.AutoModRuleTriggerType, int(extra['auto_moderation_rule_trigger_type'])
                     ),
                     channel=channel,
                 )
@@ -729,7 +729,7 @@ class AuditLogEntry(Hashable):
                 self.extra = _AuditLogProxyAutoModActionQuarantineUser(
                     automod_rule_name=extra['auto_moderation_rule_name'],
                     automod_rule_trigger_type=enums.try_enum(
-                        enums.AutoModRuleTriggerType, extra['auto_moderation_rule_trigger_type']
+                        enums.AutoModRuleTriggerType, int(extra['auto_moderation_rule_trigger_type'])
                     ),
                 )
 
