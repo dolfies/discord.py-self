@@ -133,6 +133,7 @@ __all__ = (
     'PollLayoutType',
     'MessageReferenceType',
     'ReactionType',
+    'StatusDisplayType',
 )
 
 
@@ -1813,6 +1814,12 @@ class PromotionType(Enum):
     third_party_inbound = 3
     third_party_outbound = 4
     marketing_moment = 5
+
+
+class StatusDisplayType(Enum):
+    name = 0  # pyright: ignore[reportAssignmentType]
+    state = 1
+    details = 2
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:
