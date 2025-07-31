@@ -850,6 +850,7 @@ class HTTPClient:
             if isinstance(proxy_auth, aiohttp.BasicAuth):
                 proxy_auth = (proxy_auth.login, proxy_auth.password)
             kwargs['proxy_auth'] = proxy_auth
+        interface = kwargs.pop('interface', self.interface)
 
         if not self._global_over.is_set():
             await self._global_over.wait()
@@ -875,7 +876,7 @@ class HTTPClient:
                     headers['X-Failed-Requests'] = str(failed)
 
                 try:
-                    response = await self.__session.request(method, url, **kwargs, stream=True, interface=self.interface)
+                    response = await self.__session.request(method, url, **kwargs, stream=True, interface=interface)
                     response.status = response.status_code  # type: ignore
                     try:
                         response.reason = HTTPStatus(response.status_code).phrase
