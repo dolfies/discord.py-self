@@ -1976,8 +1976,11 @@ class ConnectionState:
     def parse_user_update(self, data: gw.UserUpdateEvent) -> None:
         # Clear the ACK token
         self.http.ack_token = None
-        if self.user:
-            self.user._full_update(data)
+
+        user: ClientUser = self.user  # type: ignore
+        old_user = copy.copy(user)
+        user._full_update(data)
+        self.dispatch('user_update', old_user, user)
 
     def parse_user_note_update(self, data: gw.UserNoteUpdateEvent) -> None:
         # The gateway does not provide note objects on READY with our default capabilities
