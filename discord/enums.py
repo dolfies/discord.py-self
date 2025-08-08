@@ -134,6 +134,8 @@ __all__ = (
     'MessageReferenceType',
     'ReactionType',
     'StatusDisplayType',
+    'OnboardingPromptType',
+    'OnboardingMode',
 )
 
 
@@ -562,6 +564,13 @@ class AuditLogAction(Enum):
     automod_quarantine_user                           = 146
     creator_monetization_request_created              = 150
     creator_monetization_terms_accepted               = 151
+    onboarding_prompt_create                          = 163
+    onboarding_prompt_update                          = 164
+    onboarding_prompt_delete                          = 165
+    onboarding_create                                 = 166
+    onboarding_update                                 = 167
+    home_settings_create                              = 190
+    home_settings_update                              = 191
     # fmt: on
 
     @property
@@ -625,6 +634,13 @@ class AuditLogAction(Enum):
             AuditLogAction.automod_quarantine_user:                  None,
             AuditLogAction.creator_monetization_request_created:     None,
             AuditLogAction.creator_monetization_terms_accepted:      None,
+            AuditLogAction.onboarding_prompt_create:                 AuditLogActionCategory.create,
+            AuditLogAction.onboarding_prompt_update:                 AuditLogActionCategory.update,
+            AuditLogAction.onboarding_prompt_delete:                 AuditLogActionCategory.delete,
+            AuditLogAction.onboarding_create:                        AuditLogActionCategory.create,
+            AuditLogAction.onboarding_update:                        AuditLogActionCategory.update,
+            AuditLogAction.home_settings_create:                     AuditLogActionCategory.create,
+            AuditLogAction.home_settings_update:                     AuditLogActionCategory.update,
         }
         # fmt: on
         return lookup[self]
@@ -670,6 +686,12 @@ class AuditLogAction(Enum):
             return 'user'
         elif v < 152:
             return 'creator_monetization'
+        elif v < 166:
+            return 'onboarding_prompt'
+        elif v < 168:
+            return 'onboarding'
+        elif v < 192:
+            return 'home_settings'
 
 
 class UserFlags(Enum):
@@ -1820,6 +1842,16 @@ class StatusDisplayType(Enum):
     name = 0  # pyright: ignore[reportAssignmentType]
     state = 1
     details = 2
+
+
+class OnboardingPromptType(Enum):
+    multiple_choice = 0
+    dropdown = 1
+
+
+class OnboardingMode(Enum):
+    default = 0
+    advanced = 1
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

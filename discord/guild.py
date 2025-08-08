@@ -78,6 +78,7 @@ from .enums import (
     ForumOrderType,
     ForumLayoutType,
     ReadStateType,
+    OnboardingMode,
 )
 from .mixins import Hashable
 from .user import User
@@ -99,6 +100,7 @@ from .welcome_screen import *
 from .application import PartialApplication
 from .guild_premium import PremiumGuildSubscription
 from .entitlements import Entitlement
+from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
 from .partial_emoji import _EmojiTag, PartialEmoji
 from .commands import _command_factory
@@ -143,6 +145,7 @@ if TYPE_CHECKING:
     from .message import EmojiInputType, Message
     from .read_state import ReadState
     from .commands import UserCommand, MessageCommand, SlashCommand
+    from .onboarding import OnboardingPrompt
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     NonCategoryChannel = Union[VocalGuildChannel, ForumChannel, TextChannel, DirectoryChannel]
@@ -5837,3 +5840,74 @@ class Guild(Hashable):
             return False
 
         return self.raid_detected_at > utils.utcnow()
+
+    async def onboarding(self) -> Onboarding:
+        """|coro|
+
+        Fetches the onboarding configuration for this guild.
+
+        .. versionadded:: 2.1
+
+        Returns
+        --------
+        :class:`Onboarding`
+            The onboarding configuration that was fetched.
+        """
+        data = await self._state.http.get_guild_onboarding(self.id)
+        return Onboarding(data=data, guild=self, state=self._state)
+
+    async def edit_onboarding(
+        self,
+        *,
+        prompts: List[OnboardingPrompt] = MISSING,
+        default_channels: List[Snowflake] = MISSING,
+        enabled: bool = MISSING,
+        mode: OnboardingMode = MISSING,
+        reason: str = MISSING,
+    ) -> Onboarding:
+        """|coro|
+
+        Edits the onboarding configuration for this guild.
+
+        You must have :attr:`Permissions.manage_guild` and
+        :attr:`Permissions.manage_roles` to do this.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        prompts: List[:class:`OnboardingPrompt`]
+            The prompts that will be shown to new members.
+            This overrides the existing prompts and its options.
+        default_channels: List[:class:`abc.Snowflake`]
+            The channels that will be used as the default channels for new members.
+            This overrides the existing default channels.
+        enabled: :class:`bool`
+            Whether the onboarding configuration is enabled.
+            This overrides the existing enabled state.
+        mode: :class:`OnboardingMode`
+            The mode that will be used for the onboarding configuration.
+        reason: :class:`str`
+            The reason for editing the onboarding configuration. Shows up on the audit log.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to edit the onboarding configuration.
+        HTTPException
+            Editing the onboarding configuration failed.
+
+        Returns
+        --------
+        :class:`Onboarding`
+            The new onboarding configuration.
+        """
+        data = await self._state.http.edit_guild_onboarding(
+            self.id,
+            prompts=[p.to_dict(id=i) for i, p in enumerate(prompts)] if prompts is not MISSING else None,
+            default_channel_ids=[c.id for c in default_channels] if default_channels is not MISSING else None,
+            enabled=enabled if enabled is not MISSING else None,
+            mode=mode.value if mode is not MISSING else None,
+            reason=reason if reason is not MISSING else None,
+        )
+        return Onboarding(data=data, guild=self, state=self._state)

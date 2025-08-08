@@ -56,6 +56,7 @@ from .metadata import *
 from .modal import *
 from .object import *
 from .oauth2 import *
+from .onboarding import *
 from .partial_emoji import *
 from .payments import *
 from .permissions import *

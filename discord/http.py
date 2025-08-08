@@ -112,6 +112,7 @@ if TYPE_CHECKING:
         member,
         message,
         oauth2,
+        onboarding,
         payments,
         profile,
         promotions,
@@ -3235,7 +3236,43 @@ class HTTPClient:
                 '/applications/{application_id}/entitlements/{entitlement_id}',
                 application_id=application_id,
                 entitlement_id=entitlement_id,
-            )
+            ),
+        )
+
+    # Guild Onboarding
+
+    def get_guild_onboarding(self, guild_id: Snowflake) -> Response[onboarding.Onboarding]:
+        return self.request(Route('GET', '/guilds/{guild_id}/onboarding', guild_id=guild_id))
+
+    def edit_guild_onboarding(
+        self,
+        guild_id: Snowflake,
+        *,
+        prompts: Optional[List[onboarding.Prompt]] = None,
+        default_channel_ids: Optional[List[Snowflake]] = None,
+        enabled: Optional[bool] = None,
+        mode: Optional[onboarding.OnboardingMode] = None,
+        reason: Optional[str],
+    ) -> Response[onboarding.Onboarding]:
+
+        payload = {}
+
+        if prompts is not None:
+            payload['prompts'] = prompts
+
+        if default_channel_ids is not None:
+            payload['default_channel_ids'] = default_channel_ids
+
+        if enabled is not None:
+            payload['enabled'] = enabled
+
+        if mode is not None:
+            payload['mode'] = mode
+
+        return self.request(
+            Route('PUT', f'/guilds/{guild_id}/onboarding', guild_id=guild_id),
+            json=payload,
+            reason=reason,
         )
 
     def consume_app_entitlement(self, application_id: Snowflake, entitlement_id: Snowflake) -> Response[None]:
