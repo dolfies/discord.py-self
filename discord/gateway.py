@@ -174,7 +174,7 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
                     _log.exception(self.no_stop_msg)
                 finally:
                     self.stop()
-                    return
+                return
 
             data = self.get_payload()
             _log.debug(self.msg)
