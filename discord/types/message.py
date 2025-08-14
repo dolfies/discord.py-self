@@ -311,3 +311,13 @@ class CloudAttachments(TypedDict):
 class TypingResponse(TypedDict):
     message_send_cooldown_ms: int
     thread_create_cooldown_ms: int
+
+
+class MessagePin(TypedDict):
+    pinned_at: str
+    message: Message
+
+
+class ChannelPins(TypedDict):
+    items: List[MessagePin]
+    has_more: bool

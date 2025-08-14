@@ -1416,8 +1416,12 @@ class ConnectionState:
         for msg in messages:
             try:
                 await delete_message(channel_id, msg.id, reason=reason)
-            except NotFound:
-                pass
+            except NotFound as exc:
+                if exc.code == 10008:
+                    continue  # bulk deletion ignores not found messages, single deletion does not.
+                # several other race conditions with deletion should fail without continuing,
+                # such as the channel being deleted and not found.
+                raise
 
     def _update_poll_counts(self, message: Message, answer_id: int, added: bool, self_voted: bool = False) -> Optional[Poll]:
         poll = message.poll

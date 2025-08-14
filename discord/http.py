@@ -1574,7 +1574,7 @@ class HTTPClient:
         return self.request(
             Route(
                 'PUT',
-                '/channels/{channel_id}/pins/{message_id}',
+                '/channels/{channel_id}/messages/pins/{message_id}',
                 channel_id=channel_id,
                 message_id=message_id,
             ),
@@ -1585,15 +1585,26 @@ class HTTPClient:
         return self.request(
             Route(
                 'DELETE',
-                '/channels/{channel_id}/pins/{message_id}',
+                '/channels/{channel_id}/messages/pins/{message_id}',
                 channel_id=channel_id,
                 message_id=message_id,
             ),
             reason=reason,
         )
 
-    def pins_from(self, channel_id: Snowflake) -> Response[List[message.Message]]:
-        return self.request(Route('GET', '/channels/{channel_id}/pins', channel_id=channel_id))
+    def pins_from(
+        self,
+        channel_id: Snowflake,
+        limit: Optional[int] = None,
+        before: Optional[str] = None,
+    ) -> Response[message.ChannelPins]:
+        params = {}
+        if before is not None:
+            params['before'] = before
+        if limit is not None:
+            params['limit'] = limit
+
+        return self.request(Route('GET', '/channels/{channel_id}/messages/pins', channel_id=channel_id), params=params)
 
     def ack_pins(self, channel_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/channels/{channel_id}/pins/ack', channel_id=channel_id))
