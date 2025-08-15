@@ -27,16 +27,33 @@ import inspect
 import logging
 from discord.utils import maybe_coroutine, MISSING
 
-from typing import Any, Callable, Dict, Generator, List, Optional, TYPE_CHECKING, Tuple, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    TYPE_CHECKING,
+    Tuple,
+    TypeVar,
+    TypedDict,
+)
 
 from ._types import _BaseCommand, BotT
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
 
     from .bot import BotBase
     from .context import Context
-    from .core import Command
+    from .core import Command, _CommandDecoratorKwargs
+
+    class _CogKwargs(TypedDict, total=False):
+        name: str
+        description: str
+        command_attrs: _CommandDecoratorKwargs
+
 
 __all__ = (
     'CogMeta',
@@ -113,7 +130,7 @@ class CogMeta(type):
     __cog_commands__: List[Command[Any, ..., Any]]
     __cog_listeners__: List[Tuple[str, str]]
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> CogMeta:
+    def __new__(cls, *args: Any, **kwargs: Unpack[_CogKwargs]) -> CogMeta:
         name, bases, attrs = args
         attrs['__cog_name__'] = kwargs.get('name', name)
         attrs['__cog_settings__'] = kwargs.pop('command_attrs', {})

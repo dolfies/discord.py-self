@@ -47,6 +47,7 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    TypedDict,
     Union,
 )
 
@@ -104,11 +105,15 @@ from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import UserExperiment, GuildExperiment
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
     from types import TracebackType
+
+    from typing_extensions import Self, Unpack
+
+    from .abc import Messageable, Snowflake, SnowflakeTime
+    from .automod import AutoModAction, AutoModRule
+    from .channel import DMChannel, GroupChannel
+    from .ext.commands import Bot, Context, CommandError
     from .guild import GuildChannel
-    from .abc import Snowflake, SnowflakeTime
-    from .channel import DMChannel
     from .message import Message
     from .member import Member
     from .voice_client import VoiceProtocol
@@ -123,6 +128,36 @@ if TYPE_CHECKING:
     from .guild import Guild
     from .types.read_state import BulkReadState
     from .types.snowflake import Snowflake as _Snowflake
+    from .flags import MemberCacheFlags
+    from .errors import CaptchaRequired
+
+    class _ClientOptions(TypedDict, total=False):
+        max_messages: int
+        proxy: str
+        proxy_auth: aiohttp.BasicAuth
+        member_cache_flags: MemberCacheFlags
+        chunk_guilds_at_startup: bool
+        guild_subscriptions: bool
+        status: Status
+        activity: BaseActivity
+        activities: List[BaseActivity]
+        afk: bool
+        idle_since: Optional[datetime]
+        allowed_mentions: AllowedMentions
+        heartbeat_timeout: float
+        guild_ready_timeout: float
+        assume_unsync_clock: bool
+        enable_debug_events: bool
+        sync_presence: bool
+        captcha_handler: Callable[[CaptchaRequired, Client], Awaitable[str]]
+        max_ratelimit_timeout: float
+        default_ratelimit_limit: int
+        preferred_rtc_regions: List[str]
+        canary: bool
+        apm_tracing: bool
+        rpc_proxy: str
+        proxy_gateway: bool
+        timezone: str
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
@@ -247,6 +282,10 @@ class Client:
         Whether to start your session as AFK. Defaults to ``False``.
 
         .. versionadded:: 2.1
+    idle_since: Optional[:class:`datetime.datetime`]
+        The time to set the client as idle since. If ``None``, the client is not idle.
+
+        .. versionadded:: 2.1
     allowed_mentions: Optional[:class:`AllowedMentions`]
         Control how the client handles mentions by default on every message sent.
 
@@ -323,7 +362,7 @@ class Client:
         The websocket gateway the client is currently connected to. Could be ``None``.
     """
 
-    def __init__(self, **options: Any) -> None:
+    def __init__(self, **options: Unpack[_ClientOptions]) -> None:
         self.loop: asyncio.AbstractEventLoop = _loop
         # self.ws is set in the connect method
         self.ws: DiscordWebSocket = None  # type: ignore

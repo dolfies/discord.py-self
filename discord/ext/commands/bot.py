@@ -60,7 +60,7 @@ from .help import HelpCommand, DefaultHelpCommand
 from .cog import Cog
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
 
     import importlib.machinery
 
@@ -74,10 +74,20 @@ if TYPE_CHECKING:
         ContextT,
         MaybeAwaitableFunc,
     )
+    from discord.client import _ClientOptions
 
     _Prefix = Union[Iterable[str], str]
     _PrefixCallable = MaybeAwaitableFunc[[BotT, Message], _Prefix]
     PrefixType = Union[_Prefix, _PrefixCallable[BotT]]
+
+    class _BotOptions(_ClientOptions, total=False):
+        owner_id: int
+        owner_ids: Collection[int]
+        strip_after_prefix: bool
+        case_insensitive: bool
+        self_bot: bool
+        user_bot: bool
+
 
 __all__ = (
     'when_mentioned',
@@ -156,7 +166,7 @@ class BotBase(GroupMixin[None]):
         command_prefix: PrefixType[BotT],
         help_command: Optional[HelpCommand] = _default,
         description: Optional[str] = None,
-        **options: Any,
+        **options: Unpack[_BotOptions],
     ) -> None:
         super().__init__(**options)
         self.command_prefix: PrefixType[BotT] = command_prefix  # type: ignore
@@ -1290,4 +1300,14 @@ class Bot(BotBase, discord.Client):
         .. versionadded:: 1.7
     """
 
-    pass
+    if TYPE_CHECKING:
+
+        def __init__(
+            self,
+            command_prefix: PrefixType[BotT],
+            *,
+            help_command: Optional[HelpCommand] = _default,
+            description: Optional[str] = None,
+            **kwargs: Unpack[_BotOptions],
+        ) -> None:
+            ...

@@ -83,7 +83,8 @@ MISSING = utils.MISSING
 _log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
+
     from .client import Client
     from .user import ClientUser, User
     from .asset import Asset
@@ -115,6 +116,7 @@ if TYPE_CHECKING:
     from .types.message import MessageSearchAuthorType, MessageSearchHasType, PartialMessage as PartialMessagePayload
     from .types.guild import ChannelPositionUpdate
     from .types.snowflake import SnowflakeList
+    from .permissions import _PermissionOverwriteKwargs
 
     MessageableChannel = Union[TextChannel, VoiceChannel, StageChannel, Thread, DMChannel, PartialMessageable, GroupChannel]
     VocalChannel = Union[VoiceChannel, StageChannel, DMChannel, GroupChannel]
@@ -1254,7 +1256,7 @@ class GuildChannel:
         target: Union[Member, Role],
         *,
         reason: Optional[str] = ...,
-        **permissions: Optional[bool],
+        **permissions: Unpack[_PermissionOverwriteKwargs],
     ) -> None:
         ...
 
@@ -1264,7 +1266,7 @@ class GuildChannel:
         *,
         overwrite: Any = _undefined,
         reason: Optional[str] = None,
-        **permissions: Optional[bool],
+        **permissions: Unpack[_PermissionOverwriteKwargs],
     ) -> None:
         r"""|coro|
 
