@@ -535,7 +535,7 @@ class MessageSnapshot(Hashable):
         Extra features of the the message snapshot.
     stickers: List[:class:`StickerItem`]
         A list of sticker items given to the message.
-    components: List[Union[:class:`ActionRow`, :class:`Button`, :class:`SelectMenu`]]
+    components: List[:class:`Component`]]
         A list of components in the message.
     """
 
@@ -1886,7 +1886,7 @@ class Message(PartialMessage, Hashable):
         A list of sticker items given to the message.
 
         .. versionadded:: 1.6
-    components: List[Union[:class:`ActionRow`, :class:`Button`, :class:`SelectMenu`]]
+    components: List[:class:`Component`]
         A list of components in the message.
 
         .. versionadded:: 2.0
