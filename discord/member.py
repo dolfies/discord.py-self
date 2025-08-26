@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from .relationship import Relationship
     from .calls import PrivateCall
     from .primary_guild import PrimaryGuild
+    from .collectible import Collectible
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     ConnectableChannel = Union[VocalGuildChannel, DMChannel, GroupChannel]
@@ -315,6 +316,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         accent_color: Optional[Colour]
         accent_colour: Optional[Colour]
         primary_guild: PrimaryGuild
+        collectibles: List[Collectible]
 
     def __init__(self, *, data: MemberWithUserPayload, guild: Guild, state: ConnectionState):
         self._state: ConnectionState = state

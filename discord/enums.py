@@ -136,6 +136,8 @@ __all__ = (
     'StatusDisplayType',
     'OnboardingPromptType',
     'OnboardingMode',
+    'CollectibleType',
+    'NameplatePalette',
 )
 
 
@@ -1845,6 +1847,24 @@ class OnboardingPromptType(Enum):
 class OnboardingMode(Enum):
     default = 0
     advanced = 1
+
+
+class CollectibleType(Enum):
+    nameplate = 'nameplate'
+
+
+class NameplatePalette(Enum):
+    crimson = 'crimson'
+    berry = 'berry'
+    sky = 'sky'
+    teal = 'teal'
+    forest = 'forest'
+    bubble_gum = 'bubble_gum'
+    violet = 'violet'
+    cobalt = 'cobalt'
+    clover = 'clover'
+    lemon = 'lemon'
+    white = 'white'
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

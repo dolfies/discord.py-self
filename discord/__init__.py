@@ -30,6 +30,7 @@ from .billing import *
 from .calls import *
 from .channel import *
 from .client import *
+from .collectible import *
 from .colour import *
 from .commands import *
 from .components import *

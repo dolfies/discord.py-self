@@ -6606,6 +6606,65 @@ of :class:`enum.Enum`.
 
         Default channels and questions count towards onboarding constraints.
 
+.. class:: CollectibleType
+
+    Represents the type of a :class:`Collectible`.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: nameplate
+
+        The collectible is a nameplate.
+
+.. class:: NameplatePalette
+
+    Represents the available palettes for a nameplate.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: crimson
+
+        The collectible nameplate palette is crimson.
+
+    .. attribute:: berry
+
+        The collectible nameplate palette is berry.
+
+    .. attribute:: sky
+
+        The collectible nameplate palette is sky.
+
+    .. attribute:: teal
+
+        The collectible nameplate palette is teal.
+
+    .. attribute:: forest
+
+        The collectible nameplate palette is forest.
+
+    .. attribute:: bubble_gum
+
+        The collectible nameplate palette is bubble gum.
+
+    .. attribute:: violet
+
+        The collectible nameplate palette is violet.
+
+    .. attribute:: cobalt
+
+        The collectible nameplate palette is cobalt.
+
+    .. attribute:: clover
+
+        The collectible nameplate palette is clover.
+
+    .. attribute:: lemon
+
+        The collectible nameplate palette is lemon.
+
+    .. attribute:: white
+
+        The collectible nameplate palette is white.
 
 .. _discord-api-audit-logs:
 
@@ -7620,6 +7679,11 @@ User
 .. attributetable:: DisplayNameStyle
 
 .. autoclass:: DisplayNameStyle()
+    :members:
+
+.. attributetable:: Collectible
+
+.. autoclass:: Collectible()
     :members:
 
 Affinity

@@ -357,7 +357,8 @@ class Permissions(BaseFlags):
            :attr:`send_messages_in_threads` and :attr:`use_external_stickers` permissions.
 
         .. versionchanged:: 2.1
-            Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`, and :attr:`pin_messages` permissions.
+            Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`,
+            :attr:`set_voice_channel_status`, and :attr:`pin_messages` permissions.
         """
         return cls(0b0000_0000_0000_1110_0100_0000_0111_1100_1000_0000_0000_0111_1111_1000_0100_0000)
 
@@ -366,7 +367,7 @@ class Permissions(BaseFlags):
         """A factory method that creates a :class:`Permissions` with all
         "Voice" permissions from the official Discord UI set to ``True``.
 
-        .. versionchanged:: 2.7
+        .. versionchanged:: 2.1
             Added :attr:`set_voice_channel_status` permission.
         """
         return cls(0b0000_0000_0000_0001_0010_0100_1000_0000_0000_0011_1111_0000_0000_0011_0000_0000)
@@ -828,7 +829,7 @@ class Permissions(BaseFlags):
     def set_voice_channel_status(self) -> int:
         """:class:`bool`: Returns ``True`` if a user can set voice channel status.
 
-        .. versionadded:: 2.7
+        .. versionadded:: 2.1
         """
         return 1 << 48
 
