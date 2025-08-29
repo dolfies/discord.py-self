@@ -2179,6 +2179,86 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.1
 
+.. class:: NameFont
+
+    Specifies the font of :class:`DisplayNameStyle`.
+
+    .. attribute:: default
+
+        The default font.
+
+    .. attribute:: bangers
+
+        "Bangers" font.
+
+    .. attribute:: bio_rhyme
+
+        "BioRhyme" font.
+
+    .. attribute:: cherry_bomb
+
+        "Cherry Bomb One" font.
+
+    .. attribute:: chicle
+
+        "Chicle" font.
+
+    .. attribute:: compagnon
+
+        "Compagnon" font.
+
+    .. attribute:: museo_moderno
+
+        "MuseoModerno" font.
+
+    .. attribute:: neo_castel
+
+        "Néo-Castel" font.
+
+    .. attribute:: pixelify
+
+        "Pixelify Sans" font.
+
+    .. attribute:: ribes
+
+        "Ribes" font.
+
+    .. attribute:: sinistre
+
+        "Sinistre" font.
+
+    .. attribute:: zilla_slab
+
+        "Zilla Slab" font.
+
+.. class:: NameEffect
+
+    Specifies the effect of :class:`DisplayNameStyle`.
+
+    .. attribute:: solid
+
+        Displays the first color provided.
+
+    .. attribute:: gradient
+
+        Two color gradient.
+
+    .. attribute:: neon
+
+        Glow around the name.
+
+    .. attribute:: toon
+
+        Subtle vertical gradient and stroke.
+
+    .. attribute:: pop
+
+        Colored dropshadow.
+
+    .. attribute:: glow
+
+        Alternate gradient style.
+
 .. class:: ActivityType
 
     Specifies the type of :class:`Activity`. This is used to check how to
