@@ -716,6 +716,7 @@ class NameEffect(Enum):
     neon = 3
     toon = 4
     pop = 5
+    glow = 6
 
 class ActivityType(Enum):
     unknown = -1

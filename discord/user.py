@@ -209,7 +209,7 @@ class BaseUser(_UserTag):
             'banner': self._banner,
             'accent_color': self._accent_colour,
             'primary_guild': self._primary_guild,
-            'display_name_style': self._display_name_style,
+            'display_name_styles': self._display_name_style,
         }
         return user
 
@@ -1043,6 +1043,7 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
             self._avatar_decoration_data,
             self.global_name,
             self._primary_guild,
+            self._display_name_style,
         )
         modified = (
             user['username'],
@@ -1052,6 +1053,7 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
             user.get('avatar_decoration_data'),
             user.get('global_name'),
             user.get('primary_guild'),
+            user.get('display_name_styles'),
         )
         if original != modified:
             to_return = User._copy(self)
@@ -1063,6 +1065,7 @@ class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):
                 self._avatar_decoration_data,
                 self.global_name,
                 self._primary_guild,
+                self._display_name_style,
             ) = modified
             # Signal to dispatch user_update
             return to_return, self
