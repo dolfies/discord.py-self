@@ -40,6 +40,8 @@ __all__ = (
     'AuditLogAction',
     'AuditLogActionCategory',
     'UserFlags',
+    'NameFont',
+    'NameEffect',
     'ActivityType',
     'NotificationLevel',
     'HighlightLevel',
@@ -694,6 +696,27 @@ class UserFlags(Enum):
     collaborator = 1125899906842624
     restricted_collaborator = 2251799813685248
 
+class NameFont(Enum):
+    default = 11
+    bangers = 1
+    bio_rhyme = 2
+    cherry_bomb = 3
+    chicle = 4
+    compagnon = 5
+    museo_moderno = 6
+    neo_castel = 7
+    pixelify = 8
+    ribes = 9
+    sinistre = 10
+    zilla_slab = 12
+
+class NameEffect(Enum):
+    solid = 1
+    gradient = 2
+    neon = 3
+    toon = 4
+    pop = 5
+    glow = 6
 
 class ActivityType(Enum):
     unknown = -1

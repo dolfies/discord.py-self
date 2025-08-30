@@ -35,6 +35,8 @@ from .enums import (
     PremiumType,
     RelationshipAction,
     RelationshipType,
+    NameEffect,
+    NameFont,
     try_enum,
 )
 from .errors import NotFound
@@ -73,6 +75,7 @@ if TYPE_CHECKING:
         UserAvatar as UserAvatarPayload,
         AvatarDecorationData,
         PrimaryGuild as PrimaryGuildPayload,
+        DisplayNameStyle as DisplayNameStylePayload
     )
     from .types.snowflake import Snowflake
 
@@ -81,6 +84,7 @@ __all__ = (
     'User',
     'ClientUser',
     'RecentAvatar',
+    'DisplayNameStyle',
 )
 
 
@@ -88,6 +92,27 @@ class _UserTag:
     __slots__ = ()
     id: int
 
+class DisplayNameStyle:
+    """Represents a user's display name style.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    font: :class:`NameFont`
+        The font used for the display name.
+    effect: :class:`NameEffect`
+        The visual effect applied to the display name.
+    colors: List[:class:`Colour`]
+        The list of colours applied to the display name.
+    """
+    def __init__(self, *, data: DisplayNameStylePayload) -> None:
+        self.font: NameFont = try_enum(NameFont, data['font_id'])
+        self.effect: NameEffect = try_enum(NameEffect, data['effect_id'])
+        self.colors: List[selfcord.Colour] = [selfcord.Colour(color) for color in data.get('colors', [])]
+
+    def __repr__(self) -> str:
+        return f'<DisplayNameStyle font={self.font} effect={self.effect} colors={self.colors}>'
 
 class BaseUser(_UserTag):
     __slots__ = (
@@ -105,6 +130,7 @@ class BaseUser(_UserTag):
         'premium_type',
         '_state',
         '_primary_guild',
+        '_display_name_style',
     )
 
     if TYPE_CHECKING:
@@ -121,6 +147,7 @@ class BaseUser(_UserTag):
         _accent_colour: Optional[int]
         _public_flags: int
         _primary_guild: Optional[PrimaryGuildPayload]
+        _display_name_style: Optional[DisplayNameStylePayload]
 
     def __init__(self, *, state: ConnectionState, data: Union[UserPayload, PartialUserPayload]) -> None:
         self._state = state
@@ -159,6 +186,7 @@ class BaseUser(_UserTag):
         self.bot = data.get('bot', False)
         self.system = data.get('system', False)
         self._primary_guild = data.get('primary_guild', None)
+        self._display_name_style = data.get('display_name_styles', None) or None
 
     @classmethod
     def _copy(cls, user: Self) -> Self:
@@ -177,6 +205,7 @@ class BaseUser(_UserTag):
         self.system = user.system
         self._state = user._state
         self._primary_guild = user._primary_guild
+        self._display_name_style = user._display_name_style
 
         return self
 
@@ -194,6 +223,7 @@ class BaseUser(_UserTag):
             'banner': self._banner,
             'accent_color': self._accent_colour,
             'primary_guild': self._primary_guild,
+            'display_name_styles': self._display_name_style,
         }
         return user
 
@@ -382,6 +412,16 @@ class BaseUser(_UserTag):
         if self._primary_guild is not None:
             return PrimaryGuild(state=self._state, data=self._primary_guild)
         return PrimaryGuild._default(self._state)
+
+    @property
+    def display_name_style(self) -> Optional[DisplayNameStyle]:
+        """:class:`DisplayNameStyle`: Returns the user's display name style.
+
+        .. versionadded:: 2.1
+        """
+        if self._display_name_style is None:
+            return None
+        return DisplayNameStyle(data=self._display_name_style)
 
     def mentioned_in(self, message: Message) -> bool:
         """Checks if the user is mentioned in the specified message.
@@ -1021,6 +1061,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             self._avatar_decoration_data,
             self.global_name,
             self._primary_guild,
+            self._display_name_style,
         )
         modified = (
             user['username'],
@@ -1030,6 +1071,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             user.get('avatar_decoration_data'),
             user.get('global_name'),
             user.get('primary_guild'),
+            user.get('display_name_styles'),
         )
         if original != modified:
             to_return = User._copy(self)
@@ -1041,6 +1083,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
                 self._avatar_decoration_data,
                 self.global_name,
                 self._primary_guild,
+                self._display_name_style,
             ) = modified
             # Signal to dispatch user_update
             return to_return, self

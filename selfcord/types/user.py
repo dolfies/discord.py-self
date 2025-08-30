@@ -42,6 +42,7 @@ class PartialUser(TypedDict):
     system: NotRequired[bool]
     global_name: Optional[str]
     primary_guild: NotRequired[Optional[PrimaryGuild]]
+    display_name_styles: Optional[DisplayNameStyle]
 
 
 ConnectionType = Literal[
@@ -70,6 +71,8 @@ ConnectionType = Literal[
 ]
 ConnectionVisibilty = Literal[0, 1]
 PremiumType = Literal[0, 1, 2, 3]
+DisplayNameFont = Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+DisplayNameEffect = Literal[1, 2, 3, 4, 5, 6]
 
 
 class APIUser(PartialUser):
@@ -94,6 +97,12 @@ class User(APIUser, total=False):
     premium_type: PremiumType
     desktop: bool
     mobile: bool
+
+
+class DisplayNameStyle(TypedDict):
+    font_id: DisplayNameFont
+    effect_id: DisplayNameEffect
+    colors: List[int]  # 1-2
 
 
 class UserWithToken(User):
