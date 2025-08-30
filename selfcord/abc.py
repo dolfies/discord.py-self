@@ -268,6 +268,8 @@ async def _handle_message_search(
     after: SnowflakeTime = MISSING,
     include_nsfw: bool = MISSING,
     content: str = MISSING,
+    contents: Sequence[str] = MISSING,
+    slop: int = 0,
     channels: Collection[Snowflake] = MISSING,
     authors: Collection[Snowflake] = MISSING,
     author_types: Collection[MessageSearchAuthorType] = MISSING,
@@ -280,7 +282,8 @@ async def _handle_message_search(
     link_hostnames: Collection[str] = MISSING,
     attachment_filenames: Collection[str] = MISSING,
     attachment_extensions: Collection[str] = MISSING,
-    application_commands: Collection[Snowflake] = MISSING,
+    application_command_id: Optional[Snowflake] = MISSING,
+    application_command_name: Optional[str] = MISSING,
     oldest_first: bool = MISSING,
     most_relevant: bool = False,
 ) -> AsyncIterator[Message]:
@@ -294,6 +297,11 @@ async def _handle_message_search(
         raise ValueError('limit must be greater than or equal to 0')
     if offset < 0:
         raise ValueError('offset must be greater than or equal to 0')
+
+    if application_command_id and not application_command_name:
+        raise TypeError('application_command_name must be specified if application_command_id is specified')
+    if application_command_name and not application_command_id:
+        raise TypeError('application_command_id must be specified if application_command_name is specified')
 
     _channels = {c.id: c for c in channels} if channels else {}
 
@@ -350,6 +358,10 @@ async def _handle_message_search(
         payload['include_nsfw'] = str(include_nsfw).lower()
     if content:
         payload['content'] = content
+    if contents:
+        payload['contents'] = list(contents)
+    if slop:
+        payload['slop'] = slop
     if channels:
         payload['channel_id'] = [c.id for c in channels]
     if authors:
@@ -374,8 +386,10 @@ async def _handle_message_search(
         payload['attachment_filename'] = list(attachment_filenames)
     if attachment_extensions:
         payload['attachment_extension'] = list(attachment_extensions)
-    if application_commands:
-        payload['command_id'] = [c.id for c in application_commands]
+    if application_command_id:
+        payload['command_id'] = application_command_id.id
+    if application_command_name:
+        payload['command_name'] = application_command_name
     if oldest_first:
         payload['sort_order'] = 'asc'
     if most_relevant:
@@ -2401,6 +2415,8 @@ class Messageable:
         self,
         content: str = MISSING,
         *,
+        contents: Sequence[str] = MISSING,
+        slop: int = MISSING,
         limit: Optional[int] = 25,
         offset: int = 0,
         before: SnowflakeTime = MISSING,
@@ -2416,7 +2432,8 @@ class Messageable:
         link_hostnames: Collection[str] = MISSING,
         attachment_filenames: Collection[str] = MISSING,
         attachment_extensions: Collection[str] = MISSING,
-        application_commands: Collection[Snowflake] = MISSING,
+        application_command_id: Snowflake = MISSING,
+        application_command_name: str = MISSING,
         oldest_first: bool = MISSING,
         most_relevant: bool = False,
     ) -> AsyncIterator[Message]:
@@ -2453,6 +2470,10 @@ class Messageable:
         -----------
         content: :class:`str`
             The message content to search for.
+        contents: List[:class:`str`]
+            Tokenized message contents to search for. Must be prefixed with ``0|`` for exact match or ``2|`` for fuzzy match.
+        slop: :class:`int`
+            The slop for message content token matching from 0 to 100. Defaults to 2.
         limit: Optional[:class:`int`]
             The number of messages to retrieve.
             If ``None``, retrieves every message in the results. Note, however,
@@ -2492,13 +2513,15 @@ class Messageable:
             The attachment filenames to filter by.
         attachment_extensions: List[:class:`str`]
             The attachment extensions to filter by (e.g. txt).
-        application_commands: List[:class:`~selfcord.abc.ApplicationCommand`]
-            The used application commands to filter by.
+        application_command_id: :class:`int`
+            The application command ID to filter by. Must be used with ``application_command_name``.
+        application_command_name: :class:`str`
+            The application command name to filter by. Must be used with ``application_command_id``.
         oldest_first: :class:`bool`
             Whether to return the oldest results first. Defaults to ``True`` if
             ``after`` is specified, otherwise ``False``. Ignored when ``most_relevant`` is set.
         most_relevant: :class:`bool`
-            Whether to sort the results by relevance. Limits pagination to 9975 entries.
+            Whether to sort the results by relevance. Limits pagination to 10,000 entries.
 
         Raises
         ------
@@ -2508,6 +2531,7 @@ class Messageable:
             Provided both ``before`` and ``after`` when ``most_relevant`` is set.
         ValueError
             Could not resolve the channel's guild ID.
+            Did not provide both ``application_command_id`` and ``application_command_name``.
 
         Yields
         -------
@@ -2521,6 +2545,8 @@ class Messageable:
             before=before,
             after=after,
             content=content,
+            contents=contents,
+            slop=slop,
             authors=authors,
             author_types=author_types,
             mentions=mentions,
@@ -2532,7 +2558,8 @@ class Messageable:
             link_hostnames=link_hostnames,
             attachment_filenames=attachment_filenames,
             attachment_extensions=attachment_extensions,
-            application_commands=application_commands,
+            application_command_id=application_command_id,
+            application_command_name=application_command_name,
             oldest_first=oldest_first,
             most_relevant=most_relevant,
         )

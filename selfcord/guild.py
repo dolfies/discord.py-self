@@ -2953,6 +2953,8 @@ class Guild(Hashable):
         self,
         content: str = MISSING,
         *,
+        contents: Sequence[str] = MISSING,
+        slop: int = MISSING,
         limit: Optional[int] = 25,
         offset: int = 0,
         before: SnowflakeTime = MISSING,
@@ -2970,7 +2972,8 @@ class Guild(Hashable):
         link_hostnames: Collection[str] = MISSING,
         attachment_filenames: Collection[str] = MISSING,
         attachment_extensions: Collection[str] = MISSING,
-        application_commands: Collection[Snowflake] = MISSING,
+        application_command_id: Snowflake = MISSING,
+        application_command_name: str = MISSING,
         oldest_first: bool = MISSING,
         most_relevant: bool = False,
     ) -> AsyncIterator[Message]:
@@ -3007,6 +3010,10 @@ class Guild(Hashable):
         -----------
         content: :class:`str`
             The message content to search for.
+        contents: List[:class:`str`]
+            Tokenized message contents to search for. Must be prefixed with ``0|`` for exact match or ``2|`` for fuzzy match.
+        slop: :class:`int`
+            The slop for message content token matching from 0 to 100. Defaults to 2.
         limit: Optional[:class:`int`]
             The number of messages to retrieve.
             If ``None``, retrieves every message in the results. Note, however,
@@ -3050,13 +3057,15 @@ class Guild(Hashable):
             The attachment filenames to filter by.
         attachment_extensions: List[:class:`str`]
             The attachment extensions to filter by (e.g. txt).
-        application_commands: List[:class:`abc.ApplicationCommand`]
-            The used application commands to filter by.
+        application_command_id: :class:`int`
+            The used application command ID to filter by.
+        application_command_name: :class:`str`
+            The used application command name to filter by.
         oldest_first: :class:`bool`
             Whether to return the oldest results first. Defaults to ``True`` if
             ``before`` is specified, otherwise ``False``. Ignored when ``most_relevant`` is set.
         most_relevant: :class:`bool`
-            Whether to sort the results by relevance. Limits pagination to 9975 entries.
+            Whether to sort the results by relevance. Limits pagination to 10,000 entries.
 
         Raises
         ------
@@ -3064,6 +3073,7 @@ class Guild(Hashable):
             The request to search messages failed.
         TypeError
             Provided both ``before`` and ``after`` when ``most_relevant`` is set.
+            Did not provide both ``application_command_id`` and ``application_command_name``.
         ValueError
             Could not resolve the channel's guild ID.
 
@@ -3079,6 +3089,8 @@ class Guild(Hashable):
             before=before,
             after=after,
             content=content,
+            contents=contents,
+            slop=slop,
             include_nsfw=include_nsfw,
             channels=channels,
             authors=authors,
@@ -3092,7 +3104,8 @@ class Guild(Hashable):
             link_hostnames=link_hostnames,
             attachment_filenames=attachment_filenames,
             attachment_extensions=attachment_extensions,
-            application_commands=application_commands,
+            application_command_id=application_command_id,
+            application_command_name=application_command_name,
             oldest_first=oldest_first,
             most_relevant=most_relevant,
         )
