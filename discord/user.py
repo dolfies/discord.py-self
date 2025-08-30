@@ -95,6 +95,8 @@ class _UserTag:
 class DisplayNameStyle:
     """Represents a user's display name style.
 
+    .. versionadded:: 2.1
+
     Attributes
     -----------
     font: :class:`NameFont`
@@ -103,8 +105,6 @@ class DisplayNameStyle:
         The visual effect applied to the display name.
     colors: List[:class:`Colour`]
         The list of colours applied to the display name.
-
-    .. versionadded:: 2.1
     """
     def __init__(self, *, data: DisplayNameStylePayload) -> None:
         self.font: NameFont = try_enum(NameFont, data['font_id'])
