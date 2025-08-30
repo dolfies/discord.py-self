@@ -7381,6 +7381,11 @@ User
 .. autoclass:: PrimaryGuild()
     :members:
 
+.. attributetable:: DisplayNameStyle
+
+.. autoclass:: DisplayNameStyle()
+    :members:
+
 Affinity
 ~~~~~~~~~
 

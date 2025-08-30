@@ -84,6 +84,7 @@ __all__ = (
     'User',
     'ClientUser',
     'RecentAvatar',
+    'DisplayNameStyle',
 )
 
 
@@ -92,6 +93,19 @@ class _UserTag:
     id: int
 
 class DisplayNameStyle:
+    """Represents a user's display name style.
+
+    Attributes
+    -----------
+    font: :class:`NameFont`
+        The font used for the display name.
+    effect: :class:`NameEffect`
+        The visual effect applied to the display name.
+    colors: List[:class:`Colour`]
+        The list of colours applied to the display name.
+
+    .. versionadded:: 2.1
+    """
     def __init__(self, *, data: DisplayNameStylePayload) -> None:
         self.font: NameFont = try_enum(NameFont, data['font_id'])
         self.effect: NameEffect = try_enum(NameEffect, data['effect_id'])
@@ -401,6 +415,10 @@ class BaseUser(_UserTag):
 
     @property
     def display_name_style(self) -> Optional[DisplayNameStyle]:
+        """:class:`DisplayNameStyle`: Returns the user's display name style.
+
+        .. versionadded:: 2.1
+        """
         if self._display_name_style is None:
             return None
         return DisplayNameStyle(data=self._display_name_style)
