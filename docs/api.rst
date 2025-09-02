@@ -1064,6 +1064,7 @@ Members
     - avatar
     - username
     - discriminator
+    - primary guild
 
     :param before: The updated user's old info.
     :type before: :class:`User`
