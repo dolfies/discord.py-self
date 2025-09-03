@@ -2564,6 +2564,42 @@ class Messageable:
             most_relevant=most_relevant,
         )
 
+    async def user_application_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
+        """|coro|
+
+        Returns a list of user-installed commands available.
+
+        .. versionadded:: 2.1
+
+        .. note::
+
+            Method returns only user-installed commands.
+
+        Raises
+        ------
+        ~discord.HTTPException
+            Getting the commands failed.
+
+        Returns
+        -------
+        List[Union[:class:`~discord.SlashCommand`, :class:`~discord.UserCommand`, :class:`~discord.MessageCommand`]]
+            A list of user-installed commands.
+        """
+        state = self._state
+        data = await state.http.user_application_command_index()
+
+        cmds = data['application_commands']
+        apps = {int(app['id']): state.create_integration_application(app) for app in data.get('applications') or []}
+
+        result = []
+
+        for cmd in cmds:
+            _, cls = _command_factory(cmd['type'])
+            application = apps.get(int(cmd['application_id']))
+            result.append(cls(state=state, data=cmd, application=application))
+
+        return result
+
     async def application_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
         """|coro|
 

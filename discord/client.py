@@ -101,6 +101,7 @@ from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailS
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import UserExperiment, GuildExperiment
+from .commands import SlashCommand, UserCommand, MessageCommand, _command_factory
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -873,6 +874,42 @@ class Client:
         await self._connection.async_setup()
 
         self._ready = asyncio.Event()
+
+    async def user_application_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
+        """|coro|
+
+        Returns a list of user-installed commands available.
+
+        .. versionadded:: 2.1
+
+        .. note::
+
+            Method returns only user-installed commands.
+
+        Raises
+        ------
+        ~discord.HTTPException
+            Getting the commands failed.
+
+        Returns
+        -------
+        List[Union[:class:`~discord.SlashCommand`, :class:`~discord.UserCommand`, :class:`~discord.MessageCommand`]]
+            A list of user-installed commands.
+        """
+        state = self._connection
+        data = await state.http.user_application_command_index()
+
+        cmds = data['application_commands']
+        apps = {int(app['id']): state.create_integration_application(app) for app in data.get('applications') or []}
+
+        result = []
+
+        for cmd in cmds:
+            _, cls = _command_factory(cmd['type'])
+            application = apps.get(int(cmd['application_id']))
+            result.append(cls(state=state, data=cmd, application=application))
+
+        return result
 
     async def setup_hook(self) -> None:
         """|coro|
