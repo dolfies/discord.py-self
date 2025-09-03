@@ -540,6 +540,14 @@ class SystemChannelFlags(BaseFlags):
         """
         return 128
 
+    def emoji_added(self):
+        """:class:`bool`: Returns ``True`` if the system channel is used for
+        emoji added notifications.
+
+        .. versionadded:: 2.1
+        """
+        return 256
+
 
 @fill_with_flags()
 class MessageFlags(BaseFlags):

@@ -2036,6 +2036,12 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.1
 
+    .. attribute:: emoji_added
+
+        The system message sent when a custom emoji is added to the guild.
+
+        .. versionadded:: 2.1
+
 .. class:: InviteType
 
     Specifies the type of :class:`Invite`.

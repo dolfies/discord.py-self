@@ -47,7 +47,7 @@ __all__ = ('Collectible',)
 class Collectible:
     """Represents a user's collectible.
 
-    .. versionadded:: 2.7
+    .. versionadded:: 2.1
 
     Attributes
     ----------

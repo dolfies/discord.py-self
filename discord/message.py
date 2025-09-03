@@ -2676,6 +2676,9 @@ class Message(PartialMessage, Hashable):
             )
             return f'{self.author.display_name}\'s poll {poll_title.value} has closed.'  # type: ignore
 
+        if self.type is MessageType.emoji_added:
+            return f'{self.author.name} added a new emoji, {self.content}'
+
         # Fallback for unknown message types
         return self.content
 
