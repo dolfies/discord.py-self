@@ -132,32 +132,31 @@ if TYPE_CHECKING:
     from .errors import CaptchaRequired
 
     class _ClientOptions(TypedDict, total=False):
-        max_messages: int
-        proxy: str
-        proxy_auth: aiohttp.BasicAuth
-        member_cache_flags: MemberCacheFlags
+        max_messages: Optional[int]
+        proxy: Optional[str]
+        proxy_auth: Optional[aiohttp.BasicAuth]
+        member_cache_flags: Optional[MemberCacheFlags]
         chunk_guilds_at_startup: bool
         guild_subscriptions: bool
-        status: Status
-        activity: BaseActivity
-        activities: List[BaseActivity]
+        status: Optional[Status]
+        activity: Optional[BaseActivity]
+        activities: Optional[List[BaseActivity]]
         afk: bool
         idle_since: Optional[datetime]
-        allowed_mentions: AllowedMentions
-        heartbeat_timeout: float
-        guild_ready_timeout: float
+        allowed_mentions: Optional[AllowedMentions]
+        heartbeat_timeout: Optional[float]
         assume_unsync_clock: bool
         enable_debug_events: bool
         sync_presence: bool
-        captcha_handler: Callable[[CaptchaRequired, Client], Awaitable[str]]
-        max_ratelimit_timeout: float
-        default_ratelimit_limit: int
-        preferred_rtc_regions: List[str]
+        captcha_handler: Optional[Callable[[CaptchaRequired, Client], Awaitable[str]]]
+        max_ratelimit_timeout: Optional[float]
+        default_ratelimit_limit: Optional[int]
+        preferred_rtc_regions: Optional[List[str]]
         canary: bool
         apm_tracing: bool
-        rpc_proxy: str
+        rpc_proxy: Optional[str]
         proxy_gateway: bool
-        timezone: str
+        timezone: Optional[str]
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 

@@ -43,16 +43,11 @@ from typing import (
 from ._types import _BaseCommand, BotT
 
 if TYPE_CHECKING:
-    from typing_extensions import Self, Unpack
+    from typing_extensions import Self
 
     from .bot import BotBase
     from .context import Context
-    from .core import Command, _CommandDecoratorKwargs
-
-    class _CogKwargs(TypedDict, total=False):
-        name: str
-        description: str
-        command_attrs: _CommandDecoratorKwargs
+    from .core import Command
 
 
 __all__ = (
@@ -130,7 +125,7 @@ class CogMeta(type):
     __cog_commands__: List[Command[Any, ..., Any]]
     __cog_listeners__: List[Tuple[str, str]]
 
-    def __new__(cls, *args: Any, **kwargs: Unpack[_CogKwargs]) -> CogMeta:
+    def __new__(cls, *args: Any, **kwargs: Any) -> CogMeta:
         name, bases, attrs = args
         attrs['__cog_name__'] = kwargs.get('name', name)
         attrs['__cog_settings__'] = kwargs.pop('command_attrs', {})
