@@ -1830,6 +1830,15 @@ of :class:`enum.Enum`.
 
           Checks if two messages are not equal.
 
+    .. method:: is_deletable()
+
+        Checks if the message type is deletable, as some system messages cannot be deleted.
+
+        .. versionadded:: 2.1
+
+        :return: A boolean denoting if the message type is deletable.
+        :rtype: :class:`bool`
+
     .. attribute:: default
 
         The default message type. This is the same as regular messages.
