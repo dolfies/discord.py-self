@@ -1309,9 +1309,9 @@ class HTTPClient:
     ) -> Response[message.Message]:
         r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
         if params.files:
-            return self.request(r, files=params.files, form=params.multipart)
+            return self.request(r, files=params.files, form=params.multipart, context_properties=ContextProperties.from_chat_input())
         else:
-            return self.request(r, json=params.payload)
+            return self.request(r, json=params.payload, context_properties=ContextProperties.from_chat_input())
 
     def send_greet(
         self,
@@ -1327,7 +1327,7 @@ class HTTPClient:
         if message_reference:
             payload['message_reference'] = message_reference
 
-        return self.request(Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id), json=payload)
+        return self.request(Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id), json=payload, context_properties=ContextProperties.from_greet())
 
     def send_typing(self, channel_id: Snowflake) -> Response[Optional[message.TypingResponse]]:
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))

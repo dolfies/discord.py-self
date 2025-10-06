@@ -2748,7 +2748,7 @@ class Guild(Hashable):
             with_mutual_friends_count=with_mutual_friends_count,
             with_mutual_friends=with_mutual_friends,
         )
-        if 'guild_member_profile' not in data:
+        if 'guild_member_profile' not in data and 'guild_member' not in data:
             raise InvalidData('Member is not in this guild')
         if 'guild_member' not in data:
             raise InvalidData('Member has blocked you')

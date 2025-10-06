@@ -103,6 +103,8 @@ class ContextProperties(metaclass=ContextPropertiesMeta):
         'Add Friends to DM': 'eyJsb2NhdGlvbiI6IkFkZCBGcmllbmRzIHRvIERNIn0=',
         'Group DM Invite Create': 'eyJsb2NhdGlvbiI6Ikdyb3VwIERNIEludml0ZSBDcmVhdGUifQ==',
         'Stage Channel': 'eyJsb2NhdGlvbiI6IlN0YWdlIENoYW5uZWwifQ==',
+        'chat_input': 'eyJsb2NhdGlvbiI6ImNoYXRfaW5wdXQifQ==',
+        'greet': 'eyJsb2NhdGlvbiI6ImdyZWV0In0=',
     }
 
     SOURCES = {
