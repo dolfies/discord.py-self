@@ -866,7 +866,7 @@ class BotMissingPermissions(CheckFailure):
 
 
 class BadUnionArgument(UserInputError):
-    """Exception raised when a :data:`typing.Union` converter fails for all
+    """Exception raised when a :obj:`typing.Union` converter fails for all
     its associated types.
 
     This inherits from :exc:`UserInputError`
