@@ -4345,32 +4345,38 @@ class Guild(Hashable):
 
         return roles
 
-    async def role_member_counts(self) -> Dict[Role, int]:
+    async def role_member_counts(self) -> Dict[Union[Object, Role], int]:
         """|coro|
 
-        Retrieves the number of members in each role the guild has.
+        Retrieves a mapping of roles to the number of members that have it.
+
+        You must have :attr:`~Permissions.manage_roles` to do this.
 
         .. versionadded:: 2.1
 
         Raises
         -------
         Forbidden
-            You do not have permissions to get the member counts.
+            You do not have permissions to view the role member counts.
         HTTPException
-            Getting the member counts failed.
+            Retrieving the role member counts failed.
 
         Returns
         --------
-        Dict[:class:`Role`, :class:`int`]
-            A mapping of the role to the number of members in that role.
+        Dict[Union[:class:`Object`, :class:`Role`], :class:`int`]
+            A mapping of roles to the number of members that have it.
+            If a role is not found in the cache, it will be represented as an :class:`Object`
+            instead of a :class:`Role`.
         """
         data = await self._state.http.get_role_member_counts(self.id)
-        ret: Dict[Role, int] = {}
-        for k, v in data.items():
-            role = self.get_role(int(k))
-            if role is not None:
-                ret[role] = v
-        return ret
+        result: Dict[Union[Object, Role], int] = {}
+        for role_id, member_count in data.items():
+            role_id = int(role_id)
+            role = self.get_role(role_id)
+            if role is None:
+                role = Object(id=role_id, type=Role)
+            result[role] = member_count
+        return result
 
     async def kick(self, user: Snowflake, *, reason: Optional[str] = None) -> None:
         """|coro|
