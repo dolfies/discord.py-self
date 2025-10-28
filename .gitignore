@@ -18,3 +18,5 @@ docs/crowdin.py
 *test.py
 backup/
 build/*
+uv.lock*
+pylock*.toml
