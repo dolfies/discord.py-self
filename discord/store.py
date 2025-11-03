@@ -893,6 +893,22 @@ class StoreListing(Hashable):
         data = await self._state.http.edit_store_listing(self.id, payload)
         self._update(data, application=self.sku.application)
 
+    async def delete(self) -> None:
+        """|coro|
+
+        Deletes the store listing.
+
+        .. versionadded:: 2.1
+
+        Raises
+        ------
+        Forbidden
+            You do not have permissions to delete the store listing.
+        HTTPException
+            Deleting the store listing failed.
+        """
+        await self._state.http.delete_store_listing(self.id)
+
     @property
     def url(self) -> str:
         """:class:`str`: Returns the URL of the store listing. This is the URL of the primary SKU."""
@@ -1476,7 +1492,7 @@ class SKU(Hashable):
         if flags is not MISSING:
             payload['flags'] = flags.value if flags else 0
         if access_level is not MISSING:
-            payload['access_level'] = int(access_level)
+            payload['access_type'] = int(access_level)
         if locales is not MISSING:
             payload['locales'] = [str(l) for l in locales] if locales else []
         if features is not MISSING:
@@ -1812,20 +1828,32 @@ class SKU(Hashable):
         return Gift(data=data, state=state)
 
     async def preview_purchase(
-        self, payment_source: Snowflake, *, subscription_plan: Optional[Snowflake] = None, test_mode: bool = False
+        self, payment_source: Optional[Snowflake] = None, *, subscription_plan: Optional[Snowflake] = None, currency: Optional[str] = None, test_mode: bool = False, gift: bool = False
     ) -> SKUPrice:
         """|coro|
 
         Previews a purchase of this SKU.
 
+        .. versionchanged:: 2.1
+
+            Made ``payment_source`` optional.
+
         Parameters
         ----------
-        payment_source: :class:`PaymentSource`
+        payment_source: Optional[:class:`PaymentSource`]
             The payment source to use for the purchase.
         subscription_plan: Optional[:class:`SubscriptionPlan`]
             The subscription plan being purchased.
+        currency: Optional[:class:`str`]
+            The currency to use for the purchase.
+
+            .. versionadded:: 2.1
         test_mode: :class:`bool`
             Whether to preview the purchase in test mode.
+        gift: :class:`bool`
+            Whether the purchase is a gift.
+
+            .. versionadded:: 2.1
 
         Raises
         ------
@@ -1838,7 +1866,7 @@ class SKU(Hashable):
             The previewed purchase price.
         """
         data = await self._state.http.preview_sku_purchase(
-            self.id, payment_source.id, subscription_plan.id if subscription_plan else None, test_mode=test_mode
+            self.id, payment_source.id if payment_source else None, subscription_plan.id if subscription_plan else None, currency=currency, test_mode=test_mode, gift=gift
         )
         return SKUPrice(data=data)
 
@@ -2011,7 +2039,7 @@ class SubscriptionPlan(Hashable):
 
     .. versionchanged:: 2.1
 
-        Removed ``discount_price`` and ``fallback_discount_price`` due to an API change.
+        Removed ``discount_price``, ``fallback_currency``, ``fallback_price``, and ``fallback_discount_price` due to an API change.
 
     Attributes
     ----------
@@ -2036,12 +2064,6 @@ class SubscriptionPlan(Hashable):
     price: Optional[:class:`int`]
         The price of the subscription plan.
         Not available in some contexts.
-    fallback_currency: Optional[:class:`str`]
-        The fallback currency of the subscription plan's price.
-        This is the currency that will be used for gifting if the plan's currency is not giftable.
-    fallback_price: Optional[:class:`int`]
-        The fallback price of the subscription plan.
-        This is the price that will be used for gifting if the plan's currency is not giftable.
     """
 
     __slots__ = (
@@ -2055,8 +2077,6 @@ class SubscriptionPlan(Hashable):
         'currency',
         'price_tier',
         'price',
-        'fallback_currency',
-        'fallback_price',
         '_state',
     )
 
@@ -2081,8 +2101,6 @@ class SubscriptionPlan(Hashable):
         self.currency: Optional[str] = data.get('currency')
         self.price_tier: Optional[int] = data.get('price_tier')
         self.price: Optional[int] = data.get('price')
-        self.fallback_currency: Optional[str] = data.get('fallback_currency')
-        self.fallback_price: Optional[int] = data.get('fallback_price')
 
     def __repr__(self) -> str:
         return f'<SubscriptionPlan id={self.id} name={self.name!r} sku_id={self.sku_id} interval={self.interval!r} interval_count={self.interval_count}>'
@@ -2173,17 +2191,29 @@ class SubscriptionPlan(Hashable):
         )
         return Gift(data=data, state=state)
 
-    async def preview_purchase(self, payment_source: Snowflake, *, test_mode: bool = False) -> SKUPrice:
+    async def preview_purchase(self, payment_source: Optional[Snowflake] = None, *, currency: Optional[str] = None, test_mode: bool = False, gift: bool = False) -> SKUPrice:
         """|coro|
 
         Previews a purchase of this subscription plan.
 
+        .. versionchanged:: 2.1
+
+            Made ``payment_source`` optional.
+
         Parameters
         ----------
-        payment_source: :class:`PaymentSource`
+        payment_source: Optional[:class:`PaymentSource`]
             The payment source to use for the purchase.
+        currency: Optional[:class:`str`]
+            The currency to use for the purchase.
+
+            .. versionadded:: 2.1
         test_mode: :class:`bool`
             Whether to preview the purchase in test mode.
+        gift: :class:`bool`
+            Whether the purchase is a gift.
+
+            .. versionadded:: 2.1
 
         Raises
         ------
@@ -2195,7 +2225,7 @@ class SubscriptionPlan(Hashable):
         :class:`SKUPrice`
             The previewed purchase price.
         """
-        data = await self._state.http.preview_sku_purchase(self.id, payment_source.id, self.id, test_mode=test_mode)
+        data = await self._state.http.preview_sku_purchase(self.id, payment_source.id if payment_source else None, self.id, currency=currency, test_mode=test_mode, gift=gift)
         return SKUPrice(data=data)
 
     async def purchase(

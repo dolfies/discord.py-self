@@ -3220,7 +3220,7 @@ class Application(PartialApplication):
         if dependent_sku is not None:
             payload['dependent_sku_id'] = dependent_sku.id
         if access_level is not None:
-            payload['access_level'] = int(access_level)
+            payload['access_type'] = int(access_level)
         if locales:
             payload['locales'] = [str(l) for l in locales]
         if features:
