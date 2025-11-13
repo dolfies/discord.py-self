@@ -2814,7 +2814,7 @@ class ReadStateFlags(BaseFlags):
 
     @flag_value
     def mention_low_importance(self):
-        """:class:`bool`: Returns ``True`` if the read state's badge is of low importance."""
+        """:class:`bool`: Returns ``True`` if the read state mention count is low importance."""
         return 1 << 2
 
 

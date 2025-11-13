@@ -1730,7 +1730,7 @@ class ConnectionState:
             if 'last_pin_timestamp' in channel_data and hasattr(channel, 'last_pin_timestamp'):
                 channel.last_pin_timestamp = utils.parse_time(channel_data['last_pin_timestamp'])  # type: ignore
 
-        members = {int(m['user']['id']): m for m in data.get('members', [])}
+        members = {int(m['user']['id']): m for m in data.get('updated_members', [])}
 
         cache_flags = self.member_cache_flags
         for k, member_data in members.items():
@@ -1763,9 +1763,6 @@ class ConnectionState:
             channel.last_message_id = message.id  # type: ignore
 
         read_state = self.get_read_state(channel.id)
-        if message.author.id == self.self_id and message.type != MessageType.poll_result:
-            # Implicitly mark our own messages as read
-            read_state.last_acked_id = message.id
         if (
             not message.author.is_blocked()
             and not (channel.type == ChannelType.group and message.type == MessageType.recipient_remove)
@@ -1773,6 +1770,10 @@ class ConnectionState:
         ):
             # Increment mention count if applicable
             read_state.badge_count += 1
+        if message.author.id == self.self_id and message.type != MessageType.poll_result:
+            # Implicitly mark our own messages as read
+            read_state.last_acked_id = message.id
+            read_state.badge_count = 0
 
     def parse_message_delete(self, data: gw.MessageDeleteEvent) -> None:
         raw = RawMessageDeleteEvent(data)
@@ -2347,6 +2348,11 @@ class ConnectionState:
             thread = Thread(guild=guild, state=self, data=data)
             guild._add_thread(thread)
             if data.get('newly_created', False):
+                if thread.parent and thread.parent.type in (ChannelType.forum, ChannelType.media) and thread.owner_id == self.self_id:
+                    # Implicitly mark our own threads as read
+                    read_state = self.get_read_state(thread.parent_id)
+                    read_state.last_acked_id = thread.id
+                    read_state.badge_count = 0
                 self.dispatch('thread_create', thread)
             else:
                 self.dispatch('thread_join', thread)
@@ -3166,12 +3172,13 @@ class ConnectionState:
             self.dispatch('scheduled_event_create', scheduled_event)
 
             read_state = self.get_read_state(guild.id, ReadStateType.scheduled_events)
-            if scheduled_event.creator_id == self.self_id:
-                # Implicitly ack created events
-                read_state.last_acked_id = scheduled_event.id
             if not guild.notification_settings.mute_scheduled_events:
                 # Increment badge count if we're not muted
                 read_state.badge_count += 1
+            if scheduled_event.creator_id == self.self_id:
+                # Implicitly ack created events
+                read_state.last_acked_id = scheduled_event.id
+                read_state.badge_count = 0
         else:
             _log.debug('SCHEDULED_EVENT_CREATE referencing unknown guild ID: %s. Discarding.', data['guild_id'])
 

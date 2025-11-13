@@ -172,7 +172,7 @@ class ReadState:
             return state._get_or_create_partial_messageable(self.id)  # type: ignore
         elif self.type in (ReadStateType.scheduled_events, ReadStateType.guild_home, ReadStateType.onboarding):
             return state._get_or_create_unavailable_guild(self.id)
-        elif self.type == ReadStateType.notification_center and self.id == state.self_id:
+        elif self.type in (ReadStateType.notification_center, ReadStateType.message_requests) and self.id == state.self_id:
             return state.user  # type: ignore
         else:
             raise NotImplementedError(f'Unknown read state type {self.type!r}')

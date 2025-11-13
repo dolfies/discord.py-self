@@ -1735,6 +1735,7 @@ class ReadStateType(Enum):
     notification_center = 2
     guild_home = 3
     onboarding = 4
+    message_requests = 5
 
 
 class DirectoryEntryType(Enum):
