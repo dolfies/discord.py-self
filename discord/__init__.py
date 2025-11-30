@@ -68,6 +68,7 @@ from .raw_models import *
 from .read_state import *
 from .reaction import *
 from .relationship import *
+from .rich_presence import RichPresence, get_external_assets # import discord.richPresence works too.
 from .role import *
 from .scheduled_event import *
 from .settings import *

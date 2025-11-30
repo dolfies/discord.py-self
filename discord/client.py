@@ -24,6 +24,8 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+
+import time
 import asyncio
 from datetime import datetime
 import logging
@@ -65,6 +67,7 @@ from .enums import RelationshipType, Status
 from .gateway import *
 from .gateway import ConnectionClosed
 from .activity import ActivityTypes, BaseActivity, Session, Spotify, create_activity
+from .rich_presence import RichPresence
 from .voice_client import VoiceClient
 from .http import HTTPClient
 from .state import ConnectionState
@@ -1869,6 +1872,46 @@ class Client:
                 payload['custom_activity'] = custom_activity
             if payload:
                 await self.settings.edit(**payload)
+
+    async def set_rich_presence(
+        self,
+        rp: RichPresence,
+        *,
+        status: str = "online",
+        afk: bool = False,
+    ) -> None:
+        """
+        @mikasa: Send a raw OP 3 PRESENCE_UPDATE with a RichPresence activity.
+        """
+        activity_payload = rp.to_dict()
+
+        d = {
+            "since": int(time.time() * 1000),
+            "activities": [activity_payload],
+            "status": status,  # "online", "idle", "dnd", "invisible"
+            "afk": afk,
+        }
+
+        conn = self._connection
+        ws = None
+
+        # Depending on version, this could be _get_websocket() or .ws
+        if hasattr(conn, "_get_websocket") and callable(conn._get_websocket):
+            ws = conn._get_websocket()
+        elif hasattr(conn, "ws"):
+            ws = conn.ws
+
+        if ws is None:
+            raise RuntimeError("Could not find websocket on client._connection")
+
+        payload = {"op": 3, "d": d}
+
+        if hasattr(ws, "send_json"):
+            await ws.send_json(payload)
+        else:
+            import json
+            await ws.send(json.dumps(payload))
+
 
     async def change_voice_state(
         self,
