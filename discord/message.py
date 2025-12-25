@@ -2099,8 +2099,10 @@ class Message(PartialMessage, Hashable):
                         self._state._update_poll_results(self, self.reference.message_id)
 
         self.message_snapshots: List[MessageSnapshot] = MessageSnapshot._from_value(
-            state, data.get('message_snapshots'), self.reference
-        )  # type: ignore
+            state,
+            data.get('message_snapshots'),
+            self.reference,  # type: ignore
+        )
 
         self.role_subscription: Optional[RoleSubscriptionInfo] = None
         try:
@@ -2342,8 +2344,8 @@ class Message(PartialMessage, Hashable):
         if (
             channel.type in (ChannelType.private, ChannelType.group)
             and not settings.muted
-            and not channel.notification_settings.muted
-        ):  # type: ignore
+            and not (getattr(channel, 'notification_settings', None) and channel.notification_settings.muted)  # type: ignore
+        ):
             return True
         if state.user in self.mentions:
             return True

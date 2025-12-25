@@ -1489,8 +1489,8 @@ class GuildProgress:
             onboarding_progress=self.onboarding_progress,
             recents_dismissed_at=self.recents_dismissed_at,
             dismissed_contents=self.dismissed_contents,
-            collapsed_channels=self.collapsed_channels,
-        )  # type: ignore
+            collapsed_channels=self.collapsed_channels,  # type: ignore
+        )
         cls._state = self._state
         return cls
 
@@ -1538,7 +1538,7 @@ class GuildProgress:
         self._dismissed_contents = self._pack_dismissed_contents(value)
 
     @property
-    def collapsed_channels(self) -> List[Union[GuildChannel, Object]]:
+    def collapsed_channels(self) -> Sequence[Union[GuildChannel, Object]]:
         """List[Union[:class:`abc.GuildChannel`, :class:`Object`]]: A list of guild channels that are collapsed in the inbox. Always :class:`Object` if state is not attached."""
         return list(map(self._get_channel, self._collapsed_channel_ids))
 

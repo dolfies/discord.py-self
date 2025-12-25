@@ -109,10 +109,8 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self, Unpack
 
-    from .abc import Messageable, Snowflake, SnowflakeTime
-    from .automod import AutoModAction, AutoModRule
+    from .abc import Snowflake, SnowflakeTime
     from .channel import DMChannel, GroupChannel
-    from .ext.commands import Bot, Context, CommandError
     from .guild import GuildChannel
     from .message import Message
     from .member import Member

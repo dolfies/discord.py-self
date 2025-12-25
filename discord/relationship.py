@@ -108,7 +108,7 @@ class Relationship(Hashable):
 
         if not getattr(self, 'user', None):
             if 'user' in data:
-                self.user = self._state.store_user(data['user'])  # type: ignore
+                self.user = self._state.store_user(data['user'])
             else:
                 user_id = int(data['id'])
                 self.user = self._state.get_user(user_id) or Object(id=user_id)  # type: ignore # Lying for better developer UX

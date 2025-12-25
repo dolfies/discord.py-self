@@ -38,7 +38,6 @@ from typing import (
     TYPE_CHECKING,
     Tuple,
     TypeVar,
-    TypedDict,
 )
 
 from ._types import _BaseCommand, BotT

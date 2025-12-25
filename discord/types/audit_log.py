@@ -269,10 +269,6 @@ class _AuditLogChange_EntityType(TypedDict):
     old_value: EntityType
 
 
-class _AuditLogChange_AppliedTags(TypedDict):
-    key: Literal['applied_tags']
-
-
 class _AuditLogChange_SnowflakeList(TypedDict):
     key: Literal['applied_tags', 'default_channel_ids']
     new_value: List[Snowflake]
@@ -333,7 +329,6 @@ AuditLogChange = Union[
     _AuditLogChange_PrivacyLevel,
     _AuditLogChange_Status,
     _AuditLogChange_EntityType,
-    _AuditLogChange_AppliedTags,
     _AuditLogChange_SnowflakeList,
     _AuditLogChange_AvailableTags,
     _AuditLogChange_DefaultReactionEmoji,

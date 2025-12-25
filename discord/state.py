@@ -253,7 +253,7 @@ class MemberSidebar:
     def __init__(
         self,
         guild: Guild,
-        channels: List[abcSnowflake],
+        channels: Sequence[abcSnowflake],
         *,
         chunk: bool,
         delay: Union[int, float],
@@ -352,7 +352,7 @@ class MemberSidebar:
         if self.ranges:
             self.ranges = self.get_ranges(start=self.ranges[0][0])
 
-    def validate_channels(self, channels: List[abcSnowflake]) -> Sequence[Snowflake]:
+    def validate_channels(self, channels: Sequence[abcSnowflake]) -> Sequence[Snowflake]:
         guild = self.guild
         ids = set()
 
@@ -1668,7 +1668,7 @@ class ConnectionState:
                 presence['user'] = {'id': presence['user_id']}  # type: ignore
 
             if 'properties' in guild_data:
-                guild_data.update(guild_data.pop('properties'))  # type: ignore
+                guild_data.update(guild_data.pop('properties'))
 
             voice_states = guild_data.setdefault('voice_states', [])
             voice_states.extend(guild_extra.get('voice_states', []))
@@ -2839,7 +2839,7 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
     ) -> List[Member]: ...
 
@@ -2852,7 +2852,7 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
     ) -> asyncio.Future[List[Member]]: ...
 
@@ -2864,7 +2864,7 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = False,
         chunk: bool = False,
-        channels: List[abcSnowflake] = MISSING,
+        channels: Sequence[abcSnowflake] = MISSING,
         delay: Union[int, float] = MISSING,
     ) -> Union[List[Member], asyncio.Future[List[Member]]]:
         if not guild.me:

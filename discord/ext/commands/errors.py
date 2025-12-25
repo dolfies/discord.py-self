@@ -904,7 +904,7 @@ class BadUnionArgument(UserInputError):
 
 
 class BadLiteralArgument(UserInputError):
-    """Exception raised when a :data:`typing.Literal` converter fails for all
+    """Exception raised when a :obj:`typing.Literal` converter fails for all
     its associated values.
 
     This inherits from :exc:`UserInputError`

@@ -320,7 +320,7 @@ class Activity(BaseActivity):
             ret['emoji'] = self.emoji.to_dict()
         if self.status_display_type:
             ret['status_display_type'] = int(self.status_display_type.value)
-        return ret
+        return ret  # type: ignore
 
     @property
     def start(self) -> Optional[datetime.datetime]:

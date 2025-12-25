@@ -882,7 +882,7 @@ class ApplicationActivityStatistics:
         self.application: Optional[PartialApplication] = application or (
             PartialApplication(state=state, data=data['application']) if 'application' in data else None  # type: ignore
         )
-        self._user = state.create_user(data['user']) if 'user' in data else None  # type: ignore
+        self._user = state.create_user(data['user']) if 'user' in data else None
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)

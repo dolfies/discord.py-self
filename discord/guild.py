@@ -31,7 +31,6 @@ from typing import (
     Any,
     AsyncIterator,
     ClassVar,
-    Collection,
     Coroutine,
     Dict,
     Iterable,
@@ -56,7 +55,6 @@ from .emoji import Emoji
 from .errors import ClientException, InvalidData
 from .permissions import Permissions, PermissionOverwrite
 from .colour import Colour
-from .errors import ClientException
 from .channel import *
 from .channel import _guild_channel_factory, _threaded_guild_channel_factory
 from .enums import (
@@ -2945,18 +2943,18 @@ class Guild(Hashable):
         before: SnowflakeTime = MISSING,
         after: SnowflakeTime = MISSING,
         include_nsfw: bool = MISSING,
-        channels: Collection[Snowflake] = MISSING,
-        authors: Collection[Snowflake] = MISSING,
-        author_types: Collection[MessageSearchAuthorType] = MISSING,
-        mentions: Collection[Snowflake] = MISSING,
+        channels: Sequence[Snowflake] = MISSING,
+        authors: Sequence[Snowflake] = MISSING,
+        author_types: Sequence[MessageSearchAuthorType] = MISSING,
+        mentions: Sequence[Snowflake] = MISSING,
         mention_everyone: bool = MISSING,
         pinned: bool = MISSING,
-        has: Collection[MessageSearchHasType] = MISSING,
-        embed_types: Collection[EmbedType] = MISSING,
-        embed_providers: Collection[str] = MISSING,
-        link_hostnames: Collection[str] = MISSING,
-        attachment_filenames: Collection[str] = MISSING,
-        attachment_extensions: Collection[str] = MISSING,
+        has: Sequence[MessageSearchHasType] = MISSING,
+        embed_types: Sequence[EmbedType] = MISSING,
+        embed_providers: Sequence[str] = MISSING,
+        link_hostnames: Sequence[str] = MISSING,
+        attachment_filenames: Sequence[str] = MISSING,
+        attachment_extensions: Sequence[str] = MISSING,
         application_command_id: Snowflake = MISSING,
         application_command_name: str = MISSING,
         oldest_first: bool = MISSING,
@@ -3100,7 +3098,7 @@ class Guild(Hashable):
         *,
         days: int,
         compute_prune_count: bool = True,
-        roles: Collection[Snowflake] = MISSING,
+        roles: Sequence[Snowflake] = MISSING,
         reason: Optional[str] = None,
     ) -> Optional[int]:
         r"""|coro|
@@ -3213,7 +3211,7 @@ class Guild(Hashable):
         data = await self._state.http.guild_webhooks(self.id)
         return [Webhook.from_state(d, state=self._state) for d in data]
 
-    async def estimate_pruned_members(self, *, days: int, roles: Collection[Snowflake] = MISSING) -> Optional[int]:
+    async def estimate_pruned_members(self, *, days: int, roles: Sequence[Snowflake] = MISSING) -> Optional[int]:
         """|coro|
 
         Similar to :meth:`prune_members` except instead of actually
@@ -3946,7 +3944,7 @@ class Guild(Hashable):
         *,
         name: str,
         image: bytes,
-        roles: Collection[Role] = MISSING,
+        roles: Sequence[Role] = MISSING,
         reason: Optional[str] = None,
     ) -> Emoji:
         r"""|coro|
@@ -5154,7 +5152,7 @@ class Guild(Hashable):
 
     async def fetch_members(
         self,
-        channels: List[Snowflake] = MISSING,
+        channels: Sequence[Snowflake] = MISSING,
         *,
         cache: bool = False,
         force_scraping: bool = False,
@@ -5212,7 +5210,7 @@ class Guild(Hashable):
         query: Optional[str] = None,
         *,
         limit: int = 5,
-        user_ids: Optional[List[int]] = None,
+        user_ids: Optional[Sequence[int]] = None,
         presences: bool = True,
         cache: bool = True,
         subscribe: bool = False,
@@ -5282,9 +5280,9 @@ class Guild(Hashable):
             self,
             query=query,
             limit=limit,
-            user_ids=user_ids,
+            user_ids=user_ids,  # type: ignore
             presences=presences,
-            cache=cache,  # type: ignore # The two types are compatible
+            cache=cache,
         )
         if subscribe:
             await self._state.subscriptions.subscribe_to_members(self, *members)
@@ -5388,8 +5386,8 @@ class Guild(Hashable):
         self,
         *,
         features: List[Literal['typing', 'activities', 'threads', 'member_updates']] = MISSING,
-        members: Collection[Snowflake] = MISSING,
-        threads: Collection[Snowflake] = MISSING,
+        members: Sequence[Snowflake] = MISSING,
+        threads: Sequence[Snowflake] = MISSING,
     ) -> bool:
         """Indicates whether the guild is additionally subscribed to specific features, members, or threads.
         This will always return ``False`` if :func:`is_subscribed` is ``False``.
@@ -5471,9 +5469,7 @@ class Guild(Hashable):
             self, typing=typing, activities=activities, threads=threads, member_updates=member_updates
         )
 
-    async def subscribe_to(
-        self, *, members: Collection[Snowflake] = MISSING, threads: Collection[Snowflake] = MISSING
-    ) -> None:
+    async def subscribe_to(self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING) -> None:
         """|coro|
 
         Subscribes to specific members and thread member lists in the guild.
@@ -5504,7 +5500,7 @@ class Guild(Hashable):
             await subscriptions.subscribe_to_threads(self, *threads)
 
     async def unsubscribe_from(
-        self, *, members: Collection[Snowflake] = MISSING, threads: Collection[Snowflake] = MISSING
+        self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING
     ) -> None:
         """|coro|
 
