@@ -80,8 +80,8 @@ class ReadState:
     type: :class:`ReadStateType`
         The type of the read state.
     last_acked_id: :class:`int`
-        The ID of the last acknowledged resource (e.g. message) in the read state.
-        It may *not* point to an existing or valid resource.
+        The ID of the last acknowledged entity (e.g. message) in the read state.
+        It may *not* point to an existing or valid entity.
     acked_pin_timestamp: Optional[:class:`datetime.datetime`]
         When the channel's pins were last acknowledged.
     badge_count: :class:`int`
