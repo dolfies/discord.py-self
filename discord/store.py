@@ -1162,8 +1162,12 @@ class SKU(Hashable):
         The system requirements of the SKU by operating system, if any.
     release_date: Optional[:class:`datetime.date`]
         The date that the SKU will released, if any.
-    preorder_release_date: Optional[:class:`datetime.date`]
+    preorder_release_date: Optional[:class:`str`]
         The approximate date that the SKU will released for pre-order, if any.
+
+        .. versionchanged:: 2.1
+
+            Corrected type from :class:`datetime.date` to :class:`str`.
     preorder_released_at: Optional[:class:`datetime.datetime`]
         The date that the SKU was released for pre-order, if any.
     external_purchase_url: Optional[:class:`str`]
@@ -1171,7 +1175,7 @@ class SKU(Hashable):
     premium: :class:`bool`
         Whether this SKU is provided for free to premium users.
     restricted: :class:`bool`
-        Whether this SKU is restricted.
+        Whether this SKU is restricted in the user's region.
     exclusive: :class:`bool`
         Whether this SKU is exclusive to Discord.
     deleted: :class:`bool`
@@ -1311,7 +1315,7 @@ class SKU(Hashable):
         ]
 
         self.release_date: Optional[date] = parse_date(data.get('release_date'))
-        self.preorder_release_date: Optional[date] = parse_date(data.get('preorder_approximate_release_date'))
+        self.preorder_release_date: Optional[str] = data.get('preorder_approximate_release_date')
         self.preorder_released_at: Optional[datetime] = parse_time(data.get('preorder_release_at'))
         self.external_purchase_url: Optional[str] = data.get('external_purchase_url')
 

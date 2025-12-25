@@ -1687,12 +1687,12 @@ class SKUFlags(BaseFlags):
 
     @flag_value
     def premium_purchase(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a premium purchase."""
+        """:class:`bool`: Returns ``True`` if the SKU is available for free to premium users."""
         return 1 << 0
 
     @flag_value
     def free_premium_content(self):
-        """:class:`bool`: Returns ``True`` if the SKU is free premium content."""
+        """:class:`bool`: Returns ``True`` if the SKU has free premium content."""
         return 1 << 1
 
     @flag_value
@@ -1702,7 +1702,7 @@ class SKUFlags(BaseFlags):
 
     @flag_value
     def premium_and_distribution(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a premium or distribution product."""
+        """:class:`bool`: Returns ``True`` if the SKU is available for free to premium users and purchasable normally."""
         return 1 << 3
 
     @flag_value

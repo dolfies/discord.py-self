@@ -142,17 +142,17 @@ class BaseSKU(PartialSKU):
     application_id: Snowflake
     application: NotRequired[PartialApplication]
     flags: int
-    access_level: Literal[1, 2, 3]
+    access_type: Literal[1, 2, 3]
     features: List[int]
     locales: NotRequired[List[str]]
     genres: NotRequired[List[int]]
     available_regions: NotRequired[List[str]]
     system_requirements: NotRequired[Dict[Literal[1, 2, 3], SystemRequirements]]
     release_date: Optional[str]
-    preorder_release_date: NotRequired[Optional[str]]
+    preorder_approximate_release_date: NotRequired[Optional[str]]
     preorder_released_at: NotRequired[Optional[str]]
     external_purchase_url: NotRequired[str]
-    premium: NotRequired[bool]
+    premium: bool
     restricted: NotRequired[bool]
     exclusive: NotRequired[bool]
     deleted: NotRequired[bool]
