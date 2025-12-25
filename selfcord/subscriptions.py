@@ -610,7 +610,7 @@ class Subscription(Hashable):
         self.id: int = int(data['id'])
         self.type: SubscriptionType = try_enum(SubscriptionType, data['type'])
         self.status: Optional[SubscriptionStatus] = (
-            try_enum(SubscriptionStatus, data['status']) if 'status' in data else None  # type: ignore # ???
+            try_enum(SubscriptionStatus, data['status']) if 'status' in data else None
         )
         self.payment_gateway: Optional[PaymentGateway] = (
             try_enum(PaymentGateway, data['payment_gateway']) if 'payment_gateway' in data else None
@@ -645,7 +645,7 @@ class Subscription(Hashable):
         self.discount_expires_at = parse_time(metadata.get('active_discount_expires_at', None))
 
         self.latest_invoice: Optional[SubscriptionInvoice] = (
-            SubscriptionInvoice(self, data=data['latest_invoice'], state=self._state) if 'latest_invoice' in data else None  # type: ignore # ???
+            SubscriptionInvoice(self, data=data['latest_invoice'], state=self._state) if 'latest_invoice' in data else None
         )
 
     @property

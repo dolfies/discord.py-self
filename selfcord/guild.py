@@ -5469,9 +5469,7 @@ class Guild(Hashable):
             self, typing=typing, activities=activities, threads=threads, member_updates=member_updates
         )
 
-    async def subscribe_to(
-        self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING
-    ) -> None:
+    async def subscribe_to(self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING) -> None:
         """|coro|
 
         Subscribes to specific members and thread member lists in the guild.

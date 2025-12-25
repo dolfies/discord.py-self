@@ -1148,6 +1148,9 @@ class DiscordVoiceWebSocket:
     async def poll_event(self) -> None:
         # This exception is handled up the chain
         msg, flags = await asyncio.wait_for(self.ws.recv(), timeout=self._max_heartbeat_timeout)
+        if msg is None:
+            # Should never happen
+            return
 
         if flags & CurlWsFlag.TEXT:
             await self.received_message(utils._from_json(msg))

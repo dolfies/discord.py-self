@@ -193,8 +193,8 @@ class ProfileMetadata:
         self.bio: Optional[str] = data.get('bio') or None
         self.pronouns: Optional[str] = data.get('pronouns') or None
         self.emoji: Optional[PartialEmoji] = (
-            PartialEmoji.from_dict_stateful(data['emoji'], state) if data.get('emoji') else None
-        )  # type: ignore
+            PartialEmoji.from_dict_stateful(data['emoji'], state) if data.get('emoji') else None  # type: ignore
+        )
         self.popout_animation_particle_type: Optional[int] = utils._get_as_snowflake(data, 'popout_animation_particle_type')
         self._banner: Optional[str] = data.get('banner')
         self._accent_colour: Optional[int] = data.get('accent_color')

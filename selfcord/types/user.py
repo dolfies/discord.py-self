@@ -30,7 +30,6 @@ from typing_extensions import NotRequired
 from .integration import ConnectionIntegration
 from .snowflake import Snowflake
 
-PremiumType = Literal[0, 1, 2, 3]
 NameplatePallete = Literal['crimson', 'berry', 'sky', 'teal', 'forest', 'bubble_gum', 'violet', 'cobalt', 'clover']
 
 
@@ -67,7 +66,7 @@ class PartialUser(TypedDict):
     system: NotRequired[bool]
     global_name: Optional[str]
     primary_guild: NotRequired[Optional[PrimaryGuild]]
-    display_name_styles: Optional[DisplayNameStyle]
+    display_name_styles: NotRequired[Optional[DisplayNameStyle]]
     collectibles: NotRequired[Optional[UserCollectibles]]
 
 
@@ -120,7 +119,6 @@ class User(APIUser, total=False):
     phone: Optional[str]
     token: str
     nsfw_allowed: Optional[bool]
-    premium_type: PremiumType
     desktop: bool
     mobile: bool
 

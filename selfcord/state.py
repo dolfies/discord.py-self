@@ -1668,7 +1668,7 @@ class ConnectionState:
                 presence['user'] = {'id': presence['user_id']}  # type: ignore
 
             if 'properties' in guild_data:
-                guild_data.update(guild_data.pop('properties'))  # type: ignore
+                guild_data.update(guild_data.pop('properties'))
 
             voice_states = guild_data.setdefault('voice_states', [])
             voice_states.extend(guild_extra.get('voice_states', []))
