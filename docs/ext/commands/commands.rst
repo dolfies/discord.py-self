@@ -562,11 +562,6 @@ For example, given the following:
 
 The type checker will see ``arg`` as a regular :class:`str` but the library will know you wanted to change the input into all upper-case.
 
-.. note::
-
-    For Python versions below 3.9, it is recommended to install the ``typing_extensions`` library and import ``Annotated`` from there.
-
-
 Greedy
 ^^^^^^^^
 

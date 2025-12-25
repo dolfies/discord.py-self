@@ -13,7 +13,7 @@ in creating bots running on user accounts that utilise the Discord API.
 Prerequisites
 ---------------
 
-discord.py-self works with Python 3.9 or higher. Support for earlier versions of Python
+discord.py-self works with Python 3.10 or higher. Support for earlier versions of Python
 is not provided.
 
 
