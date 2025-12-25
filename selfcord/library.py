@@ -73,8 +73,12 @@ class LibrarySKU(Hashable):
         The SKU's ID.
     type: :class:`SKUType`
         The type of the SKU.
-    preorder_release_date: Optional[:class:`datetime.date`]
+    preorder_release_date: Optional[:class:`string`]
         The approximate date that the SKU will released for pre-order, if any.
+
+        .. versionchanged:: 2.1
+
+            Corrected type from :class:`datetime.date` to :class:`str`.
     preorder_released_at: Optional[:class:`datetime.datetime`]
         The date that the SKU was released for pre-order, if any.
     premium: :class:`bool`
@@ -92,7 +96,7 @@ class LibrarySKU(Hashable):
     def __init__(self, data: PartialSKUPayload):
         self.id: int = int(data['id'])
         self.type: SKUType = try_enum(SKUType, data['type'])
-        self.preorder_release_date: Optional[date] = parse_date(data.get('preorder_approximate_release_date'))
+        self.preorder_release_date: Optional[str] = data.get('preorder_approximate_release_date')
         self.preorder_released_at: Optional[datetime] = parse_time(data.get('preorder_release_at'))
         self.premium: bool = data.get('premium', False)
 
