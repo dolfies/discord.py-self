@@ -1194,7 +1194,16 @@ class GuildFolder:
         self._guild_ids: List[int] = [guild.id for guild in guilds] if guilds else []
 
     def __str__(self) -> str:
-        return self.name or ', '.join(guild.name for guild in [guild for guild in self.guilds if isinstance(guild, Guild)])
+        if self.name:
+            return self.name
+
+        names = []
+        for guild in self.guilds:
+            name = getattr(guild, 'name', None)
+            if name:
+                names.append(name)
+
+        return ', '.join(names)
 
     def __repr__(self) -> str:
         return f'<GuildFolder id={self.id} name={self.name!r} guilds={self.guilds!r}>'
