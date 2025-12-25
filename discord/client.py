@@ -50,7 +50,7 @@ from typing import (
 )
 
 import aiohttp
-from curl_cffi import CurlError # @mikasa: let Client.connect catch CurlError in reconnect handler :3
+from curl_cffi import CurlError
 
 from .user import _UserTag, RecentAvatar, User, ClientUser
 from .invite import Invite
@@ -992,7 +992,7 @@ class Client:
                 ConnectionClosed,
                 aiohttp.ClientError,
                 asyncio.TimeoutError,
-                CurlError, # @mikasa: treat CurlError like other reconnectable network errors
+                CurlError,
             ) as exc:
                 self.dispatch('disconnect')
                 if not reconnect:
