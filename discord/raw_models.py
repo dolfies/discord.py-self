@@ -166,7 +166,7 @@ class RawMessageUpdateEvent(_RawReprMixin):
     message: :class:`Message`
         The updated message.
 
-        .. versionadded:: 2.5
+        .. versionadded:: 2.1
     """
 
     __slots__ = ('message_id', 'channel_id', 'guild_id', 'data', 'cached_message', 'message')

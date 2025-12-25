@@ -203,16 +203,16 @@ class Activity(BaseActivity):
     details_url: Optional[:class:`str`]
         A URL that is linked to when clicking on the details text of the activity.
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
     state_url: Optional[:class:`str`]
         A URL that is linked to when clicking on the state text of the activity.
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
     status_display_type: Optional[:class:`StatusDisplayType`]
         Determines which field from the user's status text is displayed
         in the members list.
 
-        .. versionadded:: 2.6
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
