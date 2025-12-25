@@ -2109,7 +2109,16 @@ class ConnectionState:
         self.dispatch('library_application_update', entry)
 
     def parse_sessions_replace(self, payload: gw.SessionsReplaceEvent, *, from_ready: bool = False) -> None:
+        # Discord returns a max of 15 sessions, even though the user may have more
+        # Unfortunately, this means our own session may not be included in the payload
         data = {s['session_id']: s for s in payload}
+        if len([s for s in data if s != 'all']) >= 15:
+            _log.warning('User has more than 15 active sessions. Client presence information may be inaccurate.')
+        if not data:
+            # Not really sure what to do when we receive an empty sessions payload
+            # This is an edge case either way, the session is probably dying soon
+            _log.warning('User has no sessions (from READY: %s). Discarding.', str(from_ready))
+            return
 
         for session_id, session in data.items():
             existing = self._sessions.get(session_id)
@@ -2138,14 +2147,11 @@ class ConnectionState:
 
         if 'all' not in self._sessions:
             # The "all" session does not always exist...
-            # This usually happens if there is only a single session (us)
+            # This happens if there is only a single session (us)
+            # or all sessions are the same state
             # In the case it is "removed", we try to update the old one
             # Else, we create a new one with fake data
-            if len(data) > 1:
-                # We have more than one session, this should not happen
-                fake = data[self.session_id]  # type: ignore
-            else:
-                fake = list(data.values())[0]
+            fake = data.get(self.session_id, list(data.values())[0])  # type: ignore
             if old_all is not None:
                 old = copy.copy(old_all)
                 old_all._update(fake)
@@ -3614,7 +3620,7 @@ class ConnectionState:
 
     @property
     def current_session(self) -> Optional[Session]:
-        return self._sessions.get(self.session_id)  # type: ignore
+        return self._sessions.get(self.session_id, self.all_session)  # type: ignore
 
     @utils.cached_property
     def client_presence(self) -> FakeClientPresence:
