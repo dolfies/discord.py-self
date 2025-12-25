@@ -52,6 +52,7 @@ from typing import (
 )
 
 import aiohttp
+from curl_cffi import CurlError
 
 from .user import _UserTag, RecentAvatar, User, ClientUser
 from .invite import Invite
@@ -1029,6 +1030,7 @@ class Client:
                 ConnectionClosed,
                 aiohttp.ClientError,
                 asyncio.TimeoutError,
+                CurlError,
             ) as exc:
                 self.dispatch('disconnect')
                 if not reconnect:
