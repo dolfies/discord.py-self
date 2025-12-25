@@ -169,7 +169,11 @@ class AsyncWebhookAdapter:
                 if multipart:
                     form_data = aiohttp.FormData(quote_fields=False)
                     for p in multipart:
-                        form_data.add_field(**p)
+                        # Convert 'data' to 'value' for aiohttp.FormData compatibility
+                        field_params = p.copy()
+                        if 'data' in field_params:
+                            field_params['value'] = field_params.pop('data')
+                        form_data.add_field(**field_params)
                     to_send = form_data
 
                 try:
