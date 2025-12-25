@@ -38,6 +38,7 @@ from typing import (
     Generator,
     List,
     Literal,
+    Mapping,
     NamedTuple,
     Optional,
     overload,
@@ -120,6 +121,7 @@ if TYPE_CHECKING:
     from .tutorial import Tutorial
     from .file import File
     from .guild import Guild
+    from .types.read_state import BulkReadState
     from .types.snowflake import Snowflake as _Snowflake
 
     PrivateChannel = Union[DMChannel, GroupChannel]
@@ -5690,3 +5692,30 @@ class Client:
         user = state.user
         data = await state.http.get_recent_avatars()
         return [RecentAvatar(user=user, data=d) for d in data['avatars']]  # type: ignore # user will be present here
+
+    async def bulk_ack(self, acks: Mapping[ReadState, Snowflake], /) -> None:
+        """|coro|
+
+        Updates multiple read states' :attr:`.ReadState.last_acked_id` in bulk.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        acks: Dict[:class:`.ReadState`, :class:`.abc.Snowflake`]
+            A mapping of read states to the last acknowledged entity ID (e.g. message ID).
+
+        Raises
+        ------
+        HTTPException
+            Updating the read states failed.
+        """
+        payload: List[BulkReadState] = [
+            {
+                'channel_id': read_state.id,
+                'read_state_type': read_state.type.value,
+                'message_id': last_acked.id,
+            }
+            for read_state, last_acked in acks.items()
+        ]  # type: ignore
+        await self._connection.http.ack_bulk(payload)
