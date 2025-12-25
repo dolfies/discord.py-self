@@ -132,6 +132,7 @@ __all__ = (
     'NetworkConnectionSpeed',
     'PollLayoutType',
     'MessageReferenceType',
+    'ReactionType',
 )
 
 
