@@ -112,6 +112,7 @@ if TYPE_CHECKING:
         member,
         message,
         oauth2,
+        onboarding,
         payments,
         profile,
         promotions,
@@ -1573,7 +1574,7 @@ class HTTPClient:
         return self.request(
             Route(
                 'PUT',
-                '/channels/{channel_id}/pins/{message_id}',
+                '/channels/{channel_id}/messages/pins/{message_id}',
                 channel_id=channel_id,
                 message_id=message_id,
             ),
@@ -1584,15 +1585,26 @@ class HTTPClient:
         return self.request(
             Route(
                 'DELETE',
-                '/channels/{channel_id}/pins/{message_id}',
+                '/channels/{channel_id}/messages/pins/{message_id}',
                 channel_id=channel_id,
                 message_id=message_id,
             ),
             reason=reason,
         )
 
-    def pins_from(self, channel_id: Snowflake) -> Response[List[message.Message]]:
-        return self.request(Route('GET', '/channels/{channel_id}/pins', channel_id=channel_id))
+    def pins_from(
+        self,
+        channel_id: Snowflake,
+        limit: Optional[int] = None,
+        before: Optional[str] = None,
+    ) -> Response[message.ChannelPins]:
+        params = {}
+        if before is not None:
+            params['before'] = before
+        if limit is not None:
+            params['limit'] = limit
+
+        return self.request(Route('GET', '/channels/{channel_id}/messages/pins', channel_id=channel_id), params=params)
 
     def ack_pins(self, channel_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/channels/{channel_id}/pins/ack', channel_id=channel_id))
@@ -2753,22 +2765,19 @@ class HTTPClient:
     @overload
     def get_scheduled_events(
         self, guild_id: Snowflake, with_user_count: Literal[True]
-    ) -> Response[List[scheduled_event.GuildScheduledEventWithUserCount]]:
-        ...
+    ) -> Response[List[scheduled_event.GuildScheduledEventWithUserCount]]: ...
 
     @overload
     def get_scheduled_events(
         self, guild_id: Snowflake, with_user_count: Literal[False]
-    ) -> Response[List[scheduled_event.GuildScheduledEvent]]:
-        ...
+    ) -> Response[List[scheduled_event.GuildScheduledEvent]]: ...
 
     @overload
     def get_scheduled_events(
         self, guild_id: Snowflake, with_user_count: bool
     ) -> Union[
         Response[List[scheduled_event.GuildScheduledEventWithUserCount]], Response[List[scheduled_event.GuildScheduledEvent]]
-    ]:
-        ...
+    ]: ...
 
     def get_scheduled_events(self, guild_id: Snowflake, with_user_count: bool) -> Response[Any]:
         params = {'with_user_count': str(with_user_count).lower()}
@@ -2790,20 +2799,19 @@ class HTTPClient:
     @overload
     def get_scheduled_event(
         self, guild_id: Snowflake, guild_scheduled_event_id: Snowflake, with_user_count: Literal[True]
-    ) -> Response[scheduled_event.GuildScheduledEventWithUserCount]:
-        ...
+    ) -> Response[scheduled_event.GuildScheduledEventWithUserCount]: ...
 
     @overload
     def get_scheduled_event(
         self, guild_id: Snowflake, guild_scheduled_event_id: Snowflake, with_user_count: Literal[False]
-    ) -> Response[scheduled_event.GuildScheduledEvent]:
-        ...
+    ) -> Response[scheduled_event.GuildScheduledEvent]: ...
 
     @overload
     def get_scheduled_event(
         self, guild_id: Snowflake, guild_scheduled_event_id: Snowflake, with_user_count: bool
-    ) -> Union[Response[scheduled_event.GuildScheduledEventWithUserCount], Response[scheduled_event.GuildScheduledEvent]]:
-        ...
+    ) -> Union[
+        Response[scheduled_event.GuildScheduledEventWithUserCount], Response[scheduled_event.GuildScheduledEvent]
+    ]: ...
 
     def get_scheduled_event(
         self, guild_id: Snowflake, guild_scheduled_event_id: Snowflake, with_user_count: bool
@@ -2859,8 +2867,7 @@ class HTTPClient:
         with_member: Literal[True],
         before: Optional[Snowflake] = ...,
         after: Optional[Snowflake] = ...,
-    ) -> Response[scheduled_event.ScheduledEventUsersWithMember]:
-        ...
+    ) -> Response[scheduled_event.ScheduledEventUsersWithMember]: ...
 
     @overload
     def get_scheduled_event_users(
@@ -2871,8 +2878,7 @@ class HTTPClient:
         with_member: Literal[False],
         before: Optional[Snowflake] = ...,
         after: Optional[Snowflake] = ...,
-    ) -> Response[scheduled_event.ScheduledEventUsers]:
-        ...
+    ) -> Response[scheduled_event.ScheduledEventUsers]: ...
 
     @overload
     def get_scheduled_event_users(
@@ -2883,8 +2889,7 @@ class HTTPClient:
         with_member: bool,
         before: Optional[Snowflake] = ...,
         after: Optional[Snowflake] = ...,
-    ) -> Union[Response[scheduled_event.ScheduledEventUsersWithMember], Response[scheduled_event.ScheduledEventUsers]]:
-        ...
+    ) -> Union[Response[scheduled_event.ScheduledEventUsersWithMember], Response[scheduled_event.ScheduledEventUsers]]: ...
 
     def get_scheduled_event_users(
         self,
@@ -3235,7 +3240,42 @@ class HTTPClient:
                 '/applications/{application_id}/entitlements/{entitlement_id}',
                 application_id=application_id,
                 entitlement_id=entitlement_id,
-            )
+            ),
+        )
+
+    # Guild Onboarding
+
+    def get_guild_onboarding(self, guild_id: Snowflake) -> Response[onboarding.Onboarding]:
+        return self.request(Route('GET', '/guilds/{guild_id}/onboarding', guild_id=guild_id))
+
+    def edit_guild_onboarding(
+        self,
+        guild_id: Snowflake,
+        *,
+        prompts: Optional[List[onboarding.Prompt]] = None,
+        default_channel_ids: Optional[List[Snowflake]] = None,
+        enabled: Optional[bool] = None,
+        mode: Optional[onboarding.OnboardingMode] = None,
+        reason: Optional[str],
+    ) -> Response[onboarding.Onboarding]:
+        payload = {}
+
+        if prompts is not None:
+            payload['prompts'] = prompts
+
+        if default_channel_ids is not None:
+            payload['default_channel_ids'] = default_channel_ids
+
+        if enabled is not None:
+            payload['enabled'] = enabled
+
+        if mode is not None:
+            payload['mode'] = mode
+
+        return self.request(
+            Route('PUT', f'/guilds/{guild_id}/onboarding', guild_id=guild_id),
+            json=payload,
+            reason=reason,
         )
 
     def consume_app_entitlement(self, application_id: Snowflake, entitlement_id: Snowflake) -> Response[None]:
@@ -4856,9 +4896,7 @@ class HTTPClient:
     def get_location_info(self) -> Response[subscriptions.LocationInfo]:
         return self.request(Route('GET', '/users/@me/billing/location-info'))
 
-    def get_library_entries(
-        self, country_code: Optional[str] = None
-    ) -> Response[List[library.LibraryApplication]]:
+    def get_library_entries(self, country_code: Optional[str] = None) -> Response[List[library.LibraryApplication]]:
         params = {}
         if country_code is not None:
             params['country_code'] = country_code
@@ -4977,18 +5015,15 @@ class HTTPClient:
     @overload
     def get_experiments(
         self, with_guild_experiments: Literal[True] = ...
-    ) -> Response[experiment.ExperimentResponseWithGuild]:
-        ...
+    ) -> Response[experiment.ExperimentResponseWithGuild]: ...
 
     @overload
-    def get_experiments(self, with_guild_experiments: Literal[False] = ...) -> Response[experiment.ExperimentResponse]:
-        ...
+    def get_experiments(self, with_guild_experiments: Literal[False] = ...) -> Response[experiment.ExperimentResponse]: ...
 
     @overload
     def get_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]:
-        ...
+    ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]: ...
 
     def get_experiments(
         self, with_guild_experiments: bool = True

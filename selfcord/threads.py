@@ -113,6 +113,10 @@ class Thread(Messageable, Hashable):
         An approximate number of messages in this thread.
     member_count: :class:`int`
         An approximate number of members in this thread. This caps at 50.
+    total_message_sent: :class:`int`
+        The total number of messages sent, including deleted messages.
+
+        .. versionadded:: 2.1
     archived: :class:`bool`
         Whether the thread is archived.
     locked: :class:`bool`
@@ -140,6 +144,7 @@ class Thread(Messageable, Hashable):
         'last_pin_timestamp',
         'message_count',
         'member_count',
+        'total_message_sent',
         'slowmode_delay',
         'locked',
         'archived',
@@ -181,6 +186,7 @@ class Thread(Messageable, Hashable):
         self.slowmode_delay: int = data.get('rate_limit_per_user', 0)
         self.message_count: int = data['message_count']
         self.member_count: int = data['member_count']
+        self.total_message_sent: int = data.get('total_message_sent', 0)
         self._member_ids: List[Union[str, int]] = data.get('member_ids_preview', [])
         self._flags: int = data.get('flags', 0)
         # SnowflakeList is sorted, but this would not be proper for applied tags, where order actually matters.
@@ -211,6 +217,8 @@ class Thread(Messageable, Hashable):
             self.message_count = message_count
         if (member_count := data.get('member_count')) is not None:
             self.member_count = member_count
+        if (total_message_sent := data.get('total_message_sent')) is not None:
+            self.total_message_sent = total_message_sent
         if (member_ids := data.get('member_ids_preview')) is not None:
             self._member_ids = member_ids
 
@@ -883,7 +891,7 @@ class Thread(Messageable, Hashable):
         try:
             data: ThreadMemberListUpdateEvent = await asyncio.wait_for(future, timeout=15)
         except asyncio.TimeoutError as exc:
-            raise InvalidData('Didn\'t receieve a response from Discord') from exc
+            raise InvalidData("Didn't receieve a response from Discord") from exc
 
         # Check if we are in the cache
         _self = self.guild.get_thread(self.id)

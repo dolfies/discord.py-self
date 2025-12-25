@@ -23,49 +23,50 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from __future__ import annotations
+from typing import TYPE_CHECKING, Literal, Optional, TypedDict, List, Union
 
-from typing import Literal, Optional, TypedDict
-from typing_extensions import NotRequired
-
+from .emoji import PartialEmoji
 from .snowflake import Snowflake
-from .user import User
-from .channel import PartialChannel
+
+if TYPE_CHECKING:
+    from typing_extensions import NotRequired
 
 
-class SourceGuild(TypedDict):
-    id: int
-    name: str
-    icon: str
+PromptType = Literal[0, 1]
+OnboardingMode = Literal[0, 1]
 
 
-class SourceChannel(TypedDict):
-    id: int
-    name: str
+class _PromptOption(TypedDict):
+    channel_ids: List[Snowflake]
+    role_ids: List[Snowflake]
+    title: str
+    description: Optional[str]
 
 
-WebhookType = Literal[1, 2, 3]
+class CreatePromptOption(_PromptOption):
+    emoji_id: NotRequired[Snowflake]
+    emoji_name: NotRequired[str]
+    emoji_animated: NotRequired[bool]
 
 
-class FollowerWebhook(TypedDict):
-    channel_id: Snowflake
-    webhook_id: Snowflake
-    source_channel: NotRequired[PartialChannel]
-    source_guild: NotRequired[SourceGuild]
-
-
-class PartialWebhook(TypedDict):
+class PromptOption(_PromptOption):
     id: Snowflake
-    type: WebhookType
-    guild_id: NotRequired[Snowflake]
-    user: NotRequired[User]
-    token: NotRequired[str]
+    emoji: NotRequired[PartialEmoji]
 
 
-class _FullWebhook(TypedDict, total=False):
-    name: Optional[str]
-    avatar: Optional[str]
-    channel_id: Snowflake
-    application_id: Optional[Snowflake]
+class Prompt(TypedDict):
+    id: Snowflake
+    options: List[Union[PromptOption, CreatePromptOption]]
+    title: str
+    single_select: bool
+    required: bool
+    in_onboarding: bool
+    type: PromptType
 
 
-class Webhook(PartialWebhook, _FullWebhook): ...
+class Onboarding(TypedDict):
+    guild_id: Snowflake
+    prompts: List[Prompt]
+    default_channel_ids: List[Snowflake]
+    enabled: bool
+    mode: OnboardingMode

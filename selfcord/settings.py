@@ -137,12 +137,10 @@ class _ProtoSettings:
         return new
 
     @overload
-    def _get_guild(self, id: int, /, *, always_guild: Literal[True] = ...) -> Guild:
-        ...
+    def _get_guild(self, id: int, /, *, always_guild: Literal[True] = ...) -> Guild: ...
 
     @overload
-    def _get_guild(self, id: int, /, *, always_guild: Literal[False] = ...) -> Union[Guild, Object]:
-        ...
+    def _get_guild(self, id: int, /, *, always_guild: Literal[False] = ...) -> Union[Guild, Object]: ...
 
     def _get_guild(self, id: int, /, *, always_guild: bool = False) -> Union[Guild, Object]:
         id = int(id)
@@ -739,8 +737,7 @@ class UserSettings(_ProtoSettings):
         return not self.settings.communities.disable_home_auto_nav.value
 
     @overload
-    async def edit(self) -> Self:
-        ...
+    async def edit(self) -> Self: ...
 
     @overload
     async def edit(
@@ -819,8 +816,7 @@ class UserSettings(_ProtoSettings):
         user_audio_settings: Collection[AudioContext] = ...,
         stream_audio_settings: Collection[AudioContext] = ...,
         home_auto_navigation: bool = ...,
-    ) -> Self:
-        ...
+    ) -> Self: ...
 
     async def edit(self, *, require_version: Union[bool, int] = False, **kwargs: Any) -> Self:
         r"""|coro|
@@ -1487,7 +1483,14 @@ class GuildProgress:
 
     def copy(self) -> Self:
         """Returns a shallow copy of the progress settings."""
-        cls = self.__class__(self.guild_id, hub_progress=self.hub_progress, onboarding_progress=self.onboarding_progress, recents_dismissed_at=self.recents_dismissed_at, dismissed_contents=self.dismissed_contents, collapsed_channels=self.collapsed_channels)  # type: ignore
+        cls = self.__class__(
+            self.guild_id,
+            hub_progress=self.hub_progress,
+            onboarding_progress=self.onboarding_progress,
+            recents_dismissed_at=self.recents_dismissed_at,
+            dismissed_contents=self.dismissed_contents,
+            collapsed_channels=self.collapsed_channels,
+        )  # type: ignore
         cls._state = self._state
         return cls
 
@@ -2319,8 +2322,7 @@ class TrackingSettings:
         self.usage_statistics = data.get('usage_statistics', {}).get('consented', False)
 
     @overload
-    async def edit(self) -> None:
-        ...
+    async def edit(self) -> None: ...
 
     @overload
     async def edit(
@@ -2328,8 +2330,7 @@ class TrackingSettings:
         *,
         personalization: bool = ...,
         usage_statistics: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def edit(self, **kwargs) -> None:
         """|coro|
@@ -2405,8 +2406,7 @@ class EmailSettings:
         self.family_center_digest: bool = categories.get('family_center_digest', False)
 
     @overload
-    async def edit(self) -> None:
-        ...
+    async def edit(self) -> None: ...
 
     @overload
     async def edit(
@@ -2418,8 +2418,7 @@ class EmailSettings:
         recommendations_and_events: bool = MISSING,
         tips: bool = MISSING,
         updates_and_announcements: bool = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def edit(self, **kwargs) -> None:
         """|coro|

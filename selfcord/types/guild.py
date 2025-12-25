@@ -86,8 +86,7 @@ class _GuildCounts(TypedDict):
     approximate_presence_count: int
 
 
-class GuildPreview(_GuildMedia, _GuildCounts):
-    ...
+class GuildPreview(_GuildMedia, _GuildCounts): ...
 
 
 class Guild(UnavailableGuild, _GuildMedia):
@@ -159,8 +158,7 @@ class InviteGuild(TypedDict):
     nsfw_level: NSFWLevel
 
 
-class GuildWithCounts(Guild, _GuildCounts):
-    ...
+class GuildWithCounts(Guild, _GuildCounts): ...
 
 
 class GuildPrune(TypedDict):

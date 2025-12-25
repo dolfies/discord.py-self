@@ -536,7 +536,7 @@ class _WebhookState:
 
     def get_reaction_emoji(self, data: PartialEmojiPayload) -> Union[PartialEmoji, Emoji, str]:
         if self._parent is not None:
-            return self._parent.get_reaction_emoji(data)
+            return self._parent.get_emoji_from_partial_payload(data)
 
         emoji_id = utils._get_as_snowflake(data, 'id')
 
@@ -1090,7 +1090,7 @@ class Webhook(BaseWebhook):
 
     @classmethod
     def _as_follower(cls, data, *, channel, user) -> Self:
-        name = f"{channel.guild} #{channel}"
+        name = f'{channel.guild} #{channel}'
         feed: WebhookPayload = {
             'id': data['webhook_id'],
             'type': 2,
@@ -1384,8 +1384,7 @@ class Webhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
-    ) -> WebhookMessage:
-        ...
+    ) -> WebhookMessage: ...
 
     @overload
     async def send(
@@ -1407,8 +1406,7 @@ class Webhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def send(
         self,

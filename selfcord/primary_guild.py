@@ -35,6 +35,12 @@ if TYPE_CHECKING:
     from .types.user import PrimaryGuild as PrimaryGuildPayload
     from typing_extensions import Self
 
+# fmt: off
+__all__ = (
+    'PrimaryGuild',
+)
+# fmt: on
+
 
 class PrimaryGuild:
     """Represents the primary guild identity of a :class:`User`
@@ -83,7 +89,7 @@ class PrimaryGuild:
 
     @classmethod
     def _default(cls, state: ConnectionState) -> Self:
-        payload: PrimaryGuildPayload = {"identity_enabled": False}  # type: ignore
+        payload: PrimaryGuildPayload = {'identity_enabled': False}  # type: ignore
         return cls(state=state, data=payload)
 
     def __repr__(self) -> str:

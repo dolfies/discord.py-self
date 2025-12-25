@@ -866,7 +866,7 @@ class BotMissingPermissions(CheckFailure):
 
 
 class BadUnionArgument(UserInputError):
-    """Exception raised when a :data:`typing.Union` converter fails for all
+    """Exception raised when a :obj:`typing.Union` converter fails for all
     its associated types.
 
     This inherits from :exc:`UserInputError`
@@ -904,7 +904,7 @@ class BadUnionArgument(UserInputError):
 
 
 class BadLiteralArgument(UserInputError):
-    """Exception raised when a :data:`typing.Literal` converter fails for all
+    """Exception raised when a :obj:`typing.Literal` converter fails for all
     its associated values.
 
     This inherits from :exc:`UserInputError`
@@ -925,7 +925,7 @@ class BadLiteralArgument(UserInputError):
         .. versionadded:: 2.0
     """
 
-    def __init__(self, param: Parameter, literals: Tuple[Any, ...], errors: List[CommandError], argument: str = "") -> None:
+    def __init__(self, param: Parameter, literals: Tuple[Any, ...], errors: List[CommandError], argument: str = '') -> None:
         self.param: Parameter = param
         self.literals: Tuple[Any, ...] = literals
         self.errors: List[CommandError] = errors

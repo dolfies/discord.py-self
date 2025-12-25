@@ -21,13 +21,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
 from __future__ import annotations
 
 import inspect
 import logging
 from selfcord.utils import maybe_coroutine, MISSING
 
-from typing import Any, Callable, Dict, Generator, List, Optional, TYPE_CHECKING, Tuple, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    TYPE_CHECKING,
+    Tuple,
+    TypeVar,
+    TypedDict,
+)
 
 from ._types import _BaseCommand, BotT
 
@@ -37,6 +49,7 @@ if TYPE_CHECKING:
     from .bot import BotBase
     from .context import Context
     from .core import Command
+
 
 __all__ = (
     'CogMeta',

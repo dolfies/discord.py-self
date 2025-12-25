@@ -31,10 +31,10 @@ from .entitlements import Entitlement
 from .enums import SKUType, try_enum
 from .flags import LibraryApplicationFlags
 from .mixins import Hashable
-from .utils import MISSING, _get_as_snowflake, find, parse_date, parse_time
+from .utils import MISSING, _get_as_snowflake, find, parse_time
 
 if TYPE_CHECKING:
-    from datetime import date, datetime
+    from datetime import datetime
 
     from .asset import Asset
     from .state import ConnectionState
@@ -73,7 +73,7 @@ class LibrarySKU(Hashable):
         The SKU's ID.
     type: :class:`SKUType`
         The type of the SKU.
-    preorder_release_date: Optional[:class:`string`]
+    preorder_release_date: Optional[:class:`str`]
         The approximate date that the SKU will released for pre-order, if any.
 
         .. versionchanged:: 2.1

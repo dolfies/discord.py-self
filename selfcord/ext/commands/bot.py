@@ -60,7 +60,7 @@ from .help import HelpCommand, DefaultHelpCommand
 from .cog import Cog
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
 
     import importlib.machinery
 
@@ -74,10 +74,20 @@ if TYPE_CHECKING:
         ContextT,
         MaybeAwaitableFunc,
     )
+    from selfcord.client import _ClientOptions
 
     _Prefix = Union[Iterable[str], str]
     _PrefixCallable = MaybeAwaitableFunc[[BotT, Message], _Prefix]
     PrefixType = Union[_Prefix, _PrefixCallable[BotT]]
+
+    class _BotOptions(_ClientOptions, total=False):
+        owner_id: Optional[int]
+        owner_ids: Optional[Collection[int]]
+        strip_after_prefix: bool
+        case_insensitive: bool
+        self_bot: bool
+        user_bot: bool
+
 
 __all__ = (
     'when_mentioned',
@@ -156,7 +166,7 @@ class BotBase(GroupMixin[None]):
         command_prefix: PrefixType[BotT],
         help_command: Optional[HelpCommand] = _default,
         description: Optional[str] = None,
-        **options: Any,
+        **options: Unpack[_BotOptions],
     ) -> None:
         super().__init__(**options)
         self.command_prefix: PrefixType[BotT] = command_prefix  # type: ignore
@@ -412,7 +422,7 @@ class BotBase(GroupMixin[None]):
         elif self.owner_ids:
             return user.id in self.owner_ids
         else:
-            raise AttributeError('Owners aren\'t set.')
+            raise AttributeError("Owners aren't set.")
 
     def before_invoke(self, coro: CFT, /) -> CFT:
         """A decorator that registers a coroutine as a pre-invoke hook.
@@ -1033,8 +1043,8 @@ class BotBase(GroupMixin[None]):
                     raise
 
                 raise TypeError(
-                    "command_prefix must be plain string, iterable of strings, or callable "
-                    f"returning either of these, not {ret.__class__.__name__}"
+                    'command_prefix must be plain string, iterable of strings, or callable '
+                    f'returning either of these, not {ret.__class__.__name__}'
                 )
 
         return ret
@@ -1054,8 +1064,7 @@ class BotBase(GroupMixin[None]):
         /,
         *,
         cls: Type[ContextT] = ...,
-    ) -> ContextT:
-        ...
+    ) -> ContextT: ...
 
     async def get_context(
         self,
@@ -1123,15 +1132,15 @@ class BotBase(GroupMixin[None]):
             except TypeError:
                 if not isinstance(prefix, list):
                     raise TypeError(
-                        "get_prefix must return either a string or a list of string, " f"not {prefix.__class__.__name__}"
+                        f'get_prefix must return either a string or a list of string, not {prefix.__class__.__name__}'
                     )
 
                 # It's possible a bad command_prefix got us here.
                 for value in prefix:
                     if not isinstance(value, str):
                         raise TypeError(
-                            "Iterable command_prefix or list returned from get_prefix must "
-                            f"contain only strings, not {value.__class__.__name__}"
+                            'Iterable command_prefix or list returned from get_prefix must '
+                            f'contain only strings, not {value.__class__.__name__}'
                         )
 
                 # Getting here shouldn't happen
@@ -1290,4 +1299,13 @@ class Bot(BotBase, selfcord.Client):
         .. versionadded:: 1.7
     """
 
-    pass
+    if TYPE_CHECKING:
+
+        def __init__(
+            self,
+            command_prefix: PrefixType[BotT],
+            *,
+            help_command: Optional[HelpCommand] = _default,
+            description: Optional[str] = None,
+            **kwargs: Unpack[_BotOptions],
+        ) -> None: ...

@@ -44,6 +44,7 @@ from .sticker import GuildSticker
 from .threads import Thread
 from .integrations import Integration
 from .channel import ForumChannel, StageChannel, ForumTag
+from .onboarding import OnboardingPrompt, OnboardingPromptOption
 
 __all__ = (
     'AuditLogDiff',
@@ -73,6 +74,7 @@ if TYPE_CHECKING:
     from .types.snowflake import Snowflake
     from .types.automod import AutoModerationAction
     from .types.integration import IntegrationType
+    from .types.onboarding import Prompt as PromptPayload, PromptOption as PromptOptionPayload
     from .user import User
     from .webhook import Webhook
 
@@ -244,6 +246,16 @@ def _transform_default_emoji(entry: AuditLogEntry, data: str) -> PartialEmoji:
     return PartialEmoji(name=data)
 
 
+def _transform_onboarding_prompts(entry: AuditLogEntry, data: List[PromptPayload]) -> List[OnboardingPrompt]:
+    return [OnboardingPrompt.from_dict(data=prompt, state=entry._state, guild=entry.guild) for prompt in data]
+
+
+def _transform_onboarding_prompt_options(
+    entry: AuditLogEntry, data: List[PromptOptionPayload]
+) -> List[OnboardingPromptOption]:
+    return [OnboardingPromptOption.from_dict(data=option, state=entry._state, guild=entry.guild) for option in data]
+
+
 E = TypeVar('E', bound=enums.Enum)
 
 
@@ -266,13 +278,15 @@ def _flag_transformer(cls: Type[F]) -> Callable[[AuditLogEntry, Union[int, str]]
 
 def _transform_type(
     entry: AuditLogEntry, data: Union[int, str]
-) -> Union[enums.ChannelType, enums.StickerType, enums.WebhookType, str]:
+) -> Union[enums.ChannelType, enums.StickerType, enums.WebhookType, str, enums.OnboardingPromptType]:
     if entry.action.name.startswith('sticker_'):
         return enums.try_enum(enums.StickerType, data)
     elif entry.action.name.startswith('integration_'):
         return data  # type: ignore  # integration type is str
     elif entry.action.name.startswith('webhook_'):
         return enums.try_enum(enums.WebhookType, data)
+    elif entry.action.name.startswith('onboarding_prompt_'):
+        return enums.try_enum(enums.OnboardingPromptType, data)
     else:
         return enums.try_enum(enums.ChannelType, data)
 
@@ -290,14 +304,12 @@ class AuditLogDiff:
 
     if TYPE_CHECKING:
 
-        def __getattr__(self, item: str) -> Any:
-            ...
+        def __getattr__(self, item: str) -> Any: ...
 
-        def __setattr__(self, key: str, value: Any) -> Any:
-            ...
+        def __setattr__(self, key: str, value: Any) -> Any: ...
 
 
-Transformer = Callable[["AuditLogEntry", Any], Any]
+Transformer = Callable[['AuditLogEntry', Any], Any]
 
 
 class AuditLogChanges:
@@ -352,6 +364,10 @@ class AuditLogChanges:
         'default_reaction_emoji':                (None, _transform_default_reaction),
         'emoji_name':                            ('emoji', _transform_default_emoji),
         'user_id':                               ('user', _transform_member_id),
+        'options':                               (None, _transform_onboarding_prompt_options),
+        'prompts':                               (None, _transform_onboarding_prompts),
+        'default_channel_ids':                   ('default_channels', _transform_channels_or_threads),
+        'mode':                                  (None, _enum_transformer(enums.OnboardingMode)),
     }
     # fmt: on
 
@@ -387,8 +403,8 @@ class AuditLogChanges:
 
             # special case for colors to set secondary and tertiary colos/colour attributes
             if attr == 'colors':
-                self._handle_colours(self.before, elem['old_value'])  # type: ignore  # should be a RoleColours dict
-                self._handle_colours(self.after, elem['new_value'])  # type: ignore  # should be a RoleColours dict
+                self._handle_colours(self.before, elem.get('old_value'))  # type: ignore  # should be a RoleColours dict
+                self._handle_colours(self.after, elem.get('new_value'))  # type: ignore  # should be a RoleColours dict
                 continue
 
             try:
@@ -507,13 +523,18 @@ class AuditLogChanges:
         except (AttributeError, TypeError):
             pass
 
-    def _handle_colours(self, diff: AuditLogDiff, colours: RoleColours):
-        # handle colours to multiple colour attributes
-        diff.color = diff.colour = Colour(colours['primary_color'])
+    def _handle_colours(self, diff: AuditLogDiff, colours: Optional[RoleColours]):
+        if colours is not None:
+            # handle colours to multiple colour attributes
+            colour = Colour(colours['primary_color'])
+            secondary_colour = colours['secondary_color']
+            tertiary_colour = colours['tertiary_color']
+        else:
+            colour = None
+            secondary_colour = None
+            tertiary_colour = None
 
-        secondary_colour = colours['secondary_color']
-        tertiary_colour = colours['tertiary_color']
-
+        diff.color = diff.colour = colour
         diff.secondary_color = diff.secondary_colour = Colour(secondary_colour) if secondary_colour is not None else None
         diff.tertiary_color = diff.tertiary_colour = Colour(tertiary_colour) if tertiary_colour is not None else None
 
@@ -699,6 +720,7 @@ class AuditLogEntry(Hashable):
                 self.action is enums.AuditLogAction.automod_block_message
                 or self.action is enums.AuditLogAction.automod_flag_message
                 or self.action is enums.AuditLogAction.automod_timeout_member
+                or self.action is enums.AuditLogAction.automod_quarantine_user
             ):
                 channel_id = utils._get_as_snowflake(extra, 'channel_id')
                 channel = None
@@ -710,7 +732,7 @@ class AuditLogEntry(Hashable):
                 self.extra = _AuditLogProxyAutoModAction(
                     automod_rule_name=extra['auto_moderation_rule_name'],
                     automod_rule_trigger_type=enums.try_enum(
-                        enums.AutoModRuleTriggerType, extra['auto_moderation_rule_trigger_type']
+                        enums.AutoModRuleTriggerType, int(extra['auto_moderation_rule_trigger_type'])
                     ),
                     channel=channel,
                 )
@@ -880,3 +902,6 @@ class AuditLogEntry(Hashable):
         from .webhook import Webhook  # Circular import
 
         return self._webhooks.get(target_id) or Object(target_id, type=Webhook)
+
+    def _convert_target_onboarding_prompt(self, target_id: int) -> Object:
+        return Object(target_id, type=OnboardingPrompt)

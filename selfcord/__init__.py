@@ -30,6 +30,7 @@ from .billing import *
 from .calls import *
 from .channel import *
 from .client import *
+from .collectible import *
 from .colour import *
 from .commands import *
 from .components import *
@@ -56,6 +57,7 @@ from .metadata import *
 from .modal import *
 from .object import *
 from .oauth2 import *
+from .onboarding import *
 from .partial_emoji import *
 from .payments import *
 from .permissions import *

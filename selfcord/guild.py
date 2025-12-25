@@ -27,12 +27,10 @@ from __future__ import annotations
 import copy
 from datetime import datetime
 from operator import attrgetter
-import unicodedata
 from typing import (
     Any,
     AsyncIterator,
     ClassVar,
-    Collection,
     Coroutine,
     Dict,
     Iterable,
@@ -57,7 +55,6 @@ from .emoji import Emoji
 from .errors import ClientException, InvalidData
 from .permissions import Permissions, PermissionOverwrite
 from .colour import Colour
-from .errors import ClientException
 from .channel import *
 from .channel import _guild_channel_factory, _threaded_guild_channel_factory
 from .enums import (
@@ -78,6 +75,7 @@ from .enums import (
     ForumOrderType,
     ForumLayoutType,
     ReadStateType,
+    OnboardingMode,
 )
 from .mixins import Hashable
 from .user import User
@@ -99,6 +97,7 @@ from .welcome_screen import *
 from .application import PartialApplication
 from .guild_premium import PremiumGuildSubscription
 from .entitlements import Entitlement
+from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
 from .partial_emoji import _EmojiTag, PartialEmoji
 from .commands import _command_factory
@@ -143,6 +142,7 @@ if TYPE_CHECKING:
     from .message import EmojiInputType, Message
     from .read_state import ReadState
     from .commands import UserCommand, MessageCommand, SlashCommand
+    from .onboarding import OnboardingPrompt
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     NonCategoryChannel = Union[VocalGuildChannel, ForumChannel, TextChannel, DirectoryChannel]
@@ -1445,8 +1445,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, TextChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, TextChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1456,8 +1455,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, VoiceChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, VoiceChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1467,8 +1465,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, StageChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, StageChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1478,8 +1475,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, CategoryChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, CategoryChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1489,8 +1485,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, NewsChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, NewsChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1500,8 +1495,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, Union[TextChannelPayload, NewsChannelPayload]]:
-        ...
+    ) -> Coroutine[Any, Any, Union[TextChannelPayload, NewsChannelPayload]]: ...
 
     @overload
     def _create_channel(
@@ -1511,8 +1505,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, ForumChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, ForumChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1522,8 +1515,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, DirectoryChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, DirectoryChannelPayload]: ...
 
     @overload
     def _create_channel(
@@ -1533,8 +1525,7 @@ class Guild(Hashable):
         overwrites: Mapping[Union[Role, Member, Object], PermissionOverwrite] = ...,
         category: Optional[Snowflake] = ...,
         **options: Any,
-    ) -> Coroutine[Any, Any, GuildChannelPayload]:
-        ...
+    ) -> Coroutine[Any, Any, GuildChannelPayload]: ...
 
     def _create_channel(
         self,
@@ -2197,7 +2188,9 @@ class Guild(Hashable):
         )
 
         channel = ForumChannel(
-            state=self._state, guild=self, data=data  # pyright: ignore[reportArgumentType] # it's the correct data
+            state=self._state,
+            guild=self,
+            data=data,  # pyright: ignore[reportArgumentType] # it's the correct data
         )
 
         # temporarily add to the cache
@@ -2950,18 +2943,18 @@ class Guild(Hashable):
         before: SnowflakeTime = MISSING,
         after: SnowflakeTime = MISSING,
         include_nsfw: bool = MISSING,
-        channels: Collection[Snowflake] = MISSING,
-        authors: Collection[Snowflake] = MISSING,
-        author_types: Collection[MessageSearchAuthorType] = MISSING,
-        mentions: Collection[Snowflake] = MISSING,
+        channels: Sequence[Snowflake] = MISSING,
+        authors: Sequence[Snowflake] = MISSING,
+        author_types: Sequence[MessageSearchAuthorType] = MISSING,
+        mentions: Sequence[Snowflake] = MISSING,
         mention_everyone: bool = MISSING,
         pinned: bool = MISSING,
-        has: Collection[MessageSearchHasType] = MISSING,
-        embed_types: Collection[EmbedType] = MISSING,
-        embed_providers: Collection[str] = MISSING,
-        link_hostnames: Collection[str] = MISSING,
-        attachment_filenames: Collection[str] = MISSING,
-        attachment_extensions: Collection[str] = MISSING,
+        has: Sequence[MessageSearchHasType] = MISSING,
+        embed_types: Sequence[EmbedType] = MISSING,
+        embed_providers: Sequence[str] = MISSING,
+        link_hostnames: Sequence[str] = MISSING,
+        attachment_filenames: Sequence[str] = MISSING,
+        attachment_extensions: Sequence[str] = MISSING,
         application_command_id: Snowflake = MISSING,
         application_command_name: str = MISSING,
         oldest_first: bool = MISSING,
@@ -3105,7 +3098,7 @@ class Guild(Hashable):
         *,
         days: int,
         compute_prune_count: bool = True,
-        roles: Collection[Snowflake] = MISSING,
+        roles: Sequence[Snowflake] = MISSING,
         reason: Optional[str] = None,
     ) -> Optional[int]:
         r"""|coro|
@@ -3218,7 +3211,7 @@ class Guild(Hashable):
         data = await self._state.http.guild_webhooks(self.id)
         return [Webhook.from_state(d, state=self._state) for d in data]
 
-    async def estimate_pruned_members(self, *, days: int, roles: Collection[Snowflake] = MISSING) -> Optional[int]:
+    async def estimate_pruned_members(self, *, days: int, roles: Sequence[Snowflake] = MISSING) -> Optional[int]:
         """|coro|
 
         Similar to :meth:`prune_members` except instead of actually
@@ -3484,7 +3477,7 @@ class Guild(Hashable):
         self,
         *,
         name: str,
-        description: str,
+        description: str = MISSING,
         emoji: str,
         file: File,
         reason: Optional[str] = None,
@@ -3500,11 +3493,16 @@ class Guild(Hashable):
         Parameters
         -----------
         name: :class:`str`
-            The sticker name. Must be at least 2 characters.
+            The sticker name. Must be between 2 and 30 characters.
         description: :class:`str`
-            The sticker's description.
+            The sticker's description. Can be an empty string or a string between 2 and 100 characters.
+            Defaults to an empty string if not provided.
         emoji: :class:`str`
-            The name of a unicode emoji that represents the sticker's expression.
+            The emoji tag associated with the sticker. This corresponds to the
+            ``tags`` field in Discord's API, which is used for emoji autocomplete
+            and suggestion purposes. For correct rendering in Discord's UI, this
+            should ideally be a raw Unicode emoji or the string ID
+            of a custom emoji. Any string up to 200 characters is accepted.
         file: :class:`File`
             The file of the sticker to upload.
         reason: :class:`str`
@@ -3525,16 +3523,8 @@ class Guild(Hashable):
         payload = {
             'name': name,
             'description': description or '',
+            'tags': emoji,
         }
-
-        try:
-            emoji = unicodedata.name(emoji)
-        except TypeError:
-            pass
-        else:
-            emoji = emoji.replace(' ', '_')
-
-        payload['tags'] = emoji
 
         data = await self._state.http.create_guild_sticker(self.id, payload, file, reason)
         return self._state.store_sticker(self, data)
@@ -3657,8 +3647,7 @@ class Guild(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def create_scheduled_event(
@@ -3674,8 +3663,7 @@ class Guild(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def create_scheduled_event(
@@ -3690,8 +3678,7 @@ class Guild(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def create_scheduled_event(
@@ -3706,8 +3693,7 @@ class Guild(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     async def create_scheduled_event(
         self,
@@ -3958,7 +3944,7 @@ class Guild(Hashable):
         *,
         name: str,
         image: bytes,
-        roles: Collection[Role] = MISSING,
+        roles: Sequence[Role] = MISSING,
         reason: Optional[str] = None,
     ) -> Emoji:
         r"""|coro|
@@ -4099,8 +4085,7 @@ class Guild(Hashable):
         emoji: Optional[PartialEmoji] = ...,
         secondary_colour: Optional[Union[Colour, int]] = ...,
         tertiary_colour: Optional[Union[Colour, int]] = ...,
-    ) -> Role:
-        ...
+    ) -> Role: ...
 
     @overload
     async def create_role(
@@ -4115,8 +4100,7 @@ class Guild(Hashable):
         mentionable: bool = ...,
         secondary_color: Optional[Union[Colour, int]] = ...,
         tertiary_color: Optional[Union[Colour, int]] = ...,
-    ) -> Role:
-        ...
+    ) -> Role: ...
 
     async def create_role(
         self,
@@ -4342,32 +4326,38 @@ class Guild(Hashable):
 
         return roles
 
-    async def role_member_counts(self) -> Dict[Role, int]:
+    async def role_member_counts(self) -> Dict[Union[Object, Role], int]:
         """|coro|
 
-        Retrieves the number of members in each role the guild has.
+        Retrieves a mapping of roles to the number of members that have it.
+
+        You must have :attr:`~Permissions.manage_roles` to do this.
 
         .. versionadded:: 2.1
 
         Raises
         -------
         Forbidden
-            You do not have permissions to get the member counts.
+            You do not have permissions to view the role member counts.
         HTTPException
-            Getting the member counts failed.
+            Retrieving the role member counts failed.
 
         Returns
         --------
-        Dict[:class:`Role`, :class:`int`]
-            A mapping of the role to the number of members in that role.
+        Dict[Union[:class:`Object`, :class:`Role`], :class:`int`]
+            A mapping of roles to the number of members that have it.
+            If a role is not found in the cache, it will be represented as an :class:`Object`
+            instead of a :class:`Role`.
         """
         data = await self._state.http.get_role_member_counts(self.id)
-        ret: Dict[Role, int] = {}
-        for k, v in data.items():
-            role = self.get_role(int(k))
-            if role is not None:
-                ret[role] = v
-        return ret
+        result: Dict[Union[Object, Role], int] = {}
+        for role_id, member_count in data.items():
+            role_id = int(role_id)
+            role = self.get_role(role_id)
+            if role is None:
+                role = Object(id=role_id, type=Role)
+            result[role] = member_count
+        return result
 
     async def kick(self, user: Snowflake, *, reason: Optional[str] = None) -> None:
         """|coro|
@@ -5162,7 +5152,7 @@ class Guild(Hashable):
 
     async def fetch_members(
         self,
-        channels: List[Snowflake] = MISSING,
+        channels: Sequence[Snowflake] = MISSING,
         *,
         cache: bool = False,
         force_scraping: bool = False,
@@ -5220,7 +5210,7 @@ class Guild(Hashable):
         query: Optional[str] = None,
         *,
         limit: int = 5,
-        user_ids: Optional[List[int]] = None,
+        user_ids: Optional[Sequence[int]] = None,
         presences: bool = True,
         cache: bool = True,
         subscribe: bool = False,
@@ -5287,7 +5277,12 @@ class Guild(Hashable):
 
         limit = min(100, limit or 5)
         members = await self._state.query_members(
-            self, query=query, limit=limit, user_ids=user_ids, presences=presences, cache=cache  # type: ignore # The two types are compatible
+            self,
+            query=query,
+            limit=limit,
+            user_ids=user_ids,  # type: ignore
+            presences=presences,
+            cache=cache,
         )
         if subscribe:
             await self._state.subscriptions.subscribe_to_members(self, *members)
@@ -5391,8 +5386,8 @@ class Guild(Hashable):
         self,
         *,
         features: List[Literal['typing', 'activities', 'threads', 'member_updates']] = MISSING,
-        members: Collection[Snowflake] = MISSING,
-        threads: Collection[Snowflake] = MISSING,
+        members: Sequence[Snowflake] = MISSING,
+        threads: Sequence[Snowflake] = MISSING,
     ) -> bool:
         """Indicates whether the guild is additionally subscribed to specific features, members, or threads.
         This will always return ``False`` if :func:`is_subscribed` is ``False``.
@@ -5475,7 +5470,7 @@ class Guild(Hashable):
         )
 
     async def subscribe_to(
-        self, *, members: Collection[Snowflake] = MISSING, threads: Collection[Snowflake] = MISSING
+        self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING
     ) -> None:
         """|coro|
 
@@ -5507,7 +5502,7 @@ class Guild(Hashable):
             await subscriptions.subscribe_to_threads(self, *threads)
 
     async def unsubscribe_from(
-        self, *, members: Collection[Snowflake] = MISSING, threads: Collection[Snowflake] = MISSING
+        self, *, members: Sequence[Snowflake] = MISSING, threads: Sequence[Snowflake] = MISSING
     ) -> None:
         """|coro|
 
@@ -5837,3 +5832,74 @@ class Guild(Hashable):
             return False
 
         return self.raid_detected_at > utils.utcnow()
+
+    async def onboarding(self) -> Onboarding:
+        """|coro|
+
+        Fetches the onboarding configuration for this guild.
+
+        .. versionadded:: 2.1
+
+        Returns
+        --------
+        :class:`Onboarding`
+            The onboarding configuration that was fetched.
+        """
+        data = await self._state.http.get_guild_onboarding(self.id)
+        return Onboarding(data=data, guild=self, state=self._state)
+
+    async def edit_onboarding(
+        self,
+        *,
+        prompts: List[OnboardingPrompt] = MISSING,
+        default_channels: List[Snowflake] = MISSING,
+        enabled: bool = MISSING,
+        mode: OnboardingMode = MISSING,
+        reason: str = MISSING,
+    ) -> Onboarding:
+        """|coro|
+
+        Edits the onboarding configuration for this guild.
+
+        You must have :attr:`Permissions.manage_guild` and
+        :attr:`Permissions.manage_roles` to do this.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        prompts: List[:class:`OnboardingPrompt`]
+            The prompts that will be shown to new members.
+            This overrides the existing prompts and its options.
+        default_channels: List[:class:`abc.Snowflake`]
+            The channels that will be used as the default channels for new members.
+            This overrides the existing default channels.
+        enabled: :class:`bool`
+            Whether the onboarding configuration is enabled.
+            This overrides the existing enabled state.
+        mode: :class:`OnboardingMode`
+            The mode that will be used for the onboarding configuration.
+        reason: :class:`str`
+            The reason for editing the onboarding configuration. Shows up on the audit log.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to edit the onboarding configuration.
+        HTTPException
+            Editing the onboarding configuration failed.
+
+        Returns
+        --------
+        :class:`Onboarding`
+            The new onboarding configuration.
+        """
+        data = await self._state.http.edit_guild_onboarding(
+            self.id,
+            prompts=[p.to_dict(id=i) for i, p in enumerate(prompts)] if prompts is not MISSING else None,
+            default_channel_ids=[c.id for c in default_channels] if default_channels is not MISSING else None,
+            enabled=enabled if enabled is not MISSING else None,
+            mode=mode.value if mode is not MISSING else None,
+            reason=reason if reason is not MISSING else None,
+        )
+        return Onboarding(data=data, guild=self, state=self._state)

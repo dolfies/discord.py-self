@@ -502,7 +502,7 @@ class Invite(Hashable):
         target_user_data = data.get('target_user')
         self.target_user: Optional[User] = None if target_user_data is None else self._state.create_user(target_user_data)
 
-        self.target_type: InviteTarget = try_enum(InviteTarget, data.get("target_type", 0))
+        self.target_type: InviteTarget = try_enum(InviteTarget, data.get('target_type', 0))
 
         application = data.get('target_application')
         if application is not None:
@@ -604,11 +604,7 @@ class Invite(Hashable):
         return self.url
 
     def __repr__(self) -> str:
-        return (
-            f'<Invite code={self.code!r} type={self.type!r} '
-            f'guild={self.guild!r} '
-            f'members={self.approximate_member_count}>'
-        )
+        return f'<Invite code={self.code!r} type={self.type!r} guild={self.guild!r} members={self.approximate_member_count}>'
 
     def __hash__(self) -> int:
         return hash(self.code)

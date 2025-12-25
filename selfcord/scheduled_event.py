@@ -323,8 +323,7 @@ class ScheduledEvent(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def edit(
@@ -341,8 +340,7 @@ class ScheduledEvent(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def edit(
@@ -359,8 +357,7 @@ class ScheduledEvent(Hashable):
         location: str,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def edit(
@@ -376,8 +373,7 @@ class ScheduledEvent(Hashable):
         image: bytes = ...,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     @overload
     async def edit(
@@ -393,8 +389,7 @@ class ScheduledEvent(Hashable):
         location: str,
         directory_broadcast: bool = ...,
         reason: Optional[str] = ...,
-    ) -> ScheduledEvent:
-        ...
+    ) -> ScheduledEvent: ...
 
     async def edit(
         self,

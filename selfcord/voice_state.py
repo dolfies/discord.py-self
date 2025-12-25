@@ -756,4 +756,8 @@ class VoiceConnectionState:
         self.state = ConnectionFlowState.set_guild_voice_state
 
     def _update_voice_channel(self, channel_id: Optional[int]) -> None:
-        self.voice_client.channel = channel_id and self.guild.get_channel(channel_id) if self.guild else self.voice_client._state._get_private_channel(channel_id)  # type: ignore
+        self.voice_client.channel = (
+            channel_id and self.guild.get_channel(channel_id)
+            if self.guild
+            else self.voice_client._state._get_private_channel(channel_id)
+        )  # type: ignore

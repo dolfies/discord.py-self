@@ -135,7 +135,7 @@ class ApplicationCommand(Protocol):
     ) -> Interaction:
         channel = channel or self.target_channel
         if channel is None:
-            raise TypeError('__call__() missing 1 required argument: \'channel\'')
+            raise TypeError("__call__() missing 1 required argument: 'channel'")
 
         return await _wrapped_interaction(
             self._state,
@@ -405,7 +405,7 @@ class UserCommand(BaseCommand):
         """
         user = user or self._user
         if user is None:
-            raise TypeError('__call__() missing 1 required positional argument: \'user\'')
+            raise TypeError("__call__() missing 1 required positional argument: 'user'")
 
         command = self._data
         data: UserCommandInteractionData = {
@@ -520,7 +520,7 @@ class MessageCommand(BaseCommand):
         """
         message = message or self._message
         if message is None:
-            raise TypeError('__call__() missing 1 required positional argument: \'message\'')
+            raise TypeError("__call__() missing 1 required positional argument: 'message'")
 
         command = self._data
         data: MessageCommandInteractionData = {
@@ -718,10 +718,8 @@ class SubCommand(SlashMixin):
         self._state = parent._state
         self.parent = parent
         self._parent: SlashCommand = getattr(parent, 'parent', parent)  # type: ignore
-        self._type: Literal[
-            ApplicationCommandOptionType.sub_command, ApplicationCommandOptionType.sub_command_group
-        ] = try_enum(
-            ApplicationCommandOptionType, data['type']
+        self._type: Literal[ApplicationCommandOptionType.sub_command, ApplicationCommandOptionType.sub_command_group] = (
+            try_enum(ApplicationCommandOptionType, data['type'])
         )  # type: ignore
         self._unwrap_options(data.get('options', []))  # type: ignore # ???
 

@@ -3,7 +3,8 @@ import typing
 import selfcord
 from selfcord.ext import commands
 
-bot = commands.Bot(command_prefix=commands.when_mentioned, description="Nothing to see here!", self_bot=True)
+bot = commands.Bot(command_prefix=commands.when_mentioned, description='Nothing to see here!', self_bot=True)
+
 
 # the `hidden` keyword argument hides it from the help command.
 @bot.group(hidden=True)

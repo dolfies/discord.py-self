@@ -177,6 +177,12 @@ class PartialEmoji(_EmojiTag, AssetMixin):
             return {'emoji_id': self.id, 'emoji_name': None}
         return {'emoji_id': None, 'emoji_name': self.name}
 
+    def _to_onboarding_prompt_option_payload(self) -> Dict[str, Any]:
+        if self.id is not None:
+            return {'emoji_id': self.id, 'emoji_name': self.name, 'emoji_animated': self.animated}
+
+        return {'emoji_name': self.name}
+
     @classmethod
     def with_state(
         cls,
@@ -249,8 +255,8 @@ class PartialEmoji(_EmojiTag, AssetMixin):
         if self.is_unicode_emoji():
             return ''
 
-        fmt = 'gif' if self.animated else 'png'
-        return f'{Asset.BASE}/emojis/{self.id}.{fmt}'
+        end = 'webp?animated=true' if self.animated else 'png'
+        return f'{Asset.BASE}/emojis/{self.id}.{end}'
 
     async def read(self) -> bytes:
         """|coro|

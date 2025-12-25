@@ -253,7 +253,7 @@ class MemberSidebar:
     def __init__(
         self,
         guild: Guild,
-        channels: List[abcSnowflake],
+        channels: Sequence[abcSnowflake],
         *,
         chunk: bool,
         delay: Union[int, float],
@@ -352,7 +352,7 @@ class MemberSidebar:
         if self.ranges:
             self.ranges = self.get_ranges(start=self.ranges[0][0])
 
-    def validate_channels(self, channels: List[abcSnowflake]) -> Sequence[Snowflake]:
+    def validate_channels(self, channels: Sequence[abcSnowflake]) -> Sequence[Snowflake]:
         guild = self.guild
         ids = set()
 
@@ -363,7 +363,7 @@ class MemberSidebar:
 
             # Attempt to account for member list ID bug
             if real_channel._can_everyone(Permissions.read_messages):
-                ids.add("everyone")
+                ids.add('everyone')
             else:
                 ids.add(real_channel.member_list_id)
 
@@ -1416,8 +1416,12 @@ class ConnectionState:
         for msg in messages:
             try:
                 await delete_message(channel_id, msg.id, reason=reason)
-            except NotFound:
-                pass
+            except NotFound as exc:
+                if exc.code == 10008:
+                    continue  # bulk deletion ignores not found messages, single deletion does not.
+                # several other race conditions with deletion should fail without continuing,
+                # such as the channel being deleted and not found.
+                raise
 
     def _update_poll_counts(self, message: Message, answer_id: int, added: bool, self_voted: bool = False) -> Optional[Poll]:
         poll = message.poll
@@ -2366,7 +2370,11 @@ class ConnectionState:
             thread = Thread(guild=guild, state=self, data=data)
             guild._add_thread(thread)
             if data.get('newly_created', False):
-                if thread.parent and thread.parent.type in (ChannelType.forum, ChannelType.media) and thread.owner_id == self.self_id:
+                if (
+                    thread.parent
+                    and thread.parent.type in (ChannelType.forum, ChannelType.media)
+                    and thread.owner_id == self.self_id
+                ):
                     # Implicitly mark our own threads as read
                     read_state = self.get_read_state(thread.parent_id)
                     read_state.last_acked_id = thread.id
@@ -2831,10 +2839,9 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
-    ) -> List[Member]:
-        ...
+    ) -> List[Member]: ...
 
     @overload
     async def scrape_guild(
@@ -2845,10 +2852,9 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
-    ) -> asyncio.Future[List[Member]]:
-        ...
+    ) -> asyncio.Future[List[Member]]: ...
 
     async def scrape_guild(
         self,
@@ -2858,7 +2864,7 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = False,
         chunk: bool = False,
-        channels: List[abcSnowflake] = MISSING,
+        channels: Sequence[abcSnowflake] = MISSING,
         delay: Union[int, float] = MISSING,
     ) -> Union[List[Member], asyncio.Future[List[Member]]]:
         if not guild.me:
@@ -2903,14 +2909,12 @@ class ConnectionState:
     @overload
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = ..., wait: Literal[True] = ..., cache: Optional[bool] = ...
-    ) -> List[Member]:
-        ...
+    ) -> List[Member]: ...
 
     @overload
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = ..., wait: Literal[False] = ..., cache: Optional[bool] = ...
-    ) -> asyncio.Future[List[Member]]:
-        ...
+    ) -> asyncio.Future[List[Member]]: ...
 
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = None, wait: bool = True, cache: Optional[bool] = None
@@ -3542,7 +3546,7 @@ class ConnectionState:
             return channel.guild.get_member(user_id)
         return self.get_user(user_id)
 
-    def get_reaction_emoji(self, data: PartialEmojiPayload) -> Union[Emoji, PartialEmoji, str]:
+    def get_emoji_from_partial_payload(self, data: PartialEmojiPayload) -> Union[Emoji, PartialEmoji, str]:
         emoji_id = utils._get_as_snowflake(data, 'id')
 
         if not emoji_id:
@@ -3553,7 +3557,10 @@ class ConnectionState:
             return self._emojis[emoji_id]
         except KeyError:
             return PartialEmoji.with_state(
-                self, animated=data.get('animated', False), id=emoji_id, name=data['name']  # type: ignore
+                self,
+                animated=data.get('animated', False),
+                id=emoji_id,
+                name=data['name'],  # type: ignore
             )
 
     def _upgrade_partial_emoji(self, emoji: PartialEmoji) -> Union[Emoji, PartialEmoji, str]:
@@ -3684,12 +3691,10 @@ class ConnectionState:
         return presence
 
     @overload
-    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[False] = ...) -> ReadState:
-        ...
+    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[False] = ...) -> ReadState: ...
 
     @overload
-    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[True]) -> Optional[ReadState]:
-        ...
+    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[True]) -> Optional[ReadState]: ...
 
     def get_read_state(
         self, id: int, type: ReadStateType = ReadStateType.channel, *, if_exists: bool = False

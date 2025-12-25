@@ -35,6 +35,7 @@ from typing import (
     Callable,
     Collection,
     Dict,
+    Generator,
     List,
     Literal,
     Optional,
@@ -47,6 +48,7 @@ from typing import (
     overload,
     runtime_checkable,
 )
+import warnings
 
 from .object import OLDEST_OBJECT, Object
 from .context_managers import Typing
@@ -81,7 +83,8 @@ MISSING = utils.MISSING
 _log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
+
     from .client import Client
     from .user import ClientUser, User
     from .asset import Asset
@@ -113,10 +116,18 @@ if TYPE_CHECKING:
     from .types.message import MessageSearchAuthorType, MessageSearchHasType, PartialMessage as PartialMessagePayload
     from .types.guild import ChannelPositionUpdate
     from .types.snowflake import SnowflakeList
+    from .permissions import _PermissionOverwriteKwargs
 
     MessageableChannel = Union[TextChannel, VoiceChannel, StageChannel, Thread, DMChannel, PartialMessageable, GroupChannel]
     VocalChannel = Union[VoiceChannel, StageChannel, DMChannel, GroupChannel]
-    SnowflakeTime = Union["Snowflake", datetime]
+    SnowflakeTime = Union['Snowflake', datetime]
+
+    class PinnedMessage(Message):
+        pinned_at: datetime
+        pinned: Literal[True]
+
+
+MISSING = utils.MISSING
 
 
 class _Undefined:
@@ -125,6 +136,26 @@ class _Undefined:
 
 
 _undefined: Any = _Undefined()
+
+
+class _PinsIterator:
+    def __init__(self, iterator: AsyncIterator[PinnedMessage]) -> None:
+        self.__iterator: AsyncIterator[PinnedMessage] = iterator
+
+    def __await__(self) -> Generator[Any, None, List[PinnedMessage]]:
+        warnings.warn(
+            '`await <channel>.pins()` is deprecated; use `async for message in <channel>.pins()` instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        async def gather() -> List[PinnedMessage]:
+            return [msg async for msg in self.__iterator]
+
+        return gather().__await__()
+
+    def __aiter__(self) -> AsyncIterator[PinnedMessage]:
+        return self.__iterator
 
 
 async def _purge_helper(
@@ -154,6 +185,8 @@ async def _purge_helper(
             count = 0
         if not check(message):
             continue
+        if not message.type.is_deletable():
+            continue
 
         count += 1
         ret.append(message)
@@ -174,8 +207,7 @@ def _handle_commands(
     command_ids: Optional[Collection[int]] = ...,
     application: Optional[Snowflake] = ...,
     target: Optional[Snowflake] = ...,
-) -> AsyncIterator[SlashCommand]:
-    ...
+) -> AsyncIterator[SlashCommand]: ...
 
 
 @overload
@@ -188,8 +220,7 @@ def _handle_commands(
     command_ids: Optional[Collection[int]] = ...,
     application: Optional[Snowflake] = ...,
     target: Optional[Snowflake] = ...,
-) -> AsyncIterator[UserCommand]:
-    ...
+) -> AsyncIterator[UserCommand]: ...
 
 
 @overload
@@ -202,8 +233,7 @@ def _handle_commands(
     command_ids: Optional[Collection[int]] = ...,
     application: Optional[Snowflake] = ...,
     target: Optional[Snowflake] = ...,
-) -> AsyncIterator[MessageCommand]:
-    ...
+) -> AsyncIterator[MessageCommand]: ...
 
 
 async def _handle_commands(
@@ -694,8 +724,7 @@ class GuildChannel:
 
     if TYPE_CHECKING:
 
-        def __init__(self, *, state: ConnectionState, guild: Guild, data: GuildChannelPayload):
-            ...
+        def __init__(self, *, state: ConnectionState, guild: Guild, data: GuildChannelPayload): ...
 
     def __str__(self) -> str:
         return self.name
@@ -737,11 +766,11 @@ class GuildChannel:
         for overwrite in self._overwrites:
             allow, deny = Permissions(overwrite.allow), Permissions(overwrite.deny)
             if allow.read_messages:
-                overwrites.append(f"allow:{overwrite.id}")
+                overwrites.append(f'allow:{overwrite.id}')
             elif deny.read_messages:
-                overwrites.append(f"deny:{overwrite.id}")
+                overwrites.append(f'deny:{overwrite.id}')
 
-        return str(utils.murmurhash32(",".join(sorted(overwrites)), signed=False))
+        return str(utils.murmurhash32(','.join(sorted(overwrites)), signed=False))
 
     def _update(self, guild: Guild, data: Dict[str, Any]) -> None:
         raise NotImplementedError
@@ -1129,7 +1158,7 @@ class GuildChannel:
             if obj.is_default():
                 return base
 
-            overwrite = utils.get(self._overwrites, type=_Overwrites.ROLE, id=obj.id)
+            overwrite = utils.find(lambda ow: ow.type == _Overwrites.ROLE and ow.id == obj.id, self._overwrites)
             if overwrite is not None:
                 base.handle_overwrite(overwrite.allow, overwrite.deny)
 
@@ -1216,8 +1245,7 @@ class GuildChannel:
         *,
         overwrite: Optional[Union[PermissionOverwrite, _Undefined]] = ...,
         reason: Optional[str] = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def set_permissions(
@@ -1225,9 +1253,8 @@ class GuildChannel:
         target: Union[Member, Role],
         *,
         reason: Optional[str] = ...,
-        **permissions: Optional[bool],
-    ) -> None:
-        ...
+        **permissions: Unpack[_PermissionOverwriteKwargs],
+    ) -> None: ...
 
     async def set_permissions(
         self,
@@ -1235,7 +1262,7 @@ class GuildChannel:
         *,
         overwrite: Any = _undefined,
         reason: Optional[str] = None,
-        **permissions: Optional[bool],
+        **permissions: Unpack[_PermissionOverwriteKwargs],
     ) -> None:
         r"""|coro|
 
@@ -1422,8 +1449,7 @@ class GuildChannel:
         category: Optional[Snowflake] = MISSING,
         sync_permissions: bool = MISSING,
         reason: Optional[str] = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def move(
@@ -1434,8 +1460,7 @@ class GuildChannel:
         category: Optional[Snowflake] = MISSING,
         sync_permissions: bool = MISSING,
         reason: str = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def move(
@@ -1446,8 +1471,7 @@ class GuildChannel:
         category: Optional[Snowflake] = MISSING,
         sync_permissions: bool = MISSING,
         reason: str = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def move(
@@ -1458,8 +1482,7 @@ class GuildChannel:
         category: Optional[Snowflake] = MISSING,
         sync_permissions: bool = MISSING,
         reason: str = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def move(self, **kwargs: Any) -> None:
         """|coro|
@@ -1798,8 +1821,7 @@ class Messageable:
         suppress_embeds: bool = ...,
         silent: bool = ...,
         poll: Poll = ...,
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     @overload
     async def send(
@@ -1817,8 +1839,7 @@ class Messageable:
         suppress_embeds: bool = ...,
         silent: bool = ...,
         poll: Poll = ...,
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     @overload
     async def send(
@@ -1836,8 +1857,7 @@ class Messageable:
         suppress_embeds: bool = ...,
         silent: bool = ...,
         poll: Poll = ...,
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     @overload
     async def send(
@@ -1855,8 +1875,7 @@ class Messageable:
         suppress_embeds: bool = ...,
         silent: bool = ...,
         poll: Poll = ...,
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     async def send(
         self,
@@ -2219,16 +2238,118 @@ class Messageable:
         channel = await self._get_channel()
         await self._state.http.ack_pins(channel.id)
 
-    async def pins(self) -> List[Message]:
-        """|coro|
+    async def __pins(
+        self,
+        *,
+        limit: Optional[int] = 50,
+        before: Optional[SnowflakeTime] = None,
+        oldest_first: bool = False,
+    ) -> AsyncIterator[PinnedMessage]:
+        channel = await self._get_channel()
+        state = self._state
+        max_limit: int = 50
 
-        Retrieves all messages that are currently pinned in the channel.
+        time: Optional[str] = (
+            (before if isinstance(before, datetime) else utils.snowflake_time(before.id)).isoformat()
+            if before is not None
+            else None
+        )
+
+        while True:
+            retrieve = max_limit if limit is None else min(limit, max_limit)
+            if retrieve < 1:
+                break
+
+            data = await self._state.http.pins_from(
+                channel_id=channel.id,
+                limit=retrieve,
+                before=time,
+            )
+
+            items = data and data['items']
+            if items:
+                if limit is not None:
+                    limit -= len(items)
+
+                time = items[-1]['pinned_at']
+
+            # Terminate loop on next iteration; there's no data left after this
+            if len(items) < max_limit or not data['has_more']:
+                limit = 0
+
+            if oldest_first:
+                items = reversed(items)
+
+            count = 0
+            for count, m in enumerate(items, start=1):
+                message: Message = state.create_message(channel=channel, data=m['message'])
+                message._pinned_at = utils.parse_time(m['pinned_at'])
+                yield message  # pyright: ignore[reportReturnType]
+
+            if count < max_limit:
+                break
+
+    def pins(
+        self,
+        *,
+        limit: Optional[int] = 50,
+        before: Optional[SnowflakeTime] = None,
+        oldest_first: bool = False,
+    ) -> _PinsIterator:
+        """Retrieves an :term:`asynchronous iterator` of the pinned messages in the channel.
+
+        You must have :attr:`~selfcord.Permissions.view_channel` and
+        :attr:`~selfcord.Permissions.read_message_history` in order to use this.
+
+        .. versionchanged:: 2.1
+
+            Due to a change in Discord's API, this now returns a paginated iterator instead of a list.
+
+            For backwards compatibility, you can still retrieve a list of pinned messages by
+            using ``await`` on the returned object. This is however deprecated.
 
         .. note::
 
             Due to a limitation with the Discord API, the :class:`.Message`
-            objects returned by this method do not contain complete
+            object returned by this method does not contain complete
             :attr:`.Message.reactions` data.
+
+        Examples
+        ---------
+
+        Usage ::
+
+            counter = 0
+            async for message in channel.pins(limit=250):
+                counter += 1
+
+        Flattening into a list: ::
+
+            messages = [message async for message in channel.pins(limit=50)]
+            # messages is now a list of Message...
+
+        All parameters are optional.
+
+        Parameters
+        -----------
+        limit: Optional[int]
+            The number of pinned messages to retrieve. If ``None``, it retrieves
+            every pinned message in the channel. Note, however, that this would
+            make it a slow operation.
+            Defaults to ``50``.
+
+            .. versionadded:: 2.1
+        before: Optional[Union[:class:`datetime.datetime`, :class:`.abc.Snowflake`]]
+            Retrieve pinned messages before this time or snowflake.
+            If a datetime is provided, it is recommended to use a UTC aware datetime.
+            If the datetime is naive, it is assumed to be local time.
+
+            .. versionadded:: 2.1
+        oldest_first: :class:`bool`
+            If set to ``True``, return messages in oldest pin->newest pin order.
+            Defaults to ``False``.
+
+            .. versionadded:: 2.1
 
         Raises
         -------
@@ -2237,15 +2358,12 @@ class Messageable:
         ~selfcord.HTTPException
             Retrieving the pinned messages failed.
 
-        Returns
-        --------
-        List[:class:`~selfcord.Message`]
-            The messages that are currently pinned.
+        Yields
+        -------
+        :class:`~selfcord.Message`
+            The pinned message with :attr:`.Message.pinned_at` set.
         """
-        channel = await self._get_channel()
-        state = self._state
-        data = await state.http.pins_from(channel.id)
-        return [state.create_message(channel=channel, data=m) for m in data]
+        return _PinsIterator(self.__pins(limit=limit, before=before, oldest_first=oldest_first))
 
     async def history(
         self,
@@ -2366,7 +2484,7 @@ class Messageable:
             if limit is None:
                 raise ValueError('history does not support around with limit=None')
             if limit > 101:
-                raise ValueError("history max limit 101 when specifying around parameter")
+                raise ValueError('history max limit 101 when specifying around parameter')
 
             # Strange Discord quirk
             limit = 100 if limit == 101 else limit

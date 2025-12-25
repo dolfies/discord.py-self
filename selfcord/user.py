@@ -28,6 +28,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Un
 
 import selfcord.abc
 from .asset import Asset, AssetMixin
+from .collectible import Collectible
 from .colour import Colour
 from .enums import (
     Locale,
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
         AvatarDecorationData,
         PrimaryGuild as PrimaryGuildPayload,
         DisplayNameStyle as DisplayNameStylePayload,
+        UserCollectibles as UserCollectiblesPayload,
     )
     from .types.snowflake import Snowflake
 
@@ -134,6 +136,7 @@ class BaseUser(_UserTag):
         '_state',
         '_primary_guild',
         '_display_name_style',
+        '_collectibles',
     )
 
     if TYPE_CHECKING:
@@ -151,6 +154,7 @@ class BaseUser(_UserTag):
         _public_flags: int
         _primary_guild: Optional[PrimaryGuildPayload]
         _display_name_style: Optional[DisplayNameStylePayload]
+        _collectibles: Optional[UserCollectiblesPayload]
 
     def __init__(self, *, state: ConnectionState, data: Union[UserPayload, PartialUserPayload]) -> None:
         self._state = state
@@ -158,8 +162,8 @@ class BaseUser(_UserTag):
 
     def __repr__(self) -> str:
         return (
-            f"<BaseUser id={self.id} name={self.name!r} global_name={self.global_name!r}"
-            f" bot={self.bot} system={self.system}>"
+            f'<BaseUser id={self.id} name={self.name!r} global_name={self.global_name!r}'
+            f' bot={self.bot} system={self.system}>'
         )
 
     def __str__(self) -> str:
@@ -190,6 +194,7 @@ class BaseUser(_UserTag):
         self.system = data.get('system', False)
         self._primary_guild = data.get('primary_guild', None)
         self._display_name_style = data.get('display_name_styles', None) or None
+        self._collectibles = data.get('collectibles', None)
 
     @classmethod
     def _copy(cls, user: Self) -> Self:
@@ -209,6 +214,7 @@ class BaseUser(_UserTag):
         self._state = user._state
         self._primary_guild = user._primary_guild
         self._display_name_style = user._display_name_style
+        self._collectibles = user._collectibles
 
         return self
 
@@ -227,6 +233,7 @@ class BaseUser(_UserTag):
             'accent_color': self._accent_colour,
             'primary_guild': self._primary_guild,
             'display_name_styles': self._display_name_style,
+            'collectibles': self._collectibles,
         }
         return user
 
@@ -425,6 +432,15 @@ class BaseUser(_UserTag):
         if self._display_name_style is None:
             return None
         return DisplayNameStyle(data=self._display_name_style)
+
+    def collectibles(self) -> List[Collectible]:
+        """List[:class:`Collectible`]: Returns a list of the user's collectibles.
+
+        .. versionadded:: 2.1
+        """
+        if self._collectibles is None:
+            return []
+        return [Collectible(state=self._state, type=key, data=value) for key, value in self._collectibles.items() if value]  # type: ignore
 
     def mentioned_in(self, message: Message) -> bool:
         """Checks if the user is mentioned in the specified message.
@@ -1065,6 +1081,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             self.global_name,
             self._primary_guild,
             self._display_name_style,
+            self._collectibles,
         )
         modified = (
             user['username'],
@@ -1075,6 +1092,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
             user.get('global_name'),
             user.get('primary_guild'),
             user.get('display_name_styles'),
+            user.get('collectibles'),
         )
         if original != modified:
             to_return = User._copy(self)
@@ -1087,6 +1105,7 @@ class User(BaseUser, selfcord.abc.Connectable, selfcord.abc.Messageable):
                 self.global_name,
                 self._primary_guild,
                 self._display_name_style,
+                self._collectibles,
             ) = modified
             # Signal to dispatch user_update
             return to_return, self
