@@ -689,8 +689,20 @@ class GuildSubscriptions:
     def members_for(self, guild: abcSnowflake, /) -> Sequence[int]:
         return utils.SequenceProxy(self._members.get(guild.id, ()))
 
+    def has_member(self, guild: abcSnowflake, member: abcSnowflake, /) -> bool:
+        members = self._members.get(guild.id)
+        if members is None:
+            return False
+        return members.has(member.id)
+
     def threads_for(self, guild: abcSnowflake, /) -> Sequence[int]:
         return utils.SequenceProxy(self._thread_member_lists.get(guild.id, ()))
+
+    def has_thread(self, guild: abcSnowflake, thread: abcSnowflake, /) -> bool:
+        threads = self._thread_member_lists.get(guild.id)
+        if threads is None:
+            return False
+        return threads.has(thread.id)
 
     def channels_for(self, guild: abcSnowflake, /) -> Dict[int, List[Tuple[int, int]]]:
         return self._channels.get(guild.id, {}).copy()
