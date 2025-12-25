@@ -5373,6 +5373,65 @@ class Guild(Hashable):
 
         await ws.voice_state(self.id, channel_id, self_mute, self_deaf, self_video)
 
+    def is_subscribed(self) -> bool:
+        """Indicates whether the guild is currently subscribed to.
+
+        See :meth:`subscribe` for more information.
+
+        .. versionadded:: 2.1
+
+        Returns
+        --------
+        :class:`bool`
+            Whether the guild is subscribed to.
+        """
+        return self._state.subscriptions.is_subscribed(self)
+
+    def is_subscribed_to(
+        self,
+        *,
+        features: List[Literal['typing', 'activities', 'threads', 'member_updates']] = MISSING,
+        members: Collection[Snowflake] = MISSING,
+        threads: Collection[Snowflake] = MISSING,
+    ) -> bool:
+        """Indicates whether the guild is additionally subscribed to specific features, members, or threads.
+        This will always return ``False`` if :func:`is_subscribed` is ``False``.
+
+        See :meth:`subscribe` and :meth:`subscribe_to` for more information.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        features: List[:class:`str`]
+            A list of features to check subscription for.
+            Valid features are: ``typing``, ``activities``, ``threads``, and ``member_updates``.
+        members: List[:class:`~abc.Snowflake`]
+            A collection of members to check subscription for.
+        threads: List[:class:`~abc.Snowflake`]
+            A collection of threads to check subscription for.
+
+        Returns
+        --------
+        :class:`bool`
+            Whether the guild is subscribed to the given features, members, or threads.
+        """
+        subscriptions = self._state.subscriptions
+        if features:
+            for feature in features:
+                if not subscriptions.has_feature(self, feature):
+                    return False
+        if members:
+            for member in members:
+                if not subscriptions.has_member(self, member):
+                    return False
+        if threads:
+            for thread in threads:
+                if not subscriptions.has_thread(self, thread):
+                    return False
+
+        return subscriptions.is_subscribed(self)
+
     async def subscribe(
         self, *, typing: bool = MISSING, activities: bool = MISSING, threads: bool = MISSING, member_updates: bool = MISSING
     ) -> None:
