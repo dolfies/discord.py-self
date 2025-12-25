@@ -944,7 +944,7 @@ class DiscordVoiceWebSocket:
 
     async def _sendstr(self, data: str, /) -> None:
         try:
-            await self.ws.send(data.encode('utf-8'))
+            await self.ws.send_str(data)
         except WebSocketError:
             if self.ws.closed:
                 # Not much we can do here
@@ -1152,7 +1152,7 @@ class DiscordVoiceWebSocket:
             # Should never happen
             return
 
-        if flags & CurlWsFlag.TEXT:
+        if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
             await self.received_message(utils._from_json(msg))
         elif flags & CurlWsFlag.CLOSE:
             socket = self.ws
