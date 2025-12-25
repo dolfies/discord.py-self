@@ -4222,7 +4222,7 @@ class Client:
         )
         return [Promotion(state=state, data=d) for d in data]
 
-    async def user_offer(self, *, payment_gateway: Optional[PaymentGateway] = None) -> UserOffer:
+    async def user_offer(self, *, discount_id: int = MISSING, payment_gateway: Optional[PaymentGateway] = None) -> UserOffer:
         """|coro|
 
         Retrieves the current user offer for your account.
@@ -4232,6 +4232,8 @@ class Client:
 
         Parameters
         -----------
+        discount_id: :class:`int`
+            The specific discount ID to fetch the offer of.
         payment_gateway: Optional[:class:`.PaymentGateway`]
             The payment gateway to fetch the user offer for.
             Used to fetch user offers for :attr:`.PaymentGateway.apple`
@@ -4250,7 +4252,10 @@ class Client:
             The user offer for your account.
         """
         state = self._connection
-        data = await state.http.get_user_offer(payment_gateway=int(payment_gateway) if payment_gateway else None)
+        data = await state.http.get_user_offer(
+            payment_gateway=int(payment_gateway) if payment_gateway else None,
+            offer_id=discount_id if discount_id is not MISSING else None,
+        )
         return UserOffer(data=data, state=state)
 
     @utils.deprecated("Client.user_offer()")

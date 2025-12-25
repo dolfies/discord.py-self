@@ -1309,7 +1309,9 @@ class HTTPClient:
     ) -> Response[message.Message]:
         r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
         if params.files:
-            return self.request(r, files=params.files, form=params.multipart, context_properties=ContextProperties.from_chat_input())
+            return self.request(
+                r, files=params.files, form=params.multipart, context_properties=ContextProperties.from_chat_input()
+            )
         else:
             return self.request(r, json=params.payload, context_properties=ContextProperties.from_chat_input())
 
@@ -1327,7 +1329,11 @@ class HTTPClient:
         if message_reference:
             payload['message_reference'] = message_reference
 
-        return self.request(Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id), json=payload, context_properties=ContextProperties.from_greet())
+        return self.request(
+            Route('POST', '/channels/{channel_id}/greet', channel_id=channel_id),
+            json=payload,
+            context_properties=ContextProperties.from_greet(),
+        )
 
     def send_typing(self, channel_id: Snowflake) -> Response[Optional[message.TypingResponse]]:
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
@@ -2220,14 +2226,12 @@ class HTTPClient:
         return self.request(Route('GET', '/stickers/{sticker_id}/guild', sticker_id=sticker_id))
 
     def list_premium_sticker_packs(
-        self, country: str = 'US', locale: str = 'en-US', payment_source_id: Optional[Snowflake] = None
+        self, country: str = 'US', locale: str = 'en-US'
     ) -> Response[sticker.ListPremiumStickerPacks]:
         params: Dict[str, Snowflake] = {
             'country_code': country,
             'locale': locale,
         }
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
 
         return self.request(Route('GET', '/sticker-packs'), params=params)
 
@@ -3305,15 +3309,12 @@ class HTTPClient:
         application_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         localize: bool = True,
         with_bundled_skus: bool = True,
     ) -> Response[List[store.PrivateSKU]]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
         if with_bundled_skus:
@@ -3779,14 +3780,11 @@ class HTTPClient:
         listing_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         localize: bool = True,
     ) -> Response[store.PrivateStoreListing]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3797,14 +3795,11 @@ class HTTPClient:
         sku_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         localize: bool = True,
     ) -> Response[store.PublicStoreListing]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3815,14 +3810,11 @@ class HTTPClient:
         sku_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[int] = None,
         localize: bool = True,
     ) -> Response[List[store.PrivateStoreListing]]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3875,7 +3867,6 @@ class HTTPClient:
         application_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[int] = None,
         localize: bool = True,
     ) -> Response[List[store.PublicStoreListing]]:
         params = {'application_id': application_id}
@@ -3891,14 +3882,11 @@ class HTTPClient:
         application_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[int] = None,
         localize: bool = True,
     ) -> Response[store.PublicStoreListing]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3912,14 +3900,11 @@ class HTTPClient:
         application_ids: Sequence[Snowflake],
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         localize: bool = True,
     ) -> Response[List[store.PublicStoreListing]]:
         params: Dict[str, Any] = {'application_ids': application_ids}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3939,19 +3924,19 @@ class HTTPClient:
             json=payload,
         )
 
+    def delete_store_listing(self, listing_id: Snowflake) -> Response[None]:
+        return self.request(Route('DELETE', '/store/listings/{listing_id}', listing_id=listing_id))
+
     def get_sku(
         self,
         sku_id: Snowflake,
         *,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         localize: bool = True,
     ) -> Response[store.PrivateSKU]:
         params = {}
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
         if not localize:
             params['localize'] = 'false'
 
@@ -3963,14 +3948,20 @@ class HTTPClient:
     def preview_sku_purchase(
         self,
         sku_id: Snowflake,
-        payment_source_id: Snowflake,
+        payment_source_id: Optional[Snowflake] = None,
         subscription_plan_id: Optional[Snowflake] = None,
+        currency: Optional[str] = None,
         *,
         test_mode: bool = False,
+        gift: bool = False,
     ) -> Response[store.SKUPrice]:
-        params = {'payment_source_id': payment_source_id}
+        params: Dict[str, Any] = {'gift': str(gift).lower()}
+        if payment_source_id:
+            params['payment_source_id'] = payment_source_id
         if subscription_plan_id:
             params['subscription_plan_id'] = subscription_plan_id
+        if currency:
+            params['currency'] = currency
         if test_mode:
             params['test_mode'] = 'true'
 
@@ -4175,7 +4166,6 @@ class HTTPClient:
         self,
         code: str,
         country_code: Optional[str] = None,
-        payment_source_id: Optional[Snowflake] = None,
         with_application: bool = False,
         with_subscription_plan: bool = True,
     ) -> Response[entitlements.Gift]:
@@ -4185,8 +4175,6 @@ class HTTPClient:
         }
         if country_code:
             params['country_code'] = country_code
-        if payment_source_id:
-            params['payment_source_id'] = payment_source_id
 
         return self.request(Route('GET', '/entitlements/gift-codes/{code}', code=code), params=params)
 
@@ -4508,10 +4496,14 @@ class HTTPClient:
     def ack_trial_offer(self, trial_id: Snowflake) -> Response[promotions.TrialOffer]:
         return self.request(Route('POST', '/users/@me/billing/user-trial-offer/{trial_id}/ack', trial_id=trial_id))
 
-    def get_user_offer(self, payment_gateway: Optional[int] = None) -> Response[promotions.UserOffer]:
+    def get_user_offer(
+        self, payment_gateway: Optional[int] = None, offer_id: Optional[Snowflake] = None
+    ) -> Response[promotions.UserOffer]:
         payload = {}
         if payment_gateway:
             payload['payment_gateway'] = payment_gateway
+        if offer_id:
+            payload['offer_id'] = offer_id
         return self.request(Route('POST', '/users/@me/billing/user-offer'), json=payload)
 
     def ack_user_offer(
@@ -4521,10 +4513,10 @@ class HTTPClient:
         if trial_offer_id:
             payload['user_trial_offer_id'] = trial_offer_id
         if discount_offer_id:
-            payload['user_discount_offer_id'] = discount_offer_id
+            payload['user_discount_offer_id'] = discount_offer_id  # also aliased to user_discount_id
         return self.request(Route('POST', '/users/@me/billing/user-offer/ack'), json=payload)
 
-    def redeem_user_offer(self, discount_offer_id: Snowflake) -> Response[None]:  # TODO: Unknown responses
+    def redeem_user_offer(self, discount_offer_id: Snowflake) -> Response[List[promotions.DiscountOffer]]:
         return self.request(
             Route('POST', '/users/@me/billing/user-offer/redeem'), json={'user_discount_offer_id': discount_offer_id}
         )
@@ -4865,13 +4857,11 @@ class HTTPClient:
         return self.request(Route('GET', '/users/@me/billing/location-info'))
 
     def get_library_entries(
-        self, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None
+        self, country_code: Optional[str] = None
     ) -> Response[List[library.LibraryApplication]]:
         params = {}
         if country_code is not None:
             params['country_code'] = country_code
-        if payment_source_id is not None:
-            params['payment_source_id'] = payment_source_id
 
         return self.request(Route('GET', '/users/@me/library'), params=params)
 

@@ -75,7 +75,7 @@ if TYPE_CHECKING:
         UserAvatar as UserAvatarPayload,
         AvatarDecorationData,
         PrimaryGuild as PrimaryGuildPayload,
-        DisplayNameStyle as DisplayNameStylePayload
+        DisplayNameStyle as DisplayNameStylePayload,
     )
     from .types.snowflake import Snowflake
 
@@ -92,6 +92,7 @@ class _UserTag:
     __slots__ = ()
     id: int
 
+
 class DisplayNameStyle:
     """Represents a user's display name style.
 
@@ -106,6 +107,7 @@ class DisplayNameStyle:
     colors: List[:class:`Colour`]
         The list of colours applied to the display name.
     """
+
     def __init__(self, *, data: DisplayNameStylePayload) -> None:
         self.font: NameFont = try_enum(NameFont, data['font_id'])
         self.effect: NameEffect = try_enum(NameEffect, data['effect_id'])
@@ -113,6 +115,7 @@ class DisplayNameStyle:
 
     def __repr__(self) -> str:
         return f'<DisplayNameStyle font={self.font} effect={self.effect} colors={self.colors}>'
+
 
 class BaseUser(_UserTag):
     __slots__ = (

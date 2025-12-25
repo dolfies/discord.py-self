@@ -71,10 +71,11 @@ class SubscriptionInvoiceItem(TypedDict):
     quantity: int
     amount: int
     proration: bool
-    subscription_plan_id: Snowflake
-    subscription_plan_price: int
+    subscription_plan_id: Optional[Snowflake]
+    subscription_plan_price: Optional[int]
     discounts: List[SubscriptionDiscount]
     sku_id: Optional[Snowflake]
+    unit_price: Optional[SubscriptionPrice]
     tenant_metadata: NotRequired[Dict[str, Any]]
 
 
@@ -87,10 +88,10 @@ class SubscriptionInvoice(TypedDict):
     total: int
     tax_inclusive: bool
     items: List[SubscriptionInvoiceItem]
-    current_period_start: str
-    current_period_end: str
-    # applied_discount_ids: NotRequired[List[Snowflake]]
-    # applied_user_discounts: NotRequired[Dict[Snowflake, Optional[Any]]]
+    subscription_period_start: Optional[str]
+    subscription_period_end: Optional[str]
+    applied_discount_ids: NotRequired[List[Snowflake]]
+    applied_user_discounts: NotRequired[Dict[Snowflake, Optional[str]]]
 
 
 class SubscriptionRenewalMutations(TypedDict, total=False):
@@ -186,7 +187,5 @@ class SubscriptionPlan(PartialSubscriptionPlan):
     price_tier: Literal[None]
     currency: str
     price: int
-    discount_price: NotRequired[int]
     fallback_currency: NotRequired[str]
     fallback_price: NotRequired[int]
-    fallback_discount_price: NotRequired[int]

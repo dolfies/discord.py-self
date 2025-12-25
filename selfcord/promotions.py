@@ -243,22 +243,24 @@ class UserOffer:
 
     def __init__(self, *, data: UserOfferPayload, state: ConnectionState) -> None:
         self._state = state
+        self.trial_offer: Optional[TrialOffer] = None
+        self.discount_offer: Optional[DiscountOffer] = None
+        self.discount: Optional[DiscountOffer] = None
+
         self._update(data)
 
     def _update(self, data: UserOfferPayload) -> None:
         state = self._state
 
-        self.trial_offer: Optional[TrialOffer] = None
+        # Avoid nulling out fields through partial updates
         trial_offer = data.get('user_trial_offer')
         if trial_offer is not None:
             self.trial_offer = TrialOffer(data=trial_offer, state=state)
 
-        self.discount_offer: Optional[DiscountOffer] = None
         discount_offer = data.get('user_discount_offer')
         if discount_offer is not None:
             self.discount_offer = DiscountOffer(data=discount_offer, state=state)
 
-        self.discount: Optional[DiscountOffer] = None
         discount = data.get('user_discount')
         if discount is not None:
             self.discount = DiscountOffer(data=discount, state=state)
@@ -359,10 +361,8 @@ class TrialOffer(Hashable):
             return
 
         # The type checker has no idea what is going on here
-        if data.get('user_discount_offer') and int(data['user_discount_offer']['id']) == self.id:  # type: ignore
-            self._update(data['user_discount_offer'])  # type: ignore
-        elif data.get('user_discount') and int(data['user_discount']['id']) == self.id:  # type: ignore
-            self._update(data['user_discount'])  # type: ignore
+        if data.get('user_trial_offer') and int(data['user_trial_offer']['id']) == self.id:  # type: ignore
+            self._update(data['user_trial_offer'])  # type: ignore
 
 
 class DiscountOffer(Hashable):
@@ -392,6 +392,10 @@ class DiscountOffer(Hashable):
         When the discount offer expires, if it has been acknowledged.
     applied_at: Optional[:class:`datetime.datetime`]
         When the discount offer was applied.
+    deleted_at: Optional[:class:`datetime.datetime`]
+        When the discount offer was deleted.
+    invoice_id: Optional[Snowflake]
+        The ID of the invoice the discount was applied to.
     discount_id: :class:`int`
         The ID of the discount.
     discount: :class:`Discount`
@@ -402,6 +406,8 @@ class DiscountOffer(Hashable):
         'id',
         'expires_at',
         'applied_at',
+        'deleted_at',
+        'invoice_id',
         'discount_id',
         'discount',
         '_state',
@@ -415,6 +421,8 @@ class DiscountOffer(Hashable):
         self.id: int = int(data['id'])
         self.expires_at: Optional[datetime] = parse_time(data.get('expires_at'))
         self.applied_at: Optional[datetime] = parse_time(data.get('applied_at'))
+        self.deleted_at: Optional[datetime] = parse_time(data.get('deleted_at'))
+        self.invoice_id: Optional[int] = _get_as_snowflake(data, 'invoice_id')
         self.discount_id: int = int(data['discount_id'])
         self.discount: Discount = Discount(data['discount'])
 
@@ -442,10 +450,10 @@ class DiscountOffer(Hashable):
         # The type checker has no idea what is going on here
         if data.get('user_discount_offer') and int(data['user_discount_offer']['id']) == self.id:  # type: ignore
             self._update(data['user_discount_offer'])  # type: ignore
-        elif data.get('user_discount') and int(data['user_discount']['id']) == self.id:  # type: ignore
+        if data.get('user_discount') and int(data['user_discount']['id']) == self.id:  # type: ignore
             self._update(data['user_discount'])  # type: ignore
 
-    async def redeem(self) -> None:
+    async def redeem(self) -> List[DiscountOffer]:
         """|coro|
 
         Applies the discount on the user's existing subscription.
@@ -456,8 +464,14 @@ class DiscountOffer(Hashable):
             The discount offer was not found.
         HTTPException
             Redeeming the discount offer failed.
+
+        Returns
+        -------
+        List[:class:`DiscountOffer`]
+            The applied discount offers.
         """
-        await self._state.http.redeem_user_offer(self.id)
+        data = await self._state.http.redeem_user_offer(self.id)
+        return [DiscountOffer(data=item, state=self._state) for item in data]
 
 
 class Discount(Hashable):

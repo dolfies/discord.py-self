@@ -59,8 +59,8 @@ class ClaimedPromotion(TypedDict):
 
 class UserOffer(TypedDict):
     user_trial_offer: Optional[TrialOffer]
-    user_discount_offer: Optional[DiscountOffer]
-    user_discount: Optional[DiscountOffer]
+    user_discount_offer: NotRequired[Optional[DiscountOffer]]
+    user_discount: NotRequired[Optional[DiscountOffer]]
 
 
 class TrialOffer(TypedDict):
@@ -78,6 +78,11 @@ class DiscountOffer(TypedDict):
     discount: Discount
     expires_at: Optional[str]
     applied_at: Optional[str]
+
+    # Only for applied offers
+    invoice_id: NotRequired[Optional[Snowflake]]
+    created_at: NotRequired[Optional[str]]
+    deleted_at: NotRequired[Optional[str]]
 
 
 class Discount(TypedDict):
@@ -103,7 +108,7 @@ class PromotionalPrice(TypedDict):
 class PricingPromotion(TypedDict):
     plan_id: Snowflake
     country_code: str
-    payment_source_types: List[str]
+    payment_source_types: List[int]
     price: PromotionalPrice
 
 
