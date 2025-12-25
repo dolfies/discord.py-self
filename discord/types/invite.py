@@ -70,12 +70,10 @@ class PartialInvite(_InviteTargetType):
     stage_instance: NotRequired[InviteStageInstance]
 
 
-class InviteWithCounts(PartialInvite, _GuildCounts):
-    ...
+class InviteWithCounts(PartialInvite, _GuildCounts): ...
 
 
-class InviteWithMetadata(PartialInvite, _InviteMetadata):
-    ...
+class InviteWithMetadata(PartialInvite, _InviteMetadata): ...
 
 
 class AcceptedInvite(PartialInvite):

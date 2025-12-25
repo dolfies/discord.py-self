@@ -265,16 +265,13 @@ class Team(Hashable):
         return members
 
     @overload
-    async def invite_member(self, user: _UserTag, /) -> TeamMember:
-        ...
+    async def invite_member(self, user: _UserTag, /) -> TeamMember: ...
 
     @overload
-    async def invite_member(self, user: str, /) -> TeamMember:
-        ...
+    async def invite_member(self, user: str, /) -> TeamMember: ...
 
     @overload
-    async def invite_member(self, username: str, discriminator: str, /) -> TeamMember:
-        ...
+    async def invite_member(self, username: str, discriminator: str, /) -> TeamMember: ...
 
     async def invite_member(self, *args: Union[_UserTag, str]) -> TeamMember:
         """|coro|

@@ -162,8 +162,8 @@ class BaseUser(_UserTag):
 
     def __repr__(self) -> str:
         return (
-            f"<BaseUser id={self.id} name={self.name!r} global_name={self.global_name!r}"
-            f" bot={self.bot} system={self.system}>"
+            f'<BaseUser id={self.id} name={self.name!r} global_name={self.global_name!r}'
+            f' bot={self.bot} system={self.system}>'
         )
 
     def __str__(self) -> str:

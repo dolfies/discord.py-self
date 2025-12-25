@@ -1064,7 +1064,7 @@ class Client:
                         raise
 
                 retry = backoff.delay()
-                _log.exception("Attempting a reconnect in %.2fs", retry)
+                _log.exception('Attempting a reconnect in %.2fs', retry)
                 await asyncio.sleep(retry)
                 # Always try to RESUME the connection
                 # If the connection is not RESUME-able then the gateway will invalidate the session
@@ -3254,16 +3254,13 @@ class Client:
         return GroupChannel(me=self.user, data=data, state=state)  # type: ignore # user is always present when logged in
 
     @overload
-    async def send_friend_request(self, user: _UserTag, /) -> None:
-        ...
+    async def send_friend_request(self, user: _UserTag, /) -> None: ...
 
     @overload
-    async def send_friend_request(self, user: str, /) -> None:
-        ...
+    async def send_friend_request(self, user: str, /) -> None: ...
 
     @overload
-    async def send_friend_request(self, username: str, discriminator: str, /) -> None:
-        ...
+    async def send_friend_request(self, username: str, discriminator: str, /) -> None: ...
 
     async def send_friend_request(self, *args: Union[_UserTag, str]) -> None:
         """|coro|
@@ -4298,7 +4295,7 @@ class Client:
         )
         return UserOffer(data=data, state=state)
 
-    @utils.deprecated("Client.user_offer()")
+    @utils.deprecated('Client.user_offer()')
     async def trial_offer(self) -> TrialOffer:
         """|coro|
 
@@ -5487,18 +5484,15 @@ class Client:
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: Literal[True] = ...
-    ) -> List[Union[UserExperiment, GuildExperiment]]:
-        ...
+    ) -> List[Union[UserExperiment, GuildExperiment]]: ...
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]:
-        ...
+    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]: ...
 
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]:
-        ...
+    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]: ...
 
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
@@ -5593,12 +5587,10 @@ class Client:
         return [state.create_guild(d) for d in data.get('guilds_info', [])]  # type: ignore
 
     @overload
-    async def join_hub(self, guild: Snowflake, email: str, *, code: None = ...) -> None:
-        ...
+    async def join_hub(self, guild: Snowflake, email: str, *, code: None = ...) -> None: ...
 
     @overload
-    async def join_hub(self, guild: Snowflake, email: str, *, code: str = ...) -> Guild:
-        ...
+    async def join_hub(self, guild: Snowflake, email: str, *, code: str = ...) -> Guild: ...
 
     async def join_hub(self, guild: Snowflake, email: str, *, code: Optional[str] = None) -> Optional[Guild]:
         """|coro|

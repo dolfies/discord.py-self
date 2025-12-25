@@ -1090,7 +1090,7 @@ class Webhook(BaseWebhook):
 
     @classmethod
     def _as_follower(cls, data, *, channel, user) -> Self:
-        name = f"{channel.guild} #{channel}"
+        name = f'{channel.guild} #{channel}'
         feed: WebhookPayload = {
             'id': data['webhook_id'],
             'type': 2,
@@ -1384,8 +1384,7 @@ class Webhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
-    ) -> WebhookMessage:
-        ...
+    ) -> WebhookMessage: ...
 
     @overload
     async def send(
@@ -1407,8 +1406,7 @@ class Webhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def send(
         self,

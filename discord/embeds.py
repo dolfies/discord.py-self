@@ -373,7 +373,7 @@ class Embed:
         elif value is None:
             self._timestamp = None
         else:
-            raise TypeError(f"Expected datetime.datetime or None received {value.__class__.__name__} instead")
+            raise TypeError(f'Expected datetime.datetime or None received {value.__class__.__name__} instead')
 
     @property
     def footer(self) -> _EmbedFooterProxy:

@@ -431,10 +431,10 @@ class Role(Hashable):
 
     async def _move(self, position: int, reason: Optional[str]) -> None:
         if position <= 0:
-            raise ValueError("Cannot move role to position 0 or below")
+            raise ValueError('Cannot move role to position 0 or below')
 
         if self.is_default():
-            raise ValueError("Cannot move default role")
+            raise ValueError('Cannot move default role')
 
         if self.position == position:
             return  # Save Discord the extra request
@@ -449,7 +449,7 @@ class Role(Hashable):
         else:
             roles.append(self.id)
 
-        payload: List[RolePositionUpdate] = [{"id": z[0], "position": z[1]} for z in zip(roles, change_range)]
+        payload: List[RolePositionUpdate] = [{'id': z[0], 'position': z[1]} for z in zip(roles, change_range)]
         await http.move_role_position(self.guild.id, payload, reason=reason)
 
     async def fetch_members(self, *, subscribe: bool = False) -> List[Member]:
@@ -484,7 +484,7 @@ class Role(Hashable):
             The members with this role.
         """
         if self.is_default():
-            raise TypeError('Cannot fetch the default role\'s members')
+            raise TypeError("Cannot fetch the default role's members")
 
         guild = self.guild
         data = await self._state.http.get_role_members(guild.id, self.id)
@@ -746,20 +746,16 @@ class Role(Hashable):
         return Role(guild=self.guild, data=data, state=self._state)
 
     @overload
-    async def move(self, *, beginning: bool, offset: int = ..., reason: Optional[str] = ...):
-        ...
+    async def move(self, *, beginning: bool, offset: int = ..., reason: Optional[str] = ...): ...
 
     @overload
-    async def move(self, *, end: bool, offset: int = ..., reason: Optional[str] = ...):
-        ...
+    async def move(self, *, end: bool, offset: int = ..., reason: Optional[str] = ...): ...
 
     @overload
-    async def move(self, *, above: Role, offset: int = ..., reason: Optional[str] = ...):
-        ...
+    async def move(self, *, above: Role, offset: int = ..., reason: Optional[str] = ...): ...
 
     @overload
-    async def move(self, *, below: Role, offset: int = ..., reason: Optional[str] = ...):
-        ...
+    async def move(self, *, below: Role, offset: int = ..., reason: Optional[str] = ...): ...
 
     async def move(
         self,

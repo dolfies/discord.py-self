@@ -68,5 +68,4 @@ class _FullWebhook(TypedDict, total=False):
     application_id: Optional[Snowflake]
 
 
-class Webhook(PartialWebhook, _FullWebhook):
-    ...
+class Webhook(PartialWebhook, _FullWebhook): ...

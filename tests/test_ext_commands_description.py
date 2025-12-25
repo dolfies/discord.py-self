@@ -33,8 +33,7 @@ def test_ext_commands_descriptions_explicit():
         ctx: commands.Context,
         arg: str = commands.param(description='Description of arg.'),
         arg2: int = commands.param(description='Description of arg2.'),
-    ) -> None:
-        ...
+    ) -> None: ...
 
     assert describe.help == 'This is the short description that will appear.'
     assert describe.clean_params['arg'].description == 'Description of arg.'

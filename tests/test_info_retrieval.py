@@ -43,14 +43,17 @@ async def test_browser_version():
 @pytest.mark.asyncio
 async def test_utilities():
     chromium_version = 135
-    hdrs = utils.Headers(platform='Windows',
-        major_version=chromium_version,
-        super_properties={},
-        encoded_super_properties=''
+    hdrs = utils.Headers(
+        platform='Windows', major_version=chromium_version, super_properties={}, encoded_super_properties=''
     )
     client_hints = hdrs.client_hints
 
-    assert hdrs._get_user_agent(chromium_version, 'Edg') == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
-    assert client_hints['Sec-CH-UA'] == '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"'  # no brand name here
+    assert (
+        hdrs._get_user_agent(chromium_version, 'Edg')
+        == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+    )
+    assert (
+        client_hints['Sec-CH-UA'] == '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"'
+    )  # no brand name here
     assert client_hints['Sec-CH-UA-Mobile'] == '?0'
     assert client_hints['Sec-CH-UA-Platform'] == '"Windows"'

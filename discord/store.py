@@ -1832,7 +1832,13 @@ class SKU(Hashable):
         return Gift(data=data, state=state)
 
     async def preview_purchase(
-        self, payment_source: Optional[Snowflake] = None, *, subscription_plan: Optional[Snowflake] = None, currency: Optional[str] = None, test_mode: bool = False, gift: bool = False
+        self,
+        payment_source: Optional[Snowflake] = None,
+        *,
+        subscription_plan: Optional[Snowflake] = None,
+        currency: Optional[str] = None,
+        test_mode: bool = False,
+        gift: bool = False,
     ) -> SKUPrice:
         """|coro|
 
@@ -1870,7 +1876,12 @@ class SKU(Hashable):
             The previewed purchase price.
         """
         data = await self._state.http.preview_sku_purchase(
-            self.id, payment_source.id if payment_source else None, subscription_plan.id if subscription_plan else None, currency=currency, test_mode=test_mode, gift=gift
+            self.id,
+            payment_source.id if payment_source else None,
+            subscription_plan.id if subscription_plan else None,
+            currency=currency,
+            test_mode=test_mode,
+            gift=gift,
         )
         return SKUPrice(data=data)
 
@@ -2195,7 +2206,14 @@ class SubscriptionPlan(Hashable):
         )
         return Gift(data=data, state=state)
 
-    async def preview_purchase(self, payment_source: Optional[Snowflake] = None, *, currency: Optional[str] = None, test_mode: bool = False, gift: bool = False) -> SKUPrice:
+    async def preview_purchase(
+        self,
+        payment_source: Optional[Snowflake] = None,
+        *,
+        currency: Optional[str] = None,
+        test_mode: bool = False,
+        gift: bool = False,
+    ) -> SKUPrice:
         """|coro|
 
         Previews a purchase of this subscription plan.
@@ -2229,7 +2247,14 @@ class SubscriptionPlan(Hashable):
         :class:`SKUPrice`
             The previewed purchase price.
         """
-        data = await self._state.http.preview_sku_purchase(self.id, payment_source.id if payment_source else None, self.id, currency=currency, test_mode=test_mode, gift=gift)
+        data = await self._state.http.preview_sku_purchase(
+            self.id,
+            payment_source.id if payment_source else None,
+            self.id,
+            currency=currency,
+            test_mode=test_mode,
+            gift=gift,
+        )
         return SKUPrice(data=data)
 
     async def purchase(

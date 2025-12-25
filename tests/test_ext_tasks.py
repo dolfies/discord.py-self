@@ -130,7 +130,7 @@ def test_task_regression_issue7676():
         assert actual_time == expected_time
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="zoneinfo requires 3.9")
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='zoneinfo requires 3.9')
 def test_task_is_imaginary():
     import zoneinfo
 
@@ -145,7 +145,7 @@ def test_task_is_imaginary():
     assert not tasks.is_imaginary(now)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="zoneinfo requires 3.9")
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='zoneinfo requires 3.9')
 def test_task_is_ambiguous():
     import zoneinfo
 
@@ -160,7 +160,7 @@ def test_task_is_ambiguous():
     assert not tasks.is_imaginary(now)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="zoneinfo requires 3.9")
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='zoneinfo requires 3.9')
 @pytest.mark.parametrize(
     ('dt', 'key', 'expected'),
     [

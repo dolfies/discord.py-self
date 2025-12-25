@@ -219,7 +219,7 @@ class VoiceClient(VoiceProtocol):
 
     def __init__(self, client: Client, channel: VocalChannel) -> None:
         if not has_nacl:
-            raise RuntimeError("PyNaCl library needed in order to use voice")
+            raise RuntimeError('PyNaCl library needed in order to use voice')
 
         super().__init__(client, channel)
         state = client._connection
@@ -331,7 +331,7 @@ class VoiceClient(VoiceProtocol):
         .. versionadded:: 1.4
         """
         ws = self._connection.ws
-        return float("inf") if not ws else ws.latency
+        return float('inf') if not ws else ws.latency
 
     @property
     def average_latency(self) -> float:
@@ -340,7 +340,7 @@ class VoiceClient(VoiceProtocol):
         .. versionadded:: 1.4
         """
         ws = self._connection.ws
-        return float("inf") if not ws else ws.average_latency
+        return float('inf') if not ws else ws.average_latency
 
     async def disconnect(self, *, force: bool = False) -> None:
         """|coro|

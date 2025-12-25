@@ -147,7 +147,7 @@ class _ChatInputApplicationCommand(_BaseApplicationCommand):
 
 
 class _BaseContextMenuApplicationCommand(_BaseApplicationCommand):
-    description: Literal[""]
+    description: Literal['']
 
 
 class _UserApplicationCommand(_BaseContextMenuApplicationCommand):

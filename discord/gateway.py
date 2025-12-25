@@ -146,7 +146,7 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
 
         self.msg: str = 'Keeping websocket alive.'
         self.block_msg: str = 'Heartbeat blocked for more than %s seconds.'
-        self.behind_msg: str = 'Can\'t keep up, websocket is %.1fs behind.'
+        self.behind_msg: str = "Can't keep up, websocket is %.1fs behind."
         self.not_responding_msg: str = 'Gateway has stopped responding. Closing and restarting.'
         self.no_stop_msg: str = 'An error occurred while stopping the Gateway. Ignoring.'
 

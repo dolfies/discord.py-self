@@ -44,8 +44,7 @@ __all__ = ()
 class ContextPropertiesMeta(type):
     if TYPE_CHECKING:
 
-        def __getattribute__(self, name: str) -> Callable[[], ContextProperties]:
-            ...
+        def __getattribute__(self, name: str) -> Callable[[], ContextProperties]: ...
 
     def __new__(cls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]):
         cls = super().__new__(cls, name, bases, attrs)

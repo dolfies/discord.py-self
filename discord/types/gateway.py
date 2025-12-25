@@ -67,8 +67,7 @@ from .voice import GuildVoiceState, PrivateVoiceState, VoiceServerUpdate, VoiceS
 T = TypeVar('T')
 
 
-class UserPresenceUpdateEvent(BasePresenceUpdate):
-    ...
+class UserPresenceUpdateEvent(BasePresenceUpdate): ...
 
 
 PresenceUpdateEvent = Union[PartialPresenceUpdate, UserPresenceUpdateEvent]

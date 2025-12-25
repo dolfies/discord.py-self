@@ -169,7 +169,7 @@ def test_resolve_template(url, code):
 )
 def test_escape_mentions(mention):
     assert mention not in utils.escape_mentions(mention)
-    assert mention not in utils.escape_mentions(f"one {mention} two")
+    assert mention not in utils.escape_mentions(f'one {mention} two')
 
 
 @pytest.mark.asyncio
@@ -192,7 +192,7 @@ async def test_as_chunks(source, chunk_size, chunked):
     [
         (datetime.datetime, datetime.datetime),
         ('datetime.datetime', datetime.datetime),
-        ('typing.Union[typing.Literal["a"], typing.Literal["b"]]', typing.Union[typing.Literal["a"], typing.Literal["b"]]),
+        ('typing.Union[typing.Literal["a"], typing.Literal["b"]]', typing.Union[typing.Literal['a'], typing.Literal['b']]),
         ('typing.Union[typing.Union[int, str], typing.Union[bool, dict]]', typing.Union[int, str, bool, dict]),
     ],
 )
@@ -207,7 +207,7 @@ def test_resolve_annotation(annotation, resolved):
         ('datetime.datetime', datetime.datetime, True),
         (
             'typing.Union[typing.Literal["a"], typing.Literal["b"]]',
-            typing.Union[typing.Literal["a"], typing.Literal["b"]],
+            typing.Union[typing.Literal['a'], typing.Literal['b']],
             True,
         ),
         ('typing.Union[typing.Union[int, str], typing.Union[bool, dict]]', typing.Union[int, str, bool, dict], True),
@@ -236,7 +236,7 @@ def test_resolve_annotation_optional_normalisation():
     assert value.__args__ == (int, type(None))
 
 
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="3.10 union syntax")
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='3.10 union syntax')
 @pytest.mark.parametrize(
     ('annotation', 'resolved'),
     [
@@ -249,7 +249,7 @@ def test_resolve_annotation_310(annotation, resolved):
     assert resolved == utils.resolve_annotation(annotation, globals(), locals(), None)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="3.10 union syntax")
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='3.10 union syntax')
 @pytest.mark.parametrize(
     ('annotation', 'resolved'),
     [

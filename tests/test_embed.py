@@ -164,9 +164,9 @@ def test_embed_set_field_at_failure():
 
 def test_embed_clear_fields():
     embed = discord.Embed()
-    embed.add_field(name="field 1", value="value 1", inline=False)
-    embed.add_field(name="field 2", value="value 2", inline=False)
-    embed.add_field(name="field 3", value="value 3", inline=False)
+    embed.add_field(name='field 1', value='value 1', inline=False)
+    embed.add_field(name='field 2', value='value 2', inline=False)
+    embed.add_field(name='field 3', value='value 3', inline=False)
     embed.clear_fields()
     assert len(embed.fields) == 0
 
@@ -226,17 +226,17 @@ def test_embed_len_with_options(title, description, fields, footer, author):
         embed.add_field(name=name, value=value)
     embed.set_footer(text=footer)
     embed.set_author(name=author)
-    assert len(embed) == len(title) + len(description) + len("".join([name + value for name, value in fields])) + len(
+    assert len(embed) == len(title) + len(description) + len(''.join([name + value for name, value in fields])) + len(
         footer
     ) + len(author)
 
 
 def test_embed_to_dict():
     timestamp = datetime.datetime.now(datetime.timezone.utc)
-    embed = discord.Embed(title="Test Title", description="Test Description", timestamp=timestamp)
+    embed = discord.Embed(title='Test Title', description='Test Description', timestamp=timestamp)
     data = embed.to_dict()
-    assert data['title'] == "Test Title"
-    assert data['description'] == "Test Description"
+    assert data['title'] == 'Test Title'
+    assert data['description'] == 'Test Description'
     assert data['timestamp'] == timestamp.isoformat()
 
 
@@ -268,13 +268,8 @@ def test_embed_colour_setter_failure(value):
     with pytest.raises(TypeError):
         embed.colour = value
 
-@pytest.mark.parametrize(
-    ('title', 'return_val'),
-    [
-        ('test', True),
-        (None, False)
-    ]
-)
+
+@pytest.mark.parametrize(('title', 'return_val'), [('test', True), (None, False)])
 def test_embed_truthiness(title: str, return_val: bool) -> None:
     embed = discord.Embed(title=title)
     assert bool(embed) is return_val

@@ -541,28 +541,23 @@ class TextInput(Component):
 
 
 @overload
-def _component_factory(data: ActionRowPayload, message: Message = ...) -> ActionRow:
-    ...
+def _component_factory(data: ActionRowPayload, message: Message = ...) -> ActionRow: ...
 
 
 @overload
-def _component_factory(data: MessageChildComponent, message: Message = ...) -> Optional[MessageChildComponentType]:
-    ...
+def _component_factory(data: MessageChildComponent, message: Message = ...) -> Optional[MessageChildComponentType]: ...
 
 
 @overload
-def _component_factory(data: ModalChildComponent, message: Message = ...) -> Optional[TextInput]:
-    ...
+def _component_factory(data: ModalChildComponent, message: Message = ...) -> Optional[TextInput]: ...
 
 
 @overload
-def _component_factory(data: ActionRowChildComponent, message: Message = ...) -> Optional[ActionRowChildComponentType]:
-    ...
+def _component_factory(data: ActionRowChildComponent, message: Message = ...) -> Optional[ActionRowChildComponentType]: ...
 
 
 @overload
-def _component_factory(data: ComponentPayload, message: Message = ...) -> Optional[Component]:
-    ...
+def _component_factory(data: ComponentPayload, message: Message = ...) -> Optional[Component]: ...
 
 
 def _component_factory(data: ComponentPayload, message: Message = MISSING) -> Optional[Component]:

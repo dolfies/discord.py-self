@@ -1438,7 +1438,7 @@ class ApplicationBranch(Hashable):
     async def create_build(
         self,
         *,
-        built_with: str = "DISPATCH",
+        built_with: str = 'DISPATCH',
         manifests: Sequence[MetadataObject],
         source_build: Optional[Snowflake] = None,
     ) -> Tuple[ApplicationBuild, List[Manifest]]:
@@ -2765,12 +2765,10 @@ class Application(PartialApplication):
         message_content_privacy_policy_location: str = ...,
         message_content_privacy_policy_example: str = ...,
         message_content_contact_deletion: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    async def request_intents(self, intents: ApplicationFlags, description: str) -> None:
-        ...
+    async def request_intents(self, intents: ApplicationFlags, description: str) -> None: ...
 
     async def request_intents(self, intents: ApplicationFlags, description: str, **kwargs: Any) -> None:
         """|coro|
@@ -2877,16 +2875,13 @@ class Application(PartialApplication):
         return [ApplicationTester(self, state, user) for user in data]
 
     @overload
-    async def whitelist(self, user: _UserTag, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, user: _UserTag, /) -> ApplicationTester: ...
 
     @overload
-    async def whitelist(self, user: str, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, user: str, /) -> ApplicationTester: ...
 
     @overload
-    async def whitelist(self, username: str, discriminator: str, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, username: str, discriminator: str, /) -> ApplicationTester: ...
 
     async def whitelist(self, *args: Union[_UserTag, str]) -> ApplicationTester:
         """|coro|

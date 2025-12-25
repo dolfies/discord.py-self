@@ -30,6 +30,7 @@ from discord.ext import commands
 
 import pytest
 
+
 def test_annotated_annotation():
     def to_hex(arg: str) -> int:
         return int(arg, 16)

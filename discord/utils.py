@@ -185,8 +185,7 @@ if TYPE_CHECKING:
     class _DecompressionContext(Protocol):
         COMPRESSION_TYPE: str
 
-        def decompress(self, data: bytes, /) -> str | None:
-            ...
+        def decompress(self, data: bytes, /) -> str | None: ...
 
     P = ParamSpec('P')
 
@@ -213,12 +212,10 @@ class CachedSlotProperty(Generic[T, T_co]):
         self.__doc__ = getattr(function, '__doc__')
 
     @overload
-    def __get__(self, instance: None, owner: Type[T]) -> CachedSlotProperty[T, T_co]:
-        ...
+    def __get__(self, instance: None, owner: Type[T]) -> CachedSlotProperty[T, T_co]: ...
 
     @overload
-    def __get__(self, instance: T, owner: Type[T]) -> T_co:
-        ...
+    def __get__(self, instance: T, owner: Type[T]) -> T_co: ...
 
     def __get__(self, instance: Optional[T], owner: Type[T]) -> Any:
         if instance is None:
@@ -267,15 +264,13 @@ class SequenceProxy(Sequence[T_co]):
         return self.__proxied
 
     def __repr__(self) -> str:
-        return f"SequenceProxy({self.__proxied!r})"
+        return f'SequenceProxy({self.__proxied!r})'
 
     @overload
-    def __getitem__(self, idx: SupportsIndex) -> T_co:
-        ...
+    def __getitem__(self, idx: SupportsIndex) -> T_co: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> List[T_co]:
-        ...
+    def __getitem__(self, idx: slice) -> List[T_co]: ...
 
     def __getitem__(self, idx: Union[SupportsIndex, slice]) -> Union[T_co, List[T_co]]:
         return self.__copied[idx]
@@ -300,18 +295,15 @@ class SequenceProxy(Sequence[T_co]):
 
 
 @overload
-def parse_time(timestamp: None) -> None:
-    ...
+def parse_time(timestamp: None) -> None: ...
 
 
 @overload
-def parse_time(timestamp: str) -> datetime.datetime:
-    ...
+def parse_time(timestamp: str) -> datetime.datetime: ...
 
 
 @overload
-def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
-    ...
+def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]: ...
 
 
 def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
@@ -321,18 +313,15 @@ def parse_time(timestamp: Optional[str]) -> Optional[datetime.datetime]:
 
 
 @overload
-def parse_date(date: None) -> None:
-    ...
+def parse_date(date: None) -> None: ...
 
 
 @overload
-def parse_date(date: str) -> datetime.date:
-    ...
+def parse_date(date: str) -> datetime.date: ...
 
 
 @overload
-def parse_date(date: Optional[str]) -> Optional[datetime.date]:
-    ...
+def parse_date(date: Optional[str]) -> Optional[datetime.date]: ...
 
 
 def parse_date(date: Optional[str]) -> Optional[datetime.date]:
@@ -342,18 +331,15 @@ def parse_date(date: Optional[str]) -> Optional[datetime.date]:
 
 
 @overload
-def parse_timestamp(timestamp: None, *, ms: bool = True) -> None:
-    ...
+def parse_timestamp(timestamp: None, *, ms: bool = True) -> None: ...
 
 
 @overload
-def parse_timestamp(timestamp: float, *, ms: bool = True) -> datetime.datetime:
-    ...
+def parse_timestamp(timestamp: float, *, ms: bool = True) -> datetime.datetime: ...
 
 
 @overload
-def parse_timestamp(timestamp: Optional[float], *, ms: bool = True) -> Optional[datetime.datetime]:
-    ...
+def parse_timestamp(timestamp: Optional[float], *, ms: bool = True) -> Optional[datetime.datetime]: ...
 
 
 def parse_timestamp(timestamp: Optional[float], *, ms: bool = True) -> Optional[datetime.datetime]:
@@ -378,7 +364,7 @@ def deprecated(instead: Optional[str] = None) -> Callable[[Callable[P, T]], Call
         def decorated(*args: P.args, **kwargs: P.kwargs) -> T:
             warnings.simplefilter('always', DeprecationWarning)  # turn off filter
             if instead:
-                fmt = "{0.__name__} is deprecated, use {1} instead."
+                fmt = '{0.__name__} is deprecated, use {1} instead.'
             else:
                 fmt = '{0.__name__} is deprecated.'
 
@@ -571,13 +557,11 @@ async def _afind(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -
 
 
 @overload
-def find(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -> Coro[Optional[T]]:
-    ...
+def find(predicate: Callable[[T], Any], iterable: AsyncIterable[T], /) -> Coro[Optional[T]]: ...
 
 
 @overload
-def find(predicate: Callable[[T], Any], iterable: Iterable[T], /) -> Optional[T]:
-    ...
+def find(predicate: Callable[[T], Any], iterable: Iterable[T], /) -> Optional[T]: ...
 
 
 def find(predicate: Callable[[T], Any], iterable: _Iter[T], /) -> Union[Optional[T], Coro[Optional[T]]]:
@@ -657,13 +641,11 @@ async def _aget(iterable: AsyncIterable[T], /, **attrs: Any) -> Optional[T]:
 
 
 @overload
-def get(iterable: AsyncIterable[T], /, **attrs: Any) -> Coro[Optional[T]]:
-    ...
+def get(iterable: AsyncIterable[T], /, **attrs: Any) -> Coro[Optional[T]]: ...
 
 
 @overload
-def get(iterable: Iterable[T], /, **attrs: Any) -> Optional[T]:
-    ...
+def get(iterable: Iterable[T], /, **attrs: Any) -> Optional[T]: ...
 
 
 def get(iterable: _Iter[T], /, **attrs: Any) -> Union[Optional[T], Coro[Optional[T]]]:
@@ -752,7 +734,7 @@ def _ocast(value: Any, type: Any):
 
 
 def _get_mime_type_for_image(data: bytes, with_video: bool = False, fallback: bool = False) -> str:
-    if data.startswith(b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'):
+    if data.startswith(b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a'):
         return 'image/png'
     elif data[0:3] == b'\xff\xd8\xff' or data[6:10] in (b'JFIF', b'Exif'):
         return 'image/jpeg'
@@ -760,7 +742,7 @@ def _get_mime_type_for_image(data: bytes, with_video: bool = False, fallback: bo
         return 'image/gif'
     elif data.startswith(b'RIFF') and data[8:12] == b'WEBP':
         return 'image/webp'
-    elif data.startswith(b'\x66\x74\x79\x70\x69\x73\x6F\x6D') and with_video:
+    elif data.startswith(b'\x66\x74\x79\x70\x69\x73\x6f\x6d') and with_video:
         return 'video/mp4'
     else:
         if fallback:
@@ -900,13 +882,11 @@ def compute_timedelta(dt: datetime.datetime) -> float:
 
 
 @overload
-async def sleep_until(when: datetime.datetime, result: T) -> T:
-    ...
+async def sleep_until(when: datetime.datetime, result: T) -> T: ...
 
 
 @overload
-async def sleep_until(when: datetime.datetime) -> None:
-    ...
+async def sleep_until(when: datetime.datetime) -> None: ...
 
 
 async def sleep_until(when: datetime.datetime, result: Optional[T] = None) -> Optional[T]:
@@ -968,8 +948,7 @@ class SnowflakeList(_SnowflakeListBase):
 
     if TYPE_CHECKING:
 
-        def __init__(self, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False):
-            ...
+        def __init__(self, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False): ...
 
     def __new__(cls, data: Optional[Iterable[int]] = None, *, is_sorted: bool = False) -> Self:
         if data:
@@ -1116,11 +1095,11 @@ _MARKDOWN_ESCAPE_SUBREGEX = '|'.join(r'\{0}(?=([\s\S]*((?<!\{0})\{0})))'.format(
 
 _MARKDOWN_ESCAPE_COMMON = r'^>(?:>>)?\s|\[.+\]\(.+\)|^#{1,3}|^\s*-'
 
-_MARKDOWN_ESCAPE_REGEX = re.compile(fr'(?P<markdown>{_MARKDOWN_ESCAPE_SUBREGEX}|{_MARKDOWN_ESCAPE_COMMON})', re.MULTILINE)
+_MARKDOWN_ESCAPE_REGEX = re.compile(rf'(?P<markdown>{_MARKDOWN_ESCAPE_SUBREGEX}|{_MARKDOWN_ESCAPE_COMMON})', re.MULTILINE)
 
 _URL_REGEX = r'(?P<url><[^: >]+:\/[^ >]+>|(?:https?|steam):\/\/[^\s<]+[^<.,:;\"\'\]\s])'
 
-_MARKDOWN_STOCK_REGEX = fr'(?P<markdown>[_\\~|\*`]|{_MARKDOWN_ESCAPE_COMMON})'
+_MARKDOWN_STOCK_REGEX = rf'(?P<markdown>[_\\~|\*`]|{_MARKDOWN_ESCAPE_COMMON})'
 
 
 def remove_markdown(text: str, *, ignore_links: bool = True) -> str:
@@ -1256,13 +1235,11 @@ async def _achunk(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[Li
 
 
 @overload
-def as_chunks(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[List[T]]:
-    ...
+def as_chunks(iterator: AsyncIterable[T], max_size: int) -> AsyncIterator[List[T]]: ...
 
 
 @overload
-def as_chunks(iterator: Iterable[T], max_size: int) -> Iterator[List[T]]:
-    ...
+def as_chunks(iterator: Iterable[T], max_size: int) -> Iterator[List[T]]: ...
 
 
 def as_chunks(iterator: _Iter[T], max_size: int) -> _Iter[List[T]]:
@@ -1915,11 +1892,11 @@ class Headers:
 
     # These are all adapted from Chromium source code (https://github.com/chromium/chromium/blob/master/components/embedder_support/user_agent_utils.cc)
 
-    def generate_brand_version_list(self, brand: Optional[str] = "Google Chrome") -> List[Tuple[str, str]]:
+    def generate_brand_version_list(self, brand: Optional[str] = 'Google Chrome') -> List[Tuple[str, str]]:
         """Generates a list of brand and version pairs for the user-agent."""
         version = self.major_version
         greasey_bv = self._get_greased_user_agent_brand_version(version)
-        chromium_bv = ("Chromium", version)
+        chromium_bv = ('Chromium', version)
         brand_version_list = [greasey_bv, chromium_bv]
         if brand:
             brand_version_list.append((brand, version))
@@ -1969,10 +1946,10 @@ class Headers:
 
     @staticmethod
     def _get_greased_user_agent_brand_version(seed: int) -> Tuple[str, str]:
-        greasey_chars = [" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_"]
-        greased_versions = ["8", "99", "24"]
+        greasey_chars = [' ', '(', ':', '-', '.', '/', ')', ';', '=', '?', '_']
+        greased_versions = ['8', '99', '24']
         greasey_brand = (
-            f"Not{greasey_chars[seed % len(greasey_chars)]}A{greasey_chars[(seed + 1) % len(greasey_chars)]}Brand"
+            f'Not{greasey_chars[seed % len(greasey_chars)]}A{greasey_chars[(seed + 1) % len(greasey_chars)]}Brand'
         )
         greasey_version = greased_versions[seed % len(greased_versions)]
 
@@ -1993,15 +1970,15 @@ class IDGenerator:
     def generate(self, user_id: int = 0):
         uuid = bytearray(24)
         # Lowest signed 32 bits
-        struct.pack_into("<I", uuid, 0, user_id & 0xFFFFFFFF)
-        struct.pack_into("<I", uuid, 4, user_id >> 32)
-        struct.pack_into("<I", uuid, 8, self.prefix)
+        struct.pack_into('<I', uuid, 0, user_id & 0xFFFFFFFF)
+        struct.pack_into('<I', uuid, 4, user_id >> 32)
+        struct.pack_into('<I', uuid, 8, self.prefix)
         # Lowest signed 32 bits
-        struct.pack_into("<I", uuid, 12, self.creation_time & 0xFFFFFFFF)
-        struct.pack_into("<I", uuid, 16, self.creation_time >> 32)
-        struct.pack_into("<I", uuid, 20, self.sequence)
+        struct.pack_into('<I', uuid, 12, self.creation_time & 0xFFFFFFFF)
+        struct.pack_into('<I', uuid, 16, self.creation_time >> 32)
+        struct.pack_into('<I', uuid, 20, self.sequence)
         self.sequence += 1
-        return b64encode(uuid).decode("utf-8")
+        return b64encode(uuid).decode('utf-8')
 
 
 if _ZSTD_SOURCE is not None:

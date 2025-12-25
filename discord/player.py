@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
 from __future__ import annotations
 
 import threading
@@ -163,7 +164,7 @@ class FFmpegAudio(AudioSource):
         stderr: Optional[IO[bytes]] = subprocess_kwargs.pop('stderr', None)
 
         if stderr == subprocess.PIPE:
-            warnings.warn("Passing subprocess.PIPE does nothing", DeprecationWarning, stacklevel=3)
+            warnings.warn('Passing subprocess.PIPE does nothing', DeprecationWarning, stacklevel=3)
             stderr = None
 
         piping_stderr = False
@@ -634,11 +635,11 @@ class FFmpegOpusAudio(FFmpegAudio):
         output = out.decode('utf8')
         codec = bitrate = None
 
-        codec_match = re.search(r"Stream #0.*?Audio: (\w+)", output)
+        codec_match = re.search(r'Stream #0.*?Audio: (\w+)', output)
         if codec_match:
             codec = codec_match.group(1)
 
-        br_match = re.search(r"(\d+) [kK]b/s", output)
+        br_match = re.search(r'(\d+) [kK]b/s', output)
         if br_match:
             bitrate = max(int(br_match.group(1)), 512)
 

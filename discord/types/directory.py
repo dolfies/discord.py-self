@@ -36,16 +36,13 @@ class _DirectoryScheduledEvent(TypedDict):
     user_count: int
 
 
-class _DirectoryStageInstanceScheduledEvent(_DirectoryScheduledEvent, StageInstanceScheduledEvent):
-    ...
+class _DirectoryStageInstanceScheduledEvent(_DirectoryScheduledEvent, StageInstanceScheduledEvent): ...
 
 
-class _DirectoryVoiceScheduledEvent(_DirectoryScheduledEvent, VoiceScheduledEvent):
-    ...
+class _DirectoryVoiceScheduledEvent(_DirectoryScheduledEvent, VoiceScheduledEvent): ...
 
 
-class _DirectoryExternalScheduledEvent(_DirectoryScheduledEvent, ExternalScheduledEvent):
-    ...
+class _DirectoryExternalScheduledEvent(_DirectoryScheduledEvent, ExternalScheduledEvent): ...
 
 
 DirectoryScheduledEvent = Union[
