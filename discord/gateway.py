@@ -1108,7 +1108,7 @@ class DiscordVoiceWebSocket:
             state = self._connection
             if op == self.DAVE_PREPARE_TRANSITION:
                 _log.debug(
-                    'Preparing for DAVE transition id %d for protocol version %d',
+                    'Preparing for DAVE transition ID %d for protocol version %d.',
                     data['transition_id'],
                     data['protocol_version'],
                 )
@@ -1121,10 +1121,10 @@ class DiscordVoiceWebSocket:
 
                     await self.send_transition_ready(data['transition_id'])
             elif op == self.DAVE_EXECUTE_TRANSITION:
-                _log.debug('Executing DAVE transition id %d', data['transition_id'])
+                _log.debug('Executing DAVE transition ID %d.', data['transition_id'])
                 await state._execute_transition(data['transition_id'])
             elif op == self.DAVE_PREPARE_EPOCH:
-                _log.debug('Preparing for DAVE epoch %d', data['epoch'])
+                _log.debug('Preparing for DAVE epoch %d.', data['epoch'])
                 # When the epoch ID is equal to 1, this message indicates that a new MLS group is to be created for the given protocol version.
                 if data['epoch'] == 1:
                     state.dave_protocol_version = data['protocol_version']
@@ -1135,7 +1135,7 @@ class DiscordVoiceWebSocket:
     async def received_binary_message(self, msg: bytes) -> None:
         self.seq_ack = struct.unpack_from('>H', msg, 0)[0]
         op = msg[2]
-        _log.debug('Voice websocket binary frame received: %d bytes; seq=%s op=%s', len(msg), self.seq_ack, op)
+        _log.debug('Voice socket binary frame: %d bytes; seq=%s; op=%s.', len(msg), self.seq_ack, op)
         state = self._connection
 
         if state.dave_session is None:
@@ -1143,7 +1143,7 @@ class DiscordVoiceWebSocket:
 
         if op == self.MLS_EXTERNAL_SENDER:
             state.dave_session.set_external_sender(msg[3:])
-            _log.debug('Set MLS external sender')
+            _log.debug('Set MLS external sender.')
         elif op == self.MLS_PROPOSALS:
             optype = msg[3]
             result = state.dave_session.process_proposals(
@@ -1154,7 +1154,7 @@ class DiscordVoiceWebSocket:
                     DiscordVoiceWebSocket.MLS_COMMIT_WELCOME,
                     result.commit + result.welcome if result.welcome else result.commit,
                 )
-            _log.debug('MLS proposals processed')
+            _log.debug('MLS proposals processed.')
         elif op == self.MLS_ANNOUNCE_COMMIT_TRANSITION:
             transition_id = struct.unpack_from('>H', msg, 3)[0]
             try:
@@ -1162,7 +1162,7 @@ class DiscordVoiceWebSocket:
                 if transition_id != 0:
                     state.dave_pending_transitions[transition_id] = state.dave_protocol_version
                     await self.send_transition_ready(transition_id)
-                _log.debug('MLS commit processed for transition id %d', transition_id)
+                _log.debug('MLS commit processed for transition ID %d.', transition_id)
             except Exception:
                 await state._recover_from_invalid_commit(transition_id)
         elif op == self.MLS_WELCOME:
@@ -1172,7 +1172,7 @@ class DiscordVoiceWebSocket:
                 if transition_id != 0:
                     state.dave_pending_transitions[transition_id] = state.dave_protocol_version
                     await self.send_transition_ready(transition_id)
-                _log.debug('MLS welcome processed for transition id %d', transition_id)
+                _log.debug('MLS welcome processed for transition ID %d.', transition_id)
             except Exception:
                 await state._recover_from_invalid_commit(transition_id)
 
