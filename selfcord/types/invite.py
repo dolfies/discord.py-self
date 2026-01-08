@@ -68,6 +68,7 @@ class PartialInvite(_InviteTargetType):
     expires_at: Optional[str]
     guild_scheduled_event: NotRequired[GuildScheduledEvent]
     stage_instance: NotRequired[InviteStageInstance]
+    is_nickname_changeable: NotRequired[bool]
 
 
 class InviteWithCounts(PartialInvite, _GuildCounts): ...

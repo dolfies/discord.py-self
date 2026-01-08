@@ -326,23 +326,29 @@ class Invite(Hashable):
 
     The following table illustrates what methods will obtain the attributes:
 
-    +------------------------------------+--------------------------------------------------------------+
-    |             Attribute              |                          Method                              |
-    +====================================+==============================================================+
-    | :attr:`max_age`                    | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`max_uses`                   | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`created_at`                 | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`temporary`                  | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`uses`                       | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`approximate_member_count`   | :meth:`Client.fetch_invite` with ``with_counts`` enabled     |
-    +------------------------------------+--------------------------------------------------------------+
-    | :attr:`approximate_presence_count` | :meth:`Client.fetch_invite` with ``with_counts`` enabled     |
-    +------------------------------------+--------------------------------------------------------------+
+    +------------------------------------+---------------------------------------------------------------+
+    |             Attribute              |                          Method                               |
+    +====================================+===============================================================+
+    | :attr:`max_age`                    | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`max_uses`                   | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`created_at`                 | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`temporary`                  | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`uses`                       | :meth:`abc.GuildChannel.invites`\, :meth:`Guild.invites`      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`approximate_member_count`   | :meth:`Client.fetch_invite` with ``with_counts`` enabled      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`approximate_presence_count` | :meth:`Client.fetch_invite` with ``with_counts`` enabled      |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`is_nickname_changeable`     | :meth:`Client.fetch_invite` with ``with_permissions`` enabled |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`new_member`                 | :meth:`Client.accept_invite`\, :meth:`Invite.use`             |
+    +------------------------------------+---------------------------------------------------------------+
+    | :attr:`show_verification_form`     | :meth:`Client.accept_invite`\, :meth:`Invite.use`             |
+    +------------------------------------+---------------------------------------------------------------+
 
     If it's not in the table above then it is available by all methods.
 
@@ -381,8 +387,7 @@ class Invite(Hashable):
         The approximate number of members currently active in the guild.
         This includes idle, dnd, online, and invisible members. Offline members are excluded.
     expires_at: Optional[:class:`datetime.datetime`]
-        The expiration date of the invite. If the value is ``None`` (unless received through
-        :meth:`Client.fetch_invite` with ``with_expiration`` disabled), the invite will never expire.
+        The expiration date of the invite. If the value is ``None``, the invite will never expire.
 
         .. versionadded:: 2.0
     channel: Optional[Union[:class:`abc.GuildChannel`, :class:`GroupChannel`, :class:`Object`, :class:`PartialInviteChannel`]]
@@ -411,6 +416,10 @@ class Invite(Hashable):
         The guild's welcome screen, if available.
 
         .. versionadded:: 2.0
+    is_nickname_changeable: Optional[:class:`bool`]
+        Whether the guild grants @everyone the permission to change their nickname.
+
+        .. versionadded:: 2.1
     new_member: :class:`bool`
         Whether the user was not previously a member of the guild.
 
@@ -446,6 +455,7 @@ class Invite(Hashable):
         '_state',
         'approximate_member_count',
         'approximate_presence_count',
+        'is_nickname_changeable',
         'target_application',
         'expires_at',
         'scheduled_event',
@@ -482,6 +492,7 @@ class Invite(Hashable):
         self.max_uses: Optional[int] = data.get('max_uses')
         self.approximate_presence_count: Optional[int] = data.get('approximate_presence_count')
         self.approximate_member_count: Optional[int] = data.get('approximate_member_count')
+        self.is_nickname_changeable: Optional[bool] = data.get('is_nickname_changeable')
         self._flags: int = data.get('flags', 0)
         self._message: Optional[Message] = message
 

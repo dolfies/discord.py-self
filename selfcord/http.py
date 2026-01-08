@@ -2583,12 +2583,14 @@ class HTTPClient:
         invite_id: str,
         *,
         with_counts: bool = True,
+        with_permissions: bool = True,
         guild_scheduled_event_id: Optional[Snowflake] = None,
         input_value: Optional[str] = None,
     ) -> Response[Union[invite.PartialInvite, invite.InviteWithCounts]]:
         params: Dict[str, Any] = {
             'with_counts': str(with_counts).lower(),
             'with_expiration': 'true',  # No longer exists
+            'with_permissions': str(with_permissions).lower(),
         }
         if input_value:
             params['inputValue'] = input_value
