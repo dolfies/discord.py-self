@@ -299,7 +299,7 @@ class Widget:
         """Optional[:class:`str`]: The invite URL for the guild, if available."""
         return self._invite
 
-    async def fetch_invite(self, *, with_counts: bool = True) -> Optional[Invite]:
+    async def fetch_invite(self, *, with_counts: bool = True, with_permissions: bool = True) -> Optional[Invite]:
         """|coro|
 
         Retrieves an :class:`Invite` from the widget's invite URL.
@@ -312,6 +312,11 @@ class Widget:
             Whether to include count information in the invite. This fills the
             :attr:`Invite.approximate_member_count` and :attr:`Invite.approximate_presence_count`
             fields.
+        with_permissions: :class:`bool`
+            Whether to include permission information in the invite. This fills the
+            :attr:`Invite.is_nickname_changeable` field.
+
+            .. versionadded:: 2.1
 
         Returns
         --------
@@ -320,6 +325,8 @@ class Widget:
         """
         if self._invite:
             resolved = resolve_invite(self._invite)
-            data = await self._state.http.get_invite(resolved.code, with_counts=with_counts)
+            data = await self._state.http.get_invite(
+                resolved.code, with_counts=with_counts, with_permissions=with_permissions
+            )
             return Invite.from_incomplete(state=self._state, data=data)
         return None

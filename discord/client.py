@@ -2246,6 +2246,7 @@ class Client:
         /,
         *,
         with_counts: bool = True,
+        with_permissions: bool = True,
         scheduled_event_id: Optional[int] = None,
     ) -> Invite:
         """|coro|
@@ -2274,6 +2275,11 @@ class Client:
             Whether to include count information in the invite. This fills the
             :attr:`.Invite.approximate_member_count` and :attr:`.Invite.approximate_presence_count`
             fields.
+        with_permissions: :class:`bool`
+            Whether to include permission information in the invite. This fills the
+            :attr:`Invite.is_nickname_changeable` field.
+
+            .. versionadded:: 2.1
         scheduled_event_id: Optional[:class:`int`]
             The ID of the scheduled event this invite is for.
 
@@ -2309,6 +2315,7 @@ class Client:
         data = await self.http.get_invite(
             resolved.code,
             with_counts=with_counts,
+            with_permissions=with_permissions,
             guild_scheduled_event_id=scheduled_event_id,
         )
         return Invite.from_incomplete(state=self._connection, data=data)
@@ -2363,6 +2370,7 @@ class Client:
         data = await state.http.get_invite(
             resolved.code,
             with_counts=True,
+            with_permissions=True,
             input_value=resolved.code if isinstance(url, Invite) else url,
         )
         if isinstance(url, Invite):
