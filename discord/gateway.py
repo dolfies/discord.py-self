@@ -652,13 +652,13 @@ class DiscordWebSocket:
                 socket = self.socket
                 raise WebSocketClosure(socket)
         except (asyncio.TimeoutError, CurlError, WebSocketClosure) as e:
-            _log.debug(f'Got Gateway poll exception {e}', exc_info=True)
+            _log.debug('Got Gateway poll exception: %s.', type(e), exc_info=True)
             # Ensure the keep alive handler is closed
             if self._keep_alive:
                 self._keep_alive.stop()
                 self._keep_alive = None
 
-            if isinstance(e, asyncio.TimeoutError):  # is this also CancelledError??
+            if isinstance(e, asyncio.TimeoutError):
                 _log.debug('Timed out receiving Gateway packet. Attempting a reconnect.')
                 raise ReconnectWebSocket from None
 
@@ -671,7 +671,7 @@ class DiscordWebSocket:
             if not socket.closed:
                 await socket.close(code or 4000, (reason or 'Unknown error').encode('utf-8'))
 
-            _log.info(f'Gateway received close code {code} and reason {reason!r}.')
+            _log.info('Gateway received close code %s and reason %r.', code, reason)
 
             if self._can_handle_close(code or None):
                 _log.debug('Websocket closed with %s, attempting a reconnect.', code)
@@ -683,7 +683,7 @@ class DiscordWebSocket:
             if self._keep_alive:
                 self._keep_alive.stop()
                 self._keep_alive = None
-            return
+            raise
 
     async def _sendstr(self, data: str, /) -> None:
         try:
@@ -870,7 +870,10 @@ class DiscordWebSocket:
             self._keep_alive = None
 
         self._close_code = code
-        await self.socket.close(code, reason)
+        try:
+            await self.socket.close(code, reason)
+        except Exception:
+            _log.debug('Ignoring exception closing Gateway socket.', exc_info=True)
 
 
 DVWS = TypeVar('DVWS', bound='DiscordVoiceWebSocket')
@@ -1270,4 +1273,7 @@ class DiscordVoiceWebSocket:
             self._keep_alive.stop()
 
         self._close_code = code
-        await self.ws.close(code, reason)
+        try:
+            await self.ws.close(code, reason)
+        except Exception:
+            _log.debug('Ignoring exception closing voice socket.', exc_info=True)

@@ -410,7 +410,7 @@ class VoiceConnectionState:
                 self.state = ConnectionFlowState.got_both_voice_updates
 
         elif self.state is ConnectionFlowState.connected:
-            _log.debug('Got VOICE_SERVER_UPDATE, closing old voice gateway.')
+            _log.debug('Got VOICE_SERVER_UPDATE, closing old voice socket.')
             await self.ws.close(4014)
             self.state = ConnectionFlowState.got_voice_server_update
 
@@ -709,7 +709,7 @@ class VoiceConnectionState:
                     # 4021 - rate limited, we should not reconnect
                     # 4022 - call terminated, similar to 4014
 
-                    code = getattr(exc, 'code', self.ws._close_code)
+                    code = exc.code if isinstance(exc, ConnectionClosed) else self.ws._close_code
 
                     if code == 1000:
                         # Don't call disconnect a second time if the websocket closed from a disconnect call
@@ -744,7 +744,8 @@ class VoiceConnectionState:
                             await self.disconnect()
                         break
 
-                    if exc.code == 4015:
+                    # We catch 0/None here too because CurlError is typically a network issue that doesn't have a code
+                    if code == 4015 or not code:
                         _log.info('Disconnected from voice, attempting a resume...')
                         try:
                             await self._connect(
@@ -764,8 +765,13 @@ class VoiceConnectionState:
                             _log.info('Successfully resumed voice connection.')
                             continue
 
+                    if not code and self._expecting_disconnect:
+                        # Don't let disconnects bleed into the disconnect loop
+                        # as *sent* close codes may not be provided here
+                        break
+
                     _log.debug(
-                        'Not handling voice socket close code %s (reason: %s).',
+                        'Not handling voice socket close code %s (reason: %r).',
                         code,
                         getattr(exc, 'reason', None) or 'No reason',
                     )
