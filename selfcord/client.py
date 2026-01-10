@@ -983,7 +983,7 @@ class Client:
     async def connect(self, *, reconnect: bool = True) -> None:
         """|coro|
 
-        Creates a websocket connection and lets the websocket listen
+        Creates a WebSocket connection and lets the WebSocket listen
         to messages from Discord. This is a loop that runs the entire
         event system and miscellaneous aspects of the library. Control
         is not resumed until the WebSocket connection is terminated.

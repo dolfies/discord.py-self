@@ -70,6 +70,14 @@ if TYPE_CHECKING:
     WebsocketHook = Optional[Callable[[DiscordVoiceWebSocket, Dict[str, Any]], Coroutine[Any, Any, Any]]]
     SocketReaderCallback = Callable[[bytes], Any]
 
+has_dave: bool
+
+try:
+    import davey  # type: ignore
+
+    has_dave = True
+except ImportError:
+    has_dave = False
 
 __all__ = ('VoiceConnectionState',)
 
@@ -210,6 +218,10 @@ class VoiceConnectionState:
         self.mode: TransportEncryptionModes = MISSING
         self.socket: socket.socket = MISSING
         self.ws: DiscordVoiceWebSocket = MISSING
+        self.dave_session: Optional[davey.DaveSession] = None
+        self.dave_protocol_version: int = 0
+        self.dave_pending_transitions: Dict[int, int] = {}
+        self.dave_downgraded: bool = False
 
         self._state: ConnectionFlowState = ConnectionFlowState.disconnected
         self._expecting_disconnect: bool = False
@@ -253,6 +265,64 @@ class VoiceConnectionState:
     @property
     def self_voice_state(self) -> Optional[VoiceState]:
         return self.guild.me.voice if self.guild else self.voice_client._state.user.voice  # type: ignore
+
+    @property
+    def max_dave_protocol_version(self) -> int:
+        return davey.DAVE_PROTOCOL_VERSION if has_dave else 0
+
+    @property
+    def can_encrypt(self) -> bool:
+        return self.dave_protocol_version != 0 and self.dave_session != None and self.dave_session.ready
+
+    async def reinit_dave_session(self) -> None:
+        if self.dave_protocol_version > 0:
+            if not has_dave:
+                raise RuntimeError('davey library needed in order to use E2EE voice')
+            if self.dave_session is not None:
+                self.dave_session.reinit(self.dave_protocol_version, self.user.id, self.voice_client.channel.id)
+            else:
+                self.dave_session = davey.DaveSession(self.dave_protocol_version, self.user.id, self.voice_client.channel.id)
+
+            if self.dave_session is not None:
+                await self.voice_client.ws.send_binary(
+                    DiscordVoiceWebSocket.MLS_KEY_PACKAGE, self.dave_session.get_serialized_key_package()
+                )
+        elif self.dave_session:
+            self.dave_session.reset()
+            self.dave_session.set_passthrough_mode(True, 10)
+        pass
+
+    async def _recover_from_invalid_commit(self, transition_id: int) -> None:
+        payload = {
+            'op': DiscordVoiceWebSocket.MLS_INVALID_COMMIT_WELCOME,
+            'd': {
+                'transition_id': transition_id,
+            },
+        }
+
+        await self.voice_client.ws.send_as_json(payload)
+        await self.reinit_dave_session()
+
+    async def _execute_transition(self, transition_id: int) -> None:
+        _log.debug('Executing transition ID %d.', transition_id)
+        if transition_id not in self.dave_pending_transitions:
+            _log.warning("Received execute transition, but we don't have a pending transition for ID %d.", transition_id)
+            return
+
+        old_version = self.dave_protocol_version
+        self.dave_protocol_version = self.dave_pending_transitions.pop(transition_id)
+
+        if old_version != self.dave_protocol_version and self.dave_protocol_version == 0:
+            self.dave_downgraded = True
+            _log.debug('DAVE Session downgraded.')
+        elif transition_id > 0 and self.dave_downgraded:
+            self.dave_downgraded = False
+            if self.dave_session:
+                self.dave_session.set_passthrough_mode(True, 10)
+            _log.debug('DAVE Session upgraded.')
+
+        # In the future, the session should be signaled too, but for now theres just v1
+        _log.debug('Transition ID %d executed.', transition_id)
 
     async def voice_state_update(self, data: GuildVoiceStatePayload) -> None:
         channel_id = data['channel_id']
@@ -340,7 +410,7 @@ class VoiceConnectionState:
                 self.state = ConnectionFlowState.got_both_voice_updates
 
         elif self.state is ConnectionFlowState.connected:
-            _log.debug('Got VOICE_SERVER_UPDATE, closing old voice gateway.')
+            _log.debug('Got VOICE_SERVER_UPDATE, closing old voice socket.')
             await self.ws.close(4014)
             self.state = ConnectionFlowState.got_voice_server_update
 
@@ -639,7 +709,7 @@ class VoiceConnectionState:
                     # 4021 - rate limited, we should not reconnect
                     # 4022 - call terminated, similar to 4014
 
-                    code = getattr(exc, 'code', self.ws._close_code)
+                    code = exc.code if isinstance(exc, ConnectionClosed) else self.ws._close_code
 
                     if code == 1000:
                         # Don't call disconnect a second time if the websocket closed from a disconnect call
@@ -674,7 +744,8 @@ class VoiceConnectionState:
                             await self.disconnect()
                         break
 
-                    if exc.code == 4015:
+                    # We catch 0/None here too because CurlError is typically a network issue that doesn't have a code
+                    if code == 4015 or not code:
                         _log.info('Disconnected from voice, attempting a resume...')
                         try:
                             await self._connect(
@@ -694,8 +765,13 @@ class VoiceConnectionState:
                             _log.info('Successfully resumed voice connection.')
                             continue
 
+                    if not code and self._expecting_disconnect:
+                        # Don't let disconnects bleed into the disconnect loop
+                        # as *sent* close codes may not be provided here
+                        break
+
                     _log.debug(
-                        'Not handling voice socket close code %s (reason: %s).',
+                        'Not handling voice socket close code %s (reason: %r).',
                         code,
                         getattr(exc, 'reason', None) or 'No reason',
                     )
