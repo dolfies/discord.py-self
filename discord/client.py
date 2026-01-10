@@ -2277,7 +2277,7 @@ class Client:
             fields.
         with_permissions: :class:`bool`
             Whether to include permission information in the invite. This fills the
-            :attr:`Invite.is_nickname_changeable` field.
+            :attr:`.Invite.is_nickname_changeable` field.
 
             .. versionadded:: 2.1
         scheduled_event_id: Optional[:class:`int`]
