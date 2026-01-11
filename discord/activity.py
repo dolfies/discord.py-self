@@ -989,6 +989,10 @@ class Session:
         The status of the session.
     activities: Tuple[Union[:class:`BaseActivity`, :class:`Spotify`]]
         The activities the session is currently doing.
+    hidden_activities: Tuple[Union[:class:`BaseActivity`, :class:`Spotify`]]
+        The activities the session is currently doing that are hidden.
+
+        .. versionadded:: 2.1
     """
 
     __slots__ = (
@@ -999,6 +1003,7 @@ class Session:
         'version',
         'status',
         'activities',
+        'hidden_activities',
         '_state',
     )
 
@@ -1019,11 +1024,14 @@ class Session:
         self.active: bool = data.get('active', False)
         self.status: Status = try_enum(Status, data['status'])
         self.activities: Tuple[ActivityTypes, ...] = tuple(
-            create_activity(activity, state) for activity in data['activities']
+            create_activity(activity, state) for activity in data.get('activities', [])
+        )
+        self.hidden_activities: Tuple[ActivityTypes, ...] = tuple(
+            create_activity(activity, state) for activity in data.get('hidden_activities', [])
         )
 
     def __repr__(self) -> str:
-        return f'<Session session_id={self.session_id!r} active={self.active!r} status={self.status!r} activities={self.activities!r}>'
+        return f'<Session session_id={self.session_id!r} active={self.active!r} status={self.status!r} activities={self.activities!r} hidden_activities={self.hidden_activities!r}>'
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Session) and self.session_id == other.session_id

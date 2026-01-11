@@ -719,6 +719,18 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         if self.activities:
             return self.activities[0]
 
+    @property
+    def hidden_activities(self) -> Tuple[ActivityTypes, ...]:
+        """Tuple[Union[:class:`BaseActivity`, :class:`Spotify`]]: Returns the activities that
+        the user is currently doing but has set as hidden.
+
+        Hidden activities are provided when you are participating in a shared activity with
+        a user that is invisible or has set their activity settings to private.
+
+        .. versionadded:: 2.1
+        """
+        return self.presence.hidden_activities
+
     def mentioned_in(self, message: Message) -> bool:
         """Checks if the member is mentioned in the specified message.
 

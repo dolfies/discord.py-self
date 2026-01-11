@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional, TypedDict
+from typing import List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired
 from .user import PartialUser
 from .snowflake import Snowflake
@@ -34,14 +34,24 @@ StatusType = Literal['idle', 'dnd', 'online', 'offline']
 StatusDisplayType = Literal[0, 1, 2]
 
 
+class UserID(TypedDict):
+    id: Snowflake
+
+
 class BasePresenceUpdate(TypedDict):
-    user: PartialUser
     status: StatusType
     activities: List[Activity]
+    hidden_activities: NotRequired[List[Activity]]
     client_status: ClientStatus
+    processed_at_timestamp: Union[Literal[0], str]
+
+
+class UserPresenceUpdate(BasePresenceUpdate):
+    user: PartialUser
 
 
 class PartialPresenceUpdate(BasePresenceUpdate):
+    user: Union[PartialUser, UserID]
     guild_id: NotRequired[Snowflake]
 
 
