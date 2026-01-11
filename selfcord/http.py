@@ -2075,19 +2075,18 @@ class HTTPClient:
         self,
         guild_id: Snowflake,
         lurker: bool,
-        session_id: Optional[str] = MISSING,
-        load_id: str = MISSING,
-        location: str = MISSING,
+        session_id: Optional[str] = None,
+        load_id: Optional[str] = None,
+        location: Optional[str] = None,
     ) -> Response[guild.Guild]:
         params = {
             'lurker': str(lurker).lower(),
         }
-        if lurker:
-            params['session_id'] = session_id or utils._generate_session_id()
-        if load_id is not MISSING:
+        if session_id:
+            params['session_id'] = session_id
+        if load_id:
             params['recommendation_load_id'] = load_id
-            params['location'] = 'Guild%20Discovery'
-        if location is not MISSING:
+        if location:
             params['location'] = location
         props = ContextProperties.empty() if lurker else ContextProperties.from_lurking()
 

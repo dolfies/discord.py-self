@@ -678,6 +678,8 @@ class Invite(Hashable):
         ------
         HTTPException
             Using the invite failed.
+        ValueError
+            Attempted to accept a guest invite without a session.
 
         Returns
         -------
@@ -685,6 +687,9 @@ class Invite(Hashable):
             The accepted invite.
         """
         state = self._state
+        if self.flags.guest and not state.session_id:
+            raise ValueError('Cannot accept guest invites without a session')
+
         type = self.type
         kwargs = {}
         if not self._message:
@@ -712,6 +717,8 @@ class Invite(Hashable):
         ------
         HTTPException
             Using the invite failed.
+        ValueError
+            Attempted to accept a guest invite without a session.
 
         Returns
         -------

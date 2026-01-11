@@ -25,8 +25,9 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import logging
+import uuid
+from datetime import datetime
 from typing import (
     Any,
     AsyncIterator,
@@ -2148,14 +2149,26 @@ class Client:
             Guild with given ID does not exist/have discovery enabled.
         HTTPException
             Joining the guild failed.
+        ValueError
+            Attempted to lurk a guild without a session.
 
         Returns
         --------
         :class:`.Guild`
-            The guild that was joined.
+            The guild joined. This is not the same guild that is
+            added to cache.
         """
         state = self._connection
-        data = await state.http.join_guild(guild_id, lurking, state.session_id)
+        if lurking and not state.session_id:
+            raise ValueError('Cannot lurk a guild without a session')
+
+        data = await state.http.join_guild(
+            guild_id,
+            lurking,
+            state.session_id if lurking else None,
+            str(uuid.uuid4()).replace('-', '') if lurking else None,
+            'Guild%20Discovery' if lurking else None,
+        )
         guild = state.create_guild(data)
         guild._cs_joined = not lurking
         return guild
@@ -2277,7 +2290,7 @@ class Client:
             fields.
         with_permissions: :class:`bool`
             Whether to include permission information in the invite. This fills the
-            :attr:`Invite.is_nickname_changeable` field.
+            :attr:`.Invite.is_nickname_changeable` field.
 
             .. versionadded:: 2.1
         scheduled_event_id: Optional[:class:`int`]
@@ -2285,7 +2298,7 @@ class Client:
 
             .. note::
 
-                It is not possible to provide a url that contains an ``event_id`` parameter
+                It is not possible to provide a URL that contains an ``event_id`` parameter
                 when using this parameter.
 
             .. versionadded:: 2.0
@@ -2293,7 +2306,7 @@ class Client:
         Raises
         -------
         ValueError
-            The url contains an ``event_id``, but ``scheduled_event_id`` has also been provided.
+            The URL contains an ``event_id``, but ``scheduled_event_id`` has also been provided.
         NotFound
             The invite has expired or is invalid.
         HTTPException
@@ -2358,6 +2371,8 @@ class Client:
         ------
         HTTPException
             Using the invite failed.
+        ValueError
+            Attempted to accept a guest invite without a session.
 
         Returns
         -------
@@ -2377,6 +2392,9 @@ class Client:
             invite = url
         else:
             invite = Invite.from_incomplete(state=state, data=data)
+
+        if invite.flags.guest and not state.session_id:
+            raise ValueError('Cannot accept guest invites without a session')
 
         state = self._connection
         type = invite.type
