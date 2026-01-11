@@ -2371,6 +2371,8 @@ class Client:
         ------
         HTTPException
             Using the invite failed.
+        ValueError
+            Attempted to accept a guest invite without a session.
 
         Returns
         -------
@@ -2390,6 +2392,9 @@ class Client:
             invite = url
         else:
             invite = Invite.from_incomplete(state=state, data=data)
+
+        if invite.flags.guest and not state.session_id:
+            raise ValueError('Cannot accept guest invites without a session')
 
         state = self._connection
         type = invite.type
