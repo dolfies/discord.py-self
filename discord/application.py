@@ -1639,6 +1639,34 @@ class _BaseApplication(Hashable):
         data = await state.http.get_app_entitlement_ticket(self.id)
         return data['ticket']
 
+    async def proxy_external_assets(self, *urls: str) -> List[str]:
+        r"""|coro|
+
+        Proxies up to 2 external asset URLs through Discord's media proxy,
+        for use in rich presence.
+
+        Parameters
+        -----------
+        \*urls: :class:`str`
+            The external asset URLs to proxy.
+
+        Raises
+        -------
+        HTTPException
+            Proxying the assets failed.
+
+        Returns
+        --------
+        List[:class:`str`]
+            The proxied asset URLs.
+        """
+        if not urls:
+            return []
+
+        data = await self._state.http.create_app_external_assets(self.id, urls)
+        prefix = 'https://media.discordapp.net/'
+        return [prefix + asset['external_asset_path'] for asset in data]
+
 
 class DetectableApplication(_BaseApplication):
     """Represents a detectable application.

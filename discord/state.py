@@ -925,7 +925,7 @@ class Presence:
 
     _OFFLINE: ClassVar[Self] = MISSING
 
-    def __init__(self, data: gw.PresenceUpdateEvent, state: ConnectionState, /) -> None:
+    def __init__(self, data: gw.BasePresenceUpdate, state: ConnectionState, /) -> None:
         self.client_status: ClientStatus = ClientStatus(data['status'], data.get('client_status'))
         self.activities: Tuple[ActivityTypes, ...] = tuple(create_activity(d, state) for d in data.get('activities', []))
         self.hidden_activities: Tuple[ActivityTypes, ...] = tuple(
@@ -951,7 +951,7 @@ class Presence:
             return True
         return self.client_status != other.client_status or self.activities != other.activities
 
-    def _update(self, data: gw.PresenceUpdateEvent, state: ConnectionState, /) -> None:
+    def _update(self, data: gw.BasePresenceUpdate, state: ConnectionState, /) -> None:
         self.client_status._update(data['status'], data.get('client_status'))
         self.activities = tuple(create_activity(d, state) for d in data['activities'])
 
@@ -1672,7 +1672,7 @@ class ConnectionState:
         ):
             for presence in merged_presences:
                 if 'user' not in presence:
-                    presence['user'] = {'id': presence['user_id']}  # type: ignore
+                    presence['user'] = {'id': presence['user_id']}
 
             if 'properties' in guild_data:
                 guild_data.update(guild_data.pop('properties'))
@@ -1948,9 +1948,9 @@ class ConnectionState:
         for presence in data:
             self.parse_presence_update(presence)
 
-    def _handle_presence_update(self, guild: Optional[Guild], data: gw.PresenceUpdateEvent) -> None:
+    def _handle_presence_update(self, guild: Optional[Guild], data: Union[gw.BasePresenceUpdate, gw.PresenceUpdateEvent]) -> None:
         guild_id = guild.id if guild else None
-        user = data['user']
+        user = data['user']  # type: ignore
         if user is None:
             _log.debug('PRESENCE_UPDATE referencing a null user. Discarding.')
             return
@@ -3655,7 +3655,7 @@ class ConnectionState:
     def client_presence(self) -> FakeClientPresence:
         return FakeClientPresence(self)
 
-    def create_presence(self, data: gw.PresenceUpdateEvent) -> Presence:
+    def create_presence(self, data: gw.BasePresenceUpdate) -> Presence:
         return Presence(data, self)
 
     def create_offline_presence(self) -> Presence:

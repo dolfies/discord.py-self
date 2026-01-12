@@ -3515,6 +3515,36 @@ class Client:
         data = await state.http.get_public_applications(application_ids)
         return [PartialApplication(state=state, data=d) for d in data]
 
+    async def proxy_external_application_assets(self, application_id: int, *urls: str) -> List[str]:
+        r"""|coro|
+
+        Proxies up to 2 external asset URLs through Discord's media proxy,
+        for use in rich presence.
+
+        Parameters
+        -----------
+        application_id: :class:`int`
+            The rich presence application ID.
+        \*urls: :class:`str`
+            The external asset URLs to proxy.
+
+        Raises
+        -------
+        HTTPException
+            Proxying the assets failed.
+
+        Returns
+        --------
+        List[:class:`str`]
+            The proxied asset URLs.
+        """
+        if not urls:
+            return []
+
+        data = await self._connection.http.create_app_external_assets(application_id, urls)
+        prefix = 'https://media.discordapp.net/'
+        return [prefix + asset['external_asset_path'] for asset in data]
+
     async def teams(self, *, with_payout_account_status: bool = False) -> List[Team]:
         """|coro|
 
