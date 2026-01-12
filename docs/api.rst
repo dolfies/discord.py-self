@@ -2302,13 +2302,89 @@ of :class:`enum.Enum`.
 
     .. attribute:: custom
 
-        A custom activity type.
+        A custom status activity type.
 
     .. attribute:: competing
 
         A competing activity type.
 
         .. versionadded:: 1.5
+
+    .. attribute:: hang
+
+        A voice-only hang status activity type.
+
+.. class:: ActivityPlatform
+
+    Specifies the platform of an :class:`Activity`.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: desktop
+
+        The activity is on desktop.
+
+    .. attribute:: xbox
+
+        The activity is on Xbox.
+
+    .. attribute:: samsung
+
+        The activity is on Samsung.
+
+    .. attribute:: ios
+
+        The activity is on iOS.
+
+    .. attribute:: android
+
+        The activity is on Android.
+
+    .. attribute:: embedded
+
+        The activity is on an embedded device.
+
+    .. attribute:: ps4
+
+        The activity is on PlayStation 4.
+
+    .. attribute:: ps5
+
+        The activity is on PlayStation 5.
+
+    .. attribute:: meta_quest
+
+        The activity is on Meta Quest.
+
+.. class:: HangStatusType
+
+    Specifies the type of a :class:`HangActivity`.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: chilling
+
+        The user is chilling.
+
+    .. attribute:: gaming
+
+        The user is gaming.
+
+    .. attribute:: focusing
+
+        The user is studying.
+
+    .. attribute:: brb
+
+        The user will brb.
+
+    .. attribute:: watching
+
+        The user is watching stuff.
+
+    .. attribute:: custom
+
+        A custom hang status.
 
 .. class:: HypeSquadHouse
 
@@ -8927,26 +9003,51 @@ Presence
 
 .. autoclass:: Activity()
     :members:
+    :inherited-members:
 
-.. attributetable:: Game
+.. attributetable:: ActivityAssets
 
-.. autoclass:: Game()
+.. autoclass:: ActivityAssets()
     :members:
 
-.. attributetable:: Streaming
+.. attributetable:: ActivityImage
 
-.. autoclass:: Streaming()
+.. autoclass:: ActivityImage()
+    :members:
+    :inherited-members:
+
+.. attributetable:: ActivityParty
+
+.. autoclass:: ActivityParty()
+    :members:
+
+.. attributetable:: ActivityButton
+
+.. autoclass:: ActivityButton()
+    :members:
+
+.. attributetable:: ActivitySecrets
+
+.. autoclass:: ActivitySecrets()
     :members:
 
 .. attributetable:: Spotify
 
 .. autoclass:: Spotify()
     :members:
+    :inherited-members:
 
 .. attributetable:: CustomActivity
 
 .. autoclass:: CustomActivity()
     :members:
+    :inherited-members:
+
+.. attributetable:: HangActivity
+
+.. autoclass:: HangActivity()
+    :members:
+    :inherited-members:
 
 Permissions
 ~~~~~~~~~~~~
@@ -9017,6 +9118,11 @@ Experiment
 
 Flags
 ~~~~~~
+
+.. attributetable:: ActivityFlags
+
+.. autoclass:: ActivityFlags()
+    :members:
 
 .. attributetable:: ApplicationFlags
 

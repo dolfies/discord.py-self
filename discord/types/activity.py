@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired
 from .user import PartialUser
 from .snowflake import Snowflake
@@ -79,44 +79,46 @@ class ActivityAssets(TypedDict, total=False):
     small_text: str
     large_url: str
     small_url: str
+    invite_cover_image: str
 
 
 class ActivitySecrets(TypedDict, total=False):
     join: str
     spectate: str
-    match: str
 
 
 class ActivityEmoji(TypedDict):
-    name: str
-    id: NotRequired[Snowflake]
+    name: Optional[str]
+    id: Optional[Snowflake]
     animated: NotRequired[bool]
 
 
-ActivityType = Literal[0, 1, 2, 4, 5]
+ActivityType = Literal[0, 1, 2, 3, 4, 5, 6]
 
 
-class SendableActivity(TypedDict):
+class _BaseActivity(TypedDict):
     name: str
     type: ActivityType
-    url: NotRequired[Optional[str]]
 
-
-class _BaseActivity(SendableActivity):
-    created_at: int
+    # Receive-only fields
+    id: NotRequired[str]
+    created_at: NotRequired[int]
 
 
 class Activity(_BaseActivity, total=False):
+    url: Optional[str]
     state: Optional[str]
     details: Optional[str]
     timestamps: ActivityTimestamps
     platform: Optional[str]
+    supported_platforms: List[str]
     assets: ActivityAssets
     party: ActivityParty
     application_id: Snowflake
     flags: int
-    emoji: Optional[ActivityEmoji]
+    emoji: ActivityEmoji
     secrets: ActivitySecrets
+    metadata: NotRequired[Dict[str, Any]]
     session_id: Optional[str]
     instance: bool
     buttons: List[str]
@@ -124,3 +126,13 @@ class Activity(_BaseActivity, total=False):
     state_url: str
     details_url: str
     status_display_type: Optional[StatusDisplayType]
+
+
+HangStatusVariantType = Literal['illocons', 'twemoji', 'twemojimild']
+
+
+class SettingsActivity(TypedDict, total=False):
+    text: str
+    emoji_id: Snowflake
+    emoji_name: str
+    expires_at: str

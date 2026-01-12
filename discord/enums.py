@@ -43,6 +43,8 @@ __all__ = (
     'NameFont',
     'NameEffect',
     'ActivityType',
+    'ActivityPlatform',
+    'HangStatusType',
     'NotificationLevel',
     'HighlightLevel',
     'ApplicationMembershipState',
@@ -761,16 +763,51 @@ class NameEffect(Enum):
 
 
 class ActivityType(Enum):
-    unknown = -1
     playing = 0
     streaming = 1
     listening = 2
     watching = 3
     custom = 4
     competing = 5
+    hang = 6
 
     def __int__(self) -> int:
         return self.value
+
+
+class ActivityPlatform(Enum):
+    desktop = 'desktop'
+    xbox = 'xbox'
+    samsung = 'samsung'
+    ios = 'ios'
+    android = 'android'
+    embedded = 'embedded'
+    ps4 = 'ps4'
+    ps5 = 'ps5'
+    meta_quest = 'meta_quest'
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class HangStatusType(Enum):
+    chilling = 'chilling'
+    gaming = 'gaming'
+    focusing = 'focusing'
+    brb = 'brb'
+    watching = 'watching'
+    custom = 'custom'
+
+    @property
+    def text(self) -> Optional[str]:
+        lookup: Dict[HangStatusType, str] = {
+            HangStatusType.chilling: 'chilling',
+            HangStatusType.gaming: 'gaming',
+            HangStatusType.focusing: 'studying',
+            HangStatusType.brb: 'brb',
+            HangStatusType.watching: 'watching stuff',
+        }
+        return lookup.get(self, None)
 
 
 class HypeSquadHouse(Enum):

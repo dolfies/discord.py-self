@@ -3682,7 +3682,11 @@ class ConnectionState:
             self._presences.pop(user_id, None)
 
     def store_presence(self, user_id: int, presence: Presence, guild_id: Optional[int] = None) -> Presence:
-        if presence.client_status.status == Status.offline.value and not presence.activities and not presence.hidden_activities:
+        if (
+            presence.client_status.status == Status.offline.value
+            and not presence.activities
+            and not presence.hidden_activities
+        ):
             # We don't store empty presences
             self.remove_presence(user_id, guild_id)
             return presence
