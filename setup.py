@@ -1,5 +1,6 @@
 from setuptools import setup
 import re
+import os
 
 
 def derive_version() -> str:
@@ -10,7 +11,7 @@ def derive_version() -> str:
     if not version:
         raise RuntimeError('version is not set')
 
-    if version.endswith(('a', 'b', 'rc')):
+    if version.endswith(('a', 'b', 'rc')) and not os.environ.get('CI'):
         # append version identifier based on commit count
         try:
             import subprocess
