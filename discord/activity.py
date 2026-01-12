@@ -249,17 +249,6 @@ class ActivityAssets:
         or :meth:`~discord.Application.proxy_external_assets` to retrieved a proxied URL from Discord.
         Otherwise, the image will not render in clients.
 
-    Attributes
-    -----------
-    large_text: Optional[:class:`str`]
-        The hover text for the large image asset.
-    large_url: Optional[:class:`str`]
-        A URL that is linked to when clicking on the large image asset.
-    small_text: Optional[:class:`str`]
-        The hover text for the small image asset.
-    small_url: Optional[:class:`str`]
-        A URL that is linked to when clicking on the small image asset.
-
     Parameters
     -----------
     large_image: Optional[Union[:class:`str`, :class:`ApplicationAsset`]]
@@ -276,6 +265,17 @@ class ActivityAssets:
         A URL that is linked to when clicking on the small image asset.
     invite_cover_image: Optional[Union[:class:`str`, :class:`ApplicationAsset`]]
         The invite cover image asset.
+
+    Attributes
+    -----------
+    large_text: Optional[:class:`str`]
+        The hover text for the large image asset.
+    large_url: Optional[:class:`str`]
+        A URL that is linked to when clicking on the large image asset.
+    small_text: Optional[:class:`str`]
+        The hover text for the small image asset.
+    small_url: Optional[:class:`str`]
+        A URL that is linked to when clicking on the small image asset.
     """
 
     MP_REGEX = re.compile(r'https?://(?:cdn|media|images-ext-\d+)\.discordapp\.(?:com|net)/(.+)')
@@ -528,11 +528,6 @@ class ActivityParty:
 
     .. versionadded:: 2.1
 
-    Attributes
-    -----------
-    id: Optional[:class:`str`]
-        The party ID.
-
     Parameters
     -----------
     id: Optional[:class:`str`]
@@ -541,6 +536,11 @@ class ActivityParty:
         The current size of the party. Required if ``max_size`` is provided.
     max_size: Optional[:class:`int`]
         The maximum size of the party. Required if ``current_size`` is provided.
+
+    Attributes
+    -----------
+    id: Optional[:class:`str`]
+        The party ID.
     """
 
     __slots__ = ('id', '_size')
@@ -624,14 +624,14 @@ class ActivityButton:
 
     .. versionadded:: 2.1
 
-    Attributes
+    Parameters
     -----------
     label: :class:`str`
         The label of the button.
     url: Optional[:class:`str`]
         The URL of the button.
 
-    Parameters
+    Attributes
     -----------
     label: :class:`str`
         The label of the button.
@@ -676,14 +676,14 @@ class ActivitySecrets:
 
     .. versionadded:: 2.1
 
-    Attributes
+    Parameters
     -----------
     join: Optional[:class:`str`]
         The secret for joining a party.
     spectate: Optional[:class:`str`]
         The secret for spectating a party.
 
-    Parameters
+    Attributes
     -----------
     join: Optional[:class:`str`]
         The secret for joining a party.
@@ -762,6 +762,56 @@ class Activity(BaseActivity):
 
             Returns the string representation of the activity.
 
+    Parameters
+    -----------
+    type: :class:`ActivityType`
+        The type of activity currently being done.
+    flags: Optional[:class:`ActivityFlags`]
+        The activity flags.
+    application_id: Optional[:class:`int`]
+        The application ID of the game.
+    name: :class:`str`
+        The name of the activity.
+    url: Optional[:class:`str`]
+        A stream URL that the activity could be doing.
+    state: Optional[:class:`str`]
+        The user's current state. For example, "In Game".
+    state_url: Optional[:class:`str`]
+        A URL that is linked to when clicking on the state text of the activity.
+    details: Optional[:class:`str`]
+        The detail of the user's current activity.
+    details_url: Optional[:class:`str`]
+        A URL that is linked to when clicking on the details text of the activity.
+    sync_id: Optional[:class:`str`]
+        The ID used to synchronize the activity.
+    status_display_type: Optional[:class:`StatusDisplayType`]
+        Determines which field from the user's status text is displayed
+        in the members list.
+    platform: Optional[:class:`ActivityPlatform`]
+        The user's current platform.
+    supported_platforms: Optional[List[:class:`ActivityPlatform`]]
+        A list of platforms that the activity supports.
+    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
+        The emoji that belongs to this activity.
+    timestamps: Optional[:class:`ActivityTimestamps`]
+        The timestamps that denote when the activity started and ended.
+    assets: Optional[:class:`ActivityAssets`]
+        The assets for the rich presence.
+    party: Optional[:class:`ActivityParty`]
+        The party information for the rich presence.
+    buttons: Optional[List[Union[:class:`ActivityButton`, :class:`str`]]]
+        A list of strings representing the labels of custom buttons shown in a rich presence.
+
+        .. note::
+
+            If you would like to specify URLs for buttons, you may use the :class:`ActivityButton`
+            helper class, which will insert the ``button_urls`` field into the :attr:`metadata` attribute
+            for you. Note that this cannot be used in combination with ``button_urls`` in the ``metadata`` parameter.
+    secrets: Optional[:class:`ActivitySecrets`]
+        The secrets for the rich presence.
+    metadata: Optional[Mapping[:class:`str`, Any]]
+        Extra metadata for the activity.
+
     Attributes
     ------------
     id: :class:`str`
@@ -839,56 +889,6 @@ class Activity(BaseActivity):
         For received activities, see :meth:`fetch_metadata`.
 
         .. versionadded:: 2.1
-
-    Parameters
-    -----------
-    type: :class:`ActivityType`
-        The type of activity currently being done.
-    flags: Optional[:class:`ActivityFlags`]
-        The activity flags.
-    application_id: Optional[:class:`int`]
-        The application ID of the game.
-    name: :class:`str`
-        The name of the activity.
-    url: Optional[:class:`str`]
-        A stream URL that the activity could be doing.
-    state: Optional[:class:`str`]
-        The user's current state. For example, "In Game".
-    state_url: Optional[:class:`str`]
-        A URL that is linked to when clicking on the state text of the activity.
-    details: Optional[:class:`str`]
-        The detail of the user's current activity.
-    details_url: Optional[:class:`str`]
-        A URL that is linked to when clicking on the details text of the activity.
-    sync_id: Optional[:class:`str`]
-        The ID used to synchronize the activity.
-    status_display_type: Optional[:class:`StatusDisplayType`]
-        Determines which field from the user's status text is displayed
-        in the members list.
-    platform: Optional[:class:`ActivityPlatform`]
-        The user's current platform.
-    supported_platforms: Optional[List[:class:`ActivityPlatform`]]
-        A list of platforms that the activity supports.
-    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
-        The emoji that belongs to this activity.
-    timestamps: Optional[:class:`ActivityTimestamps`]
-        The timestamps that denote when the activity started and ended.
-    assets: Optional[:class:`ActivityAssets`]
-        The assets for the rich presence.
-    party: Optional[:class:`ActivityParty`]
-        The party information for the rich presence.
-    buttons: Optional[List[Union[:class:`ActivityButton`, :class:`str`]]]
-        A list of strings representing the labels of custom buttons shown in a rich presence.
-
-        .. note::
-
-            If you would like to specify URLs for buttons, you may use the :class:`ActivityButton`
-            helper class, which will insert the ``button_urls`` field into the :attr:`metadata` attribute
-            for you. Note that this cannot be used in combination with ``button_urls`` in the ``metadata`` parameter.
-    secrets: Optional[:class:`ActivitySecrets`]
-        The secrets for the rich presence.
-    metadata: Optional[Mapping[:class:`str`, Any]]
-        Extra metadata for the activity.
     """
 
     __slots__ = (
@@ -1263,7 +1263,7 @@ class Activity(BaseActivity):
 
         Fetches the full metadata for this activity.
 
-        Activities must have an :attr:`application_id` to fetch metadata,
+        Activities must have an :attr:`Activity.application_id` to fetch metadata,
         unless they are of type :attr:`ActivityType.listening` and the user only
         has a single activity of that type.
 
@@ -1274,8 +1274,8 @@ class Activity(BaseActivity):
         HTTPException
             Fetching the metadata failed.
         ValueError
-            The activity does not have a :attr:`session_id`.
-            The non-listening activity does not have an :attr:`application_id`.
+            The activity does not have a :attr:`Activity.session_id`.
+            The non-listening activity does not have an :attr:`Activity.application_id`.
         TypeError
             The emoji does not have state available.
 
@@ -1306,7 +1306,7 @@ class Activity(BaseActivity):
 
         Fetches the secret for this activity.
 
-        Activities must have an :attr:`application_id` to fetch secrets.
+        Activities must have an :attr:`Activity.application_id` to fetch secrets.
 
         Parameters
         -----------
@@ -1324,8 +1324,8 @@ class Activity(BaseActivity):
         HTTPException
             Fetching the secret failed.
         ValueError
-            The activity does not have a :attr:`session_id`.
-            The activity does not have an :attr:`application_id`.
+            The activity does not have a :attr:`Activity.session_id`.
+            The activity does not have an :attr:`Activity.application_id`.
             The ``action_type`` is invalid.
         TypeError
             The activity does not have state available.
@@ -1362,7 +1362,7 @@ class _ActivityInstanceProxy(type):
 
 
 class Game(Activity, metaclass=_ActivityInstanceProxy):
-    """A slimmed down version of :class:`Activity` that represents a Discord game.
+    """A version of :class:`Activity` that represents a Discord game.
 
     This is typically displayed via **Playing** on the official Discord client.
 
@@ -1383,7 +1383,7 @@ class Game(Activity, metaclass=_ActivityInstanceProxy):
 
 
 class Streaming(Activity, metaclass=_ActivityInstanceProxy):
-    """A slimmed down version of :class:`Activity` that represents a Discord streaming status.
+    """A version of :class:`Activity` that represents a Discord streaming status.
 
     This is typically displayed via **Streaming** on the official Discord client.
 
@@ -1413,7 +1413,7 @@ class Streaming(Activity, metaclass=_ActivityInstanceProxy):
     def twitch_name(self) -> Optional[str]:
         """Optional[:class:`str`]: If provided, the twitch name of the user streaming.
 
-        This corresponds to the ``large_image`` key of the :attr:`Streaming.assets`
+        This corresponds to the ``large_image`` key of the ``assets``
         dictionary if it starts with ``twitch:``. Typically set by the Discord client.
         """
         if self.assets.large_image and self.assets.large_image.prefix == 'twitch':
@@ -1421,7 +1421,7 @@ class Streaming(Activity, metaclass=_ActivityInstanceProxy):
 
 
 class Spotify(Activity):
-    """Represents a Spotify listening activity from Discord. This is a special case of
+    """Represents a Spotify listening activity from Discord. This is an extension of
     :class:`Activity` that makes it easier to work with the Spotify integration.
 
     .. container:: operations
@@ -1662,6 +1662,15 @@ class CustomActivity(BaseActivity):
 
     .. versionadded:: 1.3
 
+    Parameters
+    -----------
+    name: Optional[:class:`str`]
+        The custom activity's text.
+    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
+        The emoji to pass to the activity, if any.
+    expires_at: Optional[:class:`datetime.datetime`]
+        When the custom activity will expire.
+
     Attributes
     -----------
     id: :class:`str`
@@ -1678,15 +1687,6 @@ class CustomActivity(BaseActivity):
         When the custom activity will expire. This is only available from :attr:`UserSettings.custom_activity`.
 
         .. versionadded:: 2.0
-
-    Parameters
-    -----------
-    name: Optional[:class:`str`]
-        The custom activity's text.
-    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
-        The emoji to pass to the activity, if any.
-    expires_at: Optional[:class:`datetime.datetime`]
-        When the custom activity will expire.
     """
 
     __slots__ = ('name', 'emoji', 'expires_at')
@@ -1846,6 +1846,17 @@ class HangActivity(BaseActivity):
 
     .. versionadded:: 2.1
 
+    Parameters
+    -----------
+    status_type: :class:`HangStatusType`
+        The type of hang status.
+    variant: :class:`str`
+        The variant of the hang status icon.
+    text: Optional[:class:`str`]
+        The custom text for the hang status. Must be provided if :attr:`status_type` is :attr:`HangStatusType.custom`.
+    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
+        The custom emoji for the hang status. Should be provided if :attr:`status_type` is :attr:`HangStatusType.custom`.
+
     Attributes
     -----------
     id: :class:`str`
@@ -1861,17 +1872,6 @@ class HangActivity(BaseActivity):
         It is recommended to use :attr:`text` instead.
     emoji: Optional[:class:`PartialEmoji`]
         The hang activity's custom emoji. Only used if :attr:`status_type` is :attr:`HangStatusType.custom`.
-
-    Parameters
-    -----------
-    status_type: :class:`HangStatusType`
-        The type of hang status.
-    variant: :class:`str`
-        The variant of the hang status icon.
-    text: Optional[:class:`str`]
-        The custom text for the hang status. Must be provided if :attr:`status_type` is :attr:`HangStatusType.custom`.
-    emoji: Optional[Union[:class:`PartialEmoji`, :class:`str`]]
-        The custom emoji for the hang status. Should be provided if :attr:`status_type` is :attr:`HangStatusType.custom`.
     """
 
     __slots__ = ('state', 'details', 'emoji')
