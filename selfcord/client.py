@@ -1340,7 +1340,7 @@ class Client:
 
     @property
     def activities(self) -> Tuple[ActivityTypes, ...]:
-        """Tuple[Union[:class:`.BaseActivity`, :class:`.Spotify`]]: Returns the activities
+        """Tuple[:class:`.BaseActivity`, ...]: Returns the activities
         the client is currently doing.
 
         .. versionadded:: 2.0
@@ -1360,7 +1360,7 @@ class Client:
 
     @property
     def activity(self) -> Optional[ActivityTypes]:
-        """Optional[Union[:class:`.BaseActivity`, :class:`.Spotify`]]: Returns the primary
+        """Optional[:class:`.BaseActivity`]: Returns the primary
         activity the client is currently doing. Could be ``None`` if no activity is being done.
 
         .. versionadded:: 2.0
@@ -1380,7 +1380,7 @@ class Client:
 
     @property
     def client_activities(self) -> Tuple[ActivityTypes, ...]:
-        """Tuple[Union[:class:`.BaseActivity`, :class:`.Spotify`]]: Returns the activities
+        """Tuple[:class:`.BaseActivity`, ...]: Returns the activities
         the client is currently doing through this library, if applicable.
 
         .. versionadded:: 2.0

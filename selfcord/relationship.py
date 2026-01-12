@@ -234,7 +234,7 @@ class Relationship(Hashable):
 
     @property
     def activities(self) -> Tuple[ActivityTypes, ...]:
-        """Tuple[Union[:class:`BaseActivity`, :class:`Spotify`]]: Returns the activities that
+        """Tuple[:class:`BaseActivity`, ...]: Returns the activities that
         the user is currently doing.
 
         .. versionadded:: 2.0
@@ -253,7 +253,7 @@ class Relationship(Hashable):
 
     @property
     def activity(self) -> Optional[ActivityTypes]:
-        """Optional[Union[:class:`BaseActivity`, :class:`Spotify`]]: Returns the primary
+        """Optional[:class:`BaseActivity`]: Returns the primary
         activity the user is currently doing. Could be ``None`` if no activity is being done.
 
         .. versionadded:: 2.0
@@ -274,6 +274,22 @@ class Relationship(Hashable):
         """
         if self.activities:
             return self.activities[0]
+
+    @property
+    def hidden_activities(self) -> Tuple[ActivityTypes, ...]:
+        """Tuple[:class:`BaseActivity`, ...]: Returns the activities that
+        the user is currently doing but has set as hidden.
+
+        Hidden activities are provided when you are participating in a shared activity with
+        a user that is invisible or has set their activity settings to private.
+
+        .. versionadded:: 2.1
+
+        .. note::
+
+            This is only provided for type :class:`RelationshipType.friend` and :class:`RelationshipType.implicit` relationships.
+        """
+        return self.presence.hidden_activities
 
     async def delete(self) -> None:
         """|coro|

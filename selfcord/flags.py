@@ -61,6 +61,7 @@ __all__ = (
     'PrivateUserFlags',
     'MemberCacheFlags',
     'ApplicationFlags',
+    'ActivityFlags',
     'ChannelFlags',
     'PremiumUsageFlags',
     'PurchasedFlags',
@@ -1511,6 +1512,97 @@ class ApplicationFlags(BaseFlags):
     def partner(self):
         """:class:`bool`: Returns ``True`` if the application is a Discord partner."""
         return 1 << 30
+
+
+@fill_with_flags()
+class ActivityFlags(BaseFlags):
+    r"""Wraps up the Discord activity flags.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two ActivityFlags are equal.
+        .. describe:: x | y, x |= y
+
+            Returns a ActivityFlags instance with all enabled flags from
+            both x and y.
+        .. describe:: x & y, x &= y
+
+            Returns a ActivityFlags instance with only flags enabled on
+            both x and y.
+        .. describe:: x ^ y, x ^= y
+
+            Returns a ActivityFlags instance with only flags enabled on
+            only one of x or y, not on both.
+        .. describe:: ~x
+
+            Returns a ActivityFlags instance with all flags inverted from x.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+            Note that aliases are not shown.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties
+        rather than using this raw value.
+    """
+
+    @flag_value
+    def instance(self):
+        """:class:`bool`: Returns ``True`` if the activity is is an instanced game session (a match that will end)."""
+        return 1 << 0
+
+    @flag_value
+    def join(self):
+        """:class:`bool`: Returns ``True`` if the activity is joinable."""
+        return 1 << 1
+
+    @flag_value
+    def spectate(self):
+        """:class:`bool`: Returns ``True`` if the activity is spectable."""
+        return 1 << 2
+
+    @flag_value
+    def sync(self):
+        """:class:`bool`: Returns ``True`` if the activity is syncable."""
+        return 1 << 4
+
+    @flag_value
+    def play(self):
+        """:class:`bool`: Returns ``True`` if the activity is playable."""
+        return 1 << 5
+
+    @flag_value
+    def party_privacy_friends(self):
+        """:class:`bool`: Returns ``True`` if the activity's party can only be joined by friends."""
+        return 1 << 6
+
+    @flag_value
+    def party_privacy_voice_channel(self):
+        """:class:`bool`: Returns ``True`` if the activity's party can only be joined by people in the same voice channel."""
+        return 1 << 7
+
+    @flag_value
+    def embedded(self):
+        """:class:`bool`: Returns ``True`` if the activity is embedded into Discord."""
+        return 1 << 8
+
+    @flag_value
+    def contextless(self):
+        """:class:`bool`: Returns ``True`` if the activity can be launched without a context."""
+        return 1 << 9
 
 
 @fill_with_flags()

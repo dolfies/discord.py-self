@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Generic, Dict, List, Literal, Optional, Tuple, TypedDict, TypeVar, Union
 from typing_extensions import NotRequired, Required
 
-from .activity import Activity, BasePresenceUpdate, PartialPresenceUpdate, StatusType
+from .activity import Activity, UserPresenceUpdate, PartialPresenceUpdate, StatusType
 from .application import BaseAchievement
 from .audit_log import AuditLogEntry
 from .automod import AutoModerationAction, AutoModerationRuleTriggerType
@@ -67,10 +67,7 @@ from .voice import GuildVoiceState, PrivateVoiceState, VoiceServerUpdate, VoiceS
 T = TypeVar('T')
 
 
-class UserPresenceUpdateEvent(BasePresenceUpdate): ...
-
-
-PresenceUpdateEvent = Union[PartialPresenceUpdate, UserPresenceUpdateEvent]
+PresenceUpdateEvent = Union[PartialPresenceUpdate, UserPresenceUpdate]
 
 
 class Gateway(TypedDict):
@@ -131,10 +128,11 @@ class Session(TypedDict):
     client_info: ClientInfo
     status: StatusType
     activities: List[Activity]
+    hidden_activities: List[Activity]
 
 
 class MergedPresences(TypedDict):
-    friends: List[UserPresenceUpdateEvent]
+    friends: List[UserPresenceUpdate]
     guilds: List[List[PartialPresenceUpdate]]
 
 

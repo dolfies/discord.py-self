@@ -77,7 +77,7 @@ class VoiceRegion(TypedDict):
 class VoiceServerUpdate(TypedDict):
     token: str
     guild_id: Optional[Snowflake]
-    channel_id: Snowflake
+    channel_id: NotRequired[Snowflake]
     endpoint: Optional[str]
 
 

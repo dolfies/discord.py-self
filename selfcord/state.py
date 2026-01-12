@@ -921,18 +921,22 @@ class ClientStatus:
 
 
 class Presence:
-    __slots__ = ('client_status', 'activities')
+    __slots__ = ('client_status', 'activities', 'hidden_activities')
 
     _OFFLINE: ClassVar[Self] = MISSING
 
-    def __init__(self, data: gw.BasePresenceUpdate, state: ConnectionState, /) -> None:
+    def __init__(self, data: gw.PresenceUpdateEvent, state: ConnectionState, /) -> None:
         self.client_status: ClientStatus = ClientStatus(data['status'], data.get('client_status'))
-        self.activities: Tuple[ActivityTypes, ...] = tuple(create_activity(d, state) for d in data['activities'])
+        self.activities: Tuple[ActivityTypes, ...] = tuple(create_activity(d, state) for d in data.get('activities', []))
+        self.hidden_activities: Tuple[ActivityTypes, ...] = tuple(
+            create_activity(d, state) for d in data.get('hidden_activities', [])
+        )
 
     def __repr__(self) -> str:
         attrs = [
             ('client_status', self.client_status),
             ('activities', self.activities),
+            ('hidden_activities', self.hidden_activities),
         ]
         inner = ' '.join('%s=%r' % t for t in attrs)
         return f'<{self.__class__.__name__} {inner}>'
@@ -947,7 +951,7 @@ class Presence:
             return True
         return self.client_status != other.client_status or self.activities != other.activities
 
-    def _update(self, data: gw.BasePresenceUpdate, state: ConnectionState, /) -> None:
+    def _update(self, data: gw.PresenceUpdateEvent, state: ConnectionState, /) -> None:
         self.client_status._update(data['status'], data.get('client_status'))
         self.activities = tuple(create_activity(d, state) for d in data['activities'])
 
@@ -957,6 +961,7 @@ class Presence:
             self = cls.__new__(cls)  # bypass __init__
             self.client_status = ClientStatus()
             self.activities = ()
+            self.hidden_activities = ()
             cls._OFFLINE = self
 
         return cls._OFFLINE
@@ -966,6 +971,7 @@ class Presence:
         self = cls.__new__(cls)  # bypass __init__
         self.client_status = ClientStatus._copy(presence.client_status)
         self.activities = presence.activities
+        self.hidden_activities = presence.hidden_activities
         return self
 
 
@@ -1665,7 +1671,8 @@ class ConnectionState:
             extra_data['merged_presences'].get('guilds', []),
         ):
             for presence in merged_presences:
-                presence['user'] = {'id': presence['user_id']}  # type: ignore
+                if 'user' not in presence:
+                    presence['user'] = {'id': presence['user_id']}  # type: ignore
 
             if 'properties' in guild_data:
                 guild_data.update(guild_data.pop('properties'))
@@ -1937,13 +1944,16 @@ class ConnectionState:
             self.dispatch('recent_mention_delete', message)
         self.dispatch('raw_recent_mention_delete', message_id)
 
-    def parse_presences_replace(self, data: List[gw.PartialPresenceUpdate]) -> None:
+    def parse_presences_replace(self, data: List[gw.UserPresenceUpdate]) -> None:
         for presence in data:
             self.parse_presence_update(presence)
 
-    def _handle_presence_update(self, guild: Optional[Guild], data: gw.BasePresenceUpdate):
+    def _handle_presence_update(self, guild: Optional[Guild], data: gw.PresenceUpdateEvent) -> None:
         guild_id = guild.id if guild else None
         user = data['user']
+        if user is None:
+            _log.debug('PRESENCE_UPDATE referencing a null user. Discarding.')
+            return
         user_id = int(user['id'])
 
         presence = self.get_presence(user_id, guild_id)
@@ -1956,13 +1966,13 @@ class ConnectionState:
 
         if not guild:
             try:
-                relationship = self.create_implicit_relationship(self.store_user(user))
+                relationship = self.create_implicit_relationship(self.store_user(user))  # type: ignore
             except (KeyError, ValueError):
                 # User object is partial, so we can't continue
                 _log.debug('PRESENCE_UPDATE referencing an unknown relationship ID: %s. Discarding.', user_id)
                 return
 
-            user_update = relationship.user._update_self(user)
+            user_update = relationship.user._update_self(user)  # type: ignore
             if old_presence != presence:
                 old_relationship = Relationship._copy(relationship, old_presence)
                 self.dispatch('presence_update', old_relationship, relationship)
@@ -1972,7 +1982,7 @@ class ConnectionState:
                 _log.debug('PRESENCE_UPDATE referencing an unknown member ID: %s. Discarding.', user_id)
                 return
 
-            user_update = member._user._update_self(user)
+            user_update = member._user._update_self(user)  # type: ignore
             if old_presence != presence:
                 old_member = Member._copy(member)
                 old_member._presence = old_presence
@@ -3645,7 +3655,7 @@ class ConnectionState:
     def client_presence(self) -> FakeClientPresence:
         return FakeClientPresence(self)
 
-    def create_presence(self, data: gw.BasePresenceUpdate) -> Presence:
+    def create_presence(self, data: gw.PresenceUpdateEvent) -> Presence:
         return Presence(data, self)
 
     def create_offline_presence(self) -> Presence:
@@ -3672,7 +3682,11 @@ class ConnectionState:
             self._presences.pop(user_id, None)
 
     def store_presence(self, user_id: int, presence: Presence, guild_id: Optional[int] = None) -> Presence:
-        if presence.client_status.status == Status.offline.value and not presence.activities:
+        if (
+            presence.client_status.status == Status.offline.value
+            and not presence.activities
+            and not presence.hidden_activities
+        ):
             # We don't store empty presences
             self.remove_presence(user_id, guild_id)
             return presence
