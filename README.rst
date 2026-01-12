@@ -21,6 +21,7 @@ A modern, easy-to-use, feature-rich, and async-ready API wrapper for Discord's u
 |
 
 | **Credits:**
+
 - `Rapptz <https://github.com/Rapptz>`_ for the original library this fork is based on. Without it, the project would not exist.
 - `arandomnewaccount <https://www.reddit.com/user/obviouslymymain123/>`_ for help when the project was first started.
 
