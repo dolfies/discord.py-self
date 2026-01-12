@@ -32,6 +32,9 @@ jobs:
           pip install -U -r requirements.txt
           pip install -e .[docs,speed,voice]
 
+      - name: Restore timestamps
+        uses: chetan/git-restore-mtime-action@v2
+
       - name: Cache Sphinx build
         uses: actions/cache@v4
         with:
