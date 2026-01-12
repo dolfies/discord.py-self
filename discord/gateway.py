@@ -879,35 +879,7 @@ DVWS = TypeVar('DVWS', bound='DiscordVoiceWebSocket')
 
 
 class DiscordVoiceWebSocket:
-    """Implements the websocket protocol for handling voice connections.
-
-    Attributes
-    -----------
-    IDENTIFY
-        Send only. Starts a new voice session.
-    SELECT_PROTOCOL
-        Send only. Tells discord what encryption mode and how to connect for voice.
-    READY
-        Receive only. Tells the websocket that the initial connection has completed.
-    HEARTBEAT
-        Send only. Keeps your websocket connection alive.
-    SESSION_DESCRIPTION
-        Receive only. Gives you the secret key required for voice.
-    SPEAKING
-        Send only. Notifies the client if you are currently speaking.
-    HEARTBEAT_ACK
-        Receive only. Tells you your heartbeat has been acknowledged.
-    RESUME
-        Sent only. Tells the client to resume its session.
-    HELLO
-        Receive only. Tells you that your websocket connection was acknowledged.
-    RESUMED
-        Sent only. Tells you that your RESUME request has succeeded.
-    CLIENT_CONNECT
-        Indicates a user has connected to voice.
-    CLIENT_DISCONNECT
-        Receive only.  Indicates a user has disconnected from voice.
-    """
+    """Implements the websocket protocol for handling voice connections."""
 
     if TYPE_CHECKING:
         thread_id: int
@@ -927,8 +899,9 @@ class DiscordVoiceWebSocket:
     HELLO                          = 8
     RESUMED                        = 9
     CLIENTS_CONNECT                = 11
-    CLIENT_CONNECT                 = 12
+    VIDEO                          = 12
     CLIENT_DISCONNECT              = 13
+    VOICE_BACKEND_VERSION          = 16
     DAVE_PREPARE_TRANSITION        = 21
     DAVE_EXECUTE_TRANSITION        = 22
     DAVE_TRANSITION_READY          = 23
@@ -976,7 +949,7 @@ class DiscordVoiceWebSocket:
         await self._sendstr(utils._to_json(data))
 
     async def send_binary(self, opcode: int, data: bytes) -> None:
-        _log.debug('Sending voice websocket binary frame: opcode=%s size=%d', opcode, len(data))
+        _log.debug('Voice socket sending binary: opcode=%s, size=%d.', opcode, len(data))
         await self.ws.send_bytes(bytes([opcode]) + data)
 
     send_heartbeat = send_as_json
@@ -1053,7 +1026,7 @@ class DiscordVoiceWebSocket:
 
     async def client_connect(self) -> None:
         payload = {
-            'op': self.CLIENT_CONNECT,
+            'op': self.VIDEO,
             'd': {
                 'audio_ssrc': self._connection.ssrc,
             },
@@ -1069,6 +1042,14 @@ class DiscordVoiceWebSocket:
                 'delay': 0,
                 'ssrc': self._connection.ssrc,
             },
+        }
+
+        await self.send_as_json(payload)
+
+    async def request_voice_backend_version(self) -> None:
+        payload = {
+            'op': self.VOICE_BACKEND_VERSION,
+            'd': {},
         }
 
         await self.send_as_json(payload)
@@ -1106,6 +1087,8 @@ class DiscordVoiceWebSocket:
             interval = data['heartbeat_interval'] / 1000.0
             self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=min(interval, 5.0))
             self._keep_alive.start()
+        elif op == self.VOICE_BACKEND_VERSION:
+            _log.debug('Voice backend version: voice=%r, rtc_worker=%r.', data.get('voice'), data.get('rtc_worker'))
         elif self._connection.dave_session:
             state = self._connection
             if op == self.DAVE_PREPARE_TRANSITION:
@@ -1137,7 +1120,7 @@ class DiscordVoiceWebSocket:
     async def received_binary_message(self, msg: bytes) -> None:
         self.seq_ack = struct.unpack_from('>H', msg, 0)[0]
         op = msg[2]
-        _log.debug('Voice socket binary frame: %d bytes; seq=%s; op=%s.', len(msg), self.seq_ack, op)
+        _log.debug('Voice socket binary frame: %d bytes, seq=%s, op=%s.', len(msg), self.seq_ack, op)
         state = self._connection
 
         if state.dave_session is None:
@@ -1184,6 +1167,7 @@ class DiscordVoiceWebSocket:
         state.voice_port = data['port']
         state.endpoint_ip = data['ip']
 
+        await self.request_voice_backend_version()
         _log.debug('Connecting to voice socket...')
         await self.loop.sock_connect(state.socket, (state.endpoint_ip, state.voice_port))
 

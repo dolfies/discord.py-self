@@ -849,7 +849,7 @@ class Client:
             if new_activity_payload is not None:
                 activities.append(new_activity_payload)
 
-        _log.debug('Syncing presence to status=%r; activity=%r.', status, new_settings.custom_activity)
+        _log.debug('Syncing presence to status=%r, activity=%r.', status, new_settings.custom_activity)
         await self.ws.change_presence(status=status, activities=activities, afk=ws.afk, since=ws.idle_since)
 
     # Hooks
