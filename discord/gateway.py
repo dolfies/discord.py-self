@@ -40,7 +40,6 @@ from curl_cffi.const import CurlWsFlag
 import yarl
 
 from . import utils
-from .activity import BaseActivity, Spotify
 from .enums import SpeakingState, Status
 from .errors import ConnectionClosed
 from .flags import Capabilities
@@ -58,14 +57,15 @@ __all__ = (
     'VoiceKeepAliveHandler',
     'DiscordVoiceWebSocket',
     'ReconnectWebSocket',
+    'ConnectionClosed',
 )
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from .activity import ActivityTypes
     from .client import Client
     from .state import ConnectionState
+    from .types.activity import Activity as ActivityPayload
     from .types.snowflake import Snowflake
     from .types.gateway import BulkGuildSubscribePayload
     from .voice_state import VoiceConnectionState
@@ -330,6 +330,8 @@ class DiscordWebSocket:
         self._initial_identify: bool = False
 
         # Presence state tracking
+        self.status: str = Status.unknown.value
+        self.activities: List[ActivityPayload] = []
         self.afk: bool = False
         self.idle_since: int = 0
 
@@ -724,25 +726,20 @@ class DiscordWebSocket:
     async def change_presence(
         self,
         *,
-        activities: Optional[Sequence[ActivityTypes]] = None,
-        status: Optional[Status] = None,
+        activities: Optional[Sequence[ActivityPayload]] = None,
+        status: str,
         since: int = 0,
         afk: bool = False,
     ) -> None:
-        if activities is not None:
-            if not all(isinstance(activity, (BaseActivity, Spotify)) for activity in activities):
-                raise TypeError('activity must derive from BaseActivity')
-            activities_data = [activity.to_dict() for activity in activities]
-        else:
-            activities_data = []
-
         payload = {
             'op': self.PRESENCE,
-            'd': {'activities': activities_data, 'afk': afk, 'since': since, 'status': str(status or 'unknown')},
+            'd': {'activities': activities or [], 'afk': afk, 'since': since, 'status': str(status)},
         }
 
         _log.debug('Sending %s to change presence.', payload['d'])
         await self.send_as_json(payload)
+        self.status = str(status)
+        self.activities = list(activities or [])
         self.afk = afk
         self.idle_since = since
 

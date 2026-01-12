@@ -989,13 +989,17 @@ class FakeClientPresence(Presence):
     @property
     def client_status(self) -> ClientStatus:
         state = self._state
-        status = str(getattr(state.current_session, 'status', 'offline'))
+        status = str(getattr(state.all_session, 'status', state.ws.status))
         client_status = {str(session.client): str(session.status) for session in state._sessions.values()}
         return ClientStatus(status, client_status)  # type: ignore
 
     @property
     def activities(self) -> Tuple[ActivityTypes, ...]:
-        return getattr(self._state.current_session, 'activities', ())
+        return getattr(
+            self._state.all_session,
+            'activities',
+            tuple(create_activity(d, self._state, self._state.self_id) for d in self._state.ws.activities),
+        )
 
 
 async def logging_coroutine(coroutine: Coroutine[Any, Any, T], *, info: str) -> Optional[T]:
@@ -2190,6 +2194,14 @@ class ConnectionState:
             else:
                 old_all = Session._fake_all(state=self, data=fake)
             self._sessions['all'] = old_all
+
+        # One-time discover our internal state
+        if from_ready and self.ws.status == 'unknown':
+            our_session = self._sessions.get(self.session_id)  # type: ignore
+            if our_session is None:
+                return
+            self.ws.status = our_session.status.value
+            self.ws.activities = [a.to_dict() for a in our_session.activities]
 
     def parse_entitlement_create(self, data: gw.EntitlementEvent) -> None:
         entitlement = Entitlement(state=self, data=data)
@@ -3653,7 +3665,7 @@ class ConnectionState:
 
     @property
     def current_session(self) -> Optional[Session]:
-        return self._sessions.get(self.session_id, self.all_session)  # type: ignore
+        return self._sessions.get(self.session_id)  # type: ignore
 
     @utils.cached_property
     def client_presence(self) -> FakeClientPresence:

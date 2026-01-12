@@ -62,12 +62,10 @@ from .widget import Widget
 from .guild import UserGuild
 from .emoji import Emoji
 from .channel import _private_channel_factory, _threaded_channel_factory, GroupChannel, PartialMessageable
-from .enums import ActivityType, ChannelType, ClientType, ConnectionType, EntitlementType, Status
+from .enums import ActivityType, ChannelType, ClientType, ConnectionType, EntitlementType, RelationshipType, Status, try_enum
 from .mentions import AllowedMentions
 from .errors import *
-from .enums import RelationshipType, Status
 from .gateway import *
-from .gateway import ConnectionClosed
 from .activity import ActivityTypes, BaseActivity, Session, Spotify, create_activity
 from .voice_client import VoiceClient
 from .http import HTTPClient
@@ -821,32 +819,38 @@ class Client:
         _log.exception('Ignoring exception in %s', event_method)
 
     async def on_internal_settings_update(self, old_settings: UserSettings, new_settings: UserSettings, /):
-        if not self._sync_presences:
+        ws = self.ws
+        if not self._sync_presences or not ws:
             return
 
-        if (
-            old_settings is not None
-            and old_settings.status == new_settings.status
-            and old_settings.custom_activity == new_settings.custom_activity
-        ):
+        if old_settings.status == new_settings.status and old_settings.custom_activity == new_settings.custom_activity:
             return  # Nothing changed
 
-        current_activity = None
-        for activity in self.activities:
-            if activity.type != ActivityType.custom:
-                current_activity = activity
+        new_activity_payload = new_settings.custom_activity.to_dict() if new_settings.custom_activity else None
+        current_activity_payload = None
+        for activity in ws.activities:
+            if activity['type'] == ActivityType.custom.value:
+                current_activity_payload = activity
                 break
 
-        if new_settings.status == self.client_status and new_settings.custom_activity == current_activity:
+        if new_settings.status.value == ws.status and new_activity_payload == current_activity_payload:
             return  # Nothing changed
 
-        status = new_settings.status
-        activities = [a for a in self.client_activities if a.type != ActivityType.custom]
-        if new_settings.custom_activity is not None:
-            activities.append(new_settings.custom_activity)
+        status = new_settings.status.value
+        activities = list(ws.activities)
+        for i, activity in enumerate(activities):
+            if activity['type'] == ActivityType.custom.value:
+                if new_activity_payload is None:
+                    activities.pop(i)
+                else:
+                    activities[i] = new_activity_payload
+                break
+        else:
+            if new_activity_payload is not None:
+                activities.append(new_activity_payload)
 
-        _log.debug('Syncing presence to %s %s', status, new_settings.custom_activity)
-        await self.change_presence(status=status, activities=activities, edit_settings=False)
+        _log.debug('Syncing presence to status=%r; activity=%r.', status, new_settings.custom_activity)
+        await self.ws.change_presence(status=status, activities=activities, afk=ws.afk, since=ws.idle_since)
 
     # Hooks
 
@@ -1309,7 +1313,7 @@ class Client:
         """
         status = getattr(self._connection.all_session, 'status', None)
         if status is None and not self.is_closed():
-            status = getattr(self._connection.settings, 'status', status)
+            status = self.client_status
         return status or Status.offline
 
     @property
@@ -1328,7 +1332,10 @@ class Client:
         """
         status = getattr(self._connection.current_session, 'status', None)
         if status is None and not self.is_closed():
-            status = getattr(self._connection.settings, 'status', status)
+            if self.ws is not None and self.ws.status != 'unknown':
+                status = try_enum(Status, self.ws.status)
+            else:
+                status = getattr(self._connection.settings, 'status', status)
         return status or Status.offline
 
     def is_on_mobile(self) -> bool:
@@ -1354,8 +1361,7 @@ class Client:
         state = self._connection
         activities = state.all_session.activities if state.all_session else None
         if activities is None and not self.is_closed():
-            activity = getattr(state.settings, 'custom_activity', None)
-            activities = (activity,) if activity else activities
+            activities = self.client_activities
         return activities or tuple()
 
     @property
@@ -1388,8 +1394,11 @@ class Client:
         state = self._connection
         activities = state.current_session.activities if state.current_session else None
         if activities is None and not self.is_closed():
-            activity = getattr(state.settings, 'custom_activity', None)
-            activities = (activity,) if activity else activities
+            if self.ws is not None and self.ws.status != 'unknown':
+                activities = tuple(create_activity(a, state, state.self_id) for a in self.ws.activities)
+            else:
+                activity = getattr(state.settings, 'custom_activity', None)
+                activities = (activity,) if activity else activities
         return activities or tuple()
 
     def is_afk(self) -> bool:
@@ -1867,40 +1876,47 @@ class Client:
         """
         if activity is not MISSING and activities is not MISSING:
             raise TypeError('Cannot pass both activity and activities')
+        ws = self.ws
 
         skip_activities = False
         if activities is MISSING:
             if activity is not MISSING:
                 activities = [activity] if activity else []
+                activities_data = [activity.to_dict()] if activity else []
             else:
-                activities = list(self.client_activities)
+                if ws.status == 'unknown':
+                    activities_data = [activity.to_dict() for activity in self.client_activities]
+                else:
+                    activities_data = self.ws.activities
                 skip_activities = True
         else:
-            activities = activities or []
+            activities_data = [a.to_dict() for a in activities] if activities else []
 
         skip_status = status is MISSING
         if status is MISSING:
-            status = self.client_status
-        if status is Status.offline:
-            status = Status.invisible
+            status_str = ws.status if ws.status != 'unknown' else self.client_status.value
+        elif status is Status.offline:
+            status_str = Status.invisible.value
+        else:
+            status_str = str(status)
 
         if afk is MISSING:
             afk = self.ws.afk if self.ws else False
 
         if idle_since is MISSING:
-            since = self.ws.idle_since if self.ws else 0
+            since = ws.idle_since
         else:
             since = int(idle_since.timestamp() * 1000) if idle_since else 0
 
         custom_activity = None
         if not skip_activities:
             for activity in activities:
-                if getattr(activity, 'type', None) is ActivityType.custom:
+                if activity.type is ActivityType.custom:
                     if custom_activity is not None:
                         raise ValueError('More than one custom activity was passed')
                     custom_activity = activity
 
-        await self.ws.change_presence(status=status, activities=activities, afk=afk, since=since)
+        await self.ws.change_presence(status=status_str, activities=activities_data, afk=afk, since=since)
 
         if edit_settings and self.settings:
             payload: Dict[str, Any] = {}
@@ -1940,7 +1956,6 @@ class Client:
         self_video: :class:`bool`
             Indicates if the client is using video. Do not use.
         """
-        state = self._connection
         ws = self.ws
         channel_id = channel.id if channel else None
 
