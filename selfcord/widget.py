@@ -143,7 +143,7 @@ class WidgetMember(BaseUser):
         The member's guild-specific nickname. Takes precedence over the global name.
     avatar: Optional[:class:`str`]
         The member's avatar hash.
-    activity: Optional[Union[:class:`BaseActivity`, :class:`Spotify`]]
+    activity: Optional[:class:`BaseActivity`]
         The member's activity.
     deafened: Optional[:class:`bool`]
         Whether the member is currently deafened.
@@ -188,7 +188,7 @@ class WidgetMember(BaseUser):
         except KeyError:
             activity = None
         else:
-            activity = create_activity(game, state)
+            activity = create_activity(game, state, self.id)
 
         self.activity: Optional[Union[BaseActivity, Spotify]] = activity
 

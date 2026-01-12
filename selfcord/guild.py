@@ -741,7 +741,7 @@ class Guild(Hashable):
 
         for presence in guild.get('presences', []):
             user_id = int(presence['user']['id'])
-            presence = state.create_presence(presence)
+            presence = state.create_presence(presence, user_id)
             state.store_presence(user_id, presence, self.id)
 
     @property

@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, 
 from .asset import Asset, AssetMixin
 from .colour import Colour
 from .enums import (
+    ActivityActionType,
     ActivityPlatform,
     ActivityType,
     ClientType,
@@ -67,6 +68,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .application import ApplicationAsset
+    from .message import Message
     from .state import ConnectionState
     from .types.activity import (
         Activity as ActivityPayload,
@@ -89,6 +91,7 @@ class BaseActivity:
     """
 
     __slots__ = (
+        '_state',
         'id',
         'type',
         'name',
@@ -96,6 +99,7 @@ class BaseActivity:
     )
 
     def __init__(self, *, name: Optional[str] = None, **kwargs: Any) -> None:
+        self._state: Optional[ConnectionState] = None
         self.id: str = kwargs.pop('id', '')
         type = kwargs.pop('type', 0)
         self.type: ActivityType = type if isinstance(type, ActivityType) else try_enum(ActivityType, type)
@@ -126,7 +130,7 @@ class BaseActivity:
 
     def copy(self) -> Self:
         """Returns a shallow copy of the activity."""
-        return self.__class__.from_dict(self.to_dict())
+        return self.__class__.from_dict(self.to_dict(), state=self._state)  # type: ignore
 
     @classmethod
     def from_dict(cls, data: ActivityPayload) -> Self:
@@ -889,6 +893,7 @@ class Activity(BaseActivity):
 
     __slots__ = (
         '_state',
+        '_user_id',
         'state',
         'details',
         'timestamps',
@@ -939,6 +944,7 @@ class Activity(BaseActivity):
         super().__init__(name=name, type=type)
         self.name: str = name
         self._state: Optional[ConnectionState] = None
+        self._user_id: Optional[int] = None
         self._flags: int = flags.value if flags is not None else 0
         self.application_id: Optional[int] = application_id
         self.url = url
@@ -1008,9 +1014,10 @@ class Activity(BaseActivity):
             self.metadata.button_urls = [getattr(button, 'url', None) or '' for button in buttons]
 
     @classmethod
-    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState) -> Self:
+    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState, user_id: Optional[int] = None) -> Self:
         self = cls.__new__(cls)
         self._state = state
+        self._user_id = user_id
         self.id = data.get('id', '')
         self.type = try_enum(ActivityType, data.get('type', 0))
         self.name = data['name']
@@ -1250,6 +1257,102 @@ class Activity(BaseActivity):
             Use :attr:`~selfcord.ActivityAssets.small_text` instead.
         """
         return self.assets.small_text
+
+    async def fetch_metadata(self) -> Metadata:
+        """|coro|
+
+        Fetches the full metadata for this activity.
+
+        Activities must have an :attr:`application_id` to fetch metadata,
+        unless they are of type :attr:`ActivityType.listening` and the user only
+        has a single activity of that type.
+
+        Raises
+        ------
+        NotFound
+            The rich presence was not found.
+        HTTPException
+            Fetching the metadata failed.
+        ValueError
+            The activity does not have a :attr:`session_id`.
+            The non-listening activity does not have an :attr:`application_id`.
+        TypeError
+            The emoji does not have state available.
+
+        Returns
+        -------
+        :class:`Metadata`
+            The full metadata for this activity.
+        """
+        if self._state is None or self._user_id is None:
+            raise TypeError('Activity does not have state available')
+        if self.session_id is None:
+            raise ValueError('Activity must have a session_id to fetch metadata')
+        if self.type != ActivityType.listening and self.application_id is None:
+            raise ValueError('Activity must have an application_id to fetch metadata')
+
+        metadata_data = await self._state.http.get_activity_metadata(
+            user_id=self._user_id,
+            session_id=self.session_id,
+            application_id=self.application_id or 0,
+        )
+        self.metadata = Metadata(metadata_data or {})
+        return self.metadata
+
+    async def fetch_secret(
+        self, action_type: ActivityActionType = ActivityActionType.join, message: Optional[Message] = None
+    ) -> str:
+        """|coro|
+
+        Fetches the secret for this activity.
+
+        Activities must have an :attr:`application_id` to fetch secrets.
+
+        Parameters
+        -----------
+        action_type: :class:`ActivityActionType`
+            The type of secret to fetch. Only :attr:`ActivityActionType.join` and
+            :attr:`ActivityActionType.spectate` are valid.
+        message: Optional[:class:`selfcord.Message`]
+            The message that contains the rich presence invite. Required if you do
+            not meet public party requirements.
+
+        Raises
+        ------
+        NotFound
+            The rich presence was not found.
+        HTTPException
+            Fetching the secret failed.
+        ValueError
+            The activity does not have a :attr:`session_id`.
+            The activity does not have an :attr:`application_id`.
+            The ``action_type`` is invalid.
+        TypeError
+            The activity does not have state available.
+
+        Returns
+        -------
+        :class:`str`
+            The secret for the specified action type.
+        """
+        if action_type not in (ActivityActionType.join, ActivityActionType.spectate):
+            raise ValueError('Invalid action_type specified')
+        if self._state is None or self._user_id is None:
+            raise TypeError('Activity does not have state available')
+        if self.session_id is None:
+            raise ValueError('Activity must have a session_id to fetch secrets')
+        if self.application_id is None:
+            raise ValueError('Activity must have an application_id to fetch secrets')
+
+        secret_data = await self._state.http.get_activity_secret(
+            user_id=self._user_id,
+            session_id=self.session_id,
+            application_id=self.application_id or 0,
+            action_type=action_type.value,
+            channel_id=message.channel.id if message else None,
+            message_id=message.id if message else None,
+        )
+        return secret_data.get('secret') or ''
 
 
 class _ActivityInstanceProxy(type):
@@ -1616,7 +1719,7 @@ class CustomActivity(BaseActivity):
             raise TypeError(f'Expected str, PartialEmoji, or None, received {type(emoji)!r} instead')
 
     @classmethod
-    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState) -> Self:
+    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState, **kwargs: Any) -> Self:
         self = cls.__new__(cls)
         self.id = data.get('id', '')
         self.type = ActivityType.custom
@@ -1798,7 +1901,7 @@ class HangActivity(BaseActivity):
             raise TypeError('text must be provided when status_type is HangStatusType.custom')
 
     @classmethod
-    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState) -> Self:
+    def from_dict(cls, data: ActivityPayload, *, state: ConnectionState, **kwargs: Any) -> Self:
         self = cls.__new__(cls)
         self.id = data.get('id', '')
         self.type = ActivityType.hang
@@ -1930,10 +2033,10 @@ class Session:
         self.active: bool = data.get('active', False)
         self.status: Status = try_enum(Status, data['status'])
         self.activities: Tuple[ActivityTypes, ...] = tuple(
-            create_activity(activity, state) for activity in data.get('activities', [])
+            create_activity(activity, state, state.self_id) for activity in data.get('activities', [])
         )
         self.hidden_activities: Tuple[ActivityTypes, ...] = tuple(
-            create_activity(activity, state) for activity in data.get('hidden_activities', [])
+            create_activity(activity, state, state.self_id) for activity in data.get('hidden_activities', [])
         )
 
     def __repr__(self) -> str:
@@ -1983,18 +2086,18 @@ ActivityTypes = Union[Activity, CustomActivity, HangActivity, Spotify]
 
 
 @overload
-def create_activity(data: ActivityPayload, state: ConnectionState) -> ActivityTypes: ...
+def create_activity(data: ActivityPayload, state: ConnectionState, user_id: int) -> ActivityTypes: ...
 
 
 @overload
-def create_activity(data: None, state: ConnectionState) -> None: ...
+def create_activity(data: None, state: ConnectionState, user_id: int) -> None: ...
 
 
 @overload
-def create_activity(data: Optional[ActivityPayload], state: ConnectionState) -> Optional[ActivityTypes]: ...
+def create_activity(data: Optional[ActivityPayload], state: ConnectionState, user_id: int) -> Optional[ActivityTypes]: ...
 
 
-def create_activity(data: Optional[ActivityPayload], state: ConnectionState) -> Optional[ActivityTypes]:
+def create_activity(data: Optional[ActivityPayload], state: ConnectionState, user_id: int) -> Optional[ActivityTypes]:
     if not data:
         return None
 
@@ -2008,6 +2111,6 @@ def create_activity(data: Optional[ActivityPayload], state: ConnectionState) -> 
         and data['name'] == 'Spotify'
         and data.get('party', {}).get('id', '').startswith('spotify:')
     ):
-        return Spotify.from_dict(data=data, state=state)
+        return Spotify.from_dict(data=data, state=state, user_id=user_id)
     else:
-        return Activity.from_dict(data=data, state=state)
+        return Activity.from_dict(data=data, state=state, user_id=user_id)

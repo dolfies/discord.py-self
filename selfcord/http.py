@@ -87,12 +87,10 @@ if TYPE_CHECKING:
     from .mentions import AllowedMentions
     from .message import Attachment, Message
     from .threads import Thread
-    from .flags import MessageFlags
-    from .enums import ChannelType, InteractionType
-    from .embeds import Embed
     from .poll import Poll
 
     from .types import (
+        activity,
         application,
         audit_log,
         automod,
@@ -3624,6 +3622,46 @@ class HTTPClient:
         return self.request(
             Route('POST', '/users/@me/applications/{application_id}/entitlement-ticket', application_id=application_id),
             json=payload,
+        )
+
+    def get_activity_metadata(
+        self, user_id: Snowflake, session_id: str, application_id: Snowflake
+    ) -> Response[Optional[Dict[str, Any]]]:
+        return self.request(
+            Route(
+                'GET',
+                '/users/{user_id}/sessions/{session_id}/activities/{application_id}/metadata',
+                user_id=user_id,
+                session_id=session_id,
+                application_id=application_id,
+            )
+        )
+
+    def get_activity_secret(
+        self,
+        user_id: Snowflake,
+        session_id: Snowflake,
+        application_id: Snowflake,
+        action_type: Literal[1, 2],
+        channel_id: Optional[Snowflake] = None,
+        message_id: Optional[Snowflake] = None,
+    ) -> Response[activity.ActivitySecret]:
+        params = {}
+        if channel_id is not None:
+            params['channel_id'] = channel_id
+        if message_id is not None:
+            params['message_id'] = message_id
+
+        return self.request(
+            Route(
+                'GET',
+                '/users/{user_id}/sessions/{session_id}/activities/{application_id}/{action_type}',
+                user_id=user_id,
+                session_id=session_id,
+                application_id=application_id,
+                action_type=action_type,
+            ),
+            params=params,
         )
 
     def get_app_activity_statistics(

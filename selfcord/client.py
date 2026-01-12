@@ -1257,7 +1257,7 @@ class Client:
             The client may be setting multiple activities, these can be accessed under :attr:`initial_activities`.
         """
         state = self._connection
-        return create_activity(state._activities[0], state) if state._activities else None
+        return create_activity(state._activities[0], state, state.self_id) if state._activities else None
 
     @initial_activity.setter
     def initial_activity(self, value: Optional[ActivityTypes]) -> None:
@@ -1272,7 +1272,7 @@ class Client:
     def initial_activities(self) -> List[ActivityTypes]:
         """List[:class:`.BaseActivity`]: The activities set upon logging in."""
         state = self._connection
-        return [create_activity(activity, state) for activity in state._activities]
+        return [create_activity(activity, state, state.self_id) for activity in state._activities]
 
     @initial_activities.setter
     def initial_activities(self, values: Sequence[ActivityTypes]) -> None:

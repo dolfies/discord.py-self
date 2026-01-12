@@ -43,6 +43,7 @@ __all__ = (
     'NameFont',
     'NameEffect',
     'ActivityType',
+    'ActivityActionType',
     'ActivityPlatform',
     'HangStatusType',
     'NotificationLevel',
@@ -773,6 +774,14 @@ class ActivityType(Enum):
 
     def __int__(self) -> int:
         return self.value
+
+
+class ActivityActionType(Enum):
+    join = 1
+    spectate = 2
+    listen = 3
+    watch = 4
+    join_request = 5
 
 
 class ActivityPlatform(Enum):

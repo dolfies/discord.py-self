@@ -434,7 +434,7 @@ class Member(selfcord.abc.Messageable, selfcord.abc.Connectable, _UserTag):
     def _presence_update(
         self, data: BasePresenceUpdate, user: Union[PartialUserPayload, Tuple[()]]
     ) -> Optional[Tuple[User, User]]:
-        self._presence = self._state.create_presence(data)
+        self._presence = self._state.create_presence(data, self._user.id)
         return self._user._update_self(user)
 
     def _get_voice_client_key(self) -> Tuple[int, str]:
