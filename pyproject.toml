@@ -99,7 +99,7 @@ fast = true
 line-length = 125
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "auto"
 quote-style = "single"
 
 [tool.coverage.run]
