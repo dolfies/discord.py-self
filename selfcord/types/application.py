@@ -338,3 +338,8 @@ class UnverifiedApplication(TypedDict):
     name: str
     hash: str
     missing_data: List[str]
+
+
+class ExternalAsset(TypedDict):
+    url: str
+    external_asset_path: str

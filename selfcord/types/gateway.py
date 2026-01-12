@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Generic, Dict, List, Literal, Optional, Tuple, TypedDict, TypeVar, Union
 from typing_extensions import NotRequired, Required
 
-from .activity import Activity, UserPresenceUpdate, PartialPresenceUpdate, StatusType
+from .activity import Activity, BasePresenceUpdate, UserPresenceUpdate, PartialPresenceUpdate, StatusType
 from .application import BaseAchievement
 from .audit_log import AuditLogEntry
 from .automod import AutoModerationAction, AutoModerationRuleTriggerType

@@ -124,6 +124,14 @@ class BaseActivity:
             return parse_timestamp(self._created_at)
         return utcnow()
 
+    def copy(self) -> Self:
+        """Returns a shallow copy of the activity."""
+        return self.__class__.from_dict(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, data: ActivityPayload) -> Self:
+        raise NotImplementedError
+
     def to_dict(self) -> ActivityPayload:
         raise NotImplementedError
 
@@ -227,6 +235,15 @@ class ActivityAssets:
             Checks if the assets have a value.
 
     .. versionadded:: 2.1
+
+    .. note::
+
+        Discord CDN, media proxy, application, Twitch, YouTube, and Spotify assets
+        are able to be used directly in activity assets by providing their URLs or URIs.
+
+        In order to provide an arbitrary image link, you must use :meth:`~selfcord.Client.proxy_external_application_assets`
+        or :meth:`~selfcord.Application.proxy_external_assets` to retrieved a proxied URL from Discord.
+        Otherwise, the image will not render in clients.
 
     Attributes
     -----------
@@ -1951,7 +1968,7 @@ class Session:
         return self.session_id == self._state.session_id
 
 
-ActivityTypes = Union[Activity, CustomActivity, Spotify]
+ActivityTypes = Union[Activity, CustomActivity, HangActivity, Spotify]
 
 
 @overload

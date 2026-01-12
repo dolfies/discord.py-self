@@ -3188,6 +3188,16 @@ class HTTPClient:
             json=payload,
         )
 
+    def create_app_external_assets(
+        self,
+        application_id: Snowflake,
+        urls: Sequence[str],
+    ) -> Response[List[application.ExternalAsset]]:
+        payload = {'urls': urls}
+        return self.request(
+            Route('POST', '/applications/{application_id}/external-assets', application_id=application_id), json=payload
+        )
+
     def get_app_entitlements(
         self,
         application_id: Snowflake,
