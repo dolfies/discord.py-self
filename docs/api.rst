@@ -2314,6 +2314,28 @@ of :class:`enum.Enum`.
 
         A voice-only hang status activity type.
 
+.. class:: ActivityActionType
+
+    Specifies an action type for an :class:`Activity`.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: join
+
+        Allows others to join a game with the user.
+
+    .. attribute:: spectate
+
+        Allows others to spectate a game the user is playing.
+
+    .. attribute:: listen
+
+        Allows others to listen to a song with the user.
+
+    .. attribute:: join_request
+
+        Asks others to invite the user to a game.
+
 .. class:: ActivityPlatform
 
     Specifies the platform of an :class:`Activity`.

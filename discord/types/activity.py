@@ -87,6 +87,10 @@ class ActivitySecrets(TypedDict, total=False):
     spectate: str
 
 
+class ActivitySecret(TypedDict):
+    secret: str
+
+
 class ActivityEmoji(TypedDict):
     name: Optional[str]
     id: Optional[Snowflake]
