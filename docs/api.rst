@@ -9005,6 +9005,11 @@ Presence
     :members:
     :inherited-members:
 
+.. attributetable:: ActivityTimestamps
+
+.. autoclass:: ActivityTimestamps()
+    :members:
+
 .. attributetable:: ActivityAssets
 
 .. autoclass:: ActivityAssets()
@@ -9030,6 +9035,18 @@ Presence
 
 .. autoclass:: ActivitySecrets()
     :members:
+
+.. attributetable:: Game
+
+.. autoclass:: Game()
+    :members:
+    :inherited-members:
+
+.. attributetable:: Streaming
+
+.. autoclass:: Streaming()
+    :members:
+    :inherited-members:
 
 .. attributetable:: Spotify
 

@@ -1948,7 +1948,9 @@ class ConnectionState:
         for presence in data:
             self.parse_presence_update(presence)
 
-    def _handle_presence_update(self, guild: Optional[Guild], data: Union[gw.BasePresenceUpdate, gw.PresenceUpdateEvent]) -> None:
+    def _handle_presence_update(
+        self, guild: Optional[Guild], data: Union[gw.BasePresenceUpdate, gw.PresenceUpdateEvent]
+    ) -> None:
         guild_id = guild.id if guild else None
         user = data['user']  # type: ignore
         if user is None:

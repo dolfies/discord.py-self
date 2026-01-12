@@ -1056,8 +1056,19 @@ class Activity(BaseActivity):
         else:
             self.party = ActivityParty()
 
+        secrets_data = data.get('secrets')
+        if secrets_data:
+            self.secrets = ActivitySecrets.from_dict(secrets_data)
+        else:
+            self.secrets = None
+
+        metadata_data = data.get('metadata')
+        if metadata_data:
+            self.metadata = Metadata(metadata_data)
+        else:
+            self.metadata = None
+
         self.buttons = data.get('buttons') or []
-        self.secrets = self.metadata = None
         return self
 
     def __repr__(self) -> str:
