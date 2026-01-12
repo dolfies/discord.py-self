@@ -506,6 +506,20 @@ class TeamMember(User):
         The membership state of the member (i.e. invited or accepted)
     permissions: List[:class:`str`]
         The permissions of the team member. This is always "*".
+    name: :class:`str`
+        The user's username.
+    id: :class:`int`
+        The user's unique ID.
+    discriminator: :class:`str`
+        The user's discriminator. This is a legacy concept that is no longer used.
+    global_name: Optional[:class:`str`]
+        The user's global nickname, taking precedence over the username in display.
+
+        .. versionadded:: 2.1
+    bot: :class:`bool`
+        Specifies if the user is a bot account.
+    system: :class:`bool`
+        Specifies if the user is a system user (i.e. represents Discord officially).
     """
 
     __slots__ = ('team', 'membership_state', 'permissions')
