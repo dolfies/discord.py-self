@@ -928,6 +928,8 @@ class DiscordVoiceWebSocket:
         self._close_code: Optional[int] = None
         self.secret_key: Optional[List[int]] = None
         self.seq_ack: int = -1
+        self.voice_version: Optional[str] = None
+        self.rtc_worker_version: Optional[str] = None
         if hook:
             self._hook = hook  # type: ignore
 
@@ -1088,7 +1090,9 @@ class DiscordVoiceWebSocket:
             self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=min(interval, 5.0))
             self._keep_alive.start()
         elif op == self.VOICE_BACKEND_VERSION:
-            _log.debug('Voice backend version: voice=%r, rtc_worker=%r.', data.get('voice'), data.get('rtc_worker'))
+            self.voice_version = data.get('voice')
+            self.rtc_worker_version = data.get('rtc_worker')
+            _log.debug('Voice backend version: voice=%r, rtc_worker=%r.', self.voice_version, self.rtc_worker_version)
         elif self._connection.dave_session:
             state = self._connection
             if op == self.DAVE_PREPARE_TRANSITION:
