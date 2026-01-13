@@ -1,4 +1,3 @@
-import os
 import discord
 
 # Your Developer Portal Application ID (used for proxying external assets)
