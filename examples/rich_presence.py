@@ -8,7 +8,7 @@ LARGE_IMAGE_URL = 'image url here'
 SMALL_IMAGE_URL = 'image url here'
 
 
-class Client(discord.Client):
+class MyClient(discord.Client):
     async def on_ready(self):
         # Proxy BOTH urls in one call (Discord supports proxying up to 2 at a time).
         proxied_large, proxied_small = await self.proxy_external_application_assets(
