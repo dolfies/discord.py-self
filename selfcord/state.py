@@ -55,7 +55,7 @@ from math import ceil
 
 from discord_protos import UserSettingsType
 
-from .errors import ClientException, DiscordException, InvalidData, NotFound
+from .errors import ClientException, InvalidData, NotFound
 from .guild import Guild
 from .activity import BaseActivity, create_activity, Session
 from .user import User, ClientUser
@@ -105,7 +105,6 @@ from .tutorial import Tutorial
 from .experiment import UserExperiment, GuildExperiment
 from .metadata import Metadata
 from .directory import DirectoryEntry
-from .backoff import ExponentialBackoff
 
 if TYPE_CHECKING:
     from typing_extensions import Self
