@@ -5138,7 +5138,7 @@ class Guild(Hashable):
         state = self._state
         if state.is_guild_evicted(self):
             return []
-        if not state.subscriptions.is_subscribed(self):
+        if not state.subscriptions._is_pending_subscribe(self.id):
             raise ClientException('This guild is not subscribed to')
 
         if await state._can_chunk_guild(self):
@@ -5442,6 +5442,12 @@ class Guild(Hashable):
             to perform this operation unless you passed ``guild_subscriptions=False``
             to your :class:`Client`. This is not recommended for most use cases.
 
+        .. note::
+
+            This function can also be used to unsubscribe from a guild. Note, however,
+            that unsubscribing from ``typing`` requires that all other features are
+            also unsubscribed from, including members, channels, and threads.
+
         .. versionadded:: 2.1
 
         Parameters
@@ -5452,6 +5458,8 @@ class Guild(Hashable):
             .. note::
 
                 This is required to subscribe to large guilds (over 75,000 members).
+                It will default to ``True`` if this function is called with any other
+                parameter set to ``True`` or with no parameters.
         activities: :class:`bool`
             Currently unknown.
         threads: :class:`bool`
@@ -5465,6 +5473,10 @@ class Guild(Hashable):
         TypeError
             Attempted to subscribe to a guild without subscribing to typing events.
         """
+        if all(param is MISSING for param in (typing, activities, threads, member_updates)):
+            typing = True
+        if typing is MISSING and (activities or threads or member_updates):
+            typing = True
         await self._state.subscribe_guild(
             self, typing=typing, activities=activities, threads=threads, member_updates=member_updates
         )
