@@ -606,8 +606,12 @@ class GuildSubscriptions:
     async def _tick_task(self) -> None:
         try:
             await asyncio.sleep(self.TICK_TIMEOUT)
-            await self._flush()
-            self._task = None
+            if self._state.ws.open:
+                await self._flush()
+                self._task = None
+            else:
+                self._task = None
+                self._tick()
         except asyncio.CancelledError:
             pass
 
