@@ -55,7 +55,7 @@ from math import ceil
 
 from discord_protos import UserSettingsType
 
-from .errors import ClientException, InvalidData, NotFound
+from .errors import ClientException, DiscordException, InvalidData, NotFound
 from .guild import Guild
 from .activity import BaseActivity, create_activity, Session
 from .user import User, ClientUser
@@ -105,6 +105,7 @@ from .tutorial import Tutorial
 from .experiment import UserExperiment, GuildExperiment
 from .metadata import Metadata
 from .directory import DirectoryEntry
+from .backoff import ExponentialBackoff
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -748,10 +749,17 @@ class GuildSubscriptions:
         payload = self._pending
         if not payload:
             return
-
-        # Only keys that are present in the payload are updated on the backend
-        await self._state.ws.bulk_guild_subscribe(payload)
         self._pending = {}
+
+        try:
+            # Only keys that are present in the payload are updated on the backend
+            await self._state.ws.bulk_guild_subscribe(payload)
+        except Exception as exc:
+            _log.debug('Bulk guild subscribe failed with %s. Requeuing changes...', exc, exc_info=True)
+            # This should never raise
+            await self._checked_add(payload)
+            return
+
         for key, subscriptions in payload.items():
             guild_id = int(key)
             if subscriptions.get('typing'):
