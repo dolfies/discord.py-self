@@ -41,7 +41,7 @@ import yarl
 
 from . import utils
 from .enums import SpeakingState, Status
-from .errors import ConnectionClosed
+from .errors import ClientException, ConnectionClosed
 from .flags import Capabilities
 
 try:
@@ -337,7 +337,7 @@ class DiscordWebSocket:
 
     @property
     def open(self) -> bool:
-        return self.socket.curl._curl is not None
+        return not self.socket.closed
 
     @property
     def capabilities(self) -> Capabilities:
@@ -689,33 +689,35 @@ class DiscordWebSocket:
                 self._keep_alive = None
             raise
 
-    async def _sendstr(self, data: str, /) -> None:
+    async def _sendstr(self, data: str, /, *, raise_on_closed: bool = False) -> None:
         try:
             await self.socket.send(data.encode('utf-8'))
         except WebSocketError:
             if self.socket.closed:
                 # Not much we can do here
                 _log.debug('Websocket is closed, cannot send data.')
+                if raise_on_closed:
+                    raise ClientException('WebSocket is closed')
             else:
                 raise
 
-    async def debug_send(self, data: str, /) -> None:
+    async def debug_send(self, data: str, /, *, raise_on_closed: bool = False) -> None:
         await self._rate_limiter.block()
         self._dispatch('socket_raw_send', data)
-        await self._sendstr(data)
+        await self._sendstr(data, raise_on_closed=raise_on_closed)
 
-    async def send(self, data: str, /) -> None:
+    async def send(self, data: str, /, *, raise_on_closed: bool = False) -> None:
         await self._rate_limiter.block()
-        await self._sendstr(data)
+        await self._sendstr(data, raise_on_closed=raise_on_closed)
 
-    async def send_as_json(self, data: Any) -> None:
+    async def send_as_json(self, data: Any, /, *, raise_on_closed: bool = False) -> None:
         try:
-            await self.send(utils._to_json(data))
+            await self.send(utils._to_json(data), raise_on_closed=raise_on_closed)
         except RuntimeError as exc:
             if not self._can_handle_close(self._close_code):
                 raise ConnectionClosed(self._close_code) from exc
 
-    async def send_heartbeat(self, data: Any) -> None:
+    async def send_heartbeat(self, data: Any, /) -> None:
         # This bypasses the rate limit handling code since it has a higher priority
         try:
             await self._sendstr(utils._to_json(data))
@@ -787,7 +789,7 @@ class DiscordWebSocket:
         }
 
         _log.debug('Subscribing to guilds with payload %s', payload['d'])
-        await self.send_as_json(payload)
+        await self.send_as_json(payload, raise_on_closed=True)
 
     async def request_chunks(
         self,
