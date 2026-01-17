@@ -1914,7 +1914,7 @@ class HTTPClient:
 
     def join_thread(self, channel_id: Snowflake) -> Response[None]:
         params = {'location': choice(('Banner', 'Toolbar Overflow', 'Sidebar Overflow', 'Context Menu'))}
-        return self.request(Route('POST', '/channels/{channel_id}/thread-members/@me', channel_id=channel_id), params=params)
+        return self.request(Route('PUT', '/channels/{channel_id}/thread-members/@me', channel_id=channel_id), params=params)
 
     def add_user_to_thread(self, channel_id: Snowflake, user_id: Snowflake) -> Response[None]:
         return self.request(
