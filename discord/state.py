@@ -686,6 +686,22 @@ class GuildSubscriptions:
         elif feature == 'member_updates':
             return self._member_updates.has(guild.id)
 
+    def _has_feature_pending(
+        self, guild_id: int, feature: Literal['typing', 'threads', 'activities', 'member_updates'], /
+    ) -> bool:
+        key = str(guild_id)
+        if feature == 'typing' and guild_id in self._typing:
+            return True
+        elif feature == 'threads' and guild_id in self._threads:
+            return True
+        elif feature == 'activities' and guild_id in self._activities:
+            return True
+        elif feature == 'member_updates' and guild_id in self._member_updates:
+            return True
+        if key in self._pending and self._pending[key].get(feature) is True:
+            return True
+        return False
+
     def members_for(self, guild: abcSnowflake, /) -> Sequence[int]:
         return utils.SequenceProxy(self._members.get(guild.id, ()))
 
@@ -776,12 +792,20 @@ class GuildSubscriptions:
         activities: bool = MISSING,
         member_updates: bool = MISSING,
     ):
-        # Sanity check
-        if not self._is_pending_subscribe(guild.id):
-            if typing is MISSING:
-                typing = True
-            if not typing:
-                raise TypeError('Cannot subscribe to guild without subscribing to typing')
+        guild_id = guild.id
+        _typing = typing if typing is not MISSING else self._has_feature_pending(guild_id, 'typing')
+        if not _typing:
+            # To allow unsubscribing from a guild entirely, everything else must be gone first
+            _threads = threads if threads is not MISSING else self._has_feature_pending(guild_id, 'threads')
+            _activities = activities if activities is not MISSING else self._has_feature_pending(guild_id, 'activities')
+            _member_updates = (
+                member_updates if member_updates is not MISSING else self._has_feature_pending(guild_id, 'member_updates')
+            )
+            _members = self._members.get(guild_id)
+            _thread_member_lists = self._thread_member_lists.get(guild_id)
+            _channels = self._channels.get(guild_id)
+            if any((_threads, _activities, _member_updates, _members, _thread_member_lists, _channels)):
+                raise TypeError('Cannot unsubscribe from guild while other features are still subscribed')
 
         payload: gw.BaseGuildSubscribePayload = {}
         if typing is not MISSING:
@@ -794,7 +818,7 @@ class GuildSubscriptions:
             payload['member_updates'] = member_updates
 
         if payload:
-            await self._checked_add({str(guild.id): payload})
+            await self._checked_add({str(guild_id): payload})
 
     async def subscribe_to_members(self, guild: abcSnowflake, /, *members: abcSnowflake, replace: bool = False) -> None:
         if not replace and not members:

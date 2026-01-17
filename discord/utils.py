@@ -970,6 +970,11 @@ class SnowflakeList(_SnowflakeListBase):
         i = bisect_left(self, element)
         return i != len(self) and self[i] == element
 
+    def discard(self, element: int) -> None:
+        i = bisect_left(self, element)
+        if i != len(self) and self[i] == element:
+            del self[i]
+
 
 _IS_ASCII = re.compile(r'^[\x00-\x7f]+$')
 
