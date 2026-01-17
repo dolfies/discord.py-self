@@ -34,7 +34,7 @@ class MyClient(discord.Client):
             ],
         )
 
-        await self.change_presence(status=discord.Status.online, activity=activity)
+        await self.change_presence(activity=activity)
         print(f'Rich presence applied as {self.user} ({self.user.id})')
 
 
