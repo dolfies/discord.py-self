@@ -713,6 +713,24 @@ class MessageFlags(BaseFlags):
         """
         return 16384
 
+    @flag_value
+    def components_v2(self):
+        """:class:`bool`: Returns ``True`` if the message has Discord's v2 components.
+
+        Does not allow sending any ``content``, ``embed``, ``embeds``, ``stickers``, or ``poll``.
+
+        .. versionadded:: 2.1
+        """
+        return 32768
+
+    @flag_value
+    def social_layer_integration(self):
+        """:class:`bool`: Returns ``True`` if the message is sent via the Social Layer Integration.
+
+        .. versionadded:: 2.1
+        """
+        return 65536
+
 
 @fill_with_flags()
 class PublicUserFlags(BaseFlags):
@@ -885,6 +903,8 @@ class PublicUserFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the user is an active developer.
 
         .. versionadded:: 2.0
+
+        .. deprecated:: 2.1
         """
         return UserFlags.active_developer.value
 
@@ -1371,6 +1391,14 @@ class ApplicationFlags(BaseFlags):
         return 1 << 4
 
     @flag_value
+    def rpc_private_beta(self):
+        """:class:`bool`: Returns ``True`` if the application can use the ``rpc`` scope without limitation.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 5
+
+    @flag_value
     def automod_badge(self):
         """:class:`bool`: Returns ``True`` if the application has created at least 100 automod rules across all guilds.
 
@@ -1409,6 +1437,14 @@ class ApplicationFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 1 << 10
+
+    @flag_value
+    def cloud_gaming_demo(self):
+        """:class:`bool`: Returns ``True`` if the application is trialing cloud gaming features.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 11
 
     @flag_value
     def gateway_presence(self):
@@ -1495,23 +1531,51 @@ class ApplicationFlags(BaseFlags):
 
     @flag_value
     def iframe_modal(self):
-        """:class:`bool`: Returns ``True`` if the application can use iframes within modals."""
+        """:class:`bool`: Returns ``True`` if the application can use iframes within modals.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 26
 
     @flag_value
     def social_layer_integration(self):
-        """:class:`bool`: Returns ``True`` if the application can use the social layer SDK."""
+        """:class:`bool`: Returns ``True`` if the application can use the social layer SDK.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 27
 
     @flag_value
     def promoted(self):
-        """:class:`bool`: Returns ``True`` if the application is promoted by Discord."""
+        """:class:`bool`: Returns ``True`` if the application is promoted by Discord.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 29
 
     @flag_value
     def partner(self):
-        """:class:`bool`: Returns ``True`` if the application is a Discord partner."""
+        """:class:`bool`: Returns ``True`` if the application is a Discord partner.
+
+        .. versionadded:: 2.1
+        """
         return 1 << 30
+
+    @flag_value
+    def parent(self):
+        """:class:`bool`: Returns ``True`` if the application is a parent application.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 33
+
+    @flag_value
+    def disable_relationship_access(self):
+        """:class:`bool`: Returns ``True`` if the application cannot access relationship information.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 34
 
 
 @fill_with_flags()
@@ -1653,14 +1717,78 @@ class ChannelFlags(BaseFlags):
     __slots__ = ()
 
     @flag_value
+    def guild_feed_removed(self):
+        """:class:`bool`: Returns ``True`` if the guild channel is hidden from the guild's feed.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 0
+
+    @flag_value
     def pinned(self):
         """:class:`bool`: Returns ``True`` if the thread is pinned to the forum channel."""
         return 1 << 1
 
     @flag_value
+    def active_channels_removed(self):
+        """:class:`bool`: Returns ``True`` if the guild channel has been removed from the guild's active channels.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 2
+
+    @flag_value
     def require_tag(self):
         """:class:`bool`: Returns ``True`` if a tag is required to be specified when creating a thread in a :class:`ForumChannel`."""
         return 1 << 4
+
+    @flag_value
+    def spam(self):
+        """:class:`bool`: Returns ``True`` if the channel is marked as spam.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 5
+
+    @flag_value
+    def guild_resource_channel(self):
+        """:class:`bool`: Returns ``True`` if the guild channel is used as a read-only resource for onboarding and is not shown in the channel list.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 7
+
+    @flag_value
+    def clyde_ai(self):
+        """:class:`bool`: Returns ``True`` if the channel is created by Clyde AI, which has full access to all message content.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 8
+
+    @flag_value
+    def summaries_disabled(self):
+        """:class:`bool`: Returns ``True`` if the guild channel has summaries disabled.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 11
+
+    @flag_value
+    def role_subscription_template_preview_channel(self):
+        """:class:`bool`: Returns ``True`` if the role subscription tier for this guild channel has not been published yet.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 13
+
+    @flag_value
+    def broadcasting(self):
+        """:class:`bool`: Returns ``True`` if the group DM is used for broadcasting a live stream.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 14
 
     @flag_value
     def hide_media_download_options(self):
@@ -1670,6 +1798,22 @@ class ChannelFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 1 << 15
+
+    @flag_value
+    def join_request_interview_channel(self):
+        """:class:`bool`: Returns ``True`` if the group DM is used for guild join request interviews.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 16
+
+    @flag_value
+    def moderator_report_channel(self):
+        """:class:`bool`: Returns ``True`` if the forum channel is the guild's moderator queue.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 19
 
 
 @fill_with_flags()
@@ -1825,6 +1969,14 @@ class SKUFlags(BaseFlags):
         """
         return 1 << 6
 
+    @alias_flag_value
+    def available_for_premium_gifting(self):
+        """:class:`bool`: An alias for :attr:`premium_subscription`.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 6
+
     @flag_value
     def application_guild_subscription(self):
         """:class:`bool`: Returns ``True`` if the SKU is a application subscription. These are subscriptions made to applications for premium perks bound to a guild."""
@@ -1851,6 +2003,14 @@ class SKUFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 1 << 10
+
+    @flag_value
+    def available_for_application_gifting(self):
+        """:class:`bool`: Returns ``True`` if the SKU is a giftable application product.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 11
 
 
 @fill_with_flags()
@@ -2854,6 +3014,34 @@ class MemberFlags(BaseFlags):
         """
         return 1 << 4
 
+    @flag_value
+    def started_home_actions(self):
+        """:class:`bool`: Returns ``True`` if the member has started the new member actions in the server guide."""
+        return 1 << 5
+
+    @flag_value
+    def completed_home_actions(self):
+        """:class:`bool`: Returns ``True`` if the member has completed all of the new member actions in the server guide."""
+        return 1 << 6
+
+    @flag_value
+    def automod_quarantined_name(self):
+        """:class:`bool`: Returns ``True`` if the member's has been
+        quarantined by AutoMod due to their username, display name, or nickname.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 7
+
+    @flag_value
+    def dm_settings_upsell_acknowledged(self):
+        """:class:`bool`: Returns ``True`` if the member has acknowledged the DM privacy settings upsell modal.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 9
+
+    @flag_value
     def automod_quarantined_guild_tag(self):
         """:class:`bool`: Returns ``True`` if the member's has been
         quarantined by AutoMod due to their guild tag.
@@ -3078,6 +3266,16 @@ class AttachmentFlags(BaseFlags):
         """:class:`bool`: Returns ``True`` if the attachment is an animated image."""
         return 1 << 5
 
+    @flag_value
+    def contains_gore_content(self):
+        """:class:`bool`: Returns ``True`` if the attachment is flagged as gore content."""
+        return 1 << 6
+
+    @flag_value
+    def contains_self_harm_content(self):
+        """:class:`bool`: Returns ``True`` if the attachment is flagged as self-harm content."""
+        return 1 << 7
+
 
 @fill_with_flags()
 class EmbedFlags(BaseFlags):
@@ -3139,6 +3337,16 @@ class EmbedFlags(BaseFlags):
     def content_inventory_entry(self):
         """:class:`bool`: Returns ``True`` if the embed is a legacy content inventory entry."""
         return 1 << 5
+
+    @flag_value
+    def contains_gore_content(self):
+        """:class:`bool`: Returns ``True`` if the embed was flagged as gore content."""
+        return 1 << 6
+
+    @flag_value
+    def contains_self_harm_content(self):
+        """:class:`bool`: Returns ``True`` if the embed was flagged as self-harm content."""
+        return 1 << 7
 
 
 @fill_with_flags()
