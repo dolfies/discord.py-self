@@ -770,6 +770,10 @@ class Activity(BaseActivity):
         The activity flags.
     application_id: Optional[:class:`int`]
         The application ID of the game.
+    parent_application_id: Optional[:class:`int`]
+        The parent application ID of the game.
+
+        .. versionadded:: 2.1
     name: :class:`str`
         The name of the activity.
     url: Optional[:class:`str`]
@@ -824,6 +828,10 @@ class Activity(BaseActivity):
         The ID of the session this activity belongs to.
     application_id: Optional[:class:`int`]
         The application ID of the game.
+    parent_application_id: Optional[:class:`int`]
+        The parent application ID of the game.
+
+        .. versionadded:: 2.1
     name: :class:`str`
         The name of the activity.
     url: Optional[:class:`str`]
@@ -908,6 +916,7 @@ class Activity(BaseActivity):
         'name',
         'url',
         'application_id',
+        'parent_application_id',
         'emoji',
         'buttons',
         'secrets',
@@ -923,6 +932,7 @@ class Activity(BaseActivity):
         type: ActivityType = ActivityType.playing,
         flags: Optional[ActivityFlags] = None,
         application_id: Optional[int] = None,
+        parent_application_id: Optional[int] = None,
         name: str,
         url: Optional[str] = None,
         state: Optional[str] = None,
@@ -947,6 +957,7 @@ class Activity(BaseActivity):
         self._user_id: Optional[int] = None
         self._flags: int = flags.value if flags is not None else 0
         self.application_id: Optional[int] = application_id
+        self.parent_application_id: Optional[int] = parent_application_id
         self.url = url
         self.state: Optional[str] = state
         self.state_url = state_url
@@ -1024,6 +1035,7 @@ class Activity(BaseActivity):
         self._created_at = data.get('created_at')
         self._flags = data.get('flags', 0)
         self.application_id = _get_as_snowflake(data, 'application_id')
+        self.parent_application_id = _get_as_snowflake(data, 'parent_application_id')
         self.url = data.get('url')
         self.state = data.get('state')
         self.state_url = data.get('state_url')
@@ -1149,6 +1161,8 @@ class Activity(BaseActivity):
             ret['flags'] = self._flags
         if self.application_id:
             ret['application_id'] = self.application_id
+        if self.parent_application_id:
+            ret['parent_application_id'] = self.parent_application_id
         if self.url:
             ret['url'] = self.url
         if self.state:

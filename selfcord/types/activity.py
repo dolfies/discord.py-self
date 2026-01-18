@@ -119,6 +119,7 @@ class Activity(_BaseActivity, total=False):
     assets: ActivityAssets
     party: ActivityParty
     application_id: Snowflake
+    parent_application_id: Snowflake
     flags: int
     emoji: ActivityEmoji
     secrets: ActivitySecrets

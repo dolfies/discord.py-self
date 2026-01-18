@@ -760,7 +760,9 @@ class GuildSubscriptions:
         except Exception as exc:
             _log.debug('Bulk guild subscribe failed with %s. Requeuing changes...', exc, exc_info=True)
             # This should never raise
-            await self._checked_add(payload)
+            new_payload = self._pending
+            self._pending = payload
+            await self._checked_add(new_payload)
             return
 
         for key, subscriptions in payload.items():
