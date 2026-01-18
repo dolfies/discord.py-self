@@ -2275,6 +2275,7 @@ class Client:
         *,
         with_counts: bool = True,
         with_permissions: bool = True,
+        with_expiration: bool = True,
         scheduled_event_id: Optional[int] = None,
     ) -> Invite:
         """|coro|
@@ -2291,10 +2292,6 @@ class Client:
 
             ``url`` parameter is now positional-only.
 
-        .. versionchanged:: 2.1
-
-            The ``with_expiration`` parameter has been removed.
-
         Parameters
         -----------
         url: Union[:class:`.Invite`, :class:`str`]
@@ -2303,6 +2300,15 @@ class Client:
             Whether to include count information in the invite. This fills the
             :attr:`.Invite.approximate_member_count` and :attr:`.Invite.approximate_presence_count`
             fields.
+        with_expiration: :class:`bool`
+            Whether to include the expiration date of the invite. This fills the
+            :attr:`.Invite.expires_at` field.
+
+            .. versionadded:: 2.0
+
+            .. deprecated:: 2.1
+                This parameter is deprecated and will be removed in a future version as it is no
+                longer needed to fill the :attr:`.Invite.expires_at` field.
         with_permissions: :class:`bool`
             Whether to include permission information in the invite. This fills the
             :attr:`.Invite.is_nickname_changeable` field.
@@ -4441,7 +4447,7 @@ class Client:
         data = await state.http.get_library_entries(state.country_code or 'US')
         return [LibraryApplication(state=state, data=d) for d in data]
 
-    async def authorizations(self) -> List[OAuth2Token]:
+    async def oauth2_tokens(self) -> List[OAuth2Token]:
         """|coro|
 
         Retrieves the OAuth2 applications authorized on your account.
