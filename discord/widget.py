@@ -299,7 +299,9 @@ class Widget:
         """Optional[:class:`str`]: The invite URL for the guild, if available."""
         return self._invite
 
-    async def fetch_invite(self, *, with_counts: bool = True, with_permissions: bool = True) -> Optional[Invite]:
+    async def fetch_invite(
+        self, *, with_counts: bool = True, with_expiration: bool = True, with_permissions: bool = True
+    ) -> Optional[Invite]:
         """|coro|
 
         Retrieves an :class:`Invite` from the widget's invite URL.
@@ -312,6 +314,15 @@ class Widget:
             Whether to include count information in the invite. This fills the
             :attr:`Invite.approximate_member_count` and :attr:`Invite.approximate_presence_count`
             fields.
+        with_expiration: :class:`bool`
+            Whether to include the expiration date of the invite. This fills the
+            :attr:`.Invite.expires_at` field.
+
+            .. versionadded:: 2.0
+
+            .. deprecated:: 2.1
+                This parameter is deprecated and will be removed in a future version as it is no
+                longer needed to fill the :attr:`.Invite.expires_at` field.
         with_permissions: :class:`bool`
             Whether to include permission information in the invite. This fills the
             :attr:`Invite.is_nickname_changeable` field.

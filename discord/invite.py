@@ -32,7 +32,6 @@ from .flags import InviteFlags
 from .mixins import Hashable
 from .object import Object
 from .scheduled_event import ScheduledEvent
-from .stage_instance import StageInstance
 from .utils import MISSING, _generate_session_id, _get_as_snowflake, parse_time, snowflake_time
 from .welcome_screen import WelcomeScreen
 
@@ -59,11 +58,6 @@ if TYPE_CHECKING:
         Invite as InvitePayload,
         InviteGuild as InviteGuildPayload,
     )
-    from .types.channel import (
-        PartialChannel as InviteChannelPayload,
-    )
-    from .state import ConnectionState
-    from .abc import GuildChannel
     from .user import User
 
     InviteGuildType = Union[Guild, 'PartialInviteGuild', Object]
@@ -460,7 +454,6 @@ class Invite(Hashable):
         'expires_at',
         'scheduled_event',
         'scheduled_event_id',
-        'stage_instance',
         '_message',
         'welcome_screen',
         'type',
@@ -534,11 +527,6 @@ class Invite(Hashable):
             else None
         )
         self.scheduled_event_id: Optional[int] = self.scheduled_event.id if self.scheduled_event else None
-
-        stage_instance = data.get('stage_instance')
-        self.stage_instance: Optional[StageInstance] = (
-            StageInstance.from_invite(self, stage_instance) if stage_instance else None
-        )
 
         # Only present on accepted invites
         self.new_member: bool = data.get('new_member', False)
