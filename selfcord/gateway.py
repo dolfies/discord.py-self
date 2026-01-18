@@ -1089,7 +1089,7 @@ class DiscordVoiceWebSocket:
                 await self._connection.reinit_dave_session()
         elif op == self.HELLO:
             interval = data['heartbeat_interval'] / 1000.0
-            self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=min(interval, 5.0))
+            self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=interval)
             self._keep_alive.start()
         elif op == self.VOICE_BACKEND_VERSION:
             self.voice_version = data.get('voice')
