@@ -12,7 +12,7 @@ __title__ = 'selfcord.py'
 __author__ = 'Dolfies'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015-present Rapptz and 2021-present Dolfies'
-__version__ = '2.2.0'
+__version__ = '2.2.0a'
 
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
