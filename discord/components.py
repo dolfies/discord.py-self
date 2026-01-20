@@ -336,10 +336,6 @@ class Container(Component):
                 out.append(comp)
         return out
 
-    @property
-    def raw_children(self) -> List[Component]:
-        return list(self.children)
-
 
 class Section(Component):
     """Represents a v2 Section layout component (type 9)."""
