@@ -61,7 +61,17 @@ from .enums import (
     try_enum,
 )
 from .errors import HTTPException
-from .components import _component_factory
+from .components import (
+    _component_factory,
+    Button,
+    Container,
+    TextDisplay,
+    Section,
+    Thumbnail,
+    MediaGallery,
+    FileComponent,
+    SelectMenu,
+)
 from .embeds import Embed
 from .member import Member
 from .flags import MessageFlags, AttachmentFlags
@@ -1943,6 +1953,15 @@ class Message(PartialMessage, Hashable):
         '_edited_timestamp',
         '_cs_channel_mentions',
         '_cs_raw_mentions',
+        '_cs_buttons',
+        '_cs_containers',
+        '_cs_text_displays',
+        '_cs_text_content',
+        '_cs_sections',
+        '_cs_thumbnails',
+        '_cs_select_menus',
+        '_cs_media_galleries',
+        '_cs_file_components',
         '_cs_clean_content',
         '_cs_raw_channel_mentions',
         '_cs_raw_role_mentions',
@@ -2355,6 +2374,210 @@ class Message(PartialMessage, Hashable):
             return True
         return False
 
+
+    @utils.cached_slot_property('_cs_containers')
+    def containers(self) -> List[Container]:
+        """List[:class:`Container`]: All v2 container components in this message.
+
+        This searches inside top-level components and nested children.
+
+        .. versionadded:: 2.1
+        """
+        out: List[Container] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, Container):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_text_displays')
+    def text_displays(self) -> List[TextDisplay]:
+        """List[:class:`TextDisplay`]: All v2 text displays within this message.
+
+        Traverses rows, sections, containers, and accessories.
+
+        .. versionadded:: 2.1
+        """
+        out: List[TextDisplay] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, TextDisplay):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_text_content')
+    def text_content(self) -> str:
+        """str: Concatenated text of all :class:`TextDisplay` components in the message.
+
+        Blocks are separated by a blank line to preserve layout.
+
+        .. versionadded:: 2.1
+        """
+        return '\n\n'.join(td.content for td in self.text_displays if td.content)
+
+    @utils.cached_slot_property('_cs_sections')
+    def sections(self) -> List[Section]:
+        """List[:class:`Section`]: All v2 sections within this message.
+
+        .. versionadded:: 2.1
+        """
+        out: List[Section] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, Section):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_thumbnails')
+    def thumbnails(self) -> List[Thumbnail]:
+        """List[:class:`Thumbnail`]: All v2 thumbnails in this message (typically section accessories).
+
+        .. versionadded:: 2.1
+        """
+        out: List[Thumbnail] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, Thumbnail):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_select_menus')
+    def select_menus(self) -> List[SelectMenu]:
+        """List[:class:`SelectMenu`]: All v1 select menus in this message.
+
+        .. versionadded:: 2.1
+        """
+        out: List[SelectMenu] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, SelectMenu):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_media_galleries')
+    def media_galleries(self) -> List[MediaGallery]:
+        """List[:class:`MediaGallery`]: All v2 media galleries in this message.
+
+        .. versionadded:: 2.1
+        """
+        out: List[MediaGallery] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, MediaGallery):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+
+    @utils.cached_slot_property('_cs_file_components')
+    def file_components(self) -> List[FileComponent]:
+        """List[:class:`FileComponent`]: All v2 file components in this message.
+
+        .. versionadded:: 2.1
+        """
+        out: List[FileComponent] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, FileComponent):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+                parts = getattr(comp, 'components', None)
+                if isinstance(parts, list) and parts:
+                    _walk(parts)
+                accessory = getattr(comp, 'accessory', None)
+                if accessory is not None:
+                    _walk([accessory])
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+    @utils.cached_slot_property('_cs_buttons')
+    def buttons(self) -> List[Button]:
+        """List[:class:`Button`]: All button components contained in this message.
+
+        This searches inside action rows, containers, and nested children.
+
+        .. versionadded:: 2.1
+        """
+        out: List[Button] = []
+
+        def _walk(components: List[Any]) -> None:
+            for comp in components:
+                if isinstance(comp, Button):
+                    out.append(comp)
+                children = getattr(comp, 'children', None)
+                if isinstance(children, list) and children:
+                    _walk(children)
+
+        _walk(getattr(self, 'components', []) or [])
+        return out
+    
     @utils.cached_slot_property('_cs_raw_mentions')
     def raw_mentions(self) -> List[int]:
         """List[:class:`int`]: A property that returns an array of user IDs matched with
@@ -2678,7 +2901,7 @@ class Message(PartialMessage, Hashable):
 
         if self.type is MessageType.emoji_added:
             return f'{self.author.name} added a new emoji, {self.content}'
-
+        
         # Fallback for unknown message types
         return self.content
 

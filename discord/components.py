@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, List, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, Optional, Tuple, Union, overload
 
 from .enums import ButtonStyle, ComponentType, InteractionType, TextStyle, try_enum
 from .interactions import _wrapped_interaction
@@ -67,6 +67,13 @@ __all__ = (
     'SelectMenu',
     'SelectOption',
     'TextInput',
+    'TextDisplay',
+    'Container',
+    'Section',
+    'Thumbnail',
+    'MediaGallery',
+    'FileComponent',
+    'Separator',
 )
 
 
@@ -130,13 +137,14 @@ class ActionRow(Component):
         The originating message.
     """
 
-    __slots__ = ('children',)
+    __slots__ = ('children', 'id')
 
     __repr_info__: ClassVar[Tuple[str, ...]] = __slots__
 
     def __init__(self, data: ActionRowPayload, message: Message):
         self.message = message
         self.children: List[ActionRowChildComponentType] = []
+        self.id: Optional[int] = data.get('id')
 
         for component_data in data.get('components', []):
             component = _component_factory(component_data, message)
@@ -149,10 +157,433 @@ class ActionRow(Component):
         return ComponentType.action_row
 
     def to_dict(self) -> ActionRowInteractionData:
-        return {
+        payload = {
             'type': ComponentType.action_row.value,
             'components': [c.to_dict() for c in self.children],
         }  # type: ignore
+        if self.id is not None:
+            payload['id'] = self.id
+        return payload
+
+
+class TextDisplay(Component):
+    """Represents a v2 Text Display component (type 10).
+
+    This is a content component used in messages and modals.
+
+    Attributes
+    -----------
+    content: :class:`str`
+        The markdown content for this component.
+    message: :class:`Message`
+        The originating message, if any.
+    """
+
+    __slots__ = ('content', 'id')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = __slots__
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        self.content: str = data.get('content', '')
+        self.id: Optional[int] = data.get('id')
+
+    @property
+    def type(self) -> int:
+        """int: The raw component type value (10)."""
+        return 10
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        # TextDisplay is a non-interactive content component
+        payload = {
+            'type': 10,
+            'content': self.content,
+        }
+        if self.id is not None:
+            payload['id'] = self.id
+        return payload
+
+
+class Container(Component):
+    """Represents a v2 Container layout component (type 17).
+
+    Containers visually group a set of components and can include an accent color
+    and spoiler state. Children can include layout, content, and interactive components.
+
+    Attributes
+    -----------
+    children: List[:class:`Component`]
+        The child components encapsulated within this container.
+    accent_color: Optional[:class:`int`]
+        Optional RGB color (0x000000 to 0xFFFFFF) for the container accent bar.
+    spoiler: :class:`bool`
+        Whether the container is marked as a spoiler.
+    id: Optional[:class:`int`]
+        Optional identifier for the component.
+    message: :class:`Message`
+        The originating message, if any.
+    """
+
+    __slots__ = ('children', 'accent_color', 'spoiler', 'id', 'data')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('accent_color', 'spoiler', 'id')
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        # Preserve raw data for forward-compatibility
+        self.data: dict = dict(data)
+        self.children: List[Component] = []
+        for component_data in data.get('components', []) or []:
+            component = _component_factory(component_data, message)
+            if component is not None:
+                self.children.append(component)
+
+        self.accent_color: Optional[int] = data.get('accent_color')
+        self.spoiler: bool = data.get('spoiler', False)
+        self.id: Optional[int] = data.get('id')
+
+    @property
+    def type(self) -> int:
+        """int: The raw component type value (17)."""
+        return 17
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {
+            'type': 17,
+            'components': [c.to_dict() for c in self.children],
+        }
+        if self.accent_color is not None:
+            payload['accent_color'] = self.accent_color
+        if self.spoiler:
+            payload['spoiler'] = True
+        if self.id is not None:
+            payload['id'] = self.id
+        # Merge any unknown original fields (excluding ones we already set)
+        for k, v in self.data.items():
+            if k not in payload and k not in {'type'}:
+                payload[k] = v
+        return payload
+
+    @property
+    def buttons(self) -> List['Button']:
+        """List[:class:`Button`]: All button components contained in this container.
+
+        This searches inside rows, sections, accessories, and nested children.
+        """
+        out: List[Button] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, Button):
+                out.append(comp)
+        return out
+
+    @property
+    def select_menus(self) -> List['SelectMenu']:
+        """List[:class:`SelectMenu`]: All select menus contained in this container."""
+        out: List[SelectMenu] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, SelectMenu):
+                out.append(comp)
+        return out
+
+    @property
+    def text_displays(self) -> List['TextDisplay']:
+        """List[:class:`TextDisplay`]: All text display components within this container."""
+        out: List[TextDisplay] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, TextDisplay):
+                out.append(comp)
+        return out
+
+    @property
+    def text_content(self) -> str:
+        """str: Concatenated text content from all nested :class:`TextDisplay` components.
+
+        Blocks are separated by a blank line to preserve intent.
+        """
+        return '\n\n'.join(td.content for td in self.text_displays if td.content)
+
+    @property
+    def sections(self) -> List['Section']:
+        """List[:class:`Section`]: All sections within this container."""
+        out: List[Section] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, Section):
+                out.append(comp)
+        return out
+
+    @property
+    def thumbnails(self) -> List['Thumbnail']:
+        """List[:class:`Thumbnail`]: All thumbnails contained in sections and accessories."""
+        out: List[Thumbnail] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, Thumbnail):
+                out.append(comp)
+        return out
+
+    @property
+    def media_galleries(self) -> List['MediaGallery']:
+        out: List[MediaGallery] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, MediaGallery):
+                out.append(comp)
+        return out
+
+    @property
+    def files(self) -> List['FileComponent']:
+        out: List[FileComponent] = []
+        for comp in _walk_component_tree(self.children):
+            if isinstance(comp, FileComponent):
+                out.append(comp)
+        return out
+
+    @property
+    def raw_children(self) -> List[Component]:
+        return list(self.children)
+
+
+class Section(Component):
+    """Represents a v2 Section layout component (type 9)."""
+
+    __slots__ = ('components', 'accessory', 'id')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('id',)
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        self.id: Optional[int] = data.get('id')
+        self.components: List[Component] = []
+        for component_data in data.get('components', []) or []:
+            component = _component_factory(component_data, message)
+            if component is not None:
+                self.components.append(component)
+        accessory = data.get('accessory')
+        self.accessory: Optional[Component] = _component_factory(accessory, message) if accessory else None
+
+    @property
+    def type(self) -> int:
+        return 9
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {
+            'type': 9,
+            'components': [c.to_dict() for c in self.components],
+        }
+        if self.id is not None:
+            payload['id'] = self.id
+        if self.accessory is not None:
+            payload['accessory'] = self.accessory.to_dict()
+        return payload
+
+    @property
+    def text_displays(self) -> List['TextDisplay']:
+        """List[:class:`TextDisplay`]: The section's text display children (1-3)."""
+        return [c for c in self.components if isinstance(c, TextDisplay)]
+
+    @property
+    def text_content(self) -> str:
+        """str: Concatenated text from the section's :class:`TextDisplay` children."""
+        return '\n\n'.join(td.content for td in self.text_displays if td.content)
+
+    @property
+    def buttons(self) -> List['Button']:
+        """List[:class:`Button`]: Any buttons found either as children or as accessory."""
+        out: List[Button] = []
+        for comp in _walk_component_tree(self.components):
+            if isinstance(comp, Button):
+                out.append(comp)
+        if isinstance(self.accessory, Button):
+            out.append(self.accessory)
+        return out
+
+    @property
+    def thumbnail(self) -> Optional['Thumbnail']:
+        """Optional[:class:`Thumbnail`]: The section's thumbnail accessory, if present."""
+        if isinstance(self.accessory, Thumbnail):
+            return self.accessory
+        return None
+
+
+class Thumbnail(Component):
+    """Represents a v2 Thumbnail accessory component (type 11).
+
+    This is typically used as a Section accessory to display an image.
+
+    Attributes
+    -----------
+    url: Optional[:class:`str`]
+        The URL of the image for this thumbnail, if provided by Discord.
+    width: Optional[:class:`int`]
+        The width of the image, when available.
+    height: Optional[:class:`int`]
+        The height of the image, when available.
+    id: Optional[:class:`int`]
+        Optional identifier for the component.
+    data: :class:`dict`
+        Raw payload preserved for forward-compatibility with additional fields.
+    """
+
+    __slots__ = ('url', 'width', 'height', 'id', 'data')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('url', 'width', 'height', 'id')
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        # Preserve raw to avoid losing future fields we don't explicitly model
+        self.data: dict = dict(data)
+        self.id: Optional[int] = data.get('id')
+        # Known common fields
+        self.url: Optional[str] = data.get('url') or data.get('image_url')
+        self.width: Optional[int] = data.get('width')
+        self.height: Optional[int] = data.get('height')
+
+    @property
+    def type(self) -> int:
+        # Discord assigns 11 for image/thumbnail accessory in Components v2
+        return 11
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {'type': 11}
+        if self.id is not None:
+            payload['id'] = self.id
+        # Only include known fields if present; retain any unknowns from original
+        if self.url is not None:
+            payload['url'] = self.url
+        if self.width is not None:
+            payload['width'] = self.width
+        if self.height is not None:
+            payload['height'] = self.height
+        # Merge any extra fields that were present originally but not modeled
+        for k, v in self.data.items():
+            if k not in payload and k not in {'type'}:
+                payload[k] = v
+        return payload
+
+
+class MediaGallery(Component):
+    """Represents a v2 Media Gallery content component (type 12)."""
+
+    __slots__ = ('items', 'id')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('id',)
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        self.id: Optional[int] = data.get('id')
+        self.items: List[dict] = list(data.get('items', []) or [])
+
+    @property
+    def type(self) -> int:
+        return 12
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {
+            'type': 12,
+            'items': list(self.items),
+        }
+        if self.id is not None:
+            payload['id'] = self.id
+        return payload
+
+
+class FileComponent(Component):
+    """Represents a v2 File content component (type 13)."""
+
+    __slots__ = ('file', 'spoiler', 'name', 'size', 'id')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('name', 'size', 'spoiler', 'id')
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        self.id: Optional[int] = data.get('id')
+        self.file: Any = data.get('file')
+        self.spoiler: bool = data.get('spoiler', False)
+        self.name: Optional[str] = data.get('name')
+        self.size: Optional[int] = data.get('size')
+
+    @property
+    def type(self) -> int:
+        return 13
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {
+            'type': 13,
+            'file': self.file,
+            'spoiler': self.spoiler,
+        }
+        if self.name is not None:
+            payload['name'] = self.name
+        if self.size is not None:
+            payload['size'] = self.size
+        if self.id is not None:
+            payload['id'] = self.id
+        return payload
+
+
+class Separator(Component):
+    """Represents a v2 Separator layout component (type 14)."""
+
+    __slots__ = ('divider', 'spacing', 'id')
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = ('divider', 'spacing', 'id')
+
+    def __init__(self, data: 'ComponentPayload', message: 'Message'):
+        self.message = message
+        self.id: Optional[int] = data.get('id')
+        self.divider: bool = data.get('divider', True)
+        self.spacing: int = data.get('spacing', 1)
+
+    @property
+    def type(self) -> int:
+        return 14
+
+    def to_dict(self) -> 'ComponentInteractionData':  # type: ignore[override]
+        payload: dict = {
+            'type': 14,
+            'divider': self.divider,
+            'spacing': self.spacing,
+        }
+        if self.id is not None:
+            payload['id'] = self.id
+        return payload
+
+
+# ---- Traversal utilities ----------------------------------------------------
+
+def _iter_component_children(component: Any) -> List[Component]:
+    """Returns a best-effort list of child components for recursive traversal.
+
+    This inspects common attributes used by v2 components such as
+    `children`, `components`, and `accessory`.
+    """
+    out: List[Component] = []
+    children = getattr(component, 'children', None)
+    if isinstance(children, list):
+        out.extend(children)
+    components = getattr(component, 'components', None)
+    if isinstance(components, list):
+        out.extend(components)
+    accessory = getattr(component, 'accessory', None)
+    if isinstance(accessory, Component):
+        out.append(accessory)
+    return out
+
+
+def _walk_component_tree(roots: List[Component]) -> List[Component]:
+    """Depth-first traversal returning every component starting from roots.
+
+    The order follows the payload order for deterministic iteration.
+    """
+    result: List[Component] = []
+
+    def _walk(nodes: List[Component]) -> None:
+        for node in nodes:
+            result.append(node)
+            kids = _iter_component_children(node)
+            if kids:
+                _walk(kids)
+
+    _walk(roots)
+    return result
 
 
 class Button(Component):
@@ -569,3 +1000,17 @@ def _component_factory(data: ComponentPayload, message: Message = MISSING) -> Op
         return SelectMenu(data, message)
     elif data['type'] == 4:
         return TextInput(data, message)
+    elif data['type'] == 9:  # Section (v2)
+        return Section(data, message)
+    elif data['type'] == 10:  # Text Display (v2)
+        return TextDisplay(data, message)
+    elif data['type'] == 11:  # Thumbnail (v2)
+        return Thumbnail(data, message)
+    elif data['type'] == 12:  # Media Gallery (v2)
+        return MediaGallery(data, message)
+    elif data['type'] == 13:  # File (v2)
+        return FileComponent(data, message)
+    elif data['type'] == 14:  # Separator (v2)
+        return Separator(data, message)
+    elif data['type'] == 17:  # Container (v2)
+        return Container(data, message)
