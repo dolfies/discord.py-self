@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         voice: bool
         joined: bool
 
+
 __all__ = (
     'Capabilities',
     'SystemChannelFlags',
@@ -545,6 +546,7 @@ class SystemChannelFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 256
+
 
 @fill_with_flags()
 class MessageFlags(BaseFlags):
