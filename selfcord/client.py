@@ -449,15 +449,24 @@ class Client:
         self._ready.set()
 
     def _handle_connect(self) -> None:
-        state = self._connection
+        if self.ws._has_sent_presence:
+            _log.debug('Skipping initial presence as one has already been sent.')
+            return
+
         activities = self.initial_activities
         status = self.initial_status
-        if status or activities:
+        afk = self.initial_afk
+        since = self.initial_idle_since
+        if status or activities or afk or since:
             if status is None:
-                status = getattr(state.settings, 'status', None) or Status.unknown
-            _log.debug('Setting initial presence to %s %s', status, activities)
+                status = getattr(self._connection.settings, 'status', None) or Status.unknown
+            _log.debug(
+                'Setting initial presence to (status=%s, activities=%s, afk=%s, since=%s)', status, activities, afk, since
+            )
             self.loop.create_task(
-                self.change_presence(activities=activities, status=status, edit_settings=self._sync_presences)
+                self.change_presence(
+                    activities=activities, status=status, afk=afk, idle_since=since, edit_settings=self._sync_presences
+                )
             )
 
     @property
@@ -1024,7 +1033,7 @@ class Client:
             except ReconnectWebSocket as e:
                 _log.debug('Got a request to %s the websocket.', e.op)
                 self.dispatch('disconnect')
-                ws_params.update(sequence=self.ws.sequence, resume=e.resume, session=self.ws.session_id)
+                ws_params.update(sequence=self.ws.sequence, resume=e.resume, session=self.ws.session_id, old_ws=self.ws)
                 if e.resume:
                     ws_params['gateway'] = self.ws.gateway
                 continue
@@ -1056,6 +1065,7 @@ class Client:
                         initial=False,
                         resume=True,
                         session=self.ws.session_id,
+                        old_ws=self.ws,
                     )
                     continue
 
@@ -1079,6 +1089,7 @@ class Client:
                     gateway=self.ws.gateway,
                     resume=True,
                     session=self.ws.session_id,
+                    old_ws=self.ws,
                 )
 
     async def close(self) -> None:
@@ -1304,6 +1315,34 @@ class Client:
             self._connection._status = str(value)
         else:
             raise TypeError('status must derive from Status')
+
+    @property
+    def initial_afk(self) -> bool:
+        """:class:`bool`: Whether the client is set to AFK upon logging in.
+
+        .. versionadded:: 2.2
+        """
+        return self._connection._afk
+
+    @initial_afk.setter
+    def initial_afk(self, value: bool):
+        self._connection._afk = bool(value)
+
+    @property
+    def initial_idle_since(self) -> Optional[datetime]:
+        """Optional[:class:`datetime.datetime`]: When the client is set to go idle upon logging in.
+
+        .. versionadded:: 2.2
+        """
+        idle_since = self._connection._idle_since
+        if idle_since is not None:
+            return utils.parse_timestamp(idle_since)
+
+    @initial_idle_since.setter
+    def initial_idle_since(self, value: Optional[datetime]):
+        if value is not None and not isinstance(value, datetime):
+            raise TypeError('idle_since must be a datetime.datetime or None')
+        self._connection._idle_since = int(value.timestamp() * 1000) if value else 0
 
     @property
     def status(self) -> Status:
@@ -1835,7 +1874,7 @@ class Client:
 
         .. code-block:: python3
 
-            game = selfcord.Game("with the API")
+            game = selfcord.Activity(name="with the API")
             await client.change_presence(status=selfcord.Status.idle, activity=game)
 
         Parameters
