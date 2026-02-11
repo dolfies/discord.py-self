@@ -334,6 +334,7 @@ class DiscordWebSocket:
         self.activities: List[ActivityPayload] = []
         self.afk: bool = False
         self.idle_since: int = 0
+        self._has_sent_presence: bool = False
 
     @property
     def open(self) -> bool:
@@ -364,6 +365,7 @@ class DiscordWebSocket:
         resume: bool = False,
         encoding: str = 'json',
         compress: bool = True,
+        old_ws: Optional[Self] = None,
     ) -> Self:
         """Creates a main websocket for Discord from a :class:`Client`.
 
@@ -399,6 +401,15 @@ class DiscordWebSocket:
         ws._transport_compression = compress
         ws.afk = client._connection._afk
         ws.idle_since = client._connection._idle_since
+
+        if old_ws is not None:
+            # Copy over the presence state from the old websocket
+            ws.status = old_ws.status
+            ws.activities = old_ws.activities
+            ws.afk = old_ws.afk
+            ws.idle_since = old_ws.idle_since
+            # Avoids resetting to initial presence on reconnect
+            ws._has_sent_presence = old_ws._has_sent_presence
 
         if client._enable_debug_events:
             ws.send = ws.debug_send
@@ -452,22 +463,13 @@ class DiscordWebSocket:
         # This payload is only sometimes respected; usually the gateway tells
         # us our presence through the READY packet's sessions key
         # However, when reidentifying, we should send our last known presence
-        # initial_status and initial_activities could probably also be sent here
-        # but that needs more testing...
+        # This is what the client does to ensure RPC is persisted across reconnects
         presence = {
-            'status': 'unknown',
-            'since': self.idle_since,
-            'activities': [],
+            'status': self.status,
+            'activities': self.activities,
             'afk': self.afk,
+            'since': self.idle_since,
         }
-        existing = self._connection.current_session
-        if existing is not None:
-            presence['status'] = str(existing.status) if existing.status is not Status.offline else 'invisible'
-            presence['activities'] = [a.to_dict() for a in existing.activities]
-        # else:
-        #     presence['status'] = self._connection._status or 'unknown'
-        #     presence['activities'] = self._connection._activities
-
         properties = self._headers.gateway_properties
 
         payload = {
@@ -744,6 +746,7 @@ class DiscordWebSocket:
         self.activities = list(activities or [])
         self.afk = afk
         self.idle_since = since
+        self._has_sent_presence = True
 
     async def guild_subscribe(
         self,
