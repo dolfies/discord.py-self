@@ -2963,7 +2963,7 @@ class Connectable(Protocol):
         connectable = _channel or self
         channel = await connectable._get_channel()
 
-        if state._get_voice_client(key_id):
+        if state._has_voice_client():
             raise ClientException('Already connected to a voice channel')
 
         voice: T = cls(state.client, channel)

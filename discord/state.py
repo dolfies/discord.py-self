@@ -1273,6 +1273,9 @@ class ConnectionState:
     def _voice_state_for(self, user_id: int) -> Optional[VoiceState]:
         return self._voice_states.get(user_id)
 
+    def _has_voice_client(self) -> bool:
+        return bool(self._voice_clients)
+
     def _get_voice_client(self, guild_id: Optional[int]) -> Optional[VoiceProtocol]:
         # The keys of self._voice_clients are ints
         return self._voice_clients.get(guild_id)  # type: ignore
