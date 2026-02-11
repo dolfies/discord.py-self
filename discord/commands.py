@@ -224,6 +224,8 @@ class BaseCommand(ApplicationCommand, Hashable):
         self.application_id: int = int(data['application_id'])
         self.id: int = int(data['id'])
         self.version = int(data['version'])
+        self.integration_types = data.get('integration_types', [])
+        self.global_popularity_rank = data.get('global_popularity_rank', 0)
 
         self._default_member_permissions = _get_as_snowflake(data, 'default_member_permissions')
         dm_permission = data.get('dm_permission')  # Null means true?
