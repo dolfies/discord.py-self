@@ -1930,6 +1930,9 @@ class NameplatePalette(Enum):
 class ExperimentPlatform(Enum):
     developer_portal = 'DEVELOPER_PORTAL'
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class ApexExperimentUnitType(Enum):
     user = 1
