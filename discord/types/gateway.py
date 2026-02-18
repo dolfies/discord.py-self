@@ -35,7 +35,7 @@ from .channel import ChannelType, DMChannel, GroupDMChannel, StageInstance
 from .directory import DirectoryEntry, PartialDirectoryEntry
 from .emoji import Emoji, PartialEmoji
 from .entitlements import Entitlement, GatewayGift
-from .experiment import GuildExperiment, UserExperiment
+from .experiment import ApexExperimentResponse, GuildExperiment, UserExperiment
 from .guild import Guild, SupplementalGuild, UnavailableGuild
 from .integration import BaseIntegration, IntegrationApplication
 from .interactions import Modal
@@ -87,6 +87,7 @@ class ReadyEvent(ResumedEvent):
     _trace: List[str]
     api_code_version: int
     analytics_token: str
+    apex_experiments: Optional[ApexExperimentResponse]
     auth_session_id_hash: str
     auth_token: NotRequired[str]
     connected_accounts: List[Connection]

@@ -141,6 +141,9 @@ __all__ = (
     'OnboardingMode',
     'CollectibleType',
     'NameplatePalette',
+    'ExperimentPlatform',
+    'ApexExperimentUnitType',
+    'ApexExperimentSurface',
 )
 
 
@@ -1922,6 +1925,31 @@ class NameplatePalette(Enum):
     clover = 'clover'
     lemon = 'lemon'
     white = 'white'
+
+
+class ExperimentPlatform(Enum):
+    developer_portal = 'DEVELOPER_PORTAL'
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ApexExperimentUnitType(Enum):
+    user = 1
+    installation = 2
+    guild = 3
+    custom = 4
+
+
+class ApexExperimentSurface(Enum):
+    api = 1
+    app = 2
+    developer_portal = 3
+    admin_panel = 4
+    ads_budget_ab = 5
+
+    def __int__(self) -> int:
+        return self.value
 
 
 def create_unknown_value(cls: Type[E], val: Any) -> E:

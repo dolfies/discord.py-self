@@ -6784,6 +6784,64 @@ of :class:`enum.Enum`.
 
         The collectible nameplate palette is white.
 
+.. class:: ExperimentPlatform
+
+    Represents a specific platform for an experiment.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: developer_portal
+
+        The experiment is running on the developer portal.
+
+.. class:: ApexExperimentUnitType
+
+    Represents the unit type of an Apex experiment.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: user
+
+        The experiment is per-user.
+
+    .. attribute:: installation
+
+        The experiment is per-installation.
+
+    .. attribute:: guild
+
+        The experiment is per-guild.
+
+    .. attribute:: custom
+
+        The experiment is using a custom unit type.
+
+.. class:: ApexExperimentSurface
+
+    Represents the surface an Apex experiment is running on.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: api
+
+        The experiment is running on the API.
+
+    .. attribute:: app
+
+        The experiment is running on the Discord app.
+
+    .. attribute:: developer_portal
+
+        The experiment is running on the developer portal.
+
+    .. attribute:: admin_panel
+
+        The experiment is running on the admin panel.
+
+    .. attribute:: ads_budget_ab
+
+        The experiment is running on the ads portal.
+
 .. _discord-api-audit-logs:
 
 Audit Log Data
@@ -9155,12 +9213,27 @@ Experiment
 .. autoclass:: ExperimentRollout()
     :members:
 
+.. attributetable:: ApexExperiment
+
+.. autoclass:: ApexExperiment()
+    :members:
+
+.. attributetable:: ApexExperimentAssignment
+
+.. autoclass:: ApexExperimentAssignment()
+    :members:
+
 Flags
 ~~~~~~
 
 .. attributetable:: ActivityFlags
 
 .. autoclass:: ActivityFlags()
+    :members:
+
+.. attributetable:: ApexExperimentFlags
+
+.. autoclass:: ApexExperimentFlags()
     :members:
 
 .. attributetable:: ApplicationFlags

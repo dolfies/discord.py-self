@@ -24,9 +24,11 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional, Tuple, TypedDict, Union
+from typing import Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
 from typing_extensions import NotRequired
+
+from .snowflake import Snowflake
 
 
 class ExperimentResponse(TypedDict):
@@ -106,4 +108,35 @@ GuildExperiment = Tuple[
     Optional[int],  # holdout_bucket
     Literal[0, 1],  # aa_mode
     Literal[0, 1],  # trigger_debugging
+]
+
+
+class ApexExperimentResponse(TypedDict):
+    installation: NotRequired[str]
+    assignments: Dict[UnitType, Dict[Snowflake, ApexExperimentAssignments]]
+
+
+UnitType = Literal['1', '2', '3', '4']
+
+
+class ApexExperimentAssignments(TypedDict):
+    evaluation_id: str
+    assignments: List[ApexExperimentAssignment]
+
+
+# We need to use a union type here because one of the fields is OPTIONAL not NULLABLE
+ApexExperimentAssignment = Union[
+    Tuple[
+        int,  # hashed_name
+        int,  # variant_id
+        Optional[int],  # flags
+        int,  # revision
+    ],
+    Tuple[
+        int,  # hashed_name
+        int,  # variant_id
+        Optional[int],  # flags
+        int,  # revision
+        int,  # tracked_variant_id
+    ],
 ]
