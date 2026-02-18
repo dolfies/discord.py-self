@@ -28,7 +28,7 @@ from typing import Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
 from typing_extensions import NotRequired
 
-from selfcord.types.snowflake import Snowflake
+from .snowflake import Snowflake
 
 
 class ExperimentResponse(TypedDict):

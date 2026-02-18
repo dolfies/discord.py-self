@@ -964,7 +964,9 @@ class ApexExperimentAssignment:
         self._flags: int = data[2] or 0
 
     def __repr__(self) -> str:
-        return f'<ApexExperimentAssignment experiment={self.experiment!r} unit_id={self.unit_id} variant_id={self.variant_id}>'
+        return (
+            f'<ApexExperimentAssignment experiment={self.experiment!r} unit_id={self.unit_id} variant_id={self.variant_id}>'
+        )
 
     def __hash__(self) -> int:
         return hash((self.experiment, self.unit_id))
