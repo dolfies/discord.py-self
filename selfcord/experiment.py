@@ -944,8 +944,6 @@ class ApexExperimentAssignment:
         The evaluation ID of the assignment, used for analytics.
     variant_id: :class:`int`
         The assigned variant ID (bucket) for the unit.
-    flags: :class:`ApexExperimentFlags`
-        The flags for the assignment.
     """
 
     __slots__ = ('experiment', 'unit_id', 'evaluation_id', 'variant_id', '_flags')

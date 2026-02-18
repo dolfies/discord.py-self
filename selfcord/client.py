@@ -5688,6 +5688,8 @@ class Client:
         platform: Optional[:class:`.ExperimentPlatform`]
             The platform to retrieve additional experiments for.
 
+            .. versionadded:: 2.2
+
         Raises
         -------
         HTTPException
