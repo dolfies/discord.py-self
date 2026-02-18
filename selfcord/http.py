@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .channel import DMChannel, ForumChannel, GroupChannel, PartialMessageable, TextChannel, VoiceChannel
+    from .client import Client
     from .embeds import Embed
     from .enums import ChannelType, InteractionType
     from .flags import MessageFlags
@@ -599,13 +600,13 @@ class HTTPClient:
         connector: Optional[aiohttp.BaseConnector] = None,
         *,
         loop: asyncio.AbstractEventLoop,
+        client: Optional[Client] = None,
         proxy: Optional[str] = None,
         proxy_auth: Optional[aiohttp.BasicAuth] = None,
         unsync_clock: bool = True,
         captcha: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = None,
         max_ratelimit_timeout: Optional[float] = None,
         default_ratelimit_limit: int = 1,
-        locale: Callable[[], str] = lambda: 'en-US',
         extra_headers: Optional[Mapping[str, str]] = None,
         debug_options: Optional[Sequence[str]] = None,
         rpc_proxy: Optional[str] = None,
@@ -615,6 +616,7 @@ class HTTPClient:
     ) -> None:
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.loop: asyncio.AbstractEventLoop = loop
+        self.client: Optional[Client] = client
         self.__asession: aiohttp.ClientSession = MISSING
         self.__session: requests.AsyncSession[requests.Response] = MISSING
         # Route key -> Bucket hash
@@ -636,7 +638,6 @@ class HTTPClient:
         self.captcha_handler: Optional[Callable[[CaptchaRequired], Coroutine[Any, Any, str]]] = captcha
         self.max_ratelimit_timeout: Optional[float] = max(30.0, max_ratelimit_timeout) if max_ratelimit_timeout else None
         self.default_ratelimit_limit: int = default_ratelimit_limit
-        self.get_locale: Callable[[], str] = locale
         self.extra_headers: Mapping[str, str] = extra_headers or {}
         self.debug_options: Optional[Sequence[str]] = debug_options
         self.rpc_proxy: Optional[str] = rpc_proxy
@@ -793,9 +794,12 @@ class HTTPClient:
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.headers.user_agent,
-            'X-Discord-Locale': self.get_locale(),
+            'X-Discord-Locale': self.client._connection.locale if self.client else 'en-US',
             'X-Super-Properties': self.headers.encoded_super_properties,
         }
+
+        if self.client and self.client._connection.installation_id is not None:
+            headers['X-Installation-ID'] = self.client._connection.installation_id
 
         if self.timezone is not None:
             headers['X-Discord-Timezone'] = self.timezone
@@ -817,7 +821,7 @@ class HTTPClient:
         if self.rpc_proxy:
             headers['X-RPC-Proxy'] = self.rpc_proxy
 
-        if self.token is not None and kwargs.get('auth', True):
+        if self.token is not None and kwargs.pop('auth', True):
             headers['Authorization'] = self.token
 
         reason = kwargs.pop('reason', None)
@@ -5063,22 +5067,25 @@ class HTTPClient:
 
     @overload
     def get_experiments(
-        self, with_guild_experiments: Literal[True] = ...
+        self, *, with_guild_experiments: Literal[True] = ..., platform: Optional[str] = ...
     ) -> Response[experiment.ExperimentResponseWithGuild]: ...
 
     @overload
-    def get_experiments(self, with_guild_experiments: Literal[False] = ...) -> Response[experiment.ExperimentResponse]: ...
-
-    @overload
     def get_experiments(
-        self, with_guild_experiments: bool = True
-    ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]: ...
+        self, *, with_guild_experiments: Literal[False] = ..., platform: Optional[str] = ...
+    ) -> Response[experiment.ExperimentResponse]: ...
 
     def get_experiments(
-        self, with_guild_experiments: bool = True
+        self, *, with_guild_experiments: bool = True, platform: Optional[str] = None
     ) -> Response[Union[experiment.ExperimentResponse, experiment.ExperimentResponseWithGuild]]:
         params = {'with_guild_experiments': str(with_guild_experiments).lower()}
+        if platform is not None:
+            params['platform'] = platform
         return self.request(Route('GET', '/experiments'), params=params, context_properties=ContextProperties.empty())
+
+    def get_apex_experiments(self, surface: int) -> Response[experiment.ApexExperimentResponse]:
+        params = {'surface': surface}
+        return self.request(Route('GET', '/apex/experiments'), params=params)
 
     # Hubs
 

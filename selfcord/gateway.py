@@ -470,7 +470,12 @@ class DiscordWebSocket:
             'afk': self.afk,
             'since': self.idle_since,
         }
+
         properties = self._headers.gateway_properties
+        installation_id = self._connection.installation_id
+        if installation_id is not None:
+            # Currently, our installation ID is only persisted per login()
+            properties['installation_id'] = installation_id
 
         payload = {
             'op': self.IDENTIFY,

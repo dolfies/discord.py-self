@@ -62,7 +62,18 @@ from .widget import Widget
 from .guild import UserGuild
 from .emoji import Emoji
 from .channel import _private_channel_factory, _threaded_channel_factory, GroupChannel, PartialMessageable
-from .enums import ActivityType, ChannelType, ClientType, ConnectionType, EntitlementType, RelationshipType, Status, try_enum
+from .enums import (
+    ActivityType,
+    ApexExperimentSurface,
+    ChannelType,
+    ClientType,
+    ConnectionType,
+    EntitlementType,
+    ExperimentPlatform,
+    RelationshipType,
+    Status,
+    try_enum,
+)
 from .mentions import AllowedMentions
 from .errors import *
 from .gateway import *
@@ -102,7 +113,7 @@ from .relationship import FriendSuggestion, Relationship
 from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailSettings
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
-from .experiment import UserExperiment, GuildExperiment
+from .experiment import ApexExperiment, UserExperiment, GuildExperiment
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -155,6 +166,7 @@ if TYPE_CHECKING:
         rpc_proxy: Optional[str]
         proxy_gateway: bool
         timezone: Optional[str]
+        installation_id: Optional[str]
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
@@ -352,6 +364,14 @@ class Client:
         Defaults to system timezone.
 
         .. versionadded:: 2.1
+    installation_id: Optional[:class:`str`]
+        The installation ID to identify the client with. This is used by Discord to identify
+        unique client installations for Apex experiment tracking. By default, this is only
+        persisted per session, but if given here, it will be persisted across sessions.
+
+        If invalid, Discord will ignore it and generate one for you.
+
+        .. versionadded:: 2.2
 
     Attributes
     -----------
@@ -376,11 +396,11 @@ class Client:
             captcha=self.handle_captcha,
             max_ratelimit_timeout=options.pop('max_ratelimit_timeout', None),
             default_ratelimit_limit=options.pop('default_ratelimit_limit', None) or 1,
-            locale=lambda: self._connection.locale,
             debug_options=self._get_debug_options(**options),
             rpc_proxy=options.pop('rpc_proxy', None),
             proxy_gateway=options.pop('proxy_gateway', True),
             timezone=options.pop('timezone', None) or None,
+            client=self,
         )
 
         self._handlers: Dict[str, Callable[..., None]] = {
@@ -689,7 +709,7 @@ class Client:
 
     @property
     def experiments(self) -> Sequence[UserExperiment]:
-        """Sequence[:class:`.UserExperiment`]: The experiments assignments for the connected client.
+        """Sequence[:class:`.UserExperiment`]: The experiment assignments for the connected client.
 
         .. versionadded:: 2.1
         """
@@ -697,16 +717,53 @@ class Client:
 
     @property
     def guild_experiments(self) -> Sequence[GuildExperiment]:
-        """Sequence[:class:`.GuildExperiment`]: The guild experiments assignments for the connected client.
+        """Sequence[:class:`.GuildExperiment`]: The guild experiment assignments for the connected client.
 
         .. versionadded:: 2.1
         """
         return utils.SequenceProxy(self._connection.guild_experiments.values())
 
-    def get_experiment(self, experiment: Union[str, int], /) -> Optional[Union[UserExperiment, GuildExperiment]]:
-        """Returns a user or guild experiment from the given experiment identifier.
+    @property
+    def id(self) -> Optional[int]:
+        # Purposely undocumented as this is kinda confusing
+        installation_id = self._connection.installation_id
+        if not installation_id:
+            return
+
+        try:
+            return int(installation_id.split('.')[0])
+        except Exception:
+            return
+
+    @property
+    def installation_id(self) -> Optional[str]:
+        """Optional[:class:`str`]: The installation ID of the connected client.
+
+        This is used by Discord to identify unique client installations for Apex experiment tracking. By default, this is only
+        persisted per session, but if given in the constructor, it will be persisted across sessions.
+
+        .. versionadded:: 2.2
+        """
+        return self._connection.installation_id
+
+    @property
+    def apex_experiments(self) -> Sequence[ApexExperiment]:
+        """Sequence[:class:`.ApexExperiment`]: The Apex experiment assignments for the connected client.
+
+        .. versionadded:: 2.2
+        """
+        return utils.SequenceProxy(self._connection.apex_experiments.values())
+
+    def get_experiment(
+        self, experiment: Union[str, int], /
+    ) -> Optional[Union[UserExperiment, GuildExperiment, ApexExperiment]]:
+        """Returns a user, guild, or Apex experiment from the given experiment identifier.
 
         .. versionadded:: 2.1
+
+        .. versionchanged:: 2.2
+
+            This will now also return :class:`.ApexExperiment` instances.
 
         Parameters
         -----------
@@ -715,7 +772,7 @@ class Client:
 
         Returns
         --------
-        Optional[Union[:class:`.UserExperiment`, :class:`.GuildExperiment`]]
+        Optional[Union[:class:`.UserExperiment`, :class:`.GuildExperiment`, :class:`.ApexExperiment`]]
             The experiment, if found.
         """
         name = None
@@ -725,7 +782,10 @@ class Client:
         else:
             experiment_hash = int(experiment)
 
-        exp = self._connection.experiments.get(experiment_hash, self._connection.guild_experiments.get(experiment_hash))
+        exp = self._connection.experiments.get(
+            experiment_hash,
+            self._connection.guild_experiments.get(experiment_hash, self._connection.apex_experiments.get(experiment_hash)),
+        )
         if exp and not exp.name and name:
             # Backfill the name
             exp.name = name
@@ -5599,19 +5659,16 @@ class Client:
 
     @overload
     async def fetch_experiments(
-        self, with_guild_experiments: Literal[True] = ...
+        self, *, with_guild_experiments: Literal[True] = ..., platform: Optional[ExperimentPlatform] = ...
     ) -> List[Union[UserExperiment, GuildExperiment]]: ...
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]: ...
-
-    @overload
     async def fetch_experiments(
-        self, with_guild_experiments: bool = True
-    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]: ...
+        self, *, with_guild_experiments: Literal[False] = ..., platform: Optional[ExperimentPlatform] = ...
+    ) -> List[UserExperiment]: ...
 
     async def fetch_experiments(
-        self, with_guild_experiments: bool = True
+        self, *, with_guild_experiments: bool = True, platform: Optional[ExperimentPlatform] = None
     ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]:
         """|coro|
 
@@ -5621,13 +5678,15 @@ class Client:
 
         .. note::
 
-            Certain guild experiments are only available via the gateway.
-            See :attr:`guild_experiments` for these.
+            Certain experiments are only available via the gateway.
+            See :attr:`experiments` and :attr:`guild_experiments` for these.
 
         Parameters
         -----------
         with_guild_experiments: :class:`bool`
             Whether to include guild experiment rollouts in the response.
+        platform: Optional[:class:`.ExperimentPlatform`]
+            The platform to retrieve additional experiments for.
 
         Raises
         -------
@@ -5640,7 +5699,9 @@ class Client:
             The experiment rollouts.
         """
         state = self._connection
-        data = await state.http.get_experiments(with_guild_experiments=with_guild_experiments)
+        data = await state.http.get_experiments(
+            with_guild_experiments=with_guild_experiments, platform=str(platform) if platform else None
+        )
 
         experiments: List[Union[UserExperiment, GuildExperiment]] = [
             UserExperiment(state=state, data=exp) for exp in data['assignments']
@@ -5649,6 +5710,44 @@ class Client:
             experiments.append(GuildExperiment(state=state, data=exp))
 
         return experiments
+
+    async def fetch_apex_experiments(
+        self, *, surface: ApexExperimentSurface = ApexExperimentSurface.app
+    ) -> List[ApexExperiment]:
+        """|coro|
+
+        Retrieves the apex experiment rollouts available in relation to the user.
+
+        .. versionadded:: 2.2
+
+        .. note::
+
+            Certain experiments are only available via the gateway.
+            See :attr:`apex_experiments` for these.
+
+        Parameters
+        -----------
+        surface: :class:`.ApexExperimentSurface`
+            The surface to retrieve the apex experiments for.
+            Only supports :attr:`.ApexExperimentSurface.app` and :attr:`.ApexExperimentSurface.developer_portal`.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the apex experiment assignments failed.
+
+        Returns
+        -------
+        List[:class:`.ApexExperiment`]
+            The apex experiment rollouts.
+        """
+        state = self._connection
+        data = await state.http.get_apex_experiments(surface=int(surface))
+        exps, _, installation = ApexExperiment.parse(state, data)
+        if installation is not None:
+            # Our current installation ID is invalid
+            state.installation_id = installation
+        return list(exps.values())
 
     async def join_hub_waitlist(self, email: str, school: str) -> None:
         """|coro|

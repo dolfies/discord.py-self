@@ -102,7 +102,7 @@ from .automod import AutoModRule, AutoModAction
 from .audit_logs import AuditLogEntry
 from .read_state import ReadState
 from .tutorial import Tutorial
-from .experiment import UserExperiment, GuildExperiment
+from .experiment import UserExperiment, GuildExperiment, ApexExperiment
 from .metadata import Metadata
 from .directory import DirectoryEntry
 
@@ -1127,6 +1127,7 @@ class ConnectionState:
         self._afk: bool = options.get('afk', False)
         self._idle_since: int = since
         self.overriden_rtc_regions: Optional[List[str]] = options.get('preferred_rtc_regions', None)
+        self.installation_id: Optional[str] = options.get('installation_id', None)
 
         if cache_flags._empty:
             self.store_user = self.create_user
@@ -1188,6 +1189,7 @@ class ConnectionState:
 
         self.experiments: Dict[int, UserExperiment] = {}
         self.guild_experiments: Dict[int, GuildExperiment] = {}
+        self.apex_experiments: Dict[int, ApexExperiment] = {}
 
         if full:
             self.subscriptions: GuildSubscriptions = GuildSubscriptions(self)
@@ -1671,6 +1673,12 @@ class ConnectionState:
         # Experiments
         self.experiments = {exp[0]: UserExperiment(state=self, data=exp) for exp in data.get('experiments', [])}
         self.guild_experiments = {exp[0]: GuildExperiment(state=self, data=exp) for exp in data.get('guild_experiments', [])}
+        self.apex_experiments, self.apex_experiment_assignments, installation_id = ApexExperiment.parse(
+            self, data.get('apex_experiments')
+        )
+        if installation_id is not None:
+            # If omitted, it means we passed a valid one in IDENTIFY, so don't overwrite it
+            self.installation_id = installation_id
 
         # Extras
         self.analytics_token = data.get('analytics_token')
