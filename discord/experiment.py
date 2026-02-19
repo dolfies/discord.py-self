@@ -1046,12 +1046,18 @@ class ApexExperiment:
         experiments: Dict[int, ApexExperiment] = {}
         assignments: Dict[int, List[ApexExperimentAssignment]] = {}
 
-        for _unit_type, unit_map in data['assignments'].items():
+        # Sort unit types in descending order (e.g., Guild -> Installation -> User)
+        # This guarantees Guild experiments are registered with the correct primary unit_type,
+        # preventing them from being erroneously marked as User experiments due to underlying
+        # UseAsEligibility or IsOverride assignment entries
+        sorted_assignments = sorted(data.get('assignments', {}).items(), key=lambda x: int(x[0]), reverse=True)
+
+        for _unit_type, unit_map in sorted_assignments:
             unit_type = try_enum(ApexExperimentUnitType, int(_unit_type))
             for _unit_id, assignment_data in unit_map.items():
                 unit_id = int(_unit_id)
-                evaluation_id = assignment_data['evaluation_id']
-                for assignment_item in assignment_data['assignments']:
+                evaluation_id = assignment_data.get('evaluation_id')
+                for assignment_item in assignment_data.get('assignments', []):
                     experiment_hash = assignment_item[0]
                     try:
                         experiment = experiments[experiment_hash]
@@ -1118,4 +1124,34 @@ class ApexExperiment:
         Optional[:class:`ApexExperimentAssignment`]
             The experiment assignment for the unit, or None if not assigned.
         """
-        return self._assignments.get(unit.id)  # type: ignore
+        assignment = self._assignments.get(unit.id)  # type: ignore
+
+        if self.unit_type == ApexExperimentUnitType.guild:
+            user_assignment = self._assignments.get(self._state.self_id)
+
+            # User assignment overrides take priority
+            if user_assignment is not None and user_assignment.flags.override:
+                resolved_assignment = user_assignment
+
+            # Guild assignment overrides skip the eligibility gate
+            elif assignment is not None and assignment.flags.override:
+                resolved_assignment = assignment
+
+            # For regular guild assignments, we need to pass the eligibility gate
+            elif user_assignment is not None and user_assignment.flags.use_as_eligibility and assignment is not None:
+                resolved_assignment = assignment
+
+            # Neither override nor valid eligibility gate was found
+            else:
+                resolved_assignment = None
+
+        else:
+            # User or Installation experiments
+            resolved_assignment = assignment
+
+        # If the finalized assignment has the UseAsEligibility flag, we must ignore the assignment
+        # as it is only meant to be used as an eligibility gate for other assignments
+        if resolved_assignment is not None and resolved_assignment.flags.use_as_eligibility:
+            return None
+
+        return resolved_assignment
