@@ -816,6 +816,9 @@ class ClientUser(BaseUser):
         bio: Optional[str] = MISSING,
         date_of_birth: datetime = MISSING,
         pomelo: bool = MISSING,
+        primary_guild: PrimaryGuild = MISSING,
+        primary_guild_enabled: bool = MISSING,
+        primary_guild_id: Snowflake = MISSING,
     ) -> ClientUser:
         """|coro|
 
@@ -893,6 +896,26 @@ class ClientUser(BaseUser):
             The new global display name you wish to change to.
 
             .. versionadded:: 2.1
+        primary_guild: :class:`PrimaryGuild`
+            A :class:`PrimaryGuild` object representing the primary guild to set on your profile.
+
+            .. versionadded:: 2.2
+        primary_guild_enabled: :class:`bool`
+            Whether to display a primary guild on your profile.
+            You can set this with `primary_guild_id`
+
+            This cannot be combined with `primary_guild` as that will override this setting.
+
+            .. versionadded:: 2.2
+        primary_guild_id: :class:`int`
+            The ID of the guild to set as your primary guild.
+            Combine this with `primary_guild_enabled` to display a primary guild on your profile.
+
+            Setting this to ``None`` will remove your primary guild.
+
+            This cannot be combined with `primary_guild` as that will override this setting.
+
+            .. versionadded:: 2.2
 
         Raises
         ------
@@ -906,6 +929,8 @@ class ClientUser(BaseUser):
             `house` field was not a :class:`HypeSquadHouse`.
             `date_of_birth` field was not a :class:`datetime.datetime`.
             `accent_colo(u)r` parameter was not a :class:`Colour`.
+            Both `primary_guild` and `primary_guild_id`/`primary_guild_enabled` were passed.
+            `primary_guild` was not a :class:`PrimaryGuild`.
 
         Returns
         ---------
@@ -986,6 +1011,17 @@ class ClientUser(BaseUser):
                 raise ValueError('`date_of_birth` parameter was not a datetime')
             args['date_of_birth'] = date_of_birth.strftime('%F')
 
+        if primary_guild is not MISSING:
+            if not isinstance(primary_guild, PrimaryGuild):
+                raise ValueError('`primary_guild` parameter was not a PrimaryGuild')
+
+            if any(x is not MISSING for x in (primary_guild_id, primary_guild_enabled)):
+                raise ValueError('Cannot specify both `primary_guild` and `primary_guild_id`/`primary_guild_enabled`')
+                
+
+        _primary_guild_enabled = primary_guild.identity_enabled if primary_guild is not MISSING else primary_guild_enabled
+        _primary_guild_id = primary_guild.id if primary_guild is not MISSING else primary_guild_id
+
         http = self._state.http
 
         if house is not MISSING:
@@ -995,6 +1031,9 @@ class ClientUser(BaseUser):
                 raise ValueError('`house` parameter was not a HypeSquadHouse')
             else:
                 await http.change_hypesquad_house(house.value)
+
+        if _primary_guild_enabled is not MISSING or _primary_guild_id is not MISSING:
+            await http.set_guild_identity(guild_id=_primary_guild_id, enabled=_primary_guild_enabled)
 
         if args or data is None:
             data = await http.edit_profile(args)
