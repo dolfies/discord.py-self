@@ -1019,7 +1019,7 @@ class ClientUser(BaseUser):
             if isinstance(primary_guild, PrimaryGuild):
                 primary_guild_enabled = primary_guild.identity_enabled
 
-            await http.set_guild_identity(guild_id=primary_guild_id, enabled=primary_guild_enabled)
+            data = await http.set_guild_identity(guild_id=primary_guild_id, enabled=primary_guild_enabled)
 
         if args or data is None:
             data = await http.edit_profile(args)

@@ -4800,12 +4800,12 @@ class HTTPClient:
     def leave_hypesquad_house(self) -> Response[None]:
         return self.request(Route('DELETE', '/hypesquad/online'))
     
-    def set_guild_identity(self, *, guild_id: Optional[Snowflake] = MISSING, enabled: Optional[bool] = MISSING) -> Response[None]:
+    def set_guild_identity(self, *, guild_id: Optional[Snowflake] = MISSING, enabled: Optional[bool] = MISSING) -> Response[user.User]:
         payload = {}
         if guild_id is not MISSING:
-            payload['primary_guild_id'] = guild_id
+            payload['identity_guild_id'] = guild_id
         if enabled is not MISSING:
-            payload['primary_guild_enabled'] = enabled
+            payload['identity_enabled'] = enabled
         return self.request(Route('PUT', '/users/@me/clan'), json=payload)
 
     def get_proto_settings(self, type: int) -> Response[user.ProtoSettings]:
