@@ -9179,6 +9179,7 @@ GuildChannel
 .. autoclass:: CategoryChannel()
     :members:
     :inherited-members:
+    :exclude-members: category
 
 .. attributetable:: TextChannel
 
