@@ -4905,12 +4905,12 @@ class HTTPClient:
         if message is not None:
             payload['message_flags'] = message.flags.value
             payload['message_id'] = str(message.id)
-            if message.guild:
-                payload['guild_id'] = str(message.guild.id)
-        else:
+
+        guild = getattr(message, 'guild', None) if message is not None else None
+        if guild is None:
             guild = getattr(channel, 'guild', None)
-            if guild is not None:
-                payload['guild_id'] = str(guild.id)
+        if guild is not None:
+            payload['guild_id'] = str(guild.id)
 
         form = []
         to_upload = [file for file in files if isinstance(file, File)] if files else []
