@@ -634,7 +634,7 @@ class Client:
 
         These must be fetched first with :meth:`fetch_frecency_settings`.
 
-        .. versionadded:: 2.1
+        .. versionadded:: 2.2
         """
         return self._connection.frecency_settings
 
@@ -3110,7 +3110,7 @@ class Client:
 
             This method is an API call. For general usage, consider :attr:`frecency_settings` instead.
 
-        .. versionadded:: 2.1
+        .. versionadded:: 2.2
 
         Raises
         -------

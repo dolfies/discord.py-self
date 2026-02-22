@@ -84,6 +84,8 @@ __all__ = (
     'GuildSettings',
     'TrackingSettings',
     'FrecencySettings',
+    'FavoriteGIF',
+    'FrecencyItem',
     'EmailSettings',
 )
 
@@ -1138,13 +1140,88 @@ class UserSettings(_ProtoSettings):
         return self.__class__(state, ret['settings'])
 
 
+class FavoriteGIF:
+    """Represents a favorite GIF entry.
+
+    .. versionadded:: 2.2
+
+    Attributes
+    -----------
+    src: :class:`str`
+        The source URL of the GIF.
+    width: :class:`int`
+        The width of the GIF in pixels.
+    height: :class:`int`
+        The height of the GIF in pixels.
+    order: :class:`int`
+        The sort order of the GIF in the favorites list.
+    format: :class:`int`
+        The format type (0 = none, 1 = image, 2 = video).
+    """
+
+    __slots__ = ('src', 'width', 'height', 'order', 'format')
+
+    def __init__(self, *, src: str, width: int = 0, height: int = 0, order: int = 0, format: int = 0) -> None:
+        self.src = src
+        self.width = width
+        self.height = height
+        self.order = order
+        self.format = format
+
+    def __repr__(self) -> str:
+        return f'<FavoriteGIF src={self.src!r} order={self.order}>'
+
+    @classmethod
+    def _from_proto(cls, proto: Any) -> Self:
+        return cls(src=proto.src, width=proto.width, height=proto.height, order=proto.order, format=proto.format)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'src': self.src, 'width': self.width, 'height': self.height, 'order': self.order, 'format': self.format}
+
+
+class FrecencyItem:
+    """Represents a frecency tracking entry for an emoji, sticker, or application command.
+
+    .. versionadded:: 2.2
+
+    Attributes
+    -----------
+    total_uses: :class:`int`
+        The total number of times this item has been used.
+    recent_uses: :class:`int`
+        A bitfield of recent usage timestamps.
+    frecency: :class:`float`
+        The calculated frecency score.
+    score: :class:`float`
+        The overall score.
+    """
+
+    __slots__ = ('total_uses', 'recent_uses', 'frecency', 'score')
+
+    def __init__(self, *, total_uses: int = 0, recent_uses: int = 0, frecency: float = 0, score: float = 0) -> None:
+        self.total_uses = total_uses
+        self.recent_uses = recent_uses
+        self.frecency = frecency
+        self.score = score
+
+    def __repr__(self) -> str:
+        return f'<FrecencyItem total_uses={self.total_uses} frecency={self.frecency}>'
+
+    @classmethod
+    def _from_proto(cls, proto: Any) -> Self:
+        return cls(total_uses=proto.total_uses, recent_uses=proto.recent_uses, frecency=proto.frecency, score=proto.score)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {'total_uses': self.total_uses, 'recent_uses': self.recent_uses, 'frecency': self.frecency, 'score': self.score}
+
+
 class FrecencySettings(_ProtoSettings):
     """Represents the Discord frecency and favorites settings.
 
     This includes favorite GIFs, stickers, emojis, soundboard sounds,
     and usage frecency data for emojis, stickers, and application commands.
 
-    .. versionadded:: 2.1
+    .. versionadded:: 2.2
     """
 
     __slots__ = ()
@@ -1157,9 +1234,9 @@ class FrecencySettings(_ProtoSettings):
         return self.settings.versions.data_version
 
     @property
-    def favorite_gifs(self) -> Dict[str, Any]:
-        """Dict[:class:`str`, Any]: A mapping of GIF URL to GIF data."""
-        return dict(self.settings.favorite_gifs.gifs)
+    def favorite_gifs(self) -> Dict[str, FavoriteGIF]:
+        """Dict[:class:`str`, :class:`FavoriteGIF`]: A mapping of GIF URL to GIF data."""
+        return {url: FavoriteGIF._from_proto(gif) for url, gif in self.settings.favorite_gifs.gifs.items()}
 
     @property
     def favorite_gif_tooltip_hidden(self) -> bool:
@@ -1182,36 +1259,58 @@ class FrecencySettings(_ProtoSettings):
         return list(self.settings.favorite_soundboard_sounds.sound_ids)
 
     @property
-    def sticker_frecency(self) -> Dict[int, Any]:
-        """Dict[:class:`int`, Any]: A mapping of sticker ID to frecency data."""
-        return dict(self.settings.sticker_frecency.stickers)
+    def sticker_frecency(self) -> Dict[int, FrecencyItem]:
+        """Dict[:class:`int`, :class:`FrecencyItem`]: A mapping of sticker ID to frecency data."""
+        return {sid: FrecencyItem._from_proto(item) for sid, item in self.settings.sticker_frecency.stickers.items()}
 
     @property
-    def emoji_frecency(self) -> Dict[str, Any]:
-        """Dict[:class:`str`, Any]: A mapping of emoji identifier to frecency data."""
-        return dict(self.settings.emoji_frecency.emojis)
+    def emoji_frecency(self) -> Dict[str, FrecencyItem]:
+        """Dict[:class:`str`, :class:`FrecencyItem`]: A mapping of emoji identifier to frecency data."""
+        return {eid: FrecencyItem._from_proto(item) for eid, item in self.settings.emoji_frecency.emojis.items()}
 
     @property
-    def application_command_frecency(self) -> Dict[str, Any]:
-        """Dict[:class:`str`, Any]: A mapping of application command identifier to frecency data."""
-        return dict(self.settings.application_command_frecency.application_commands)
+    def application_command_frecency(self) -> Dict[str, FrecencyItem]:
+        """Dict[:class:`str`, :class:`FrecencyItem`]: A mapping of application command identifier to frecency data."""
+        return {cid: FrecencyItem._from_proto(item) for cid, item in self.settings.application_command_frecency.application_commands.items()}
 
-    async def edit(self, payload: Dict[str, Any], *, require_version: Union[bool, int] = False) -> Self:
+    async def edit(
+        self,
+        *,
+        require_version: Union[bool, int] = False,
+        favorite_gifs: Dict[str, FavoriteGIF] = MISSING,
+        favorite_gif_tooltip_hidden: bool = MISSING,
+        favorite_sticker_ids: List[int] = MISSING,
+        favorite_emojis: List[str] = MISSING,
+        favorite_soundboard_sound_ids: List[int] = MISSING,
+        sticker_frecency: Dict[int, FrecencyItem] = MISSING,
+        emoji_frecency: Dict[str, FrecencyItem] = MISSING,
+        application_command_frecency: Dict[str, FrecencyItem] = MISSING,
+    ) -> Self:
         """|coro|
 
         Edits the frecency settings.
 
-        The payload should be a dictionary matching the protobuf structure.
-        Use :meth:`to_dict` on the current settings to get the current state,
-        modify it, and pass it back.
-
         Parameters
         ----------
-        payload: Dict[:class:`str`, Any]
-            The settings data to update.
         require_version: Union[:class:`bool`, :class:`int`]
-            Whether to require the current version of the settings to be the same as the provided version.
+            Whether to require the current version to match before editing.
             If ``True``, the current version is used.
+        favorite_gifs: Dict[:class:`str`, :class:`FavoriteGIF`]
+            The favorite GIFs to set, keyed by URL.
+        favorite_gif_tooltip_hidden: :class:`bool`
+            Whether to hide the favorite GIF tooltip.
+        favorite_sticker_ids: List[:class:`int`]
+            The favorite sticker IDs to set.
+        favorite_emojis: List[:class:`str`]
+            The favorite emoji identifiers to set.
+        favorite_soundboard_sound_ids: List[:class:`int`]
+            The favorite soundboard sound IDs to set.
+        sticker_frecency: Dict[:class:`int`, :class:`FrecencyItem`]
+            The sticker frecency data to set.
+        emoji_frecency: Dict[:class:`str`, :class:`FrecencyItem`]
+            The emoji frecency data to set.
+        application_command_frecency: Dict[:class:`str`, :class:`FrecencyItem`]
+            The application command frecency data to set.
 
         Raises
         ------
@@ -1223,6 +1322,35 @@ class FrecencySettings(_ProtoSettings):
         :class:`FrecencySettings`
             The updated settings.
         """
+        payload: Dict[str, Any] = {}
+
+        fav_gifs: Dict[str, Any] = {}
+        if favorite_gifs is not MISSING:
+            fav_gifs['gifs'] = {url: gif.to_dict() for url, gif in favorite_gifs.items()}
+        if favorite_gif_tooltip_hidden is not MISSING:
+            fav_gifs['hide_tooltip'] = favorite_gif_tooltip_hidden
+        if fav_gifs:
+            payload['favorite_gifs'] = fav_gifs
+
+        if favorite_sticker_ids is not MISSING:
+            payload['favorite_stickers'] = {'sticker_ids': favorite_sticker_ids}
+        if favorite_emojis is not MISSING:
+            payload['favorite_emojis'] = {'emojis': favorite_emojis}
+        if favorite_soundboard_sound_ids is not MISSING:
+            payload['favorite_soundboard_sounds'] = {'sound_ids': favorite_soundboard_sound_ids}
+
+        if sticker_frecency is not MISSING:
+            payload['sticker_frecency'] = {'stickers': {str(k): v.to_dict() for k, v in sticker_frecency.items()}}
+        if emoji_frecency is not MISSING:
+            payload['emoji_frecency'] = {'emojis': {k: v.to_dict() for k, v in emoji_frecency.items()}}
+        if application_command_frecency is not MISSING:
+            payload['application_command_frecency'] = {
+                'application_commands': {k: v.to_dict() for k, v in application_command_frecency.items()}
+            }
+
+        if not payload:
+            raise TypeError('edit() missing at least 1 required keyword-only argument')
+
         state = self._state
         require_version = self.data_version if require_version is True else require_version
         ret = await state.http.edit_proto_settings(2, self.dict_to_base64(payload), require_version or None)
