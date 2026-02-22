@@ -64,6 +64,7 @@ IntegrationType = Literal['twitch', 'youtube', 'discord', 'guild_subscription']
 class BaseIntegration(PartialIntegration):
     enabled: bool
     user: NotRequired[APIUser]
+    scopes: NotRequired[List[str]]
 
 
 class StreamIntegration(BaseIntegration):
@@ -79,7 +80,6 @@ class StreamIntegration(BaseIntegration):
 
 class BotIntegration(BaseIntegration):
     application: IntegrationApplication
-    scopes: List[str]
     role_connections_metadata: NotRequired[List[RoleConnectionMetadata]]
 
 
