@@ -30,7 +30,7 @@ import struct
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Collection, Dict, List, Literal, Optional, Sequence, Tuple, Type, Union, overload
 
-from discord_protos import PreloadedUserSettings  # , FrecencyUserSettings
+from discord_protos import FrecencyUserSettings, PreloadedUserSettings
 from google.protobuf.json_format import MessageToDict, ParseDict
 
 from .activity import CustomActivity
@@ -83,6 +83,7 @@ __all__ = (
     'ChannelSettings',
     'GuildSettings',
     'TrackingSettings',
+    'FrecencySettings',
     'EmailSettings',
 )
 
@@ -1134,6 +1135,97 @@ class UserSettings(_ProtoSettings):
         ret = await state.http.edit_proto_settings(1, self.dict_to_base64(payload), require_version or None)
         # TODO: What do we do with out of date settings here?
 
+        return self.__class__(state, ret['settings'])
+
+
+class FrecencySettings(_ProtoSettings):
+    """Represents the Discord frecency and favorites settings.
+
+    This includes favorite GIFs, stickers, emojis, soundboard sounds,
+    and usage frecency data for emojis, stickers, and application commands.
+
+    .. versionadded:: 2.1
+    """
+
+    __slots__ = ()
+
+    PROTOBUF_CLS = FrecencyUserSettings
+
+    @property
+    def data_version(self) -> int:
+        """:class:`int`: The version of the settings. Increases on every change."""
+        return self.settings.versions.data_version
+
+    @property
+    def favorite_gifs(self) -> Dict[str, Any]:
+        """Dict[:class:`str`, Any]: A mapping of GIF URL to GIF data."""
+        return dict(self.settings.favorite_gifs.gifs)
+
+    @property
+    def favorite_gif_tooltip_hidden(self) -> bool:
+        """:class:`bool`: Whether the favorite GIF tooltip has been dismissed."""
+        return self.settings.favorite_gifs.hide_tooltip
+
+    @property
+    def favorite_sticker_ids(self) -> List[int]:
+        """List[:class:`int`]: A list of favorite sticker IDs."""
+        return list(self.settings.favorite_stickers.sticker_ids)
+
+    @property
+    def favorite_emojis(self) -> List[str]:
+        """List[:class:`str`]: A list of favorite emoji identifiers."""
+        return list(self.settings.favorite_emojis.emojis)
+
+    @property
+    def favorite_soundboard_sound_ids(self) -> List[int]:
+        """List[:class:`int`]: A list of favorite soundboard sound IDs."""
+        return list(self.settings.favorite_soundboard_sounds.sound_ids)
+
+    @property
+    def sticker_frecency(self) -> Dict[int, Any]:
+        """Dict[:class:`int`, Any]: A mapping of sticker ID to frecency data."""
+        return dict(self.settings.sticker_frecency.stickers)
+
+    @property
+    def emoji_frecency(self) -> Dict[str, Any]:
+        """Dict[:class:`str`, Any]: A mapping of emoji identifier to frecency data."""
+        return dict(self.settings.emoji_frecency.emojis)
+
+    @property
+    def application_command_frecency(self) -> Dict[str, Any]:
+        """Dict[:class:`str`, Any]: A mapping of application command identifier to frecency data."""
+        return dict(self.settings.application_command_frecency.application_commands)
+
+    async def edit(self, payload: Dict[str, Any], *, require_version: Union[bool, int] = False) -> Self:
+        """|coro|
+
+        Edits the frecency settings.
+
+        The payload should be a dictionary matching the protobuf structure.
+        Use :meth:`to_dict` on the current settings to get the current state,
+        modify it, and pass it back.
+
+        Parameters
+        ----------
+        payload: Dict[:class:`str`, Any]
+            The settings data to update.
+        require_version: Union[:class:`bool`, :class:`int`]
+            Whether to require the current version of the settings to be the same as the provided version.
+            If ``True``, the current version is used.
+
+        Raises
+        ------
+        HTTPException
+            Editing the settings failed.
+
+        Returns
+        --------
+        :class:`FrecencySettings`
+            The updated settings.
+        """
+        state = self._state
+        require_version = self.data_version if require_version is True else require_version
+        ret = await state.http.edit_proto_settings(2, self.dict_to_base64(payload), require_version or None)
         return self.__class__(state, ret['settings'])
 
 
