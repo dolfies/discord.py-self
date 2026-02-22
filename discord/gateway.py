@@ -261,6 +261,10 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
     def tick(self) -> None:
         self._last_recv = time.perf_counter()
 
+    def beat(self) -> Dict[str, Any]:
+        self._last_send = time.perf_counter()
+        return self.get_heartbeat_payload()
+
     def ack(self) -> None:
         ack_time = time.perf_counter()
         self._last_ack = ack_time
@@ -601,7 +605,7 @@ class DiscordWebSocket:
 
             if op == self.HEARTBEAT:
                 if self._keep_alive:
-                    beat = self._keep_alive.get_heartbeat_payload()
+                    beat = self._keep_alive.beat()
                     await self.send_heartbeat(beat)
                 return
 
