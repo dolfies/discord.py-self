@@ -458,6 +458,11 @@ Converters
 .. autoclass:: discord.ext.commands.ScheduledEventConverter
     :members:
 
+.. attributetable:: discord.ext.commands.Timestamp
+
+.. autoclass:: discord.ext.commands.Timestamp
+    :members:
+
 .. attributetable:: discord.ext.commands.clean_content
 
 .. autoclass:: discord.ext.commands.clean_content
