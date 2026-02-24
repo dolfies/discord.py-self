@@ -899,11 +899,11 @@ class ClientUser(BaseUser):
 
             The behaviour of this parameters is as follows:
 
-            - If a :class:`PrimaryGuild` object is passed, then the guild ID and whether the identity is 
+            - If a :class:`PrimaryGuild` object is passed, then the guild ID and whether the identity is
                 enabled are taken from that object.
-            - If a :class:`selfcord.abc.Snowflake` object is passed, then the guild ID is taken from that 
+            - If a :class:`selfcord.abc.Snowflake` object is passed, then the guild ID is taken from that
                 object and the identity is enabled.
-            - If ``None`` is passed, then the primary guild is removed.
+            - If ``None`` is passed, then the primary guild is removed and the identity is disabled.
 
             .. versionadded:: 2.2
 
@@ -1011,11 +1011,14 @@ class ClientUser(BaseUser):
                 await http.change_hypesquad_house(house.value)
 
         if primary_guild is not MISSING:
-            if not isinstance(primary_guild, selfcord.abc.Snowflake):
-                raise ValueError('`primary_guild` parameter was not a Snowflake')
-            
-            primary_guild_id = primary_guild.id
-            primary_guild_enabled = True
+            if primary_guild is None:
+                primary_guild_id = None
+                primary_guild_enabled = False
+            elif not isinstance(primary_guild, selfcord.abc.Snowflake):
+                raise ValueError('`primary_guild` parameter was not an abc.Snowflake')
+            else:
+                primary_guild_id = primary_guild.id
+                primary_guild_enabled = True
             if isinstance(primary_guild, PrimaryGuild):
                 primary_guild_enabled = primary_guild.identity_enabled
 
