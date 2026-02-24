@@ -4,7 +4,7 @@ import asyncio
 import multiprocessing
 import multiprocessing.connection
 import sys
-from typing import Any
+from typing import Any, Dict
 
 # These dependencies are not automatically included with discord.py and need to be installed separately:
 # pip install pyqt6 pyqt-hcaptcha qasync
@@ -23,13 +23,13 @@ class WebviewProcess:
     view: HCaptchaWebView
     future: asyncio.Future[str]
 
-    def __init__(self, conn: multiprocessing.connection.Connection, config: dict[str, Any], invisible: bool):
+    def __init__(self, conn: multiprocessing.connection.Connection, config: Dict[str, Any], invisible: bool):
         self.conn = conn
         self.config_dict = config
         self.invisible = invisible
 
     @classmethod
-    def start(cls, conn: multiprocessing.connection.Connection, config: dict[str, Any], invisible: bool):
+    def start(cls, conn: multiprocessing.connection.Connection, config: Dict[str, Any], invisible: bool):
         app = QApplication(sys.argv)
         loop = qasync.QEventLoop(app)
         asyncio.set_event_loop(loop)
@@ -132,7 +132,7 @@ async def show_captcha(exc: discord.CaptchaRequired, client: commands.Bot) -> st
     if exc.service != 'hcaptcha':
         raise NotImplementedError(f'Unsupported captcha service: {exc.service}')
 
-    config: dict[str, Any] = {
+    config = {
         'sitekey': exc.sitekey,
         'rqdata': exc.rqdata,
         'url': 'https://discord.com/channels/@me',
