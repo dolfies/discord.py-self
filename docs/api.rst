@@ -10202,6 +10202,8 @@ The following exceptions are thrown by the library.
 .. autoexception:: ConnectionClosed
     :members:
 
+.. autoexception:: FFmpegProcessError
+
 .. autoexception:: discord.opus.OpusError
 
 .. autoexception:: discord.opus.OpusNotLoaded
@@ -10217,6 +10219,7 @@ Exception Hierarchy
                 - :exc:`InvalidData`
                 - :exc:`LoginFailure`
                 - :exc:`ConnectionClosed`
+                - :exc:`FFmpegProcessError`
             - :exc:`GatewayNotFound`
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
