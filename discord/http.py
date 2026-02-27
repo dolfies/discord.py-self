@@ -138,8 +138,7 @@ if TYPE_CHECKING:
     Response = Coroutine[Any, Any, T]
     MessageableChannel = Union[TextChannel, Thread, DMChannel, GroupChannel, PartialMessageable, VoiceChannel, ForumChannel]
 
-# type: ignore
-CURL_VERSION = tuple(map(int, curl_cffi.__version__.split('.')[:2]))
+CURL_VERSION = tuple(map(int, curl_cffi.__version__.split('.')[:2])) # type: ignore
 INTERNAL_API_VERSION = 9
 CIPHERS = (
     'TLS_GREASE_5A',
