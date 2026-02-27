@@ -56,6 +56,7 @@ from typing import (
 from urllib.parse import quote as _uriquote
 
 import aiohttp
+import curl_cffi
 from curl_cffi import requests, CurlMime
 
 from . import utils
@@ -703,6 +704,11 @@ class HTTPClient:
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
             'User-Agent': self.user_agent,
         }
+
+        # curl_cffi >0.14 sets a new default ws message size of 4 mb, insufficient
+        # for accounts in large numbers of guilds
+        if tuple(map(int, curl_cffi.__version__.split('.')[:2])) > (0, 14):
+            kwargs['max_message_size'] = 15 * 1024 * 1024
 
         proxy = kwargs.pop('proxy', self.proxy if self.proxy_gateway else None)
         proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth if self.proxy_gateway else None)
