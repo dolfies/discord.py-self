@@ -138,6 +138,7 @@ if TYPE_CHECKING:
     Response = Coroutine[Any, Any, T]
     MessageableChannel = Union[TextChannel, Thread, DMChannel, GroupChannel, PartialMessageable, VoiceChannel, ForumChannel]
 
+CURL_VERSION = tuple(map(int, curl_cffi.__version__.split('.')[:2]))
 INTERNAL_API_VERSION = 9
 CIPHERS = (
     'TLS_GREASE_5A',
@@ -707,7 +708,7 @@ class HTTPClient:
 
         # curl_cffi >0.14 sets a new default ws message size of 4 mb, insufficient
         # for accounts in large numbers of guilds
-        if tuple(map(int, curl_cffi.__version__.split('.')[:2])) > (0, 14):
+        if CURL_VERSION > (0, 14):
             kwargs['max_message_size'] = 15 * 1024 * 1024
 
         proxy = kwargs.pop('proxy', self.proxy if self.proxy_gateway else None)
