@@ -76,7 +76,6 @@ from threading import Timer
 import types
 import typing
 import warnings
-import logging
 import struct
 import time
 import yarl
@@ -1524,7 +1523,7 @@ class ExpiringString(collections.UserString):
     def _update(self, data: str, timeout: int) -> None:
         try:
             self._timer.cancel()
-        except:
+        except Exception:
             pass
         self.data = data
         self._timer: Timer = Timer(timeout, self._destruct)
