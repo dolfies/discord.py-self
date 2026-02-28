@@ -3110,6 +3110,9 @@ class Client:
 
             This method is an API call. For general usage, consider :attr:`frecency_settings` instead.
 
+            Unlike :attr:`settings`, the frecency settings cache is not populated by default.
+            You must call this method at least once to populate the cache.
+
         .. versionadded:: 2.2
 
         Raises

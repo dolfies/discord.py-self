@@ -2092,6 +2092,10 @@ class ConnectionState:
                 old_settings = FrecencySettings._copy(settings)
                 settings._update(data['settings']['proto'], partial=data.get('partial', False))
                 self.dispatch('frecency_settings_update', old_settings, settings)
+            else:
+                settings = FrecencySettings(self, data['settings']['proto'])
+                self.frecency_settings = settings
+                self.dispatch('frecency_settings_update', None, settings)
         elif type == UserSettingsType.test_settings:
             pass
         else:
