@@ -65,7 +65,7 @@ class EmbedMediaProxy(EmbedProxy):
 
     def __bool__(self) -> bool:
         # This is a nasty check to see if we only have the `_flags` attribute which is created regardless in init.
-        # Had we had any of the other items, like image/video data this would be >1 and therefor
+        # Had we had any of the other items, like image/video data this would be >1 and therefore
         # would not be "empty".
         return len(self.__dict__) > 1
 
@@ -775,3 +775,5 @@ class Embed:
             result['title'] = self.title
 
         return result  # type: ignore # This payload is equivalent to the EmbedData type
+
+

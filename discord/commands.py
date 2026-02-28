@@ -180,7 +180,7 @@ class ApplicationCommand(Protocol):
         """Optional[:class:`~discord.Permissions`]: The default permissions required to use this command.
 
         .. note::
-            This may be overrided on a guild-by-guild basis.
+            This may be overridden on a guild-by-guild basis.
         """
         perms = self._default_member_permissions
         return Permissions(perms) if perms is not None else None
@@ -1001,3 +1001,4 @@ def _command_factory(command_type: int) -> Tuple[ApplicationCommandType, Type[Ba
         return value, MessageCommand
     else:
         return value, BaseCommand  # IDK about this
+

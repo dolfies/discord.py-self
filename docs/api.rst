@@ -3801,11 +3801,11 @@ of :class:`enum.Enum`.
 
     .. attribute:: approved
 
-        The application has been approved for RPC funcionality.
+        The application has been approved for RPC functionality.
 
     .. attribute:: rejected
 
-        The application has not been approved for RPC funcionality.
+        The application has not been approved for RPC functionality.
 
     .. attribute:: blocked
 
@@ -6473,7 +6473,7 @@ of :class:`enum.Enum`.
 
 .. class:: ForumLayoutType
 
-    Represents how a forum's posts are layed out in the client.
+    Represents how a forum's posts are laid out in the client.
 
     .. versionadded:: 2.0
 
@@ -6680,21 +6680,21 @@ of :class:`enum.Enum`.
 .. class:: StatusDisplayType
 
     Represents which field is of the user's activity is
-    displayed in the members list.
+    displaid in the members list.
 
     .. versionadded:: 2.1
 
     .. attribute:: name
 
-        The name of the activity is displayed.
+        The name of the activity is displaid.
 
     .. attribute:: state
 
-        The state of the activity is displayed.
+        The state of the activity is displaid.
 
     .. attribute:: details
 
-        The details of the activity are displayed.
+        The details of the activity are displaid.
 
 .. class:: OnboardingPromptType
 
@@ -6708,7 +6708,7 @@ of :class:`enum.Enum`.
 
     .. attribute:: dropdown
 
-        Prompt options are displayed as a drop-down.
+        Prompt options are displaid as a drop-down.
 
 .. class:: OnboardingMode
 
@@ -9452,3 +9452,5 @@ Exception Hierarchy
                 - :exc:`DiscordServerError`
                 - :exc:`CaptchaRequired`
             - :exc:`RateLimited`
+
+

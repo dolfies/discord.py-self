@@ -2762,7 +2762,7 @@ class ConnectionState:
                 and 'online' not in [group['id'] for group in data['groups']]
             ):
                 _log.debug(
-                    f'Detected guild {guild} with manually overriden member list groups: online members not cached by the Gateway.'
+                    f'Detected guild {guild} with manually overridden member list groups: online members not cached by the Gateway.'
                 )
                 request.handle_manual_override(guild._true_online_count)
         else:
@@ -3832,3 +3832,4 @@ class ConnectionState:
             'full': 521847234246082599,
             'guild': 590663762298667008,
         }
+

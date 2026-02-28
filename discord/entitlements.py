@@ -276,7 +276,7 @@ class Entitlement(Hashable):
         Deletes the entitlement. This removes the entitlement from the user's
         entitlements, and is irreversible.
 
-        This is only useable on entitlements of type :attr:`EntitlementType.test_mode_purchase`.
+        This is only usable on entitlements of type :attr:`EntitlementType.test_mode_purchase`.
 
         Raises
         ------
@@ -624,3 +624,4 @@ class GiftBatch(Hashable):
             The report content.
         """
         return await self._state.http.get_gift_batch_csv(self.application_id, self.id)
+

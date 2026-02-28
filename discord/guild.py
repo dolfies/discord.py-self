@@ -5221,7 +5221,7 @@ class Guild(Hashable):
         This is a websocket operation.
 
         .. note::
-            This is preferrable to using :meth:`fetch_member` as the client uses
+            This is preferable to using :meth:`fetch_member` as the client uses
             it quite often, and you can also request presence.
 
         .. versionadded:: 1.3
@@ -5913,3 +5913,4 @@ class Guild(Hashable):
             reason=reason if reason is not MISSING else None,
         )
         return Onboarding(data=data, guild=self, state=self._state)
+
