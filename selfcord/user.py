@@ -24,6 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 import selfcord.abc
@@ -57,8 +58,6 @@ from .voice_client import VoiceClient
 
 if TYPE_CHECKING:
     from typing_extensions import Self
-
-    from datetime import datetime
 
     from .abc import T as ConnectReturn, VocalChannel
     from .calls import PrivateCall
@@ -300,7 +299,7 @@ class BaseUser(_UserTag):
             return _get_as_snowflake(self._avatar_decoration_data, 'sku_id')
 
     @property
-    def avatar_decoration_expires_at(self) -> Optional[datetime]:
+    def avatar_decoration_expires_at(self) -> Optional[datetime.datetime]:
         """Optional[:class:`datetime.datetime`]: Returns the avatar decoration's expiration time.
 
         If the user does not have an expiring avatar decoration, ``None`` is returned.
@@ -393,7 +392,7 @@ class BaseUser(_UserTag):
         return f'<@{self.id}>'
 
     @property
-    def created_at(self) -> datetime:
+    def created_at(self) -> datetime.datetime:
         """:class:`datetime.datetime`: Returns the user's creation time in UTC.
 
         This is when the user's Discord account was created.
@@ -814,7 +813,7 @@ class ClientUser(BaseUser):
         accent_colour: Colour = MISSING,
         accent_color: Colour = MISSING,
         bio: Optional[str] = MISSING,
-        date_of_birth: datetime = MISSING,
+        date_of_birth: datetime.date = MISSING,
         pomelo: bool = MISSING,
         primary_guild: Optional[selfcord.abc.Snowflake] = MISSING,
     ) -> ClientUser:
@@ -878,7 +877,7 @@ class ClientUser(BaseUser):
             Could be ``None`` to represent no bio.
 
             .. versionadded:: 2.0
-        date_of_birth: :class:`datetime.datetime`
+        date_of_birth: :class:`datetime.date`
             Your date of birth. Can only ever be set once.
 
             .. versionadded:: 2.0
@@ -917,7 +916,7 @@ class ClientUser(BaseUser):
             Discriminator was passed when migrated to pomelo.
             Password was not passed when it was required.
             `house` field was not a :class:`HypeSquadHouse`.
-            `date_of_birth` field was not a :class:`datetime.datetime`.
+            `date_of_birth` field was not a :class:`datetime.date`.
             `accent_colo(u)r` parameter was not a :class:`Colour`.
             `primary_guild` parameter was not a :class:`selfcord.abc.Snowflake`.
 
@@ -996,7 +995,7 @@ class ClientUser(BaseUser):
             args['bio'] = bio or ''
 
         if date_of_birth is not MISSING:
-            if not isinstance(date_of_birth, datetime):
+            if not isinstance(date_of_birth, datetime.date):
                 raise ValueError('`date_of_birth` parameter was not a datetime')
             args['date_of_birth'] = date_of_birth.strftime('%F')
 
