@@ -408,7 +408,7 @@ class SubscriptionInvoice(Hashable):
             Paying the invoice failed.
         """
         if self.is_preview() or not self.subscription:
-            raise TypeError('Cannot pay a nonexistant invoice')
+            raise TypeError('Cannot pay a nonexistent invoice')
 
         data = await self._state.http.pay_invoice(
             self.subscription.id,
@@ -973,3 +973,4 @@ class SubscriptionTrial(Hashable):
     def duration(self) -> timedelta:
         """:class:`datetime.timedelta`: How long the trial lasts."""
         return timedelta(days=self.interval_count * self._INTERVAL_TABLE[self.interval])
+

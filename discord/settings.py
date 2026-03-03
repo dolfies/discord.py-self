@@ -100,7 +100,7 @@ class _ProtoSettings:
 
     # I honestly wish I didn't have to vomit properties everywhere like this,
     # but unfortunately it's probably the best way to do it
-    # The discord-protos library is maintained seperately, so any changes
+    # The discord-protos library is maintained separately, so any changes
     # to the protobufs will have to be reflected here;
     # this is why I'm keeping the `settings` attribute public
     # I love protobufs :blobcatcozystars:
@@ -1140,7 +1140,7 @@ class UserSettings(_ProtoSettings):
 class GuildFolder:
     """Represents a guild folder.
 
-    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
+    All properties have setters to facilitate editing the class for use with :meth:`UserSettings.edit`.
 
     .. note::
 
@@ -1388,7 +1388,7 @@ class GuildFolder:
 class GuildProgress:
     """Represents a guild's settings revolving around upsells, promotions, and feature progress.
 
-    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
+    All properties have setters to facilitate editing the class for use with :meth:`UserSettings.edit`.
 
     .. versionadded:: 2.0
 
@@ -1550,7 +1550,7 @@ class GuildProgress:
 class AudioContext:
     """Represents saved audio settings for a user or stream.
 
-    All properties have setters to faciliate editing the class for use with :meth:`UserSettings.edit`.
+    All properties have setters to facilitate editing the class for use with :meth:`UserSettings.edit`.
 
     .. versionadded:: 2.0
 
@@ -2157,7 +2157,7 @@ class GuildSettings:
 
     def __init__(self, *, data: UserGuildSettingsPayload, state: ConnectionState) -> None:
         self._state = state
-        self.version = -1  # Overriden by real data
+        self.version = -1  # Overridden by real data
         self._update(data)
 
     def __repr__(self) -> str:
@@ -2195,7 +2195,7 @@ class GuildSettings:
 
     @property
     def channel_overrides(self) -> List[ChannelSettings]:
-        """List[:class:`ChannelSettings`: Returns a list of all the overrided channel notification settings."""
+        """List[:class:`ChannelSettings`: Returns a list of all the overridden channel notification settings."""
         return list(self._channel_overrides.values())
 
     async def edit(
@@ -2457,3 +2457,7 @@ class EmailSettings:
 
         data = await self._state.http.edit_email_settings(**payload)
         self._update(data)
+
+
+
+

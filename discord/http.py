@@ -543,7 +543,7 @@ class Ratelimit:
             self.reset()
 
         if self._max_ratelimit_timeout is not None and self.expires is not None:
-            # Check if we can pre-emptively block this request for having too large of a timeout
+            # Check if we can preemptively block this request for having too large of a timeout
             current_reset_after = self.expires - self._loop.time()
             if current_reset_after > self._max_ratelimit_timeout:
                 raise RateLimited(current_reset_after)
@@ -574,7 +574,7 @@ class Ratelimit:
     async def __aexit__(self, type: Type[BE], value: BE, traceback: TracebackType) -> None:
         self.outgoing -= 1
         tokens = self.remaining - self.outgoing
-        # Check whether the rate limit needs to be pre-emptively slept on
+        # Check whether the rate limit needs to be preemptively slept on
         # Note that this is a Lock to prevent multiple rate limit objects from sleeping at once
         if not self._sleeping.locked():
             if tokens <= 0:
@@ -939,7 +939,7 @@ class HTTPClient:
                             ratelimit.update(response, use_clock=self.use_clock)
                             if ratelimit.remaining == 0:
                                 _log.debug(
-                                    'A rate limit bucket (%s) has been exhausted. Pre-emptively rate limiting...',
+                                    'A rate limit bucket (%s) has been exhausted. Preemptively rate limiting...',
                                     discord_hash or route_key,
                                 )
 
@@ -5135,3 +5135,5 @@ class HTTPClient:
     def join_hub_token(self, token: str) -> Response[hub.EmailDomainVerification]:
         payload = {'token': token}
         return self.request(Route('POST', '/guilds/automations/email-domain-lookup/verify'), json=payload)
+
+

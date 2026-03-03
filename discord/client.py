@@ -264,7 +264,7 @@ class Client:
             - Large guilds (over 75,000 members) may not dispatch any non-stateful events (e.g. :func:`.on_message`, :func:`.on_reaction_add`, :func:`.on_typing`, etc.)
             - :attr:`~Guild.threads` will only contain threads the client has joined.
             - Guilds will not be chunkable and member events (e.g. :func:`.on_member_update`) will not be dispatched.
-                - Most :func:`.on_user_update` occurences will not be dispatched.
+                - Most :func:`.on_user_update` occurrences will not be dispatched.
                 - The member (:attr:`~Guild.members`) and user (:attr:`~Client.users`) cache will be largely incomplete.
                 - Essentially, only the client user, friends/implicit relationships, voice members, and other subscribed-to users will be cached and dispatched.
 
@@ -5966,3 +5966,4 @@ class Client:
             for read_state, last_acked in acks.items()
         ]  # type: ignore
         await self._connection.http.ack_bulk(payload)
+

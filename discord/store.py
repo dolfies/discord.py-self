@@ -1061,10 +1061,10 @@ class ContentRating:
         )
 
     @classmethod
-    def from_dicts(cls, datas: Optional[dict]) -> List[ContentRating]:
-        if not datas:
+    def from_dicts(cls, data_by_agency: Optional[dict]) -> List[ContentRating]:
+        if not data_by_agency:
             return []
-        return [cls.from_dict(data, int(agency)) for agency, data in datas.items()]
+        return [cls.from_dict(data, int(agency)) for agency, data in data_by_agency.items()]
 
     def __repr__(self) -> str:
         return f'<ContentRating agency={self.agency!r} rating={self.rating}>'
@@ -2365,3 +2365,4 @@ class SubscriptionPlan(Hashable):
             gift_.subscription_plan = self
 
         return entitlements, library_applications, gift_
+

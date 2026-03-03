@@ -891,7 +891,7 @@ class Thread(Messageable, Hashable):
         try:
             data: ThreadMemberListUpdateEvent = await asyncio.wait_for(future, timeout=15)
         except asyncio.TimeoutError as exc:
-            raise InvalidData("Didn't receieve a response from Discord") from exc
+            raise InvalidData("Didn't receive a response from Discord") from exc
 
         # Check if we are in the cache
         _self = self.guild.get_thread(self.id)
@@ -1044,3 +1044,4 @@ class ThreadMember(Hashable):
         is not cached then this will be ``None``.
         """
         return self.parent.guild.get_member(self.id)
+
