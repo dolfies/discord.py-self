@@ -87,7 +87,7 @@ from .scheduled_event import ScheduledEvent
 from .stage_instance import StageInstance
 from .threads import Thread, ThreadMember
 from .sticker import GuildSticker
-from .settings import UserSettings, GuildSettings, ChannelSettings, TrackingSettings
+from .settings import UserSettings, FrecencySettings, GuildSettings, ChannelSettings, TrackingSettings
 from .interactions import Interaction
 from .permissions import Permissions
 from .modal import Modal
@@ -1144,6 +1144,7 @@ class ConnectionState:
         self.user: Optional[ClientUser] = None
         self._users: weakref.WeakValueDictionary[int, User] = weakref.WeakValueDictionary()
         self.settings: Optional[UserSettings] = None
+        self.frecency_settings: Optional[FrecencySettings] = None
         self.consents: Optional[TrackingSettings] = None
         self.connections: Dict[str, Connection] = {}
         self.pending_payments: Dict[int, Payment] = {}
@@ -2086,7 +2087,15 @@ class ConnectionState:
                 self.dispatch('settings_update', old_settings, settings)
                 self.dispatch('internal_settings_update', old_settings, settings)
         elif type == UserSettingsType.frecency_user_settings:
-            pass
+            settings = self.frecency_settings
+            if settings:
+                old_settings = FrecencySettings._copy(settings)
+                settings._update(data['settings']['proto'], partial=data.get('partial', False))
+                self.dispatch('frecency_settings_update', old_settings, settings)
+            else:
+                settings = FrecencySettings(self, data['settings']['proto'])
+                self.frecency_settings = settings
+                self.dispatch('frecency_settings_update', None, settings)
         elif type == UserSettingsType.test_settings:
             pass
         else:

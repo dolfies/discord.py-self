@@ -110,7 +110,7 @@ from .store import SKU, StoreListing, SubscriptionPlan
 from .guild_premium import *
 from .library import LibraryApplication
 from .relationship import FriendSuggestion, Relationship
-from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailSettings
+from .settings import UserSettings, FrecencySettings, LegacyUserSettings, TrackingSettings, EmailSettings
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import ApexExperiment, UserExperiment, GuildExperiment
@@ -627,6 +627,16 @@ class Client:
         .. versionadded:: 2.0
         """
         return self._connection.settings
+
+    @property
+    def frecency_settings(self) -> Optional[FrecencySettings]:
+        """Optional[:class:`.FrecencySettings`]: Returns the user's frecency settings, if available.
+
+        These must be fetched first with :meth:`fetch_frecency_settings`.
+
+        .. versionadded:: 2.2
+        """
+        return self._connection.frecency_settings
 
     @property
     def tracking_settings(self) -> Optional[TrackingSettings]:
@@ -3090,6 +3100,35 @@ class Client:
         state = self._connection
         data = await state.http.get_proto_settings(1)
         return UserSettings(state, data['settings'])
+
+    async def fetch_frecency_settings(self) -> FrecencySettings:
+        """|coro|
+
+        Retrieves your frecency settings.
+
+        .. note::
+
+            This method is an API call. For general usage, consider :attr:`frecency_settings` instead.
+
+            Unlike :attr:`settings`, the frecency settings cache is not populated by default.
+            You must call this method at least once to populate the cache.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        HTTPException
+            Retrieving your settings failed.
+
+        Returns
+        --------
+        :class:`.FrecencySettings`
+            The frecency settings for your account.
+        """
+        state = self._connection
+        data = await state.http.get_proto_settings(2)
+        state.frecency_settings = FrecencySettings(state, data['settings'])
+        return state.frecency_settings
 
     @utils.deprecated('Client.fetch_settings')
     async def legacy_settings(self) -> LegacyUserSettings:
