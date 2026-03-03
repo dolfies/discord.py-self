@@ -35,7 +35,7 @@ from .errors import ClientException
 from .flags import SpeakingFlags
 from .player import AudioPlayer, AudioSource
 from .utils import MISSING
-from .voice_state import VoiceConnectionState
+from .voice_state import VoiceConnectionState, has_dave
 from .voice_media import (
     RTP_AUDIO_LEVEL_SILENCE,
     _audio_level_from_pcm,
@@ -430,6 +430,8 @@ class VoiceClient(VoiceProtocol):
     def __init__(self, client: Client, channel: VocalChannel) -> None:
         if not has_nacl:
             raise RuntimeError('PyNaCl library needed in order to use voice')
+        if not has_dave:
+            raise RuntimeError('davey library needed in order to use voice')
 
         super().__init__(client, channel)
         state = client._connection
@@ -449,6 +451,7 @@ class VoiceClient(VoiceProtocol):
         self._connection: VoiceConnectionState = self.create_connection_state()
 
     warn_nacl: bool = not has_nacl
+    warn_dave: bool = not has_dave
     supported_modes: Tuple[TransportEncryptionModes, ...] = (
         'aead_xchacha20_poly1305_rtpsize',
         'xsalsa20_poly1305_lite',
