@@ -518,7 +518,7 @@ class AuditLogChanges:
         self._create_trigger(first, entry)
         trigger = self._create_trigger(second, entry)
         try:
-            # guard unexpecte non list attributes or non iterable data
+            # guard unexpected non list attributes or non iterable data
             getattr(trigger, attr).extend(data)
         except (AttributeError, TypeError):
             pass
@@ -905,3 +905,5 @@ class AuditLogEntry(Hashable):
 
     def _convert_target_onboarding_prompt(self, target_id: int) -> Object:
         return Object(target_id, type=OnboardingPrompt)
+
+

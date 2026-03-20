@@ -1001,7 +1001,7 @@ decorator. For example:
         """A bad example of an eval command"""
         await ctx.send(eval(code))
 
-This would only evaluate the command if the function ``is_owner`` returns ``True``. Sometimes we re-use a check often and
+This would only evaluate the command if the function ``is_owner`` returns ``True``. Sometimes we reuse a check often and
 want to split it into its own decorator. To do that we can just add another level of depth:
 
 .. code-block:: python3
@@ -1113,3 +1113,4 @@ For example, to block all DMs we could do the following:
     Be careful on how you write your global checks, as it could also lock you out of your own bot.
 
 .. need a note on global check once here I think
+

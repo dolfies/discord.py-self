@@ -254,7 +254,7 @@ Bug Fixes
 - [BREAKING] Remove no longer functional ``validate`` parameter from :meth:`abc.GuildChannel.create_invite`
 - Improve presence syncing to reduce unnecessary updates and lost presences
 - [BREAKING] Update return type of :meth:`Client.detectable_applications` to fix a crash due to an API change
-- [BREAKING] Remove nonexistant ``Gift.revoked`` attribute
+- [BREAKING] Remove nonexistent ``Gift.revoked`` attribute
 - [BREAKING] Rename ``Guild.owner_application_id`` to ``Guild.application_id`` to match API and upstream
 - [BREAKING] Remove no longer functional ``Guild.application_command_counts`` attribute
 - Fix crash in :class:`Integration` with the Twitch integration ID being a string
@@ -358,3 +358,4 @@ v2.0.0
 -------
 
 This is considered the initial stable version. All previous versions were mostly a stepping stone to this one. The changes are too enormous to list here, so please check out the rest of the documentation.
+

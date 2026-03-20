@@ -178,7 +178,7 @@ class RateLimited(DiscordException):
 
     This is not raised during global ratelimits.
 
-    Since sometimes requests are halted pre-emptively before they're
+    Since sometimes requests are halted preemptively before they're
     even made, this **does not** subclass :exc:`HTTPException`.
 
     .. versionadded:: 2.0
@@ -341,3 +341,4 @@ class ConnectionClosed(ClientException):
         self.code: int = code or -1
         self.reason: str = reason or 'unknown'
         super().__init__(f'WebSocket closed with {self.code} (reason: {self.reason!r})')
+

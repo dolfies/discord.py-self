@@ -99,7 +99,7 @@ from .guild_premium import PremiumGuildSubscription
 from .entitlements import Entitlement
 from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
-from .partial_emoji import _EmojiTag, PartialEmoji
+from .partial_emoji import _EmojiTag
 from .commands import _command_factory
 
 if TYPE_CHECKING:
@@ -2165,7 +2165,7 @@ class Guild(Hashable):
             elif isinstance(default_reaction_emoji, str):
                 options['default_reaction_emoji'] = PartialEmoji.from_str(default_reaction_emoji)._to_forum_tag_payload()
             else:
-                raise ValueError(f'default_reaction_emoji parameter must be either Emoji, PartialEmoji, or str')
+                raise ValueError('default_reaction_emoji parameter must be either Emoji, PartialEmoji, or str')
 
         if not media and default_layout is not MISSING:
             if not isinstance(default_layout, ForumLayoutType):
@@ -5221,7 +5221,7 @@ class Guild(Hashable):
         This is a websocket operation.
 
         .. note::
-            This is preferrable to using :meth:`fetch_member` as the client uses
+            This is preferable to using :meth:`fetch_member` as the client uses
             it quite often, and you can also request presence.
 
         .. versionadded:: 1.3
@@ -5913,3 +5913,4 @@ class Guild(Hashable):
             reason=reason if reason is not MISSING else None,
         )
         return Onboarding(data=data, guild=self, state=self._state)
+

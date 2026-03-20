@@ -563,7 +563,7 @@ class ScheduledEventNotFound(BadArgument):
 
 
 class BadBoolArgument(BadArgument):
-    """Exception raised when a boolean argument was not convertable.
+    """Exception raised when a boolean argument was not convertible.
 
     This inherits from :exc:`BadArgument`
 
@@ -1209,3 +1209,4 @@ class MissingFlagArgument(FlagError):
     def __init__(self, flag: Flag) -> None:
         self.flag: Flag = flag
         super().__init__(f'Flag {flag.name!r} does not have an argument')
+

@@ -272,7 +272,7 @@ class VoiceConnectionState:
 
     @property
     def can_encrypt(self) -> bool:
-        return self.dave_protocol_version != 0 and self.dave_session != None and self.dave_session.ready
+        return self.dave_protocol_version != 0 and self.dave_session is not None and self.dave_session.ready
 
     async def reinit_dave_session(self) -> None:
         if self.dave_protocol_version > 0:
@@ -321,7 +321,7 @@ class VoiceConnectionState:
                 self.dave_session.set_passthrough_mode(True, 10)
             _log.debug('DAVE Session upgraded.')
 
-        # In the future, the session should be signaled too, but for now theres just v1
+        # In the future, the session should be signaled too, but for now there's just v1
         _log.debug('Transition ID %d executed.', transition_id)
 
     async def voice_state_update(self, data: GuildVoiceStatePayload) -> None:
@@ -389,7 +389,7 @@ class VoiceConnectionState:
         if self.token is None or endpoint is None:
             _log.warning(
                 'Awaiting endpoint... This requires waiting. '
-                'If timeout occurrs, considering raising the timeout and reconnecting.'
+                'If timeout occurs, considering raising the timeout and reconnecting.'
             )
             return
 
@@ -837,3 +837,5 @@ class VoiceConnectionState:
             if self.guild
             else self.voice_client._state._get_private_channel(channel_id)
         )  # type: ignore
+
+

@@ -655,7 +655,7 @@ class GuildExperiment:
             self._name = value
 
     def result_for(self, guild: Snowflake, /) -> int:
-        """Returns the calulated position of the guild within the experiment (0-9999).
+        """Returns the calculated position of the guild within the experiment (0-9999).
 
         Parameters
         -----------
@@ -898,7 +898,7 @@ class UserExperiment:
 
     @property
     def result(self) -> int:
-        """:class:`int`: The calulated position of the user within the experiment (0-9999).
+        """:class:`int`: The calculated position of the user within the experiment (0-9999).
 
         Raises
         ------
@@ -1155,3 +1155,4 @@ class ApexExperiment:
             return None
 
         return resolved_assignment
+
