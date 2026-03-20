@@ -1749,12 +1749,14 @@ class Headers:
         super_properties: Dict[str, Any],
         encoded_super_properties: str,
         extra_gateway_properties: Optional[Dict[str, Any]] = None,
+        initialization_timestamp: Optional[datetime.datetime] = None,
     ) -> None:
         self.platform = platform
         self.major_version = major_version
         self.super_properties = super_properties
         self.encoded_super_properties = encoded_super_properties
         self.extra_gateway_properties = extra_gateway_properties or {}
+        self.initialization_timestamp = initialization_timestamp or utcnow()
 
     @classmethod
     async def default(
