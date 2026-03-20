@@ -76,12 +76,16 @@ from threading import Timer
 import types
 import typing
 import warnings
-import logging
 import struct
 import time
+import curl_cffi
 import yarl
 import uuid
 
+import curl_cffi
+from curl_cffi import requests
+
+from . import __version__
 from .enums import Locale, try_enum
 
 try:
@@ -1725,8 +1729,7 @@ else:
                 return -((unsigned_val ^ 0xFFFFFFFF) + 1)
 
 
-_SENTRY_ASSET_REGEX = re.compile(r'assets/(sentry\.\w+)\.js')
-_BUILD_NUMBER_REGEX = re.compile(r'buildNumber\D+(\d+)"')
+_BUILD_NUMBER_REGEX = re.compile(r'"BUILD_NUMBER":\s*"(\d+)"')
 
 
 class Headers:
@@ -1782,8 +1785,12 @@ class Headers:
         try:
             bv = await cls._get_browser_version(session, proxy=proxy, proxy_auth=proxy_auth)
         except Exception:
-            _log.critical('Could not retrieve browser version. Falling back to hardcoded value...')
-            bv = cls.FALLBACK_BROWSER_VERSION
+            _log.warning('Could not retrieve browser version. Falling back to local value...')
+            try:
+                impersonate = requests.impersonate.DEFAULT_CHROME
+                bv = int(re.sub(r'\D', '', impersonate))
+            except Exception:
+                bv = cls.FALLBACK_BROWSER_VERSION
 
         properties = {
             'os': 'Windows',
@@ -1804,6 +1811,7 @@ class Headers:
             'client_launch_id': str(uuid.uuid4()),
             'client_app_state': 'unfocused',
             'client_heartbeat_session_id': str(uuid.uuid4()),
+            'launch_signature': cls.generate_launch_signature(),
         }
 
         return cls(
@@ -1813,8 +1821,6 @@ class Headers:
             encoded_super_properties=b64encode(_to_json(properties).encode()).decode('utf-8'),
             extra_gateway_properties={
                 'is_fast_connect': False,
-                'latest_headless_tasks': [],
-                'latest_headless_task_run_seconds_before': None,
                 'gateway_connect_reasons': 'AppSkeleton',
             },
         )
@@ -1847,7 +1853,10 @@ class Headers:
     ) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
         """Fetches client properties from the API."""
         async with session.post(
-            f'https://cordapi.dolfi.es/api/v2/properties/{type}', proxy=proxy, proxy_auth=proxy_auth
+            f'https://cordapi.dolfi.es/api/v2/properties/{type}',
+            proxy=proxy,
+            proxy_auth=proxy_auth,
+            headers={'User-Agent': f'discord.py-self/{__version__} curl_cffi/{curl_cffi.__version__}'},  # type: ignore
         ) as resp:
             resp.raise_for_status()
             json = await resp.json()
@@ -1860,16 +1869,9 @@ class Headers:
         """Fetches client build number."""
         async with session.get('https://discord.com/login', proxy=proxy, proxy_auth=proxy_auth) as resp:
             app = await resp.text()
-            match = _SENTRY_ASSET_REGEX.search(app)
+            match = _BUILD_NUMBER_REGEX.search(app)
             if match is None:
-                raise RuntimeError('Could not find sentry asset file')
-            sentry = match.group(1)
-
-        async with session.get(f'https://static.discord.com/assets/{sentry}.js', proxy=proxy, proxy_auth=proxy_auth) as resp:
-            build = await resp.text()
-            match = _BUILD_NUMBER_REGEX.search(build)
-            if match is None:
-                raise RuntimeError('Could not find build number')
+                raise RuntimeError('Could not find client global env')
             return int(match.group(1))
 
     @staticmethod
@@ -1894,6 +1896,16 @@ class Headers:
             # e.g. Edg/v.0.0.0 for Microsoft Edge
             ret += f' {brand}/{version}.0.0.0'
         return ret
+
+    @staticmethod
+    def generate_launch_signature() -> str:
+        """Generates a launch signature for the client."""
+        bits = 0b00000000100000000001000000010000000010000001000000001000000000000010000010000001000000000100000000000001000000000000100000000000
+
+        # Force all bits to 0
+        random_uuid = uuid.uuid4().int & (~bits & ((1 << 128) - 1))
+        result = uuid.UUID(int=random_uuid)
+        return str(result)
 
     # These are all adapted from Chromium source code (https://github.com/chromium/chromium/blob/master/components/embedder_support/user_agent_utils.cc)
 
