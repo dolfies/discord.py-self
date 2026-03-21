@@ -694,7 +694,7 @@ class HTTPClient:
         )
         _log.info('Found TLS fingerprint target "%s".', headers.impersonate)
 
-        self.__session = requests.AsyncSession(impersonate=headers.impersonate, default_headers=False)
+        self.__session = requests.AsyncSession(impersonate=headers.impersonate, default_headers=False)  # type: ignore
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
