@@ -773,7 +773,7 @@ class HeadersContext:
                 for identifier in section['identifiers']:
                     ref = data['references'][identifier]
                     if 'Beta' not in ref['abstract'][0]['title']:
-                        return ref['abstract'][0]['title'].split(' ')[1]
+                        return ref['title'].split(' ')[1]
 
             raise InvalidData('Could not find Safari version')
 
