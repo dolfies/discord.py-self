@@ -78,14 +78,8 @@ import typing
 import warnings
 import struct
 import time
-import curl_cffi
 import yarl
-import uuid
 
-import curl_cffi
-from curl_cffi import requests
-
-from . import __version__
 from .enums import Locale, try_enum
 
 try:
@@ -135,8 +129,6 @@ __all__ = (
 DISCORD_EPOCH = 1420070400000
 DEFAULT_FILE_SIZE_LIMIT_BYTES = 10485760
 
-_log = logging.getLogger(__name__)
-
 
 class _MissingSentinel:
     __slots__ = ()
@@ -173,7 +165,6 @@ class _cached_property:
 
 
 if TYPE_CHECKING:
-    from aiohttp import BasicAuth, ClientSession
     from functools import cached_property as cached_property
 
     from typing_extensions import ParamSpec, Self, TypeGuard
@@ -1667,8 +1658,7 @@ def setup_logging(
 
 if TYPE_CHECKING:
 
-    def murmurhash32(key: Union[bytes, bytearray, memoryview, str], seed: int = 0, *, signed: bool = True) -> int:  # type: ignore
-        pass
+    def murmurhash32(key: Union[bytes, bytearray, memoryview, str], seed: int = 0, *, signed: bool = True) -> int: ...
 
 else:
     try:
@@ -1727,257 +1717,6 @@ else:
                 return unsigned_val
             else:
                 return -((unsigned_val ^ 0xFFFFFFFF) + 1)
-
-
-_BUILD_NUMBER_REGEX = re.compile(r'"BUILD_NUMBER":\s*"(\d+)"')
-
-
-class Headers:
-    """A class to provide standard headers for HTTP requests.
-
-    For now, this is NOT user-customizable and always emulates Chrome on Windows.
-    """
-
-    FALLBACK_BUILD_NUMBER = 9999
-    FALLBACK_BROWSER_VERSION = 136
-
-    def __init__(
-        self,
-        *,
-        platform: Literal['Windows', 'macOS', 'Linux', 'Android', 'iOS'],
-        major_version: int,
-        super_properties: Dict[str, Any],
-        encoded_super_properties: str,
-        extra_gateway_properties: Optional[Dict[str, Any]] = None,
-        initialization_timestamp: Optional[datetime.datetime] = None,
-    ) -> None:
-        self.platform = platform
-        self.major_version = major_version
-        self.super_properties = super_properties
-        self.encoded_super_properties = encoded_super_properties
-        self.extra_gateway_properties = extra_gateway_properties or {}
-        self.initialization_timestamp = initialization_timestamp or utcnow()
-
-    @classmethod
-    async def default(
-        cls: type[Self], session: ClientSession, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
-    ) -> Self:
-        """Creates a new :class:`Headers` instance using the default fetching mechanisms."""
-        try:
-            properties, extra, encoded = await asyncio.wait_for(
-                cls.get_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
-            )
-        except Exception:
-            _log.info('Info API temporarily down. Falling back to manual retrieval...')
-        else:
-            return cls(
-                platform='Windows',
-                major_version=int(properties['browser_version'].split('.')[0]),
-                super_properties=properties,
-                encoded_super_properties=encoded,
-                extra_gateway_properties=extra,
-            )
-
-        try:
-            bn = await cls._get_build_number(session, proxy=proxy, proxy_auth=proxy_auth)
-        except Exception:
-            _log.critical('Could not retrieve client build number. Falling back to hardcoded value...')
-            bn = cls.FALLBACK_BUILD_NUMBER
-
-        try:
-            bv = await cls._get_browser_version(session, proxy=proxy, proxy_auth=proxy_auth)
-        except Exception:
-            _log.warning('Could not retrieve browser version. Falling back to local value...')
-            try:
-                impersonate = requests.impersonate.DEFAULT_CHROME
-                bv = int(re.sub(r'\D', '', impersonate))
-            except Exception:
-                bv = cls.FALLBACK_BROWSER_VERSION
-
-        properties = {
-            'os': 'Windows',
-            'browser': 'Chrome',
-            'device': '',
-            'system_locale': 'en-US',
-            'browser_user_agent': cls._get_user_agent(bv),
-            'browser_version': f'{bv}.0.0.0',
-            'os_version': '10',
-            'referrer': '',
-            'referring_domain': '',
-            'referrer_current': '',
-            'referring_domain_current': '',
-            'release_channel': 'stable',
-            'client_build_number': bn,
-            'client_event_source': None,
-            'has_client_mods': False,
-            'client_launch_id': str(uuid.uuid4()),
-            'client_app_state': 'unfocused',
-            'client_heartbeat_session_id': str(uuid.uuid4()),
-            'launch_signature': cls.generate_launch_signature(),
-        }
-
-        return cls(
-            platform='Windows',
-            major_version=bv,
-            super_properties=properties,
-            encoded_super_properties=b64encode(_to_json(properties).encode()).decode('utf-8'),
-            extra_gateway_properties={
-                'is_fast_connect': False,
-                'gateway_connect_reasons': 'AppSkeleton',
-            },
-        )
-
-    @cached_property
-    def user_agent(self) -> str:
-        """Returns the user agent to be used for HTTP requests."""
-        return self.super_properties['browser_user_agent']
-
-    @cached_property
-    def client_hints(self) -> Dict[str, str]:
-        """Returns the client hints to be used for HTTP requests."""
-        return {
-            'Sec-CH-UA': ', '.join([f'"{brand}";v="{version}"' for brand, version in self.generate_brand_version_list()]),
-            'Sec-CH-UA-Mobile': '?1' if self.platform in ('Android', 'iOS') else '?0',
-            'Sec-CH-UA-Platform': f'"{self.platform}"',
-        }
-
-    @property
-    def gateway_properties(self) -> Dict[str, Any]:
-        """Returns the properties to be used for the Gateway."""
-        return {
-            **self.super_properties,
-            **self.extra_gateway_properties,
-        }
-
-    @staticmethod
-    async def get_api_properties(
-        session: ClientSession, type: str, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
-    ) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
-        """Fetches client properties from the API."""
-        async with session.post(
-            f'https://cordapi.dolfi.es/api/v2/properties/{type}',
-            proxy=proxy,
-            proxy_auth=proxy_auth,
-            headers={'User-Agent': f'discord.py-self/{__version__} curl_cffi/{curl_cffi.__version__}'},  # type: ignore
-        ) as resp:
-            resp.raise_for_status()
-            json = await resp.json()
-            return json['properties'], json['extra_gateway_properties'], json['encoded']
-
-    @staticmethod
-    async def _get_build_number(
-        session: ClientSession, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
-    ) -> int:
-        """Fetches client build number."""
-        async with session.get('https://discord.com/login', proxy=proxy, proxy_auth=proxy_auth) as resp:
-            app = await resp.text()
-            match = _BUILD_NUMBER_REGEX.search(app)
-            if match is None:
-                raise RuntimeError('Could not find client global env')
-            return int(match.group(1))
-
-    @staticmethod
-    async def _get_browser_version(
-        session: ClientSession, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
-    ) -> int:
-        """Fetches the latest Windows 10/Chrome major browser version."""
-        async with session.get(
-            'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions',
-            proxy=proxy,
-            proxy_auth=proxy_auth,
-        ) as response:
-            data = await response.json()
-            return int(data['versions'][0]['version'].split('.')[0])
-
-    @staticmethod
-    def _get_user_agent(version: int, brand: Optional[str] = None) -> str:
-        """Fetches the latest Windows/Chrome user-agent."""
-        # Because of [user agent reduction](https://www.chromium.org/updates/ua-reduction/), we just need the major version now :)
-        ret = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36'
-        if brand:
-            # e.g. Edg/v.0.0.0 for Microsoft Edge
-            ret += f' {brand}/{version}.0.0.0'
-        return ret
-
-    @staticmethod
-    def generate_launch_signature() -> str:
-        """Generates a launch signature for the client."""
-        bits = 0b00000000100000000001000000010000000010000001000000001000000000000010000010000001000000000100000000000001000000000000100000000000
-
-        # Force all bits to 0
-        random_uuid = uuid.uuid4().int & (~bits & ((1 << 128) - 1))
-        result = uuid.UUID(int=random_uuid)
-        return str(result)
-
-    # These are all adapted from Chromium source code (https://github.com/chromium/chromium/blob/master/components/embedder_support/user_agent_utils.cc)
-
-    def generate_brand_version_list(self, brand: Optional[str] = 'Google Chrome') -> List[Tuple[str, str]]:
-        """Generates a list of brand and version pairs for the user-agent."""
-        version = self.major_version
-        greasey_bv = self._get_greased_user_agent_brand_version(version)
-        chromium_bv = ('Chromium', version)
-        brand_version_list = [greasey_bv, chromium_bv]
-        if brand:
-            brand_version_list.append((brand, version))
-
-        order = self._get_random_order(version, len(brand_version_list))
-        shuffled_brand_version_list: List[Any] = [None] * len(brand_version_list)
-        for i, idx in enumerate(order):
-            shuffled_brand_version_list[idx] = brand_version_list[i]
-        return shuffled_brand_version_list
-
-    @staticmethod
-    def _get_random_order(seed: int, size: int) -> List[int]:
-        random.seed(seed)
-        if size == 2:
-            return [seed % size, (seed + 1) % size]
-        elif size == 3:
-            orders = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
-            return orders[seed % len(orders)]
-        else:
-            orders = [
-                [0, 1, 2, 3],
-                [0, 1, 3, 2],
-                [0, 2, 1, 3],
-                [0, 2, 3, 1],
-                [0, 3, 1, 2],
-                [0, 3, 2, 1],
-                [1, 0, 2, 3],
-                [1, 0, 3, 2],
-                [1, 2, 0, 3],
-                [1, 2, 3, 0],
-                [1, 3, 0, 2],
-                [1, 3, 2, 0],
-                [2, 0, 1, 3],
-                [2, 0, 3, 1],
-                [2, 1, 0, 3],
-                [2, 1, 3, 0],
-                [2, 3, 0, 1],
-                [2, 3, 1, 0],
-                [3, 0, 1, 2],
-                [3, 0, 2, 1],
-                [3, 1, 0, 2],
-                [3, 1, 2, 0],
-                [3, 2, 0, 1],
-                [3, 2, 1, 0],
-            ]
-            return orders[seed % len(orders)]
-
-    @staticmethod
-    def _get_greased_user_agent_brand_version(seed: int) -> Tuple[str, str]:
-        greasey_chars = [' ', '(', ':', '-', '.', '/', ')', ';', '=', '?', '_']
-        greased_versions = ['8', '99', '24']
-        greasey_brand = (
-            f'Not{greasey_chars[seed % len(greasey_chars)]}A{greasey_chars[(seed + 1) % len(greasey_chars)]}Brand'
-        )
-        greasey_version = greased_versions[seed % len(greased_versions)]
-
-        version_parts = greasey_version.split('.')
-        if len(version_parts) > 1:
-            greasey_major_version = version_parts[0]
-        else:
-            greasey_major_version = greasey_version
-        return (greasey_brand, greasey_major_version)
 
 
 class IDGenerator:

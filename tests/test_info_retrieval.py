@@ -25,35 +25,35 @@ DEALINGS IN THE SOFTWARE.
 import aiohttp
 import pytest
 
-from discord import utils
+from discord import HeadersContext
 
 
 @pytest.mark.asyncio
 async def test_build_number():
     async with aiohttp.ClientSession() as session:
-        assert await utils.Headers._get_build_number(session) is not None
+        assert await HeadersContext.scrape_client_build_number(session) is not None
 
 
 @pytest.mark.asyncio
 async def test_browser_version():
     async with aiohttp.ClientSession() as session:
-        assert await utils.Headers._get_browser_version(session) is not None
+        assert await HeadersContext.fetch_chrome_version(session) is not None
 
 
 @pytest.mark.asyncio
 async def test_utilities():
     chromium_version = 135
-    hdrs = utils.Headers(
-        platform='Windows', major_version=chromium_version, super_properties={}, encoded_super_properties=''
+    hdrs = HeadersContext(
+        platform='Windows', browser_major_version=chromium_version, browser_type='edge', super_properties={}, encoded_super_properties=''
     )
     client_hints = hdrs.client_hints
 
     assert (
-        hdrs._get_user_agent(chromium_version, 'Edg')
-        == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+        hdrs.format_chromium_user_agent(chromium_version, 'Windows', 'Edg')
+        == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chromium_version}.0.0.0 Safari/537.36 Edg/{chromium_version}.0.0.0'
     )
     assert (
-        client_hints['Sec-CH-UA'] == '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"'
-    )  # no brand name here
+        client_hints['Sec-CH-UA'] == f'"Microsoft Edge";v="{chromium_version}", "Not-A.Brand";v="8", "Chromium";v="{chromium_version}"'
+    )
     assert client_hints['Sec-CH-UA-Mobile'] == '?0'
-    assert client_hints['Sec-CH-UA-Platform'] == '"Windows"'
+    assert client_hints['Sec-CH-UA-Platform'] == f'"{hdrs.platform}"'

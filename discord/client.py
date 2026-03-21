@@ -114,6 +114,7 @@ from .settings import UserSettings, LegacyUserSettings, TrackingSettings, EmailS
 from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import ApexExperiment, UserExperiment, GuildExperiment
+from .tracking import HeadersContext
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -976,6 +977,38 @@ class Client:
         if handler is None:
             raise exception
         return await handler(exception, self)
+
+    async def headers_context(self) -> HeadersContext:
+        """|coro|
+
+        Returns the headers context for the client.
+        Users may override this to change what platform the client identifies itself as, amongst other things.
+
+        Returns an instance of :meth:`.HeadersContext.default` by default.
+
+        .. versionadded:: 2.2
+
+        .. warning::
+
+            Configuring your own header context from scratch is not recommended,
+            as it may lead to account termination by anti abuse systems.
+
+        Example: ::
+
+            class MyClient(discord.Client):
+                async def headers_context(self):
+                    async with aiohttp.ClientSession() as session:
+                        # We want the desktop client context
+                        return await discord.HeadersContext.desktop(session)
+
+        Returns
+        --------
+        :class:`.HeadersContext`
+            The headers context for the client.
+        """
+        http = self.http
+        session = http._HTTPClient__asession  # type: ignore
+        return await HeadersContext.default(session, http.proxy, http.proxy_auth)
 
     async def _async_setup_hook(self) -> None:
         # Called whenever the client needs to initialise asyncio objects with a running loop

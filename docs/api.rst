@@ -45,6 +45,14 @@ Client
     .. automethod:: Client.event()
         :decorator:
 
+HeadersContext
+~~~~~~~~~~~~~~~~
+
+.. attributetable:: HeadersContext
+
+.. autoclass:: HeadersContext
+    :members:
+
 Voice Related
 ---------------
 

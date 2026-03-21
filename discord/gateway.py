@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 
     from .client import Client
     from .state import ConnectionState
+    from .tracking import HeadersContext
     from .types.activity import Activity as ActivityPayload
     from .types.snowflake import Snowflake
     from .types.gateway import BulkGuildSubscribePayload
@@ -324,7 +325,7 @@ class DiscordWebSocket:
         shard_count: Optional[int]
         gateway: yarl.URL
         _max_heartbeat_timeout: float
-        _headers: utils.Headers
+        _headers: HeadersContext
         _transport_compression: bool
 
     # fmt: off
