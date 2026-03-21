@@ -984,6 +984,7 @@ class Client:
         Returns the headers context for the client.
         Users may override this to change what platform the client identifies itself as, amongst other things.
 
+        This is only called once, before any requests are made.
         Returns an instance of :meth:`.HeadersContext.default` by default.
 
         .. versionadded:: 2.2
