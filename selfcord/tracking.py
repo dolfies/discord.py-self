@@ -414,11 +414,16 @@ class HeadersContext:
         """
         # Fallbacks are infeasible here because of the sheer amount of data needed for desktop client super properties :(
         data = await cls.fetch_api_properties(session, 'windows', proxy=proxy, proxy_auth=proxy_auth)
+        try:
+            # metadata will always be provided on desktop client properties
+            bv = int(data['metadata']['native_chrome_version'].split('.')[0])  # type: ignore
+        except Exception:
+            raise InvalidData('Invalid native Chrome version in API response')
+
         return cls(
             platform='Windows',
             browser_type='electron',
-            # metadata will always be provided on desktop client properties
-            browser_major_version=int(data['metadata']['native_chrome_version'].split('.')[0]),  # type: ignore
+            browser_major_version=bv,
             super_properties=data['properties'],
             encoded_super_properties=data.get('encoded'),
             extra_gateway_properties=data.get('extra_gateway_properties'),
