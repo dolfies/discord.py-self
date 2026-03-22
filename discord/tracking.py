@@ -31,7 +31,7 @@ import json
 import logging
 import random
 import re
-from typing import Any, Callable, Dict, Final, List, Literal, Optional, Tuple, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, Final, List, Literal, Optional, Tuple, TypedDict, TYPE_CHECKING, Union
 import uuid
 
 import curl_cffi
@@ -234,6 +234,13 @@ def _resolve_proxy_auth(proxy_auth: Optional[Union[BasicAuth, Tuple[str, str]]])
     return BasicAuth(proxy_auth[0], proxy_auth[1])
 
 
+class APIProperties(TypedDict):
+    properties: Dict[str, Any]
+    extra_gateway_properties: Optional[Dict[str, Any]]
+    encoded: str
+    metadata: Optional[Dict[str, Any]]
+
+
 class HeadersContext:
     """A user-constructible class to provide standard headers and client contexts for HTTP requests.
 
@@ -315,7 +322,7 @@ class HeadersContext:
             The generated header context.
         """
         try:
-            properties, extra, encoded = await asyncio.wait_for(
+            data = await asyncio.wait_for(
                 cls.fetch_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
             )
         except Exception:
@@ -324,10 +331,10 @@ class HeadersContext:
             return cls(
                 platform='Windows',
                 browser_type='chrome',
-                browser_major_version=int(properties['browser_version'].split('.')[0]),
-                super_properties=properties,
-                encoded_super_properties=encoded,
-                extra_gateway_properties=extra,
+                browser_major_version=int(data['properties']['browser_version'].split('.')[0]),
+                super_properties=data['properties'],
+                encoded_super_properties=data.get('encoded'),
+                extra_gateway_properties=data.get('extra_gateway_properties'),
             )
 
         try:
@@ -406,19 +413,20 @@ class HeadersContext:
             The generated header context.
         """
         # Fallbacks are infeasible here because of the sheer amount of data needed for desktop client super properties :(
-        properties, extra, encoded = await cls.fetch_api_properties(session, 'windows', proxy=proxy, proxy_auth=proxy_auth)
-        user_agent = properties['browser_user_agent']
-        chrome_match = re.search(r'Chrome/(\d+)', user_agent)
-        if not chrome_match:
-            raise InvalidData('Could not parse Chrome version from Electron user agent')
+        data = await cls.fetch_api_properties(session, 'windows', proxy=proxy, proxy_auth=proxy_auth)
+        try:
+            # metadata will always be provided on desktop client properties
+            bv = int(data['metadata']['native_chrome_version'].split('.')[0])  # type: ignore
+        except Exception:
+            raise InvalidData('Invalid native Chrome version in API response')
 
         return cls(
             platform='Windows',
             browser_type='electron',
-            browser_major_version=int(chrome_match.group(1)),
-            super_properties=properties,
-            encoded_super_properties=encoded,
-            extra_gateway_properties=extra,
+            browser_major_version=bv,
+            super_properties=data['properties'],
+            encoded_super_properties=data.get('encoded'),
+            extra_gateway_properties=data.get('extra_gateway_properties'),
         )
 
     @cached_property
@@ -491,7 +499,7 @@ class HeadersContext:
         *,
         proxy: Optional[str] = None,
         proxy_auth: Optional[BasicAuth] = None,
-    ) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
+    ) -> APIProperties:
         """|coro|
 
         Fetches client properties from the info API.
@@ -526,8 +534,8 @@ class HeadersContext:
 
         Returns
         --------
-        Tuple[:class:`dict`, :class:`dict`, :class:`str`]
-            A tuple of the super properties, extra gateway properties, and the encoded super properties string.
+        :class:`dict`
+            The API response, containing ``properties``, ``extra_gateway_properties``, and ``encoded`` keys.
         """
         params = {'release_channel': release_channel}
         if browser is not None:
@@ -552,8 +560,7 @@ class HeadersContext:
                 # Better to just raise
                 raise HTTPException(resp, 'Info API is temporarily unavailable')
 
-            json = await resp.json()
-            return json['properties'], json['extra_gateway_properties'], json['encoded']
+            return await resp.json()
 
     @staticmethod
     async def scrape_client_build_number(
