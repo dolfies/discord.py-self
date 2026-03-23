@@ -442,6 +442,26 @@ Client
     :param after: The settings after being updated.
     :type after: :class:`UserSettings`
 
+.. function:: on_frecency_settings_update(before, after)
+
+    Called when your :class:`FrecencySettings` updates, for example:
+
+    - Favorited or unfavorited a GIF, sticker, emoji, or soundboard sound
+    - Used an emoji, sticker, or application command (frecency tracking)
+
+    .. note::
+
+        The frecency settings cache is not populated by default.
+        Call :meth:`Client.fetch_frecency_settings` at least once to populate it,
+        otherwise ``before`` will be ``None`` on the first gateway update.
+
+    .. versionadded:: 2.2
+
+    :param before: The settings prior to being updated, or ``None`` if not previously cached.
+    :type before: Optional[:class:`FrecencySettings`]
+    :param after: The settings after being updated.
+    :type after: :class:`FrecencySettings`
+
 .. function:: on_guild_settings_update(before, after)
 
     Called when a :class:`.Guild` :class:`GuildSettings` updates, for example:
@@ -5651,6 +5671,24 @@ of :class:`enum.Enum`.
 
         Never animate stickers.
 
+.. class:: FavoriteGIFType
+
+    Represents the format type of a favorite GIF.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: none
+
+        No format specified.
+
+    .. attribute:: image
+
+        The GIF is an image.
+
+    .. attribute:: video
+
+        The GIF is a video.
+
 .. class:: SpoilerRenderOptions
 
     Represents the options found in ``Settings > Text and Images > Show Spoiler Content`` in the Discord client.
@@ -7962,6 +8000,21 @@ Settings
 .. attributetable:: TrackingSettings
 
 .. autoclass:: TrackingSettings()
+    :members:
+
+.. attributetable:: FrecencySettings
+
+.. autoclass:: FrecencySettings()
+    :members:
+
+.. attributetable:: FavoriteGIF
+
+.. autoclass:: FavoriteGIF()
+    :members:
+
+.. attributetable:: FrecencyItem
+
+.. autoclass:: FrecencyItem()
     :members:
 
 .. attributetable:: EmailSettings
