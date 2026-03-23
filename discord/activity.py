@@ -245,9 +245,13 @@ class ActivityAssets:
         Discord CDN, media proxy, application, Twitch, YouTube, and Spotify assets
         are able to be used directly in activity assets by providing their URLs or URIs.
 
-        In order to provide an arbitrary image link, you must use :meth:`~discord.Client.proxy_external_application_assets`
-        or :meth:`~discord.Application.proxy_external_assets` to retrieved a proxied URL from Discord.
-        Otherwise, the image will not render in clients.
+        Arbitrary external image URLs (e.g. ``https://example.com/image.png``) can also
+        be passed directly to ``large_image`` or ``small_image``. When used with
+        :meth:`~discord.Client.change_presence`, these will be automatically proxied
+        through Discord's media CDN, as long as the activity has an ``application_id`` set.
+
+        You can also proxy them yourself with :meth:`~discord.Client.proxy_external_application_assets`
+        or :meth:`~discord.Application.proxy_external_assets` if you need more control.
 
     Parameters
     -----------
@@ -399,6 +403,15 @@ class ActivityAssets:
         if match:
             return f'spotify:{match[1]}'
         return asset
+
+    def _needs_proxy(self) -> List[str]:
+        """Returns a list of asset field names that contain unproxied external URLs."""
+        fields = []
+        for attr in ('_large_image', '_small_image'):
+            value = getattr(self, attr, None)
+            if value and value.startswith(('http://', 'https://')):
+                fields.append(attr)
+        return fields
 
     @property
     def large_image(self) -> Optional[ActivityImage]:

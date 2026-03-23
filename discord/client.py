@@ -77,7 +77,7 @@ from .enums import (
 from .mentions import AllowedMentions
 from .errors import *
 from .gateway import *
-from .activity import ActivityTypes, BaseActivity, Session, Spotify, create_activity
+from .activity import Activity, ActivityTypes, BaseActivity, Session, Spotify, create_activity
 from .voice_client import VoiceClient
 from .http import HTTPClient
 from .state import ConnectionState
@@ -2015,14 +2015,16 @@ class Client:
         if activities is MISSING:
             if activity is not MISSING:
                 activities = [activity] if activity else []
-                activities_data = [activity.to_dict()] if activity else []
             else:
                 if ws.status == 'unknown':
-                    activities_data = [activity.to_dict() for activity in self.client_activities]
+                    activities = list(self.client_activities)
                 else:
                     activities_data = self.ws.activities
-                skip_activities = True
-        else:
+                    skip_activities = True
+
+        if not skip_activities:
+            for a in activities:
+                await self._proxy_activity_assets(a)
             activities_data = [a.to_dict() for a in activities] if activities else []
 
         skip_status = status is MISSING
@@ -3698,6 +3700,20 @@ class Client:
         data = await self._connection.http.create_app_external_assets(application_id, urls)
         prefix = 'https://media.discordapp.net/'
         return [prefix + asset['external_asset_path'] for asset in data]
+
+    async def _proxy_activity_assets(self, activity: BaseActivity) -> None:
+        if not isinstance(activity, Activity) or not activity.assets or not activity.application_id:
+            return
+
+        fields = activity.assets._needs_proxy()
+        if not fields:
+            return
+
+        urls = [getattr(activity.assets, f) for f in fields]
+        proxied = await self.proxy_external_application_assets(activity.application_id, *urls)
+
+        for field, url in zip(fields, proxied):
+            setattr(activity.assets, field, activity.assets._parse_asset(url))
 
     async def teams(self, *, with_payout_account_status: bool = False) -> List[Team]:
         """|coro|
