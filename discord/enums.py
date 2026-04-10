@@ -998,7 +998,25 @@ class ComponentType(Enum):
     action_row = 1
     button = 2
     select = 3
+    string_select = 3
     text_input = 4
+    user_select = 5
+    role_select = 6
+    mentionable_select = 7
+    channel_select = 8
+    section = 9
+    text_display = 10
+    thumbnail = 11
+    media_gallery = 12
+    file = 13
+    separator = 14
+    container = 17
+    label = 18
+    file_upload = 19
+    # checkpoint = 20
+    radio_group = 21
+    checkbox_group = 22
+    checkbox = 23
 
     def __int__(self) -> int:
         return self.value
@@ -1466,6 +1484,12 @@ class ApplicationAssetType(Enum):
         return self.value
 
 
+class SelectDefaultValueType(Enum):
+    user = 'user'
+    role = 'role'
+    channel = 'channel'
+
+
 class SKUType(Enum):
     durable_primary = 1
     durable = 2
@@ -1897,6 +1921,17 @@ class StatusDisplayType(Enum):
     name = 0  # pyright: ignore[reportAssignmentType]
     state = 1
     details = 2
+
+class SeparatorSpacing(Enum):
+    small = 1
+    large = 2
+
+
+class MediaItemLoadingState(Enum):
+    unknown = 0
+    loading = 1
+    loaded = 2
+    not_found = 3
 
 
 class OnboardingPromptType(Enum):
