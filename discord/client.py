@@ -82,7 +82,7 @@ from .voice_client import VoiceClient
 from .http import HTTPClient
 from .state import ConnectionState
 from . import utils
-from .utils import MISSING
+from .utils import MISSING, _iscoroutinefunction
 from .object import Object, OLDEST_OBJECT
 from .backoff import ExponentialBackoff
 from .webhook import Webhook
@@ -1932,7 +1932,7 @@ class Client:
             The coroutine passed is not actually a coroutine.
         """
 
-        if not asyncio.iscoroutinefunction(coro):
+        if not _iscoroutinefunction(coro):
             raise TypeError('event registered must be a coroutine function')
 
         setattr(self, coro.__name__, coro)

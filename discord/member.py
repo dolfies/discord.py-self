@@ -25,7 +25,6 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import datetime
-import inspect
 import itertools
 from operator import attrgetter
 from typing import Any, Awaitable, Callable, Collection, Dict, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union
@@ -197,7 +196,7 @@ def flatten_user(cls: T) -> T:
             # Probably a member function by now
             def generate_function(x):
                 # We want Sphinx to properly show coroutine functions as coroutines
-                if inspect.iscoroutinefunction(value):
+                if utils._iscoroutinefunction(value):
 
                     async def general(self, *args, **kwargs):  # type: ignore
                         return await getattr(self._user, x)(*args, **kwargs)
