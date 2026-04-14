@@ -998,7 +998,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
                 await http.edit_my_voice_state(guild_id, voice_state_payload)
             else:
                 if not suppress:
-                    voice_state_payload['request_to_speak_timestamp'] = datetime.datetime.utcnow().isoformat()
+                    voice_state_payload['request_to_speak_timestamp'] = utils.utcnow().isoformat()
                 await http.edit_voice_state(guild_id, self.id, voice_state_payload)
 
         if voice_channel is not MISSING:
@@ -1056,7 +1056,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
         payload = {
             'channel_id': self.voice.channel.id,
-            'request_to_speak_timestamp': datetime.datetime.utcnow().isoformat(),
+            'request_to_speak_timestamp': utils.utcnow().isoformat(),
         }
 
         if self._state.self_id != self.id:
