@@ -321,7 +321,7 @@ class Relationship(Hashable):
 
         Accepts the relationship request. Only applicable for
         type :class:`RelationshipType.incoming_request`.
-        
+
         Parameters
         ----------
         confirm_stranger_request: bool
@@ -332,7 +332,9 @@ class Relationship(Hashable):
         HTTPException
             Accepting the relationship failed.
         """
-        await self._state.http.add_relationship(self.user.id, action=RelationshipAction.accept_request, confirm_stranger_request=confirm_stranger_request)
+        await self._state.http.add_relationship(
+            self.user.id, action=RelationshipAction.accept_request, confirm_stranger_request=confirm_stranger_request
+        )
 
     async def edit(self, nick: Optional[str] = MISSING) -> None:
         """|coro|

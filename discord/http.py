@@ -3043,7 +3043,7 @@ class HTTPClient:
         type: Optional[int] = None,
         *,
         action: RelationshipAction,
-        confirm_stranger_request: bool = True
+        confirm_stranger_request: bool = True,
     ) -> Response[None]:
         payload = {}
         if type is not None:
