@@ -44,7 +44,11 @@ async def test_browser_version():
 async def test_utilities():
     chromium_version = 135
     hdrs = HeadersContext(
-        platform='Windows', browser_major_version=chromium_version, browser_type='edge', super_properties={}, encoded_super_properties=''
+        platform='Windows',
+        browser_major_version=chromium_version,
+        browser_type='edge',
+        super_properties={},
+        encoded_super_properties='',
     )
     client_hints = hdrs.client_hints
 
@@ -53,7 +57,8 @@ async def test_utilities():
         == f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chromium_version}.0.0.0 Safari/537.36 Edg/{chromium_version}.0.0.0'
     )
     assert (
-        client_hints['Sec-CH-UA'] == f'"Microsoft Edge";v="{chromium_version}", "Not-A.Brand";v="8", "Chromium";v="{chromium_version}"'
+        client_hints['Sec-CH-UA']
+        == f'"Microsoft Edge";v="{chromium_version}", "Not-A.Brand";v="8", "Chromium";v="{chromium_version}"'
     )
     assert client_hints['Sec-CH-UA-Mobile'] == '?0'
     assert client_hints['Sec-CH-UA-Platform'] == f'"{hdrs.platform}"'
