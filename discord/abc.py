@@ -2125,7 +2125,7 @@ class Messageable:
         )
         return state.create_message(channel=channel, data=data)
 
-    def typing(self) -> Typing:
+    def typing(self, silent: bool = False) -> Typing:
         """Returns an asynchronous context manager that allows you to send a typing indicator to
         the destination for an indefinite period of time, or 10 seconds if the context manager
         is called using ``await``.
@@ -2157,7 +2157,7 @@ class Messageable:
         .. versionchanged:: 2.1
             Added ``message_send_cooldown`` and ``thread_create_cooldown`` attributes to the context manager.
         """
-        return Typing(self)
+        return Typing(self, silent=silent)
 
     async def fetch_message(self, id: int, /) -> Message:
         """|coro|

@@ -52,12 +52,13 @@ def _typing_done_callback(fut: asyncio.Future) -> None:
 
 
 class Typing:
-    def __init__(self, messageable: Messageable) -> None:
+    def __init__(self, messageable: Messageable, silent: bool) -> None:
         self.loop: asyncio.AbstractEventLoop = messageable._state.loop
         self.messageable: Messageable = messageable
         self.channel: Optional[MessageableChannel] = None
         self.message_send_cooldown: int = 0
         self.thread_create_cooldown: int = 0
+        self.silent = silent
 
     def _update(self, data: TypingResponse) -> None:
         self.message_send_cooldown = data.get('message_send_cooldown_ms', 0)
@@ -91,6 +92,8 @@ class Typing:
                 self._update(data)
 
     async def __aenter__(self) -> None:
+        if self.silent:
+            return
         channel = await self._get_channel()
         await channel._state.http.send_typing(channel.id)
         self.task: asyncio.Task[None] = self.loop.create_task(self.do_typing())
@@ -102,4 +105,6 @@ class Typing:
         exc: Optional[BE],
         traceback: Optional[TracebackType],
     ) -> None:
+        if self.silent:
+            return
         self.task.cancel()
