@@ -999,6 +999,11 @@ class ComponentType(Enum):
     button = 2
     select = 3
     text_input = 4
+    string_select = 5
+    user_select = 6
+    role_select = 7
+    mentionable_select = 8
+    channel_select = 9
 
     def __int__(self) -> int:
         return self.value

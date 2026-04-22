@@ -41,12 +41,17 @@ if TYPE_CHECKING:
         ActionRow as ActionRowPayload,
         ActionRowChildComponent,
         ButtonComponent as ButtonComponentPayload,
+        ChannelSelectMenu as ChannelSelectMenuPayload,
         Component as ComponentPayload,
+        MentionableSelectMenu as MentionableSelectMenuPayload,
         MessageChildComponent,
         ModalChildComponent,
+        RoleSelectMenu as RoleSelectMenuPayload,
         SelectMenu as SelectMenuPayload,
         SelectOption as SelectOptionPayload,
+        StringSelectMenu as StringSelectMenuPayload,
         TextInput as TextInputPayload,
+        UserSelectMenu as UserSelectMenuPayload,
     )
     from .types.interactions import (
         ActionRowInteractionData,
@@ -56,7 +61,7 @@ if TYPE_CHECKING:
         TextInputInteractionData,
     )
 
-    MessageChildComponentType = Union['Button', 'SelectMenu']
+    MessageChildComponentType = Union['Button', 'SelectMenu', 'StringSelectMenu', 'UserSelectMenu', 'RoleSelectMenu', 'MentionableSelectMenu', 'ChannelSelectMenu']
     ActionRowChildComponentType = Union[MessageChildComponentType, 'TextInput']
 
 
@@ -67,6 +72,11 @@ __all__ = (
     'SelectMenu',
     'SelectOption',
     'TextInput',
+    'StringSelectMenu',
+    'UserSelectMenu',
+    'RoleSelectMenu',
+    'MentionableSelectMenu',
+    'ChannelSelectMenu',
 )
 
 
@@ -77,8 +87,13 @@ class Component:
 
     - :class:`ActionRow`
     - :class:`Button`
-    - :class:`SelectMenu`
+    - :class:`SelectMenu` (v1)
     - :class:`TextInput`
+    - :class:`StringSelectMenu` (v2)
+    - :class:`UserSelectMenu` (v2)
+    - :class:`RoleSelectMenu` (v2)
+    - :class:`MentionableSelectMenu` (v2)
+    - :class:`ChannelSelectMenu` (v2)
 
     .. versionadded:: 2.0
     """
@@ -343,6 +358,215 @@ class SelectMenu(Component):
         )
 
 
+class StringSelectMenu(Component):
+    """Represents a string select menu from the Discord Bot UI Kit (v2).
+
+    A string select menu allows users to select from a list of
+    string options provided by the developer.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    custom_id: :class:`str`
+        The ID of the select menu that gets received during an interaction.
+    placeholder: Optional[:class:`str`]
+        The placeholder text that is shown if nothing is selected, if any.
+    min_values: :class:`int`
+        The minimum number of items that must be chosen for this select menu.
+    max_values: :class:`int`
+        The maximum number of items that must be chosen for this select menu.
+    options: List[:class:`SelectOption`]
+        A list of options that can be selected in this menu.
+    disabled: :class:`bool`
+        Whether the select is disabled or not.
+    message: :class:`Message`
+        The originating message, if any.
+    """
+
+    __slots__ = (
+        'custom_id',
+        'placeholder',
+        'min_values',
+        'max_values',
+        'options',
+        'disabled',
+    )
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = __slots__
+
+    def __init__(self, data: StringSelectMenuPayload, message: Message):
+        self.message = message
+        self.custom_id: str = data['custom_id']
+        self.placeholder: Optional[str] = data.get('placeholder')
+        self.min_values: int = data.get('min_values', 1)
+        self.max_values: int = data.get('max_values', 1)
+        self.options: List[SelectOption] = [SelectOption.from_dict(option) for option in data.get('options', [])]
+        self.disabled: bool = data.get('disabled', False)
+
+    @property
+    def type(self) -> Literal[ComponentType.string_select]:
+        """:class:`ComponentType`: The type of component."""
+        return ComponentType.string_select
+
+    def to_dict(self, options: Optional[Tuple[SelectOption, ...]] = None) -> SelectInteractionData:
+        return {
+            'component_type': self.type.value,
+            'custom_id': self.custom_id,
+            'values': [option.value for option in options] if options else [],
+        }
+
+    async def choose(self, *options: SelectOption) -> Interaction:
+        """|coro|
+
+        Chooses the given options from the select menu.
+
+        Raises
+        -------
+        InvalidData
+            Didn't receive a response from Discord
+            (doesn't mean the interaction failed).
+        NotFound
+            The originating message was not found.
+        HTTPException
+            Choosing the options failed.
+
+        Returns
+        --------
+        :class:`Interaction`
+            The interaction that was created.
+        """
+        message = self.message
+        return await _wrapped_interaction(
+            message._state,
+            _generate_nonce(),
+            InteractionType.component,
+            None,
+            message.channel,  # type: ignore # channel is always correct here
+            self.to_dict(options),
+            message=message,
+        )
+
+
+class BaseSelectMenu(Component):
+    """Base class for v2 select menus that select Discord objects (users, roles, etc).
+
+    This is not meant to be instantiated directly.
+    """
+
+    __slots__ = (
+        'custom_id',
+        'placeholder',
+        'min_values',
+        'max_values',
+        'disabled',
+    )
+
+    __repr_info__: ClassVar[Tuple[str, ...]] = __slots__
+
+    def __init__(self, data: Union[UserSelectMenuPayload, RoleSelectMenuPayload, MentionableSelectMenuPayload, ChannelSelectMenuPayload], message: Message):
+        self.message = message
+        self.custom_id: str = data['custom_id']
+        self.placeholder: Optional[str] = data.get('placeholder')
+        self.min_values: int = data.get('min_values', 1)
+        self.max_values: int = data.get('max_values', 1)
+        self.disabled: bool = data.get('disabled', False)
+
+    def to_dict(self, values: Optional[Tuple[str, ...]] = None) -> SelectInteractionData:
+        return {
+            'component_type': self.type.value,
+            'custom_id': self.custom_id,
+            'values': list(values) if values else [],
+        }
+
+    async def select(self, *values: str) -> Interaction:
+        """|coro|
+
+        Selects the given values from the select menu.
+
+        Raises
+        -------
+        InvalidData
+            Didn't receive a response from Discord
+            (doesn't mean the interaction failed).
+        NotFound
+            The originating message was not found.
+        HTTPException
+            Selecting the values failed.
+
+        Returns
+        --------
+        :class:`Interaction`
+            The interaction that was created.
+        """
+        message = self.message
+        return await _wrapped_interaction(
+            message._state,
+            _generate_nonce(),
+            InteractionType.component,
+            None,
+            message.channel,  # type: ignore # channel is always correct here
+            self.to_dict(values),
+            message=message,
+        )
+
+
+class UserSelectMenu(BaseSelectMenu):
+    """Represents a user select menu from the Discord Bot UI Kit (v2).
+
+    A user select menu allows users to select Discord users.
+
+    .. versionadded:: 2.1
+    """
+
+    @property
+    def type(self) -> Literal[ComponentType.user_select]:
+        """:class:`ComponentType`: The type of component."""
+        return ComponentType.user_select
+
+
+class RoleSelectMenu(BaseSelectMenu):
+    """Represents a role select menu from the Discord Bot UI Kit (v2).
+
+    A role select menu allows users to select Discord roles.
+
+    .. versionadded:: 2.1
+    """
+
+    @property
+    def type(self) -> Literal[ComponentType.role_select]:
+        """:class:`ComponentType`: The type of component."""
+        return ComponentType.role_select
+
+
+class MentionableSelectMenu(BaseSelectMenu):
+    """Represents a mentionable select menu from the Discord Bot UI Kit (v2).
+
+    A mentionable select menu allows users to select Discord users or roles.
+
+    .. versionadded:: 2.1
+    """
+
+    @property
+    def type(self) -> Literal[ComponentType.mentionable_select]:
+        """:class:`ComponentType`: The type of component."""
+        return ComponentType.mentionable_select
+
+
+class ChannelSelectMenu(BaseSelectMenu):
+    """Represents a channel select menu from the Discord Bot UI Kit (v2).
+
+    A channel select menu allows users to select Discord channels.
+
+    .. versionadded:: 2.1
+    """
+
+    @property
+    def type(self) -> Literal[ComponentType.channel_select]:
+        """:class:`ComponentType`: The type of component."""
+        return ComponentType.channel_select
+
+
 class SelectOption:
     """Represents a select menu's option.
 
@@ -569,3 +793,13 @@ def _component_factory(data: ComponentPayload, message: Message = MISSING) -> Op
         return SelectMenu(data, message)
     elif data['type'] == 4:
         return TextInput(data, message)
+    elif data['type'] == 5:
+        return StringSelectMenu(data, message)
+    elif data['type'] == 6:
+        return UserSelectMenu(data, message)
+    elif data['type'] == 7:
+        return RoleSelectMenu(data, message)
+    elif data['type'] == 8:
+        return MentionableSelectMenu(data, message)
+    elif data['type'] == 9:
+        return ChannelSelectMenu(data, message)

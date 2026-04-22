@@ -29,7 +29,7 @@ from typing_extensions import NotRequired
 
 from .emoji import PartialEmoji
 
-ComponentType = Literal[1, 2, 3, 4]
+ComponentType = Literal[1, 2, 3, 4, 5, 6, 7, 8, 9]
 ButtonStyle = Literal[1, 2, 3, 4, 5]
 TextStyle = Literal[1, 2]
 
@@ -87,7 +87,58 @@ class TextInput(TypedDict):
     max_length: NotRequired[int]
 
 
-MessageChildComponent = Union[ButtonComponent, SelectMenu]
+class StringSelectMenu(TypedDict):
+    """A select menu with user-defined string options (v2)."""
+    type: Literal[5]
+    custom_id: str
+    options: NotRequired[List[SelectOption]]
+    placeholder: NotRequired[str]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    disabled: NotRequired[bool]
+
+
+class UserSelectMenu(TypedDict):
+    """A select menu that allows users to select Discord users (v2)."""
+    type: Literal[6]
+    custom_id: str
+    placeholder: NotRequired[str]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    disabled: NotRequired[bool]
+
+
+class RoleSelectMenu(TypedDict):
+    """A select menu that allows users to select Discord roles (v2)."""
+    type: Literal[7]
+    custom_id: str
+    placeholder: NotRequired[str]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    disabled: NotRequired[bool]
+
+
+class MentionableSelectMenu(TypedDict):
+    """A select menu that allows users to select Discord users or roles (v2)."""
+    type: Literal[8]
+    custom_id: str
+    placeholder: NotRequired[str]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    disabled: NotRequired[bool]
+
+
+class ChannelSelectMenu(TypedDict):
+    """A select menu that allows users to select Discord channels (v2)."""
+    type: Literal[9]
+    custom_id: str
+    placeholder: NotRequired[str]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    disabled: NotRequired[bool]
+
+
+MessageChildComponent = Union[ButtonComponent, SelectMenu, StringSelectMenu, UserSelectMenu, RoleSelectMenu, MentionableSelectMenu, ChannelSelectMenu]
 ModalChildComponent = TextInput
 ActionRowChildComponent = Union[MessageChildComponent, ModalChildComponent]
 Component = Union[ActionRow, ActionRowChildComponent]
