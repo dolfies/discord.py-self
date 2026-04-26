@@ -58,6 +58,8 @@ __all__ = (
 class GuildTag:
     """Represents a guild's tag (badge).
 
+    This class can be constructed by you to pass into :meth:`GuildProfile.edit`.
+
     .. versionadded:: 2.2
 
     Parameters
@@ -362,6 +364,9 @@ class GuildProfile(Hashable):
             Can only be up to 20.
         tag: Optional[:class:`GuildTag`]
             The new tag for the guild.
+
+            Can be ``None`` to remove the tag, but the guild must have
+            the ``GUILD_TAG`` feature to have a tag in the first place.
         traits: Optional[List[:class:`Trait`]]
             The new list of traits for the guild.
         visibility: Optional[:class:`GuildVisibility`]
@@ -406,13 +411,10 @@ class GuildProfile(Hashable):
                 payload['tag'] = None
                 payload['badge_color_primary'] = None
                 payload['badge_color_secondary'] = None
-
         if traits is not None:
             payload['traits'] = [trait.to_dict() for trait in traits]
-
         if visibility is not None:
             payload['visibility'] = visibility.value
-
         if discovery_splash is not None:
             payload['custom_banner'] = _bytes_to_base64_data(discovery_splash.fp.read())
 
