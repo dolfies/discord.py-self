@@ -2222,14 +2222,14 @@ class Client:
         state = self._connection
         data = await state.http.get_guild_preview(guild_id)
         return state.create_guild(data)
-    
+
     async def fetch_guild_profile(self, guild_id: int, /) -> GuildProfile:
         """|coro|
 
         Retrieves a :class:`.GuildProfile` from an ID.
 
-        You must either be a member of the guild or the guild must be 
-        discoverable or have a PUBLIC or PUBLIC_WITH_RECRUITMENT visibility to 
+        You must either be a member of the guild or the guild must be
+        discoverable or have a PUBLIC or PUBLIC_WITH_RECRUITMENT visibility to
         fetch the guild profile.
 
         .. versionadded:: 2.2
