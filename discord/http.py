@@ -99,6 +99,7 @@ if TYPE_CHECKING:
         channel,
         command,
         directory,
+        discovery,
         emoji,
         entitlements,
         experiment,
@@ -5126,3 +5127,53 @@ class HTTPClient:
     def join_hub_token(self, token: str) -> Response[hub.EmailDomainVerification]:
         payload = {'token': token}
         return self.request(Route('POST', '/guilds/automations/email-domain-lookup/verify'), json=payload)
+
+    # Discovery
+
+    def get_guild_profile(self, guild_id: Snowflake) -> Response[discovery.GuildProfile]:
+        return self.request(Route('GET', '/guilds/{guild_id}/profile', guild_id=guild_id))
+
+    def edit_guild_profile(
+        self,
+        guild_id: Snowflake,
+        *,
+        name: Optional[str] = None,
+        icon: Optional[str] = MISSING,
+        description: Optional[str] = MISSING,
+        brand_color_primary: Optional[str] = None,
+        game_application_ids: Optional[List[Snowflake]] = None,
+        tag: Optional[str] = MISSING,
+        badges: Optional[List[int]] = None,
+        badge_color_primary: Optional[str] = None,
+        badge_color_secondary: Optional[str] = None,
+        traits: Optional[List[discovery.GuildProfileTrait]] = None,
+        visibility: Optional[int] = None,
+        custom_banner: Optional[str] = None,
+    ) -> Response[discovery.GuildProfile]:
+        payload = {}
+        if name is not None:
+            payload['name'] = name
+        if icon is not MISSING:
+            payload['icon'] = icon
+        if description is not MISSING:
+            payload['description'] = description
+        if brand_color_primary is not None:
+            payload['brand_color_primary'] = brand_color_primary
+        if game_application_ids is not None:
+            payload['game_application_ids'] = game_application_ids
+        if tag is not MISSING:
+            payload['tag'] = tag
+        if badges is not None:
+            payload['badges'] = badges
+        if badge_color_primary is not None:
+            payload['badge_color_primary'] = badge_color_primary
+        if badge_color_secondary is not None:
+            payload['badge_color_secondary'] = badge_color_secondary
+        if traits is not None:
+            payload['traits'] = traits
+        if visibility is not None:
+            payload['visibility'] = visibility
+        if custom_banner is not None:
+            payload['custom_banner'] = custom_banner
+
+        return self.request(Route('PATCH', '/guilds/{guild_id}/profile', guild_id=guild_id), json=payload)

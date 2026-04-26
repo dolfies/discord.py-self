@@ -141,3 +141,8 @@ class SettingsActivity(TypedDict, total=False):
     emoji_id: Snowflake
     emoji_name: str
     expires_at: str
+
+
+class GameActivity(TypedDict):
+    activity_level: int
+    activity_score: int

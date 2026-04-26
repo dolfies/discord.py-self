@@ -6842,6 +6842,175 @@ of :class:`enum.Enum`.
 
         The experiment is running on the ads portal.
 
+.. class:: GuildBadgeType
+    Represents a guild badge.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: SWORD
+
+        The guild has the sword badge.
+
+    .. attribute:: WATER_DROP
+
+        The guild has the water drop badge.
+
+    .. attribute:: SKULL
+
+        The guild has the skull badge.
+
+    .. attribute:: TOADSTOOL
+
+        The guild has the toadstool badge.
+
+    .. attribute:: MOON
+
+        The guild has the moon badge.
+
+    .. attribute:: LIGHTNING
+
+        The guild has the lightning badge.
+
+    .. attribute:: LEAF
+
+        The guild has the leaf badge.
+
+    .. attribute:: HEART
+
+        The guild has the heart badge.
+
+    .. attribute:: FIRE
+
+        The guild has the fire badge.
+
+    .. attribute:: COMPASS
+
+        The guild has the compass badge.
+
+    .. attribute:: CROSSHAIRS
+
+        The guild has the crosshairs badge.
+
+    .. attribute:: FLOWER
+
+        The guild has the flower badge.
+
+    .. attribute:: FORCE
+
+        The guild has the force badge.
+
+    .. attribute:: GEM
+
+        The guild has the gem badge.
+
+    .. attribute:: LAVA
+
+        The guild has the lava badge.
+
+    .. attribute:: PSYCHIC
+
+        The guild has the psychic badge.
+
+    .. attribute:: SMOKE
+
+        The guild has the smoke badge.
+
+    .. attribute:: SNOW
+
+        The guild has the snow badge.
+
+    .. attribute:: SOUND
+
+        The guild has the sound badge.
+
+    .. attribute:: SUN
+
+        The guild has the sun badge.
+
+    .. attribute:: WIND
+
+        The guild has the wind badge.
+
+    .. attribute:: BUNNY
+
+        The guild has the bunny badge.
+
+    .. attribute:: DOG
+
+        The guild has the dog badge.
+
+    .. attribute:: FROG
+
+        The guild has the frog badge.
+
+    .. attribute:: GOAT
+
+        The guild has the goat badge.
+
+    .. attribute:: CAT
+
+        The guild has the cat badge.
+
+    .. attribute:: DIAMOND
+
+        The guild has the diamond badge.
+
+    .. attribute:: CROWN
+
+        The guild has the crown badge.
+
+    .. attribute:: TROPHY
+
+        The guild has the trophy badge.
+
+    .. attribute:: MONEY_BAG
+
+        The guild has the money bag badge.
+
+    .. attribute:: DOLLAR_SIGN
+
+        The guild has the dollar sign badge.
+
+.. class:: GuildVisibility
+    Represents the visibility level of a guild.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: PUBLIC
+
+        The guild is public and can be viewed by anyone.
+
+    .. attribute:: RESTRICTED
+
+        The guild is private and cannot be viewed. Joining requires an invite.
+
+    .. attribute:: PUBLIC_WITH_RECRUITMENT
+
+        The guild is public and allows anyone to view it and submit a join request.
+
+
+.. class:: GuildPremiumTier
+    Represents the guild's premium tier (boost level).
+
+    .. versionadded:: 2.2
+
+    .. attribute:: NONE
+
+        Guild has not unlocked any Server Boost perks.
+
+    .. attribute:: TIER_1
+
+        Guild has unlocked Server Boost level 1 perks.
+
+    .. attribute:: TIER_2
+
+        Guild has unlocked Server Boost level 2 perks.
+
+    .. attribute:: TIER_3
+
+        Guild has unlocked Server Boost level 3 perks.
+
+
 .. _discord-api-audit-logs:
 
 Audit Log Data

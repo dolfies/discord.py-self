@@ -144,6 +144,9 @@ __all__ = (
     'ExperimentPlatform',
     'ApexExperimentUnitType',
     'ApexExperimentSurface',
+    'GuildBadgeType',
+    'GuildVisibility',
+    'GuildPremiumTier',
 )
 
 
@@ -1947,6 +1950,62 @@ class ApexExperimentSurface(Enum):
     developer_portal = 3
     admin_panel = 4
     ads_budget_ab = 5
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class GuildBadgeType(Enum):
+    SWORD = 0
+    WATER_DROP = 1
+    SKULL = 2
+    TOADSTOOL = 3
+    MOON = 4
+    LIGHTNING = 5
+    LEAF = 6
+    HEART = 7
+    FIRE = 8
+    COMPASS = 9
+    CROSSHAIRS = 10
+    FLOWER = 11
+    FORCE = 12
+    GEM = 13
+    LAVA = 14
+    PSYCHIC = 15
+    SMOKE = 16
+    SNOW = 17
+    SOUND = 18
+    SUN = 19
+    WIND = 20
+    BUNNY = 21
+    DOG = 22
+    FROG = 23
+    GOAT = 24
+    CAT = 25
+    DIAMOND = 26
+    CROWN = 27
+    TROPHY = 28
+    MONEY_BAG = 29
+    DOLLAR_SIGN = 30
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class GuildVisibility(Enum):
+    PUBLIC = 1
+    RESTRICTED = 2
+    PUBLIC_WITH_RECRUITMENT = 3
+
+    def __int__(self) -> int:
+        return self.value
+    
+
+class GuildPremiumTier(Enum):
+    NONE = 0
+    TIER_1 = 1
+    TIER_2 = 2
+    TIER_3 = 3
 
     def __int__(self) -> int:
         return self.value

@@ -101,6 +101,7 @@ from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
 from .partial_emoji import _EmojiTag, PartialEmoji
 from .commands import _command_factory
+from .discovery import GuildProfile
 
 if TYPE_CHECKING:
     from .abc import Snowflake, SnowflakeTime
@@ -5913,3 +5914,18 @@ class Guild(Hashable):
             reason=reason if reason is not MISSING else None,
         )
         return Onboarding(data=data, guild=self, state=self._state)
+
+    async def profile(self) -> GuildProfile:
+        """|coro|
+
+        Fetches the profile for this guild.
+
+        .. versionadded:: 2.2
+
+        Returns
+        --------
+        :class:`GuildProfile`
+            The profile that was fetched.
+        """
+        data = await self._state.http.get_guild_profile(self.id)
+        return GuildProfile(data=data, state=self._state)

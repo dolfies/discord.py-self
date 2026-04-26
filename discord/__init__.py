@@ -86,6 +86,7 @@ from .voice_client import *
 from .webhook import *
 from .welcome_screen import *
 from .widget import *
+from .discovery import *
 
 
 class _VersionInfo(NamedTuple):
