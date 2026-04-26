@@ -116,7 +116,7 @@ class GuildTag:
         )
 
     @classmethod
-    def from_payload(cls, *, state: ConnectionState, guild_id: int, data: GuildProfilePayload) -> GuildTag:
+    def from_dict(cls, *, state: ConnectionState, guild_id: int, data: GuildProfilePayload) -> GuildTag:
         badge = cls(
             type=try_enum(GuildBadgeType, data['badge']),
             color_primary=Color.from_str(data['badge_color_primary']),
@@ -302,7 +302,7 @@ class GuildProfile(Hashable):
             int(app_id): GameActivity(activity) for app_id, activity in data['game_activity'].items()
         }
 
-        self.badge: GuildTag = GuildTag.from_payload(
+        self.badge: GuildTag = GuildTag.from_dict(
             state=self._state,
             guild_id=self.id,
             data=data,
