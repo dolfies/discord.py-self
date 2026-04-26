@@ -899,9 +899,9 @@ class ClientUser(BaseUser):
 
             The behaviour of this parameters is as follows:
 
-            - If a :class:`PrimaryGuild` object is passed, then the guild ID and whether the identity is 
+            - If a :class:`PrimaryGuild` object is passed, then the guild ID and whether the identity is
                 enabled are taken from that object.
-            - If a :class:`discord.abc.Snowflake` object is passed, then the guild ID is taken from that 
+            - If a :class:`discord.abc.Snowflake` object is passed, then the guild ID is taken from that
                 object and the identity is enabled.
             - If ``None`` is passed, then the primary guild is removed.
 
@@ -1013,7 +1013,7 @@ class ClientUser(BaseUser):
         if primary_guild is not MISSING:
             if not isinstance(primary_guild, discord.abc.Snowflake):
                 raise ValueError('`primary_guild` parameter was not a Snowflake')
-            
+
             primary_guild_id = primary_guild.id
             primary_guild_enabled = True
             if isinstance(primary_guild, PrimaryGuild):

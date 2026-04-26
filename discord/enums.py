@@ -1999,7 +1999,7 @@ class GuildVisibility(Enum):
 
     def __int__(self) -> int:
         return self.value
-    
+
 
 class GuildPremiumTier(Enum):
     NONE = 0

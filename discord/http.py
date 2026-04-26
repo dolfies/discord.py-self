@@ -4800,8 +4800,10 @@ class HTTPClient:
 
     def leave_hypesquad_house(self) -> Response[None]:
         return self.request(Route('DELETE', '/hypesquad/online'))
-    
-    def set_guild_identity(self, *, guild_id: Optional[Snowflake] = MISSING, enabled: Optional[bool] = MISSING) -> Response[user.User]:
+
+    def set_guild_identity(
+        self, *, guild_id: Optional[Snowflake] = MISSING, enabled: Optional[bool] = MISSING
+    ) -> Response[user.User]:
         payload = {}
         if guild_id is not MISSING:
             payload['identity_guild_id'] = guild_id
