@@ -115,6 +115,7 @@ from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import ApexExperiment, UserExperiment, GuildExperiment
 from .tracking import HeadersContext
+from .discovery import GuildProfile
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -2221,6 +2222,33 @@ class Client:
         state = self._connection
         data = await state.http.get_guild_preview(guild_id)
         return state.create_guild(data)
+    
+    async def fetch_guild_profile(self, guild_id: int, /) -> GuildProfile:
+        """|coro|
+
+        Retrieves a :class:`.GuildProfile` from an ID.
+
+        You must either be a member of the guild or the guild must be 
+        discoverable or have a PUBLIC or PUBLIC_WITH_RECRUITMENT visibility to 
+        fetch the guild profile.
+
+        .. versionadded:: 2.2
+
+        Raises
+        ------
+        NotFound
+            Guild with given ID does not exist or you have no access to it.
+        HTTPException
+            Retrieving the guild profile failed.
+
+        Returns
+        --------
+        :class:`.GuildProfile`
+            The guild profile from the ID.
+        """
+        state = self._connection
+        data = await state.http.get_guild_profile(guild_id)
+        return GuildProfile(data=data, state=state)
 
     async def create_guild(
         self,
