@@ -8522,6 +8522,11 @@ Guild
 .. autoclass:: MutualGuild()
     :members:
 
+.. attributetable:: GuildProfile
+
+.. autoclass:: GuildProfile()
+    :members:
+
 .. class:: BanEntry
 
     A namedtuple which represents a ban returned from :meth:`~Guild.bans`.
