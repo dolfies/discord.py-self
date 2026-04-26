@@ -8522,10 +8522,6 @@ Guild
 .. autoclass:: MutualGuild()
     :members:
 
-.. attributetable:: GuildProfile
-
-.. autoclass:: GuildProfile()
-    :members:
 
 .. class:: BanEntry
 
@@ -9571,6 +9567,30 @@ Poll
 .. attributetable:: PollMedia
 
 .. autoclass:: PollMedia()
+    :members:
+
+
+Discovery
+~~~~~~~~~
+
+.. attributetable:: GuildProfile
+
+.. autoclass:: GuildProfile()
+    :members:
+
+.. attributetable:: GuildTag
+
+.. autoclass:: GuildTag
+    :members:
+
+.. attributetable:: Trait
+
+.. autoclass:: Trait()
+    :members:
+
+.. attributetable:: GuildActivity
+
+.. autoclass:: GuildActivity()
     :members:
 
 

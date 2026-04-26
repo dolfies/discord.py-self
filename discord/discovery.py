@@ -236,7 +236,7 @@ class GuildProfile(Hashable):
         Approximate count of non-offline members in the guild.
     description: :class:`str`
         The description for the guild.
-    brand_color_primary: :class:`Color`
+    brand_color_primary: :class:`discord.Color`
         The guild's accent color.
     game_application_ids: List[:class:`int`]
         The IDs of the applications representing the games the guild plays.
@@ -357,7 +357,7 @@ class GuildProfile(Hashable):
         description: Optional[:class:`str`]
             The new description for the guild. Max 300 characters.
             ``None`` can be passed to remove the description.
-        brand_color_primary: Optional[:class:`Color`]
+        brand_color_primary: Optional[:class:`discord.Color`]
             The new primary brand color for the guild.
         game_application_ids: Optional[List[:class:`int`]]
             The new list of game application IDs representing the games the guild plays.
