@@ -2131,8 +2131,8 @@ class Messageable:
         is called using ``await``.
 
         The returned context manager contains ``message_send_cooldown`` and ``thread_create_cooldown``
-        attributes that are integers representing the time left until the channel's slowmode
-        expires. These attributes are updated from every typing request sent to the API.
+        attributes that are integers representing the time left (in milliseconds) until the channel's
+        slowmode expires. These attributes are updated from every typing request sent to the API.
 
         Example Usage: ::
 

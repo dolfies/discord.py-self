@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 
     from .client import Client
     from .state import ConnectionState
+    from .tracking import HeadersContext
     from .types.activity import Activity as ActivityPayload
     from .types.snowflake import Snowflake
     from .types.gateway import BulkGuildSubscribePayload
@@ -144,12 +145,16 @@ class GatewayRatelimiter:
 
 
 class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
+    HEARTBEAT_VERSION = 27
+    UPDATE_TIME_SPEND_INTERVAL_SECONDS = 30 * 60
+
     def __init__(self, *, ws: DiscordWebSocket, interval: Optional[float] = None):
         self.ws: DiscordWebSocket = ws
         self.interval: Optional[float] = interval
         self.heartbeat_timeout: float = self.ws._max_heartbeat_timeout
 
         self.msg: str = 'Keeping websocket alive.'
+        self.time_spent_msg: str = 'Updating session time spent.'
         self.block_msg: str = 'Heartbeat blocked for more than %s seconds.'
         self.behind_msg: str = "Can't keep up, websocket is %.1fs behind."
         self.not_responding_msg: str = 'Gateway has stopped responding. Closing and restarting.'
@@ -159,6 +164,7 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
         self._last_send: float = time.perf_counter()
         self._last_recv: float = time.perf_counter()
         self._last_ack: float = time.perf_counter()
+        self._last_time_spent: float = time.perf_counter()
         self.latency: float = float('inf')
 
     async def run(self) -> None:
@@ -181,7 +187,30 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
                     self.stop()
                 return
 
-            data = self.get_payload()
+            # Assumes the time spend interval is always roughly a multiple of the heartbeat interval
+            if self.UPDATE_TIME_SPEND_INTERVAL_SECONDS and (
+                self._last_time_spent + self.UPDATE_TIME_SPEND_INTERVAL_SECONDS < time.perf_counter()
+            ):
+                payload = self.get_time_spent_payload()
+                _log.debug(self.time_spent_msg)
+                try:
+                    total = 0
+                    while True:
+                        try:
+                            await asyncio.wait_for(self.ws.send_heartbeat(payload), timeout=10)
+                            break
+                        except asyncio.TimeoutError:
+                            total += 10
+
+                            stack = ''.join(traceback.format_stack())
+                            msg = f'{self.block_msg}\nLoop traceback (most recent call last):\n{stack}'
+                            _log.warning(msg, total)
+                except Exception:
+                    self.stop()
+                else:
+                    self._last_time_spent = time.perf_counter()
+
+            data = self.get_heartbeat_payload()
             _log.debug(self.msg)
             try:
                 total = 0
@@ -195,16 +224,30 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
                         stack = ''.join(traceback.format_stack())
                         msg = f'{self.block_msg}\nLoop traceback (most recent call last):\n{stack}'
                         _log.warning(msg, total)
-
             except Exception:
                 self.stop()
             else:
                 self._last_send = time.perf_counter()
 
-    def get_payload(self) -> Dict[str, Any]:
+    def get_heartbeat_payload(self) -> Dict[str, Any]:
+        reasons = ['foregrounded']
+        if self.ws._connection._has_voice_client():
+            reasons.append('rtc_connected')
+
         return {
-            'op': self.ws.HEARTBEAT,
-            'd': self.ws.sequence,
+            'op': self.ws.QOS_HEARTBEAT,
+            'd': {'qos': {'ver': self.HEARTBEAT_VERSION, 'active': True, 'reasons': reasons}, 'seq': self.ws.sequence},
+        }
+
+    def get_time_spent_payload(self) -> Dict[str, Any]:
+        headers = self.ws._headers
+        return {
+            'op': self.ws.UPDATE_TIME_SPENT_SESSION_ID,
+            'd': {
+                'initialization_timestamp': int(headers.initialization_timestamp.timestamp() * 1000),
+                'session_id': headers.gateway_properties.get('client_heartbeat_session_id'),
+                'client_launch_id': headers.gateway_properties.get('client_launch_id'),
+            },
         }
 
     def start(self) -> None:
@@ -225,6 +268,8 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
 
 
 class VoiceKeepAliveHandler(KeepAliveHandler):
+    UPDATE_TIME_SPEND_INTERVAL_SECONDS = None
+
     if TYPE_CHECKING:
         ws: DiscordVoiceWebSocket
 
@@ -237,7 +282,7 @@ class VoiceKeepAliveHandler(KeepAliveHandler):
         self.not_responding_msg: str = 'Voice socket has stopped responding. Closing and restarting.'
         self.no_stop_msg: str = 'An error occurred while stopping the voice socket. Ignoring.'
 
-    def get_payload(self) -> Dict[str, Any]:
+    def get_heartbeat_payload(self) -> Dict[str, Any]:
         return {
             'op': self.ws.HEARTBEAT,
             'd': {
@@ -280,29 +325,31 @@ class DiscordWebSocket:
         shard_count: Optional[int]
         gateway: yarl.URL
         _max_heartbeat_timeout: float
-        _headers: utils.Headers
+        _headers: HeadersContext
         _transport_compression: bool
 
     # fmt: off
-    DEFAULT_GATEWAY       = yarl.URL('wss://gateway.discord.gg/')
-    DISPATCH              = 0
-    HEARTBEAT             = 1
-    IDENTIFY              = 2
-    PRESENCE              = 3
-    VOICE_STATE           = 4
-    VOICE_PING            = 5
-    RESUME                = 6
-    RECONNECT             = 7
-    REQUEST_MEMBERS       = 8
-    INVALIDATE_SESSION    = 9
-    HELLO                 = 10
-    HEARTBEAT_ACK         = 11
-    # GUILD_SYNC          = 12
-    CALL_CONNECT          = 13
-    GUILD_SUBSCRIBE       = 14  # Deprecated
-    # REQUEST_COMMANDS    = 24
-    SEARCH_RECENT_MEMBERS = 35
-    BULK_GUILD_SUBSCRIBE  = 37
+    DEFAULT_GATEWAY              = yarl.URL('wss://gateway.discord.gg/')
+    DISPATCH                     = 0
+    HEARTBEAT                    = 1
+    IDENTIFY                     = 2
+    PRESENCE                     = 3
+    VOICE_STATE                  = 4
+    VOICE_PING                   = 5
+    RESUME                       = 6
+    RECONNECT                    = 7
+    REQUEST_MEMBERS              = 8
+    INVALIDATE_SESSION           = 9
+    HELLO                        = 10
+    HEARTBEAT_ACK                = 11
+    # GUILD_SYNC                 = 12
+    CALL_CONNECT                 = 13
+    GUILD_SUBSCRIBE              = 14  # Deprecated
+    # REQUEST_COMMANDS           = 24
+    SEARCH_RECENT_MEMBERS        = 35
+    BULK_GUILD_SUBSCRIBE         = 37
+    QOS_HEARTBEAT                = 40
+    UPDATE_TIME_SPENT_SESSION_ID = 41
     # fmt: on
 
     def __init__(self, socket: AsyncWebSocket, *, loop: asyncio.AbstractEventLoop) -> None:
@@ -471,6 +518,7 @@ class DiscordWebSocket:
             'since': self.idle_since,
         }
 
+        # TODO: Emulate fast connect?
         properties = self._headers.gateway_properties
         installation_id = self._connection.installation_id
         if installation_id is not None:
@@ -551,8 +599,8 @@ class DiscordWebSocket:
 
             if op == self.HEARTBEAT:
                 if self._keep_alive:
-                    beat = self._keep_alive.get_payload()
-                    await self.send_as_json(beat)
+                    beat = self._keep_alive.get_heartbeat_payload()
+                    await self.send_heartbeat(beat)
                 return
 
             if op == self.HELLO:
@@ -560,7 +608,7 @@ class DiscordWebSocket:
                 interval = data['heartbeat_interval'] / 1000.0
                 self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
                 # Send a heartbeat immediately
-                await self.send_as_json(self._keep_alive.get_payload())
+                await self.send_heartbeat(self._keep_alive.get_heartbeat_payload())
                 self._keep_alive.start()
                 return
 
@@ -587,6 +635,14 @@ class DiscordWebSocket:
             self.gateway = yarl.URL(data['resume_gateway_url'])
 
             _log.info('Connected to Gateway (session ID: %s).', self.session_id)
+
+            # At READY, we need to send an UPDATE_TIME_SPENT_SESSION_ID immediately
+            # This is always followed by a heartbeat
+            if self._keep_alive:
+                await self.send_heartbeat(self._keep_alive.get_time_spent_payload())
+                await self.send_heartbeat(self._keep_alive.get_heartbeat_payload())
+                self._keep_alive._last_time_spent = time.perf_counter()
+
             await self.voice_state()  # Initial OP 4
 
         elif event == 'RESUMED':

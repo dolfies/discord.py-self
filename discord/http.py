@@ -56,6 +56,7 @@ from typing import (
 from urllib.parse import quote as _uriquote
 
 import aiohttp
+import curl_cffi
 from curl_cffi import requests, CurlMime
 
 from . import utils
@@ -72,7 +73,7 @@ from .errors import (
 )
 from .file import File, _FileBase
 from .mentions import AllowedMentions
-from .tracking import ContextProperties
+from .tracking import ContextProperties, HeadersContext
 from .utils import MISSING
 
 if TYPE_CHECKING:
@@ -138,6 +139,7 @@ if TYPE_CHECKING:
     Response = Coroutine[Any, Any, T]
     MessageableChannel = Union[TextChannel, Thread, DMChannel, GroupChannel, PartialMessageable, VoiceChannel, ForumChannel]
 
+CURL_VERSION = tuple(map(int, curl_cffi.__version__.split('.')[:2]))  # type: ignore
 INTERNAL_API_VERSION = 9
 CIPHERS = (
     'TLS_GREASE_5A',
@@ -602,6 +604,7 @@ class HTTPClient:
         *,
         loop: asyncio.AbstractEventLoop,
         client: Optional[Client] = None,
+        headers_context: HeadersContext = MISSING,
         proxy: Optional[str] = None,
         proxy_auth: Optional[aiohttp.BasicAuth] = None,
         unsync_clock: bool = True,
@@ -615,6 +618,9 @@ class HTTPClient:
         proxy_gateway: bool = True,
         timezone: Optional[str] = None,
     ) -> None:
+        if client is None and headers_context is MISSING:
+            raise ValueError('headers_context must be provided if client is not provided')
+
         self.connector: aiohttp.BaseConnector = connector or MISSING
         self.loop: asyncio.AbstractEventLoop = loop
         self.client: Optional[Client] = client
@@ -650,7 +656,7 @@ class HTTPClient:
         if debug_options and 'trace' in debug_options:
             self.tracer = utils.IDGenerator()
 
-        self.headers: utils.Headers = MISSING
+        self.headers: HeadersContext = headers_context
         self._started: bool = False
 
     def __del__(self) -> None:
@@ -676,34 +682,38 @@ class HTTPClient:
 
         if self.connector is MISSING or self.connector.closed:
             self.connector = aiohttp.TCPConnector(limit=0)
-        self.__asession = session = await _gen_session(aiohttp.ClientSession(connector=self.connector))
-        self.headers = headers = await utils.Headers.default(session, self.proxy, self.proxy_auth)
+        self.__asession = await _gen_session(aiohttp.ClientSession(connector=self.connector))
+
+        if self.client is not None:
+            self.headers = await self.client.headers_context()
+        headers = self.headers
+
         _log.info(
             'Found user agent "%s", build number %s.',
             headers.user_agent,
             headers.super_properties.get('client_build_number'),
         )
+        _log.info('Found TLS fingerprint target "%s".', headers.impersonate)
 
-        try:
-            impersonate = requests.impersonate.DEFAULT_CHROME
-        except AttributeError:
-            # Breaking change
-            impersonate = 'chrome'
-
-        _log.info('Found TLS fingerprint target "%s".', impersonate)
-        self.__session = requests.AsyncSession(impersonate=impersonate, default_headers=False)
+        self.__session = requests.AsyncSession(impersonate=headers.impersonate, default_headers=False)  # type: ignore
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
         await self.startup()
 
         headers: Dict[str, Any] = {
+            'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Origin': 'https://discord.com',
+            'Origin': f'https://{self.headers.BASE_DOMAIN}',
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
             'User-Agent': self.user_agent,
         }
+
+        # curl_cffi >0.14 sets a new default ws message size of 4 mb, insufficient
+        # for accounts in large numbers of guilds
+        if CURL_VERSION > (0, 14):
+            kwargs['max_message_size'] = 15 * 1024 * 1024
 
         proxy = kwargs.pop('proxy', self.proxy if self.proxy_gateway else None)
         proxy_auth = kwargs.pop('proxy_auth', self.proxy_auth if self.proxy_gateway else None)
@@ -719,7 +729,7 @@ class HTTPClient:
 
     @property
     def browser_version(self) -> int:
-        return self.headers.major_version
+        return self.headers.browser_major_version
 
     @property
     def user_agent(self) -> str:
@@ -788,9 +798,8 @@ class HTTPClient:
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Origin': 'https://discord.com',
-            'Priority': 'u=0, i',
-            'Referer': 'https://discord.com/channels/@me',
+            'Origin': f'https://{self.headers.BASE_DOMAIN}',
+            'Referer': f'https://{self.headers.BASE_DOMAIN}/channels/@me',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
