@@ -2229,8 +2229,7 @@ class Client:
         Retrieves a :class:`.GuildProfile` from an ID.
 
         You must either be a member of the guild or the guild must be
-        discoverable or have a PUBLIC or PUBLIC_WITH_RECRUITMENT visibility to
-        fetch the guild profile.
+        discoverable or have a public visibility to fetch the guild profile.
 
         .. versionadded:: 2.2
 

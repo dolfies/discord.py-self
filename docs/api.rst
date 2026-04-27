@@ -6855,127 +6855,127 @@ of :class:`enum.Enum`.
 
     .. versionadded:: 2.2
 
-    .. attribute:: SWORD
+    .. attribute:: sword
 
         The guild has the sword badge.
 
-    .. attribute:: WATER_DROP
+    .. attribute:: water_drop
 
         The guild has the water drop badge.
 
-    .. attribute:: SKULL
+    .. attribute:: skull
 
         The guild has the skull badge.
 
-    .. attribute:: TOADSTOOL
+    .. attribute:: toadstool
 
         The guild has the toadstool badge.
 
-    .. attribute:: MOON
+    .. attribute:: moon
 
         The guild has the moon badge.
 
-    .. attribute:: LIGHTNING
+    .. attribute:: lightning
 
         The guild has the lightning badge.
 
-    .. attribute:: LEAF
+    .. attribute:: leaf
 
         The guild has the leaf badge.
 
-    .. attribute:: HEART
+    .. attribute:: heart
 
         The guild has the heart badge.
 
-    .. attribute:: FIRE
+    .. attribute:: fire
 
         The guild has the fire badge.
 
-    .. attribute:: COMPASS
+    .. attribute:: compass
 
         The guild has the compass badge.
 
-    .. attribute:: CROSSHAIRS
+    .. attribute:: crosshairs
 
         The guild has the crosshairs badge.
 
-    .. attribute:: FLOWER
+    .. attribute:: flower
 
         The guild has the flower badge.
 
-    .. attribute:: FORCE
+    .. attribute:: force
 
         The guild has the force badge.
 
-    .. attribute:: GEM
+    .. attribute:: gem
 
         The guild has the gem badge.
 
-    .. attribute:: LAVA
+    .. attribute:: lava
 
         The guild has the lava badge.
 
-    .. attribute:: PSYCHIC
+    .. attribute:: psychic
 
         The guild has the psychic badge.
 
-    .. attribute:: SMOKE
+    .. attribute:: smoke
 
         The guild has the smoke badge.
 
-    .. attribute:: SNOW
+    .. attribute:: snow
 
         The guild has the snow badge.
 
-    .. attribute:: SOUND
+    .. attribute:: sound
 
         The guild has the sound badge.
 
-    .. attribute:: SUN
+    .. attribute:: sun
 
         The guild has the sun badge.
 
-    .. attribute:: WIND
+    .. attribute:: wind
 
         The guild has the wind badge.
 
-    .. attribute:: BUNNY
+    .. attribute:: bunny
 
         The guild has the bunny badge.
 
-    .. attribute:: DOG
+    .. attribute:: dog
 
         The guild has the dog badge.
 
-    .. attribute:: FROG
+    .. attribute:: frog
 
         The guild has the frog badge.
 
-    .. attribute:: GOAT
+    .. attribute:: goat
 
         The guild has the goat badge.
 
-    .. attribute:: CAT
+    .. attribute:: cat
 
         The guild has the cat badge.
 
-    .. attribute:: DIAMOND
+    .. attribute:: diamond
 
         The guild has the diamond badge.
 
-    .. attribute:: CROWN
+    .. attribute:: crown
 
         The guild has the crown badge.
 
-    .. attribute:: TROPHY
+    .. attribute:: trophy
 
         The guild has the trophy badge.
 
-    .. attribute:: MONEY_BAG
+    .. attribute:: money_bag
 
         The guild has the money bag badge.
 
-    .. attribute:: DOLLAR_SIGN
+    .. attribute:: dollar_sign
 
         The guild has the dollar sign badge.
 
@@ -6984,39 +6984,17 @@ of :class:`enum.Enum`.
 
     .. versionadded:: 2.2
 
-    .. attribute:: PUBLIC
+    .. attribute:: public
 
         The guild is public and can be viewed by anyone.
 
-    .. attribute:: RESTRICTED
+    .. attribute:: restricted
 
         The guild is private and cannot be viewed. Joining requires an invite.
 
-    .. attribute:: PUBLIC_WITH_RECRUITMENT
+    .. attribute:: public_with_recruitment
 
         The guild is public and allows anyone to view it and submit a join request.
-
-
-.. class:: GuildPremiumTier
-    Represents the guild's premium tier (boost level).
-
-    .. versionadded:: 2.2
-
-    .. attribute:: NONE
-
-        Guild has not unlocked any Server Boost perks.
-
-    .. attribute:: TIER_1
-
-        Guild has unlocked Server Boost level 1 perks.
-
-    .. attribute:: TIER_2
-
-        Guild has unlocked Server Boost level 2 perks.
-
-    .. attribute:: TIER_3
-
-        Guild has unlocked Server Boost level 3 perks.
 
 
 .. _discord-api-audit-logs:
@@ -9578,19 +9556,14 @@ Discovery
 .. autoclass:: GuildProfile()
     :members:
 
-.. attributetable:: GuildTag
+.. attributetable:: GuildTrait
 
-.. autoclass:: GuildTag
+.. autoclass:: GuildTrait
     :members:
 
-.. attributetable:: Trait
+.. attributetable:: GameActivity
 
-.. autoclass:: Trait()
-    :members:
-
-.. attributetable:: GuildActivity
-
-.. autoclass:: GuildActivity()
+.. autoclass:: GameActivity()
     :members:
 
 

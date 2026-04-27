@@ -146,7 +146,6 @@ __all__ = (
     'ApexExperimentSurface',
     'GuildBadgeType',
     'GuildVisibility',
-    'GuildPremiumTier',
 )
 
 
@@ -1956,56 +1955,46 @@ class ApexExperimentSurface(Enum):
 
 
 class GuildBadgeType(Enum):
-    SWORD = 0
-    WATER_DROP = 1
-    SKULL = 2
-    TOADSTOOL = 3
-    MOON = 4
-    LIGHTNING = 5
-    LEAF = 6
-    HEART = 7
-    FIRE = 8
-    COMPASS = 9
-    CROSSHAIRS = 10
-    FLOWER = 11
-    FORCE = 12
-    GEM = 13
-    LAVA = 14
-    PSYCHIC = 15
-    SMOKE = 16
-    SNOW = 17
-    SOUND = 18
-    SUN = 19
-    WIND = 20
-    BUNNY = 21
-    DOG = 22
-    FROG = 23
-    GOAT = 24
-    CAT = 25
-    DIAMOND = 26
-    CROWN = 27
-    TROPHY = 28
-    MONEY_BAG = 29
-    DOLLAR_SIGN = 30
+    sword = 0
+    water_drop = 1
+    skull = 2
+    toadstool = 3
+    moon = 4
+    lightning = 5
+    leaf = 6
+    heart = 7
+    fire = 8
+    compass = 9
+    crosshairs = 10
+    flower = 11
+    force = 12
+    gem = 13
+    lava = 14
+    psychic = 15
+    smoke = 16
+    snow = 17
+    sound = 18
+    sun = 19
+    wind = 20
+    bunny = 21
+    dog = 22
+    frog = 23
+    goat = 24
+    cat = 25
+    diamond = 26
+    crown = 27
+    trophy = 28
+    money_bag = 29
+    dollar_sign = 30
 
     def __int__(self) -> int:
         return self.value
 
 
 class GuildVisibility(Enum):
-    PUBLIC = 1
-    RESTRICTED = 2
-    PUBLIC_WITH_RECRUITMENT = 3
-
-    def __int__(self) -> int:
-        return self.value
-
-
-class GuildPremiumTier(Enum):
-    NONE = 0
-    TIER_1 = 1
-    TIER_2 = 2
-    TIER_3 = 3
+    public = 1
+    restricted = 2
+    public_with_recruitment = 3
 
     def __int__(self) -> int:
         return self.value
