@@ -3043,6 +3043,7 @@ class HTTPClient:
         type: Optional[int] = None,
         *,
         action: RelationshipAction,
+        confirm_stranger_request: bool = True,
     ) -> Response[None]:
         payload = {}
         if type is not None:
@@ -3056,6 +3057,7 @@ class HTTPClient:
                     ContextProperties.from_dm_channel,
                 )
             )()
+            payload['confirm_stranger_request'] = confirm_stranger_request
         elif action is RelationshipAction.block:  # Friends, ContextMenu, User Profile, DM Channel.
             props = choice(
                 (
