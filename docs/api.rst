@@ -6850,6 +6850,153 @@ of :class:`enum.Enum`.
 
         The experiment is running on the ads portal.
 
+.. class:: GuildBadgeType
+    Represents a guild badge.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: sword
+
+        The guild has the sword badge.
+
+    .. attribute:: water_drop
+
+        The guild has the water drop badge.
+
+    .. attribute:: skull
+
+        The guild has the skull badge.
+
+    .. attribute:: toadstool
+
+        The guild has the toadstool badge.
+
+    .. attribute:: moon
+
+        The guild has the moon badge.
+
+    .. attribute:: lightning
+
+        The guild has the lightning badge.
+
+    .. attribute:: leaf
+
+        The guild has the leaf badge.
+
+    .. attribute:: heart
+
+        The guild has the heart badge.
+
+    .. attribute:: fire
+
+        The guild has the fire badge.
+
+    .. attribute:: compass
+
+        The guild has the compass badge.
+
+    .. attribute:: crosshairs
+
+        The guild has the crosshairs badge.
+
+    .. attribute:: flower
+
+        The guild has the flower badge.
+
+    .. attribute:: force
+
+        The guild has the force badge.
+
+    .. attribute:: gem
+
+        The guild has the gem badge.
+
+    .. attribute:: lava
+
+        The guild has the lava badge.
+
+    .. attribute:: psychic
+
+        The guild has the psychic badge.
+
+    .. attribute:: smoke
+
+        The guild has the smoke badge.
+
+    .. attribute:: snow
+
+        The guild has the snow badge.
+
+    .. attribute:: sound
+
+        The guild has the sound badge.
+
+    .. attribute:: sun
+
+        The guild has the sun badge.
+
+    .. attribute:: wind
+
+        The guild has the wind badge.
+
+    .. attribute:: bunny
+
+        The guild has the bunny badge.
+
+    .. attribute:: dog
+
+        The guild has the dog badge.
+
+    .. attribute:: frog
+
+        The guild has the frog badge.
+
+    .. attribute:: goat
+
+        The guild has the goat badge.
+
+    .. attribute:: cat
+
+        The guild has the cat badge.
+
+    .. attribute:: diamond
+
+        The guild has the diamond badge.
+
+    .. attribute:: crown
+
+        The guild has the crown badge.
+
+    .. attribute:: trophy
+
+        The guild has the trophy badge.
+
+    .. attribute:: money_bag
+
+        The guild has the money bag badge.
+
+    .. attribute:: dollar_sign
+
+        The guild has the dollar sign badge.
+
+.. class:: GuildVisibility
+    Represents the visibility level of a guild.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: public
+
+        The guild is public and can be viewed by anyone.
+
+    .. attribute:: restricted
+
+        The guild is private and cannot be viewed. Joining requires an invite.
+
+    .. attribute:: public_with_recruitment
+
+        The guild is public and allows anyone to view it and submit a join request.
+
+
 .. _discord-api-audit-logs:
 
 Audit Log Data
@@ -8353,6 +8500,7 @@ Guild
 .. autoclass:: MutualGuild()
     :members:
 
+
 .. class:: BanEntry
 
     A namedtuple which represents a ban returned from :meth:`~Guild.bans`.
@@ -9397,6 +9545,25 @@ Poll
 .. attributetable:: PollMedia
 
 .. autoclass:: PollMedia()
+    :members:
+
+
+Discovery
+~~~~~~~~~
+
+.. attributetable:: GuildProfile
+
+.. autoclass:: GuildProfile()
+    :members:
+
+.. attributetable:: GuildTrait
+
+.. autoclass:: GuildTrait
+    :members:
+
+.. attributetable:: GameActivity
+
+.. autoclass:: GameActivity()
     :members:
 
 
