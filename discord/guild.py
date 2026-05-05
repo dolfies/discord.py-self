@@ -1402,7 +1402,7 @@ class Guild(Hashable):
     @property
     def badge_icon(self) -> Optional[Asset]:
         """Optional[:class:`Asset`]: Returns the badge's (tag) icon asset.
-        
+
         .. versionadded:: 2.2
         """
         if self._badge_hash is None:
