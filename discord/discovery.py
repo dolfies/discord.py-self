@@ -265,7 +265,7 @@ class GuildProfile(Hashable):
 
     @property
     def badge_icon(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Returns the badge's icon asset."""
+        """Optional[:class:`Asset`]: Returns the badge's (tag) icon asset."""
         if self._badge_hash is None:
             return None
         return Asset._from_guild_image(state=self._state, guild_id=self.id, image=self._badge_hash, path='guild-tag-badges')

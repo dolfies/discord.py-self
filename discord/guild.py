@@ -467,6 +467,10 @@ class Guild(Hashable):
         The type of Student Hub the guild is, if applicable.
 
         .. versionadded:: 2.1
+    tag: Optional[:class:`str`]
+        The guild's tag, if applicable.
+
+        .. versionadded:: 2.2
     """
 
     __slots__ = (
@@ -527,6 +531,8 @@ class Guild(Hashable):
         '_joined_at',
         '_cs_joined',
         '_incidents_data',
+        'tag',
+        '_badge_hash',
     )
 
     _PREMIUM_GUILD_LIMITS: ClassVar[Dict[int, _GuildLimit]] = {
@@ -727,6 +733,8 @@ class Guild(Hashable):
         self.premium_progress_bar_enabled: bool = guild.get('premium_progress_bar_enabled', False)
         self._joined_at = guild.get('joined_at')
         self._incidents_data: Optional[IncidentData] = guild.get('incidents_data')
+        self.tag: Optional[str] = guild.get('tag')
+        self._badge_hash: Optional[str] = guild.get('badge')
 
         try:
             self._large = guild['large']  # type: ignore
@@ -1390,6 +1398,16 @@ class Guild(Hashable):
     def created_at(self) -> datetime:
         """:class:`datetime.datetime`: Returns the guild's creation time in UTC."""
         return utils.snowflake_time(self.id)
+
+    @property
+    def badge_icon(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns the badge's (tag) icon asset.
+        
+        .. versionadded:: 2.2
+        """
+        if self._badge_hash is None:
+            return None
+        return Asset._from_guild_image(state=self._state, guild_id=self.id, image=self._badge_hash, path='guild-tag-badges')
 
     def get_member_named(self, name: str, /) -> Optional[Member]:
         """Returns the first member found that matches the name provided.
