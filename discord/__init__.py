@@ -83,6 +83,7 @@ from .threads import *
 from .tracking import *
 from .tutorial import *
 from .user import *
+from .stream import *
 from .voice_client import *
 from .webhook import *
 from .welcome_screen import *

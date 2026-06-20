@@ -2087,7 +2087,9 @@ class Client:
         self_deaf: :class:`bool`
             Indicates if the client should be self-deafened.
         self_video: :class:`bool`
-            Indicates if the client is using video. Do not use.
+            Indicates if the client should join with video enabled.
+
+            .. versionadded:: 2.2
         """
         ws = self.ws
         channel_id = channel.id if channel else None

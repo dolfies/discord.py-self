@@ -73,6 +73,24 @@ VoiceProtocol
 .. autoclass:: VoiceProtocol
     :members:
 
+.. attributetable:: StreamProtocol
+
+.. autoclass:: StreamProtocol
+    :members:
+
+Stream
+~~~~~~~
+
+.. attributetable:: Stream
+
+.. autoclass:: Stream()
+    :members:
+
+.. attributetable:: StreamKey
+
+.. autoclass:: StreamKey()
+    :members:
+
 AudioSource
 ~~~~~~~~~~~~
 
@@ -782,6 +800,36 @@ Calls
     :type before: :class:`Relationship`
     :param after: The updated call.
     :type after: :class:`Relationship`
+
+Streams
+~~~~~~~~
+
+.. function:: on_stream_create(stream)
+              on_stream_available(stream)
+              on_stream_unavailable(stream)
+
+    Called when a :class:`Stream` is created, becomes available, or becomes unavailable.
+
+    :param stream: The stream that changed availability.
+    :type stream: :class:`Stream`
+
+.. function:: on_stream_update(before, after)
+
+    Called when a :class:`Stream` is updated.
+
+    :param before: The previous stream.
+    :type before: :class:`Stream`
+    :param after: The updated stream.
+    :type after: :class:`Stream`
+
+.. function:: on_stream_delete(stream, reason)
+
+    Called when a :class:`Stream` is deleted or a creation failed.
+
+    :param stream: The stream that was deleted.
+    :type stream: :class:`Stream`
+    :param reason: The stream deletion reason.
+    :type reason: :class:`StreamDeleteReason`
 
 Guilds
 ~~~~~~~
@@ -4244,6 +4292,58 @@ of :class:`enum.Enum`.
     .. attribute:: full
 
         Represents full camera video quality.
+
+.. class:: StreamType
+
+    Represents the type of a stream key.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: guild
+
+        Represents a guild voice channel stream.
+
+    .. attribute:: call
+
+        Represents a private call stream.
+
+    .. attribute:: test
+
+        Represents an RTC speed test stream.
+
+.. class:: StreamDeleteReason
+
+    Represents the reason a stream was deleted or failed to be created.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: user_requested
+
+        The user requested to end the stream.
+
+    .. attribute:: stream_ended
+
+        The client was disconnected because the stream ended.
+
+    .. attribute:: stream_full
+
+        The client attempted to join a full stream.
+
+    .. attribute:: unauthorized
+
+        The client is not authorized to view the stream.
+
+    .. attribute:: safety_guild_rate_limited
+
+        The stream was rate limited due to guild restrictions.
+
+    .. attribute:: parse_failed
+
+        Parsing the stream key failed.
+
+    .. attribute:: invalid_channel
+
+        The provided channel is not valid for this stream type.
 
 .. class:: PrivacyLevel
 

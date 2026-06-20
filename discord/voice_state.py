@@ -20,21 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
-
-
-Some documentation to refer to:
-
-- Our main web socket (mWS) sends opcode 4 with a guild ID and channel ID.
-- The mWS receives VOICE_STATE_UPDATE and VOICE_SERVER_UPDATE.
-- We pull the session_id from VOICE_STATE_UPDATE.
-- We pull the token, endpoint and server_id from VOICE_SERVER_UPDATE.
-- Then we initiate the voice web socket (vWS) pointing to the endpoint.
-- We send opcode 0 with the user_id, server_id, session_id and token using the vWS.
-- The vWS sends back opcode 2 with an ssrc, port, modes(array) and heartbeat_interval.
-- We send a UDP discovery packet to endpoint:port and receive our IP and our port in LE.
-- Then we send our IP and port via vWS with opcode 1.
-- When that's all done, we receive opcode 4 from the vWS.
-- Finally we can transmit data to endpoint:port.
 """
 
 from __future__ import annotations
@@ -44,7 +29,8 @@ import socket
 import asyncio
 import logging
 import threading
-from typing import TYPE_CHECKING, Optional, Dict, List, Callable, Coroutine, Any, Tuple
+import uuid
+from typing import TYPE_CHECKING, Optional, Dict, List, Callable, Coroutine, Any, Tuple, Sequence
 
 from curl_cffi import CurlError
 
@@ -53,6 +39,7 @@ from .utils import MISSING, sane_wait_for
 from .errors import ConnectionClosed
 from .backoff import ExponentialBackoff
 from .gateway import DiscordVoiceWebSocket
+from .voice_media import VoiceStream
 
 if TYPE_CHECKING:
     from . import abc
@@ -61,10 +48,11 @@ if TYPE_CHECKING:
     from .member import VoiceState
     from .voice_client import VoiceClient
 
+    from .types.gateway import VoiceStateUpdateEvent as VoiceStateUpdatePayload
     from .types.voice import (
-        GuildVoiceState as GuildVoiceStatePayload,
-        VoiceServerUpdate as VoiceServerUpdatePayload,
         TransportEncryptionModes,
+        VoiceServerUpdate as VoiceServerUpdatePayload,
+        VoiceStream as VoiceStreamPayload,
     )
 
     WebsocketHook = Optional[Callable[[DiscordVoiceWebSocket, Dict[str, Any]], Coroutine[Any, Any, Any]]]
@@ -165,16 +153,20 @@ class SocketReader(threading.Thread):
             if not readable:
                 continue
 
-            try:
-                data = self.state.socket.recv(2048)
-            except OSError:
-                _log.debug('Error reading from socket in %s, this should be safe to ignore.', self, exc_info=True)
-            else:
-                for cb in self._callbacks:
-                    try:
-                        cb(data)
-                    except Exception:
-                        _log.exception('Error calling %s in %s.', cb, self)
+            while not self._end.is_set():
+                try:
+                    data = self.state.socket.recv(2048)
+                except BlockingIOError:
+                    break
+                except OSError:
+                    _log.debug('Error reading from socket in %s, this should be safe to ignore.', self, exc_info=True)
+                    break
+                else:
+                    for cb in self._callbacks:
+                        try:
+                            cb(data)
+                        except Exception:
+                            _log.exception('Error calling %s in %s.', cb, self)
 
 
 class ConnectionFlowState(Enum):
@@ -209,20 +201,31 @@ class VoiceConnectionState:
         self.session_id: Optional[str] = None
         self.endpoint: Optional[str] = None
         self.endpoint_ip: Optional[str] = None
+        self.channel_id: int = voice_client.channel.id
         self.server_id: Optional[int] = None
         self.ip: Optional[str] = None
         self.port: Optional[int] = None
         self.voice_port: Optional[int] = None
         self.secret_key: List[int] = MISSING
         self.ssrc: int = MISSING
+        self.ssrc_user_ids: Dict[int, int] = {}
+        self.video_streams: Dict[str, VoiceStream] = {stream.rid: stream.replace() for stream in voice_client.video_streams}
+        self.video_states: Dict[int, Dict[str, Any]] = {}
+        self.media_sink_wants: Dict[str, Any] = {}
+        self.experiments: List[str] = []
+        self.selected_experiments: List[str] = []
+        self.rtc_connection_id: str = str(uuid.uuid4())
         self.mode: TransportEncryptionModes = MISSING
+        self.audio_codec: Optional[str] = None
+        self.video_codec: Optional[str] = None
+        self.media_session_id: Optional[str] = None
+        self.keyframe_interval: Optional[int] = None
         self.socket: socket.socket = MISSING
         self.ws: DiscordVoiceWebSocket = MISSING
         self.dave_session: Optional[davey.DaveSession] = None
         self.dave_protocol_version: int = 0
         self.dave_pending_transitions: Dict[int, int] = {}
         self.dave_downgraded: bool = False
-
         self._state: ConnectionFlowState = ConnectionFlowState.disconnected
         self._expecting_disconnect: bool = False
         self._connected = threading.Event()
@@ -232,6 +235,16 @@ class VoiceConnectionState:
         self._connector: Optional[asyncio.Task] = None
         self._socket_reader = SocketReader(self)
         self._socket_reader.start()
+
+    def update_video_streams(self, data: Sequence[VoiceStreamPayload]) -> None:
+        for payload in data:
+            rid = payload['rid']
+            stream = self.video_streams.get(rid)
+            if stream is None:
+                self.video_streams[rid] = VoiceStream.from_dict(payload)
+                continue
+
+            stream._update(payload)
 
     @property
     def state(self) -> ConnectionFlowState:
@@ -272,16 +285,21 @@ class VoiceConnectionState:
 
     @property
     def can_encrypt(self) -> bool:
-        return self.dave_protocol_version != 0 and self.dave_session != None and self.dave_session.ready
+        return self.dave_protocol_version != 0 and self.dave_session is not None and self.dave_session.ready
+
+    @property
+    def dave_group_id(self) -> int:
+        # Property exists because streams don't use either channel ID as the group ID :(
+        return self.channel_id
 
     async def reinit_dave_session(self) -> None:
         if self.dave_protocol_version > 0:
             if not has_dave:
                 raise RuntimeError('davey library needed in order to use E2EE voice')
             if self.dave_session is not None:
-                self.dave_session.reinit(self.dave_protocol_version, self.user.id, self.voice_client.channel.id)
+                self.dave_session.reinit(self.dave_protocol_version, self.user.id, self.dave_group_id)
             else:
-                self.dave_session = davey.DaveSession(self.dave_protocol_version, self.user.id, self.voice_client.channel.id)
+                self.dave_session = davey.DaveSession(self.dave_protocol_version, self.user.id, self.dave_group_id)
 
             if self.dave_session is not None:
                 await self.voice_client.ws.send_binary(
@@ -290,7 +308,6 @@ class VoiceConnectionState:
         elif self.dave_session:
             self.dave_session.reset()
             self.dave_session.set_passthrough_mode(True, 10)
-        pass
 
     async def _recover_from_invalid_commit(self, transition_id: int) -> None:
         payload = {
@@ -324,7 +341,7 @@ class VoiceConnectionState:
         # In the future, the session should be signaled too, but for now theres just v1
         _log.debug('Transition ID %d executed.', transition_id)
 
-    async def voice_state_update(self, data: GuildVoiceStatePayload) -> None:
+    async def voice_state_update(self, data: VoiceStateUpdatePayload) -> None:
         channel_id = data['channel_id']
 
         if channel_id is None:
@@ -349,7 +366,7 @@ class VoiceConnectionState:
                 self.state = ConnectionFlowState.got_voice_state_update
 
                 # we moved ourselves
-                if channel_id != self.voice_client.channel.id:
+                if channel_id != self.channel_id:
                     self._update_voice_channel(channel_id)
             else:
                 self.state = ConnectionFlowState.got_both_voice_updates
@@ -359,18 +376,19 @@ class VoiceConnectionState:
             self._update_voice_channel(channel_id)
 
         elif self.state is not ConnectionFlowState.disconnected:
-            if channel_id != self.voice_client.channel.id:
+            if channel_id != self.channel_id:
                 # For some unfortunate reason we were moved during the connection flow
                 _log.info('Handling channel move while connecting...')
 
                 self._update_voice_channel(channel_id)
+                voice_state = self.self_voice_state or self
                 await self.soft_disconnect(with_state=ConnectionFlowState.got_voice_state_update)
                 await self.connect(
                     reconnect=self.reconnect,
                     timeout=self.timeout,
-                    self_deaf=(self.self_voice_state or self).self_deaf,
-                    self_mute=(self.self_voice_state or self).self_mute,
-                    self_video=(self.self_voice_state or self).self_video,
+                    self_deaf=voice_state.self_deaf,
+                    self_mute=voice_state.self_mute,
+                    self_video=voice_state.self_video,
                     resume=False,
                     wait=False,
                 )
@@ -420,13 +438,14 @@ class VoiceConnectionState:
                 return
             _log.debug('Unexpected VOICE_SERVER_UPDATE event, attempting to handle...')
 
+            voice_state = self.self_voice_state or self
             await self.soft_disconnect(with_state=ConnectionFlowState.got_voice_server_update)
             await self.connect(
                 reconnect=self.reconnect,
                 timeout=self.timeout,
-                self_deaf=(self.self_voice_state or self).self_deaf,
-                self_mute=(self.self_voice_state or self).self_mute,
-                self_video=(self.self_voice_state or self).self_video,
+                self_deaf=voice_state.self_deaf,
+                self_mute=voice_state.self_mute,
+                self_video=voice_state.self_video,
                 resume=False,
                 wait=False,
             )
@@ -453,6 +472,9 @@ class VoiceConnectionState:
 
         self.timeout = timeout
         self.reconnect = reconnect
+        self.self_deaf = self_deaf
+        self.self_mute = self_mute
+        self.self_video = self_video
         self._connector = self.voice_client.loop.create_task(
             self._wrap_connect(reconnect, timeout, self_deaf, self_mute, self_video, resume), name='Voice connector'
         )
@@ -594,7 +616,7 @@ class VoiceConnectionState:
             await self.disconnect(wait=True)
             return
 
-        if self.voice_client.channel and channel.id == self.voice_client.channel.id:
+        if self.voice_client.channel and channel.id == self.channel_id:
             return
 
         previous_state = self.state
@@ -626,6 +648,14 @@ class VoiceConnectionState:
 
     def send_packet(self, packet: bytes) -> None:
         self.socket.sendall(packet)
+
+    def send_packets(self, packets: Sequence[bytes]) -> Tuple[int, int]:
+        socket = self.socket
+        octets = 0
+        for packet in packets:
+            socket.sendall(packet)
+            octets += len(packet)
+        return len(packets), octets
 
     def add_socket_listener(self, callback: SocketReaderCallback) -> None:
         _log.debug('Registering voice socket listener callback %s.', callback)
@@ -661,7 +691,7 @@ class VoiceConnectionState:
     async def _voice_disconnect(self) -> None:
         _log.info(
             'The voice handshake is being terminated for channel ID %s (guild ID %s).',
-            self.voice_client.channel.id,
+            self.channel_id,
             self.guild.id if self.guild else '"private"',
         )
         self.state = ConnectionFlowState.disconnected
@@ -690,6 +720,11 @@ class VoiceConnectionState:
 
     def _create_socket(self) -> None:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        for option in (socket.SO_RCVBUF, socket.SO_SNDBUF):
+            try:
+                self.socket.setsockopt(socket.SOL_SOCKET, option, 4 * 1024 * 1024)
+            except OSError:
+                pass
         self.socket.setblocking(False)
         self._socket_reader.resume()
 
@@ -747,13 +782,14 @@ class VoiceConnectionState:
                     # We catch 0/None here too because CurlError is typically a network issue that doesn't have a code
                     if code == 4015 or not code:
                         _log.info('Disconnected from voice, attempting a resume...')
+                        voice_state = self.self_voice_state or self
                         try:
                             await self._connect(
                                 reconnect=reconnect,
                                 timeout=self.timeout,
-                                self_deaf=(self.self_voice_state or self).self_deaf,
-                                self_mute=(self.self_voice_state or self).self_mute,
-                                self_video=(self.self_voice_state or self).self_video,
+                                self_deaf=voice_state.self_deaf,
+                                self_mute=voice_state.self_mute,
+                                self_video=voice_state.self_video,
                                 resume=True,
                             )
                         except asyncio.TimeoutError:
@@ -785,13 +821,14 @@ class VoiceConnectionState:
                 await asyncio.sleep(retry)
                 await self.disconnect(cleanup=False)
 
+                voice_state = self.self_voice_state or self
                 try:
                     await self._connect(
                         reconnect=reconnect,
                         timeout=self.timeout,
-                        self_deaf=(self.self_voice_state or self).self_deaf,
-                        self_mute=(self.self_voice_state or self).self_mute,
-                        self_video=(self.self_voice_state or self).self_video,
+                        self_deaf=voice_state.self_deaf,
+                        self_mute=voice_state.self_mute,
+                        self_video=voice_state.self_video,
                         resume=False,
                     )
                 except asyncio.TimeoutError:
@@ -832,6 +869,8 @@ class VoiceConnectionState:
         self.state = ConnectionFlowState.set_guild_voice_state
 
     def _update_voice_channel(self, channel_id: Optional[int]) -> None:
+        if channel_id is not None:
+            self.channel_id = channel_id
         self.voice_client.channel = (
             channel_id and self.guild.get_channel(channel_id)
             if self.guild

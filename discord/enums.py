@@ -32,7 +32,8 @@ __all__ = (
     'Enum',
     'ChannelType',
     'MessageType',
-    'SpeakingState',
+    'StreamType',
+    'StreamDeleteReason',
     'VerificationLevel',
     'ContentFilter',
     'Status',
@@ -348,16 +349,25 @@ class MessageType(Enum):
         }
 
 
-class SpeakingState(Enum):
-    none = 0
-    voice = 1
-    soundshare = 2
-    priority = 4
+class StreamType(Enum):
+    guild = 'guild'
+    call = 'call'
+    test = 'test'
 
     def __str__(self) -> str:
-        return self.name
+        return self.value
 
-    def __int__(self) -> int:
+
+class StreamDeleteReason(Enum):
+    user_requested = 'user_requested'
+    stream_ended = 'stream_ended'
+    stream_full = 'stream_full'
+    unauthorized = 'unauthorized'
+    safety_guild_rate_limited = 'safety_guild_rate_limited'
+    parse_failed = 'parse_failed'
+    invalid_channel = 'invalid_channel'
+
+    def __str__(self) -> str:
         return self.value
 
 

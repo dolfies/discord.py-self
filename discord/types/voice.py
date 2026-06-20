@@ -94,3 +94,31 @@ class VoiceReady(TypedDict):
     port: int
     modes: List[TransportEncryptionModes]
     heartbeat_interval: int
+
+
+class VoiceCodec(TypedDict):
+    name: str
+    type: Literal['audio', 'video']
+    priority: int
+    payload_type: int
+    rtx_payload_type: NotRequired[int]
+    encode: NotRequired[bool]
+    decode: NotRequired[bool]
+
+
+class VoiceStreamResolution(TypedDict):
+    type: Literal['source', 'fixed']
+    width: int
+    height: int
+
+
+class VoiceStream(TypedDict):
+    type: Literal['video', 'screen']
+    rid: str
+    quality: NotRequired[int]
+    active: NotRequired[bool]
+    max_bitrate: NotRequired[int]
+    max_framerate: NotRequired[int]
+    max_resolution: NotRequired[VoiceStreamResolution]
+    ssrc: NotRequired[int]
+    rtx_ssrc: NotRequired[int]

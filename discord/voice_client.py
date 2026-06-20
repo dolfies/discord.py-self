@@ -27,14 +27,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
-from typing import Any, Callable, List, Optional, TYPE_CHECKING, Tuple
+from typing import Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Tuple, TypeVar
 
 from . import opus
 from .gateway import *
 from .errors import ClientException
+from .flags import SpeakingFlags
 from .player import AudioPlayer, AudioSource
 from .utils import MISSING
 from .voice_state import VoiceConnectionState
+from .voice_media import (
+    RTP_AUDIO_LEVEL_SILENCE,
+    _audio_level_from_pcm,
+    _audio_rtp_extension_payload,
+    _rtp_header_with_one_byte_extensions,
+    VoiceCodec,
+    VoiceStream,
+    VoiceStreamResolution,
+)
+from .stream import Stream, StreamKey, StreamProtocol
 
 if TYPE_CHECKING:
     from .gateway import DiscordVoiceWebSocket
@@ -56,22 +67,30 @@ if TYPE_CHECKING:
 
 
 has_nacl: bool
+nacl_secret: Any
+nacl_utils: Any
 
 try:
-    import nacl.secret  # type: ignore
-    import nacl.utils  # type: ignore
+    import nacl.secret as nacl_secret  # type: ignore
+    import nacl.utils as nacl_utils  # type: ignore
 
     has_nacl = True
 except ImportError:
+    nacl_secret = None
+    nacl_utils = None
     has_nacl = False
 
 __all__ = (
     'VoiceProtocol',
     'VoiceClient',
+    'VoiceCodec',
+    'VoiceStream',
+    'VoiceStreamResolution',
 )
 
 
 _log = logging.getLogger(__name__)
+ST = TypeVar('ST', bound=StreamProtocol)
 
 
 class VoiceProtocol:
@@ -95,9 +114,186 @@ class VoiceProtocol:
         The voice channel that is being connected to.
     """
 
+    supported_modes: tuple[TransportEncryptionModes, ...] = ()
+    experiments: tuple[str, ...] = ()
+
     def __init__(self, client: Client, channel: VocalChannel) -> None:
         self.client: Client = client
         self.channel: VocalChannel = channel
+
+    def supports_video(self) -> bool:
+        """Checks whether the voice protocol implementation supports video.
+
+        Defaults to ``False``. If your implementation supports video, override this method.
+
+        .. versionadded:: 2.2
+        """
+        return False
+
+    def get_experiments(self, ready_experiments: Sequence[str]) -> Sequence[str]:
+        """Returns the voice experiments to select from those offered by the voice server.
+
+        Defaults to no experiments. If your implementation wishes to enable voice
+        experiments, override this method.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        ----------
+        ready_experiments: List[:class:`str`]
+            The experiments offered by the server. This list is non-exhaustive.
+        """
+        return ()
+
+    @property
+    def codecs(self) -> Tuple[VoiceCodec, ...]:
+        """Tuple[:class:`VoiceCodec`]: The codecs that the voice protocol supports. Defaults to Opus (required).
+        For video support, you must include the video codecs here as well.
+
+        .. versionadded:: 2.2
+        """
+        return (VoiceCodec.opus(),)
+
+    @property
+    def video_streams(self) -> Tuple[VoiceStream, ...]:
+        """Tuple[:class:`VoiceStream`]: The video streams that the voice protocol advertises on connection. Defaults to none.
+
+        .. versionadded:: 2.2
+        """
+        return ()
+
+    @property
+    def streams(self) -> Tuple[Stream, ...]:
+        """Tuple[:class:`Stream`]: The Go Live streams known for this voice connection.
+
+        .. versionadded:: 2.2
+        """
+        return self.client._connection._streams_for_voice_client(self)
+
+    @property
+    def stream_clients(self) -> Tuple[StreamProtocol, ...]:
+        """Tuple[:class:`StreamProtocol`]: The Go Live stream clients attached to this voice connection.
+
+        .. versionadded:: 2.2
+        """
+        return self.client._connection._stream_clients_for_voice_client(self)
+
+    def get_stream(self, stream_key: StreamKey) -> Optional[Stream]:
+        """Optional[:class:`Stream`]: Returns a known Go Live stream by stream key for this voice connection.
+
+        .. versionadded:: 2.2
+        """
+        state = self.client._connection
+        if state._get_voice_client_for_stream_key(stream_key) is not self:
+            return None
+        return state.get_stream(stream_key)
+
+    async def watch_stream(
+        self,
+        stream_key: StreamKey,
+        *,
+        timeout: float = 30.0,
+        reconnect: bool = True,
+        cls: Callable[[VoiceProtocol, Stream], ST],
+    ) -> ST:
+        """|coro|
+
+        Watches a Go Live stream by stream key and connects with the provided stream protocol.
+
+        This is useful when the stream is not already cached. If the stream is cached,
+        this delegates to :meth:`Stream.watch`.
+
+        Parameters
+        -----------
+        stream_key: :class:`StreamKey`
+            The stream key to watch.
+        timeout: :class:`float`
+            The timeout in seconds to wait for the stream connection to complete.
+        reconnect: :class:`bool`
+            Whether the stream protocol should attempt reconnects.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        ~discord.ClientException
+            You are not connected to the stream's voice channel, or you tried to watch your own stream.
+
+        Returns
+        --------
+        :class:`StreamProtocol`
+            The connected stream protocol.
+        """
+        state = self.client._connection
+        if stream_key.owner_id == state.self_id:
+            raise ClientException('Cannot watch a stream you own')
+        if state._get_voice_client_for_stream_key(stream_key) is not self:
+            raise ClientException('Must be connected to the stream voice channel before watching')
+
+        stream = state.get_stream(stream_key)
+        if stream is not None:
+            return await stream.watch(timeout=timeout, reconnect=reconnect, cls=cls)
+
+        async def request() -> None:
+            await state.ws.stream_watch(str(stream_key))
+
+        return await state._connect_stream(
+            self,
+            stream_key,
+            request,
+            cls=cls,
+            timeout=timeout,
+            reconnect=reconnect,
+        )
+
+    async def create_stream(
+        self,
+        *,
+        timeout: float = 30.0,
+        reconnect: bool = True,
+        cls: Callable[[VoiceProtocol, Stream], ST],
+    ) -> ST:
+        """|coro|
+
+        Creates a Go Live stream for this voice connection and connects with the provided stream protocol.
+
+        Parameters
+        -----------
+        timeout: :class:`float`
+            The timeout in seconds to wait for the stream connection to complete.
+        reconnect: :class:`bool`
+            Whether the stream protocol should attempt reconnects.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
+
+        .. versionadded:: 2.2
+
+        Returns
+        --------
+        :class:`StreamProtocol`
+            The connected stream protocol.
+        """
+        state = self.client._connection
+        stream_key = state._stream_key_for_voice_client(self)
+
+        async def request() -> None:
+            guild = getattr(self.channel, 'guild', None)
+            await state.ws.stream_create(
+                stream_type=stream_key.type.value,
+                guild_id=guild.id if guild is not None else None,
+                channel_id=self.channel.id,
+            )
+
+        return await state._connect_stream(
+            self,
+            stream_key,
+            request,
+            cls=cls,
+            timeout=timeout,
+            reconnect=reconnect,
+        )
 
     async def on_voice_state_update(self, data: VoiceStateUpdatePayload, /) -> None:
         """|coro|
@@ -159,6 +355,10 @@ class VoiceProtocol:
             Indicates if the client should be self-deafened.
 
             .. versionadded:: 2.0
+        self_video: :class:`bool`
+            Indicates if the client should join with video enabled.
+
+            .. versionadded:: 2.2
         """
         raise NotImplementedError
 
@@ -234,6 +434,7 @@ class VoiceClient(VoiceProtocol):
         self.encoder: Encoder = MISSING
         self._lite_nonce: int = 0
         self._incr_nonce: int = 0
+        self._speaking_flags: SpeakingFlags = SpeakingFlags.none()
 
         self._connection: VoiceConnectionState = self.create_connection_state()
 
@@ -257,34 +458,50 @@ class VoiceClient(VoiceProtocol):
 
     @property
     def session_id(self) -> Optional[str]:
+        """Optional[:class:`str`]: The current voice session ID."""
+
         return self._connection.session_id
 
     @property
     def token(self) -> Optional[str]:
+        """Optional[:class:`str`]: The current voice server token."""
+
         return self._connection.token
 
     @property
     def endpoint(self) -> Optional[str]:
+        """Optional[:class:`str`]: The current voice server endpoint."""
+
         return self._connection.endpoint
 
     @property
     def ssrc(self) -> int:
+        """:class:`int`: The negotiated audio SSRC."""
+
         return self._connection.ssrc
 
     @property
     def mode(self) -> TransportEncryptionModes:
+        """:class:`str`: The negotiated transport encryption mode."""
+
         return self._connection.mode
 
     @property
     def secret_key(self) -> List[int]:
+        """List[:class:`int`]: The negotiated transport secret key."""
+
         return self._connection.secret_key
 
     @property
     def ws(self) -> DiscordVoiceWebSocket:
+        """:class:`DiscordVoiceWebSocket`: The active voice websocket."""
+
         return self._connection.ws
 
     @property
     def timeout(self) -> float:
+        """:class:`float`: The voice connection timeout in seconds."""
+
         return self._connection.timeout
 
     @property
@@ -299,6 +516,8 @@ class VoiceClient(VoiceProtocol):
         return self._connection.dave_session.voice_privacy_code if self._connection.dave_session else None
 
     def checked_add(self, attr: str, value: int, limit: int) -> None:
+        """Add to an integer attribute and wrap it to zero past a limit."""
+
         val = getattr(self, attr)
         if val + value > limit:
             setattr(self, attr, 0)
@@ -308,17 +527,25 @@ class VoiceClient(VoiceProtocol):
     # connection related
 
     def create_connection_state(self) -> VoiceConnectionState:
+        """Create the connection state object for this voice client."""
+
         return VoiceConnectionState(self)
 
-    async def on_voice_state_update(self, data: GuildVoiceStatePayload) -> None:
+    async def on_voice_state_update(self, data: VoiceStateUpdatePayload) -> None:
+        """Handle a VOICE_STATE_UPDATE gateway payload for this client."""
+
         await self._connection.voice_state_update(data)
 
     async def on_voice_server_update(self, data: VoiceServerUpdatePayload) -> None:
+        """Handle a VOICE_SERVER_UPDATE gateway payload for this client."""
+
         await self._connection.voice_server_update(data)
 
     async def connect(
         self, *, reconnect: bool, timeout: float, self_deaf: bool = False, self_mute: bool = False, self_video: bool = False
     ) -> None:
+        """Connect this voice client to its channel."""
+
         await self._connection.connect(
             reconnect=reconnect,
             timeout=timeout,
@@ -329,6 +556,8 @@ class VoiceClient(VoiceProtocol):
         )
 
     def wait_until_connected(self, timeout: Optional[float] = 30.0) -> bool:
+        """Block until the voice connection is ready or times out."""
+
         self._connection.wait(timeout)
         return self._connection.is_connected()
 
@@ -389,7 +618,18 @@ class VoiceClient(VoiceProtocol):
 
     # audio related
 
-    def _get_voice_packet(self, data: bytes):
+    async def update_speaking_state(self, flags: SpeakingFlags) -> None:
+        """Update the current speaking flags.
+
+        Parameters
+        ----------
+        flags: :class:`SpeakingFlags`
+            The new speaking flags.
+        """
+        self._speaking_flags = flags
+        await self.ws.speak(flags)
+
+    def _get_voice_packet(self, data: bytes, *, audio_level: int = RTP_AUDIO_LEVEL_SILENCE):
         packet = (
             self._connection.dave_session.encrypt_opus(data)
             if self._connection.dave_session and self._connection.can_encrypt
@@ -404,11 +644,16 @@ class VoiceClient(VoiceProtocol):
         struct.pack_into('>I', header, 4, self.timestamp)
         struct.pack_into('>I', header, 8, self.ssrc)
 
+        extension_payload = _audio_rtp_extension_payload(self._speaking_flags.value, audio_level=audio_level)
+        if extension_payload:
+            header = bytearray(_rtp_header_with_one_byte_extensions(header, extension_payload))
+            packet = extension_payload + packet
+
         encrypt_packet = getattr(self, '_encrypt_' + self.mode)
         return encrypt_packet(header, packet)
 
     def _encrypt_aead_xchacha20_poly1305_rtpsize(self, header: bytes, data) -> bytes:
-        box = nacl.secret.Aead(bytes(self.secret_key))
+        box = nacl_secret.Aead(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._incr_nonce)
@@ -417,20 +662,20 @@ class VoiceClient(VoiceProtocol):
         return header + box.encrypt(bytes(data), bytes(header), bytes(nonce)).ciphertext + nonce[:4]
 
     def _encrypt_xsalsa20_poly1305(self, header: bytes, data) -> bytes:
-        box = nacl.secret.SecretBox(bytes(self.secret_key))
+        box = nacl_secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
-        nonce[:12] = header
+        nonce[:12] = header[:12]
 
         return header + box.encrypt(bytes(data), bytes(nonce)).ciphertext
 
     def _encrypt_xsalsa20_poly1305_suffix(self, header: bytes, data) -> bytes:
-        box = nacl.secret.SecretBox(bytes(self.secret_key))
-        nonce = nacl.utils.random(nacl.secret.SecretBox.NONCE_SIZE)
+        box = nacl_secret.SecretBox(bytes(self.secret_key))
+        nonce = nacl_utils.random(nacl_secret.SecretBox.NONCE_SIZE)
 
         return header + box.encrypt(bytes(data), nonce).ciphertext + nonce
 
     def _encrypt_xsalsa20_poly1305_lite(self, header: bytes, data) -> bytes:
-        box = nacl.secret.SecretBox(bytes(self.secret_key))
+        box = nacl_secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._lite_nonce)
@@ -566,6 +811,8 @@ class VoiceClient(VoiceProtocol):
 
     @source.setter
     def source(self, value: AudioSource) -> None:
+        """Set the audio source currently being played."""
+
         if not isinstance(value, AudioSource):
             raise TypeError(f'expected AudioSource not {value.__class__.__name__}')
 
@@ -595,10 +842,12 @@ class VoiceClient(VoiceProtocol):
         """
         self.checked_add('sequence', 1, 65535)
         if encode:
+            audio_level = _audio_level_from_pcm(data)
             encoded_data = self.encoder.encode(data, self.encoder.SAMPLES_PER_FRAME)
         else:
+            audio_level = RTP_AUDIO_LEVEL_SILENCE if data == opus.OPUS_SILENCE else 0
             encoded_data = data
-        packet = self._get_voice_packet(encoded_data)
+        packet = self._get_voice_packet(encoded_data, audio_level=audio_level)
         try:
             self._connection.send_packet(packet)
         except OSError:

@@ -5360,7 +5360,9 @@ class Guild(Hashable):
         self_deaf: :class:`bool`
             Indicates if the client should be self-deafened.
         self_video: :class:`bool`
-            Indicates if the client is using video. Do not use.
+            Indicates if the client should join with video enabled.
+
+            .. versionadded:: 2.2
         """
         state = self._state
         ws = state.ws
