@@ -30,7 +30,7 @@ import asyncio
 import logging
 import threading
 import uuid
-from typing import TYPE_CHECKING, Optional, Dict, List, Callable, Coroutine, Any, Tuple, Sequence
+from typing import TYPE_CHECKING, Optional, Dict, List, Callable, Coroutine, Any, Tuple, Sequence, Set
 
 from curl_cffi import CurlError
 
@@ -209,6 +209,8 @@ class VoiceConnectionState:
         self.secret_key: List[int] = MISSING
         self.ssrc: int = MISSING
         self.ssrc_user_ids: Dict[int, int] = {}
+        self.rtx_ssrc_media_ssrcs: Dict[int, int] = {}
+        self.video_ssrcs: Set[int] = set()
         self.video_streams: Dict[str, VoiceStream] = {stream.rid: stream.replace() for stream in voice_client.video_streams}
         self.video_states: Dict[int, Dict[str, Any]] = {}
         self.media_sink_wants: Dict[str, Any] = {}
@@ -244,6 +246,68 @@ class VoiceConnectionState:
                 continue
 
             stream._update(payload)
+
+    @staticmethod
+    def _video_state_ssrcs(data: Dict[str, Any], *, include_audio: bool = True) -> Tuple[int, ...]:
+        ssrcs: List[int] = []
+
+        keys = ('audio_ssrc', 'video_ssrc', 'rtx_ssrc') if include_audio else ('video_ssrc', 'rtx_ssrc')
+        for key in keys:
+            ssrc = data.get(key)
+            if isinstance(ssrc, int):
+                ssrcs.append(ssrc)
+
+        for stream in data.get('streams') or ():
+            if not isinstance(stream, VoiceStream):
+                continue
+
+            for ssrc in (stream.ssrc, stream.rtx_ssrc):
+                if isinstance(ssrc, int):
+                    ssrcs.append(ssrc)
+
+        return tuple(ssrcs)
+
+    @staticmethod
+    def _video_state_rtx_ssrcs(data: Dict[str, Any]) -> Dict[int, int]:
+        pairs: Dict[int, int] = {}
+        video_ssrc = data.get('video_ssrc')
+        rtx_ssrc = data.get('rtx_ssrc')
+        if isinstance(video_ssrc, int) and isinstance(rtx_ssrc, int):
+            pairs[rtx_ssrc] = video_ssrc
+
+        for stream in data.get('streams') or ():
+            if not isinstance(stream, VoiceStream):
+                continue
+            if isinstance(stream.ssrc, int) and isinstance(stream.rtx_ssrc, int):
+                pairs[stream.rtx_ssrc] = stream.ssrc
+
+        return pairs
+
+    def clear_ssrc_mappings(self) -> None:
+        self.ssrc_user_ids.clear()
+        self.rtx_ssrc_media_ssrcs.clear()
+        self.video_ssrcs.clear()
+        self.video_states.clear()
+
+    def update_video_state(self, user_id: int, data: Dict[str, Any]) -> None:
+        previous = self.video_states.get(user_id)
+        if previous is not None:
+            for ssrc in self._video_state_ssrcs(previous, include_audio=False):
+                if self.ssrc_user_ids.get(ssrc) == user_id:
+                    del self.ssrc_user_ids[ssrc]
+                self.video_ssrcs.discard(ssrc)
+
+            for rtx_ssrc, media_ssrc in self._video_state_rtx_ssrcs(previous).items():
+                if self.rtx_ssrc_media_ssrcs.get(rtx_ssrc) == media_ssrc:
+                    del self.rtx_ssrc_media_ssrcs[rtx_ssrc]
+
+        self.video_states[user_id] = data
+
+        for ssrc in self._video_state_ssrcs(data):
+            self.ssrc_user_ids[ssrc] = user_id
+
+        self.video_ssrcs.update(self._video_state_ssrcs(data, include_audio=False))
+        self.rtx_ssrc_media_ssrcs.update(self._video_state_rtx_ssrcs(data))
 
     @property
     def state(self) -> ConnectionFlowState:

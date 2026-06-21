@@ -1325,7 +1325,7 @@ class DiscordVoiceWebSocket:
         elif op == self.VIDEO:
             user_id = int(data['user_id'])
             self._update_video_state_streams(user_id, data)
-            self._connection.video_states[user_id] = data
+            self._connection.update_video_state(user_id, data)
         elif op == self.MEDIA_SINK_WANTS:
             self._connection.media_sink_wants = data
         elif self._connection.dave_session:
@@ -1402,6 +1402,7 @@ class DiscordVoiceWebSocket:
 
     async def initial_connection(self, data: Dict[str, Any]) -> None:
         state = self._connection
+        state.clear_ssrc_mappings()
         state.ssrc = data['ssrc']
         state.voice_port = data['port']
         state.endpoint_ip = data['ip']
