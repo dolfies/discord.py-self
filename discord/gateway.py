@@ -1245,7 +1245,7 @@ class DiscordVoiceWebSocket:
 
     async def send_transition_ready(self, transition_id: int):
         payload = {
-            'op': DiscordVoiceWebSocket.DAVE_TRANSITION_READY,
+            'op': self.DAVE_TRANSITION_READY,
             'd': {
                 'transition_id': transition_id,
             },
@@ -1375,7 +1375,7 @@ class DiscordVoiceWebSocket:
             )
             if isinstance(result, davey.CommitWelcome):
                 await self.send_binary(
-                    DiscordVoiceWebSocket.MLS_COMMIT_WELCOME,
+                    self.MLS_COMMIT_WELCOME,
                     result.commit + result.welcome if result.welcome else result.commit,
                 )
             _log.debug('MLS proposals processed.')
@@ -1410,8 +1410,7 @@ class DiscordVoiceWebSocket:
         state.selected_experiments = list(state.voice_client.get_experiments(state.experiments))
 
         await self.request_voice_backend_version()
-        _log.debug('Connecting to voice socket...')
-        await self.loop.sock_connect(state.socket, (state.endpoint_ip, state.voice_port))
+        await self._connect_udp_socket()
 
         state.ip, state.port = await self.discover_ip()
         ready_modes = set(data['modes'])
@@ -1425,6 +1424,11 @@ class DiscordVoiceWebSocket:
         mode = modes[0]
         await self.select_protocol(state.ip, state.port, mode)
         _log.debug('Selected the voice protocol for use: %s.', mode)
+
+    async def _connect_udp_socket(self) -> None:
+        state = self._connection
+        _log.debug('Connecting to voice socket...')
+        await self.loop.sock_connect(state.socket, (state.endpoint_ip, state.voice_port))
 
     async def discover_ip(self) -> Tuple[str, int]:
         state = self._connection

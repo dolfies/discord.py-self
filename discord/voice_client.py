@@ -58,7 +58,6 @@ if TYPE_CHECKING:
 
     from .types.gateway import VoiceStateUpdateEvent as VoiceStateUpdatePayload
     from .types.voice import (
-        GuildVoiceState as GuildVoiceStatePayload,
         VoiceServerUpdate as VoiceServerUpdatePayload,
         TransportEncryptionModes,
     )

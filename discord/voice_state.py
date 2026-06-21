@@ -233,8 +233,7 @@ class VoiceConnectionState:
         self._disconnected = asyncio.Event()
         self._runner: Optional[asyncio.Task] = None
         self._connector: Optional[asyncio.Task] = None
-        self._socket_reader = SocketReader(self)
-        self._socket_reader.start()
+        self._socket_reader: SocketReader = self._create_socket_reader()
 
     def update_video_streams(self, data: Sequence[VoiceStreamPayload]) -> None:
         for payload in data:
@@ -555,11 +554,11 @@ class VoiceConnectionState:
             _log.debug('Ignoring exception disconnecting from voice.', exc_info=True)
         finally:
             self.state = ConnectionFlowState.disconnected
-            self._socket_reader.pause()
+            self._pause_socket_reader()
 
             # Stop threads before we unlock waiters so they end properly
             if cleanup:
-                self._socket_reader.stop()
+                self._stop_socket_reader()
                 self.voice_client.stop()
 
             # Flip the connected event to unlock any waiters
@@ -602,7 +601,7 @@ class VoiceConnectionState:
             _log.debug('Ignoring exception soft disconnecting from voice.', exc_info=True)
         finally:
             self.state = with_state
-            self._socket_reader.pause()
+            self._pause_socket_reader()
 
             if self.socket:
                 self.socket.close()
@@ -659,11 +658,26 @@ class VoiceConnectionState:
 
     def add_socket_listener(self, callback: SocketReaderCallback) -> None:
         _log.debug('Registering voice socket listener callback %s.', callback)
+        if self._socket_reader is MISSING:
+            raise RuntimeError('Socket reader is not available for this voice connection')
         self._socket_reader.register(callback)
 
     def remove_socket_listener(self, callback: SocketReaderCallback) -> None:
         _log.debug('Unregistering voice socket listener callback %s.', callback)
+        if self._socket_reader is MISSING:
+            return
         self._socket_reader.unregister(callback)
+
+    def _create_socket_reader(self) -> SocketReader:
+        reader = SocketReader(self)
+        reader.start()
+        return reader
+
+    def _pause_socket_reader(self) -> None:
+        self._socket_reader.pause()
+
+    def _stop_socket_reader(self) -> None:
+        self._socket_reader.stop()
 
     def _inside_runner(self) -> bool:
         return self._runner is not None and asyncio.current_task() == self._runner
@@ -726,7 +740,8 @@ class VoiceConnectionState:
             except OSError:
                 pass
         self.socket.setblocking(False)
-        self._socket_reader.resume()
+        if self._socket_reader is not MISSING:
+            self._socket_reader.resume()
 
     async def _poll_voice_ws(self, reconnect: bool) -> None:
         backoff = ExponentialBackoff()
