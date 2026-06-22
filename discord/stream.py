@@ -337,7 +337,7 @@ class Stream:
 
         Parameters
         -----------
-        image: :term:`py:bytes-like object`
+        image: :class:`bytes`
             A :term:`py:bytes-like object` representing the preview image.
 
         Raises
@@ -346,7 +346,7 @@ class Stream:
             The stream is not owned by the client.
         """
         if not self.is_owner():
-            raise ClientException('Cannot create a preview for a stream you do not own.')
+            raise ClientException('Cannot create a preview for a stream you do not own')
         await self._state.http.upload_stream_preview(str(self.key), _bytes_to_base64_data(bytes(image)))
 
     async def set_paused(self, paused: bool) -> None:
@@ -360,7 +360,7 @@ class Stream:
             The stream is not owned by the client.
         """
         if not self.is_owner():
-            raise ClientException('Cannot pause a stream you do not own.')
+            raise ClientException('Cannot pause a stream you do not own')
         await self._state.ws.stream_set_paused(str(self.key), paused)
 
     async def pause(self) -> None:
