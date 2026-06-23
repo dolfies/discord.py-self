@@ -2119,6 +2119,13 @@ class HTTPClient:
     def get_guild_preview(self, guild_id: Snowflake) -> Response[guild.GuildPreview]:
         return self.request(Route('GET', '/guilds/{guild_id}/preview', guild_id=guild_id))
 
+    def get_stream_preview(self, stream_key: str) -> Response[Dict[str, str]]:
+        return self.request(Route('GET', '/streams/{stream_key}/preview', stream_key=stream_key))
+
+    def upload_stream_preview(self, stream_key: str, thumbnail: str) -> Response[None]:
+        payload = {'thumbnail': thumbnail}
+        return self.request(Route('POST', '/streams/{stream_key}/preview', stream_key=stream_key), json=payload)
+
     def delete_guild(self, guild_id: Snowflake) -> Response[None]:
         return self.request(Route('POST', '/guilds/{guild_id}/delete', guild_id=guild_id))
 
@@ -2200,7 +2207,7 @@ class HTTPClient:
         payload = {'code': code}
         return self.request(Route('PATCH', '/guilds/{guild_id}/vanity-url', guild_id=guild_id), json=payload, reason=reason)
 
-    def get_all_guild_channels(self, guild_id: Snowflake) -> Response[List[guild.GuildChannel]]:
+    def get_all_guild_channels(self, guild_id: Snowflake) -> Response[List[channel.GuildChannel]]:
         return self.request(Route('GET', '/guilds/{guild_id}/channels', guild_id=guild_id))
 
     def get_top_guild_channels(self, guild_id: Snowflake) -> Response[List[Snowflake]]:

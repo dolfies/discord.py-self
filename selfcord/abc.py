@@ -2917,6 +2917,7 @@ class Connectable(Protocol):
         _channel: Optional[Connectable] = None,
         self_deaf: bool = False,
         self_mute: bool = False,
+        self_video: bool = False,
     ) -> T:
         """|coro|
 
@@ -2942,6 +2943,10 @@ class Connectable(Protocol):
             Indicates if the client should be self-deafened.
 
             .. versionadded:: 2.0
+        self_video: :class:`bool`
+            Indicates if the client should join with video enabled.
+
+            .. versionadded:: 2.2
 
         Raises
         -------
@@ -2974,7 +2979,13 @@ class Connectable(Protocol):
         state._add_voice_client(key_id, voice)
 
         try:
-            await voice.connect(timeout=timeout, reconnect=reconnect, self_deaf=self_deaf, self_mute=self_mute)
+            await voice.connect(
+                timeout=timeout,
+                reconnect=reconnect,
+                self_deaf=self_deaf,
+                self_mute=self_mute,
+                self_video=self_video,
+            )
         except asyncio.TimeoutError:
             try:
                 await voice.disconnect(force=True)

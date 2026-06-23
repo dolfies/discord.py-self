@@ -39,8 +39,8 @@ import io
 
 from typing import Any, Callable, Generic, IO, Optional, TYPE_CHECKING, Tuple, TypeVar, Union
 
-from .enums import SpeakingState
 from .errors import ClientException
+from .flags import SpeakingFlags
 from .opus import Encoder as OpusEncoder, OPUS_SILENCE
 from .oggparse import OggStream
 from .utils import MISSING
@@ -307,7 +307,7 @@ class FFmpegPCMAudio(FFmpegAudio):
 
     Raises
     --------
-    ClientException
+    selfcord.ClientException
         The subprocess failed to be created.
     """
 
@@ -417,7 +417,7 @@ class FFmpegOpusAudio(FFmpegAudio):
 
     Raises
     --------
-    ClientException
+    selfcord.ClientException
         The subprocess failed to be created.
     """
 
@@ -670,7 +670,7 @@ class PCMVolumeTransformer(AudioSource, Generic[AT]):
     -------
     TypeError
         Not an audio source.
-    ClientException
+    selfcord.ClientException
         The audio source is opus encoded.
     """
 
@@ -732,7 +732,7 @@ class AudioPlayer(threading.Thread):
         # getattr lookup speed ups
         client = self.client
         play_audio = client.send_audio_packet
-        self._speak(SpeakingState.voice)
+        self._speak(SpeakingFlags(voice=True))
 
         while not self._end.is_set():
             # are we paused?
@@ -757,7 +757,7 @@ class AudioPlayer(threading.Thread):
                     _log.debug('Aborting playback')
                     return
                 _log.debug('Reconnected, resuming playback')
-                self._speak(SpeakingState.voice)
+                self._speak(SpeakingFlags(voice=True))
                 # reset our internal data
                 self.loops = 0
                 self._start = time.perf_counter()
@@ -796,19 +796,19 @@ class AudioPlayer(threading.Thread):
     def stop(self) -> None:
         self._end.set()
         self._resumed.set()
-        self._speak(SpeakingState.none)
+        self._speak(SpeakingFlags.none())
 
     def pause(self, *, update_speaking: bool = True) -> None:
         self._resumed.clear()
         if update_speaking:
-            self._speak(SpeakingState.none)
+            self._speak(SpeakingFlags.none())
 
     def resume(self, *, update_speaking: bool = True) -> None:
         self.loops: int = 0
         self._start: float = time.perf_counter()
         self._resumed.set()
         if update_speaking:
-            self._speak(SpeakingState.voice)
+            self._speak(SpeakingFlags(voice=True))
 
     def is_playing(self) -> bool:
         return self._resumed.is_set() and not self._end.is_set()
@@ -822,9 +822,9 @@ class AudioPlayer(threading.Thread):
             self.source = source
             self.resume(update_speaking=False)
 
-    def _speak(self, speaking: SpeakingState) -> None:
+    def _speak(self, flags: SpeakingFlags) -> None:
         try:
-            asyncio.run_coroutine_threadsafe(self.client.ws.speak(speaking), self.client.client.loop)
+            asyncio.run_coroutine_threadsafe(self.client.update_speaking_state(flags), self.client.client.loop)
         except Exception:
             _log.exception('Speaking call in player failed.')
 

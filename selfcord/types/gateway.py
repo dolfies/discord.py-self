@@ -444,6 +444,34 @@ VoiceStateUpdateEvent = Union[GuildVoiceState, PrivateVoiceState]
 VoiceServerUpdateEvent = VoiceServerUpdate
 
 
+class StreamEvent(TypedDict):
+    stream_key: str
+    region: NotRequired[str]
+    viewer_ids: NotRequired[List[Snowflake]]
+    paused: NotRequired[bool]
+
+
+class StreamCreateEvent(StreamEvent):
+    rtc_server_id: Snowflake
+    rtc_channel_id: Snowflake
+
+
+class StreamServerUpdateEvent(TypedDict):
+    token: str
+    stream_key: str
+    endpoint: Optional[str]
+    guild_id: NotRequired[Optional[Snowflake]]
+
+
+class StreamDeleteEvent(TypedDict):
+    stream_key: str
+    reason: str
+    unavailable: NotRequired[bool]
+
+
+StreamUpdateEvent = StreamEvent
+
+
 class TypingStartEvent(TypedDict):
     channel_id: Snowflake
     user_id: Snowflake
