@@ -32,7 +32,7 @@ import time
 import threading
 import traceback
 
-from typing import Any, Callable, Coroutine, Dict, List, TYPE_CHECKING, NamedTuple, Optional, Sequence, TypeVar, Tuple
+from typing import Any, Callable, Coroutine, Dict, List, Literal, TYPE_CHECKING, NamedTuple, Optional, Sequence, Tuple
 
 from curl_cffi import CurlError, WebSocketError
 from curl_cffi.requests import AsyncWebSocket
@@ -40,9 +40,10 @@ from curl_cffi.const import CurlWsFlag
 import yarl
 
 from . import utils
-from .enums import SpeakingState, Status
+from .enums import Status
 from .errors import ClientException, ConnectionClosed
-from .flags import Capabilities
+from .flags import Capabilities, SpeakingFlags
+from .voice_media import VoiceCodec, VoiceStream
 
 try:
     import davey  # type: ignore
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
     from .types.activity import Activity as ActivityPayload
     from .types.snowflake import Snowflake
     from .types.gateway import BulkGuildSubscribePayload
+    from .types.voice import VoiceStream as VoiceStreamPayload
     from .voice_state import VoiceConnectionState
 
 
@@ -148,8 +150,8 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
     HEARTBEAT_VERSION = 27
     UPDATE_TIME_SPEND_INTERVAL_SECONDS = 30 * 60
 
-    def __init__(self, *, ws: DiscordWebSocket, interval: Optional[float] = None):
-        self.ws: DiscordWebSocket = ws
+    def __init__(self, *, ws: Any, interval: Optional[float] = None):
+        self.ws: Any = ws
         self.interval: Optional[float] = interval
         self.heartbeat_timeout: float = self.ws._max_heartbeat_timeout
 
@@ -269,12 +271,10 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
 
 class VoiceKeepAliveHandler(KeepAliveHandler):
     UPDATE_TIME_SPEND_INTERVAL_SECONDS = None
+    ws: DiscordVoiceWebSocket
 
-    if TYPE_CHECKING:
-        ws: DiscordVoiceWebSocket
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, ws: DiscordVoiceWebSocket, interval: Optional[float] = None):
+        super().__init__(ws=ws, interval=interval)
         self.recent_ack_latencies: deque[float] = deque(maxlen=20)
         self.msg: str = 'Keeping voice socket alive.'
         self.block_msg: str = 'Voice heartbeat blocked for more than %s seconds'
@@ -299,9 +299,6 @@ class VoiceKeepAliveHandler(KeepAliveHandler):
         self.recent_ack_latencies.append(self.latency)
         if self.latency > 10:
             _log.warning(self.behind_msg, self.latency)
-
-
-DWS = TypeVar('DWS', bound='DiscordWebSocket')
 
 
 class DiscordWebSocket:
@@ -345,6 +342,11 @@ class DiscordWebSocket:
     # GUILD_SYNC                 = 12
     CALL_CONNECT                 = 13
     GUILD_SUBSCRIBE              = 14  # Deprecated
+    STREAM_CREATE                = 18
+    STREAM_DELETE                = 19
+    STREAM_WATCH                 = 20
+    STREAM_PING                  = 21
+    STREAM_SET_PAUSED            = 22
     # REQUEST_COMMANDS           = 24
     SEARCH_RECENT_MEMBERS        = 35
     BULK_GUILD_SUBSCRIBE         = 37
@@ -912,6 +914,75 @@ class DiscordWebSocket:
         _log.debug('Requesting call connect for channel %s.', channel_id)
         await self.send_as_json(payload)
 
+    async def stream_create(
+        self,
+        *,
+        stream_type: str,
+        guild_id: Optional[Snowflake],
+        channel_id: Snowflake,
+    ) -> None:
+        data: Dict[str, Any] = {
+            'type': stream_type,
+            'guild_id': str(guild_id) if guild_id is not None else None,
+            'channel_id': str(channel_id),
+        }
+        preferred_region = self._connection._get_preferred_regions().get('preferred_region')
+        if preferred_region is not None:
+            data['preferred_region'] = preferred_region
+
+        payload = {
+            'op': self.STREAM_CREATE,
+            'd': data,
+        }
+
+        _log.debug('Creating stream with payload %s.', payload['d'])
+        await self.send_as_json(payload)
+
+    async def stream_watch(self, stream_key: str) -> None:
+        payload = {
+            'op': self.STREAM_WATCH,
+            'd': {
+                'stream_key': stream_key,
+            },
+        }
+
+        _log.debug('Watching stream %s.', stream_key)
+        await self.send_as_json(payload)
+
+    async def stream_ping(self, stream_key: str) -> None:
+        payload = {
+            'op': self.STREAM_PING,
+            'd': {
+                'stream_key': stream_key,
+            },
+        }
+
+        _log.debug('Pinging stream %s.', stream_key)
+        await self.send_as_json(payload)
+
+    async def stream_delete(self, stream_key: str) -> None:
+        payload = {
+            'op': self.STREAM_DELETE,
+            'd': {
+                'stream_key': stream_key,
+            },
+        }
+
+        _log.debug('Deleting stream %s.', stream_key)
+        await self.send_as_json(payload)
+
+    async def stream_set_paused(self, stream_key: str, paused: bool) -> None:
+        payload = {
+            'op': self.STREAM_SET_PAUSED,
+            'd': {
+                'stream_key': stream_key,
+                'paused': paused,
+            },
+        }
+
+        _log.debug('Setting stream %s paused=%s.', stream_key, paused)
+        await self.send_as_json(payload)
+
     async def search_recent_members(
         self, guild_id: Snowflake, query: str = '', *, after: Optional[Snowflake] = None, nonce: Optional[str] = None
     ) -> None:
@@ -941,9 +1012,6 @@ class DiscordWebSocket:
             _log.debug('Ignoring exception closing Gateway socket.', exc_info=True)
 
 
-DVWS = TypeVar('DVWS', bound='DiscordVoiceWebSocket')
-
-
 class DiscordVoiceWebSocket:
     """Implements the websocket protocol for handling voice connections."""
 
@@ -967,6 +1035,8 @@ class DiscordVoiceWebSocket:
     CLIENTS_CONNECT                = 11
     VIDEO                          = 12
     CLIENT_DISCONNECT              = 13
+    SESSION_UPDATE                 = 14
+    MEDIA_SINK_WANTS               = 15
     VOICE_BACKEND_VERSION          = 16
     DAVE_PREPARE_TRANSITION        = 21
     DAVE_EXECUTE_TRANSITION        = 22
@@ -1029,6 +1099,7 @@ class DiscordVoiceWebSocket:
             'd': {
                 'token': state.token,
                 'server_id': str(state.server_id),
+                'channel_id': str(state.channel_id),
                 'session_id': state.session_id,
                 'seq_ack': self.seq_ack,
             },
@@ -1037,13 +1108,18 @@ class DiscordVoiceWebSocket:
 
     async def identify(self) -> None:
         state = self._connection
+        voice_client = state.voice_client
+        supports_video = voice_client.supports_video()
         payload = {
             'op': self.IDENTIFY,
             'd': {
                 'server_id': str(state.server_id),
+                'channel_id': str(state.channel_id),
                 'user_id': str(state.user.id),
                 'session_id': state.session_id,
                 'token': state.token,
+                'video': supports_video,
+                'streams': [stream.to_dict() for stream in voice_client.video_streams] if supports_video else [],
                 'max_dave_protocol_version': state.max_dave_protocol_version,
             },
         }
@@ -1059,7 +1135,7 @@ class DiscordVoiceWebSocket:
         seq_ack: int = -1,
     ) -> Self:
         """Creates a voice websocket for the :class:`VoiceClient`."""
-        gateway = f'wss://{state.endpoint}/?v=8'
+        gateway = f'wss://{state.endpoint}/?v=9'
         client = state.voice_client
         http = client._state.http
         socket = await http.ws_connect(gateway)
@@ -1078,6 +1154,7 @@ class DiscordVoiceWebSocket:
         return ws
 
     async def select_protocol(self, ip: str, port: int, mode: str) -> None:
+        state = self._connection
         payload = {
             'op': self.SELECT_PROTOCOL,
             'd': {
@@ -1087,27 +1164,75 @@ class DiscordVoiceWebSocket:
                     'port': port,
                     'mode': mode,
                 },
+                'codecs': [codec.to_dict() for codec in state.voice_client.codecs],
             },
         }
 
+        rtc_connection_id = state.rtc_connection_id
+        experiments = state.selected_experiments
+        if rtc_connection_id:
+            payload['d']['rtc_connection_id'] = rtc_connection_id
+        if experiments:
+            payload['d']['experiments'] = experiments
+
         await self.send_as_json(payload)
 
-    async def client_connect(self) -> None:
+    async def video_state(
+        self, *, video_ssrc: int = 0, rtx_ssrc: int = 0, streams: Optional[Sequence[VoiceStream]] = None
+    ) -> None:
         payload = {
             'op': self.VIDEO,
             'd': {
                 'audio_ssrc': self._connection.ssrc,
+                'video_ssrc': video_ssrc,
+                'rtx_ssrc': rtx_ssrc,
+                'streams': [stream.to_dict() for stream in streams] if streams is not None else [],
             },
         }
 
         await self.send_as_json(payload)
 
-    async def speak(self, state: SpeakingState = SpeakingState.voice) -> None:
+    async def media_sink_wants(
+        self,
+        wants: Dict[int, int],
+        *,
+        any: Optional[int] = None,
+        pixel_counts: Optional[Dict[int, int]] = None,
+    ) -> None:
+        data: Dict[str, Any] = {str(ssrc): quality for ssrc, quality in wants.items()}
+        if any is not None:
+            data['any'] = any
+        if pixel_counts is not None:
+            # Yes, this is camelCase
+            data['pixelCounts'] = {str(ssrc): count for ssrc, count in pixel_counts.items()}
+
+        payload = {
+            'op': self.MEDIA_SINK_WANTS,
+            'd': data,
+        }
+
+        await self.send_as_json(payload)
+
+    async def session_update(self, codecs: Sequence[VoiceCodec]) -> None:
+        payload = {
+            'op': self.SESSION_UPDATE,
+            'd': {
+                'codecs': [codec.to_dict() for codec in codecs],
+            },
+        }
+
+        await self.send_as_json(payload)
+
+    async def speak(self, flags: Optional[SpeakingFlags] = None, delay: int = 0) -> None:
+        if flags is None:
+            flags = SpeakingFlags(voice=True)
+
         payload = {
             'op': self.SPEAKING,
             'd': {
-                'speaking': int(state),
-                'delay': 0,
+                'speaking': flags.value,
+                # n.b. this should only ever be used for WebRTC
+                'delay': delay,
                 'ssrc': self._connection.ssrc,
             },
         }
@@ -1124,7 +1249,7 @@ class DiscordVoiceWebSocket:
 
     async def send_transition_ready(self, transition_id: int):
         payload = {
-            'op': DiscordVoiceWebSocket.DAVE_TRANSITION_READY,
+            'op': self.DAVE_TRANSITION_READY,
             'd': {
                 'transition_id': transition_id,
             },
@@ -1132,10 +1257,37 @@ class DiscordVoiceWebSocket:
 
         await self.send_as_json(payload)
 
+    def _update_video_state_streams(self, user_id: int, data: Dict[str, Any]) -> None:
+        previous = self._connection.video_states.get(user_id, {})
+        for key in ('video_ssrc', 'rtx_ssrc'):
+            if key not in data and key in previous:
+                data[key] = previous[key]
+
+        previous_streams = previous.get('streams', ())
+        streams_by_rid = {stream.rid: stream for stream in previous_streams if isinstance(stream, VoiceStream)}
+        raw_default_type = getattr(self._connection.voice_client, 'media_stream_type', 'video')
+        default_type: Literal['video', 'screen'] = 'screen' if raw_default_type == 'screen' else 'video'
+        streams: List[VoiceStream] = []
+
+        for payload in data.get('streams') or []:
+            payload: VoiceStreamPayload
+            rid = payload['rid']
+            stream = streams_by_rid.get(rid)
+            if stream is None:
+                if 'type' not in payload:
+                    payload['type'] = default_type
+                stream = VoiceStream.from_dict(payload)
+            else:
+                stream = stream.replace()
+                stream._update(payload)
+            streams.append(stream)
+
+        data['streams'] = streams
+
     async def received_message(self, msg: Dict[str, Any]) -> None:
         _log.debug('Voice socket event: %s.', msg)
         op = msg['op']
-        data = msg['d']  # According to Discord this key is always given
+        data = msg['d']
         self.seq_ack = msg.get('seq', self.seq_ack)
 
         if op == self.READY:
@@ -1147,10 +1299,19 @@ class DiscordVoiceWebSocket:
             _log.debug('Voice RESUME succeeded.')
         elif op == self.SESSION_DESCRIPTION:
             self._connection.mode = data['mode']
+            self._connection.audio_codec = data['audio_codec']
+            self._connection.video_codec = data['video_codec']
+            self._connection.media_session_id = data.get('media_session_id')
+            self._connection.keyframe_interval = data.get('keyframe_interval')
             await self.load_secret_key(data)
             self._connection.dave_protocol_version = data['dave_protocol_version']
             if data['dave_protocol_version'] > 0:
                 await self._connection.reinit_dave_session()
+        elif op == self.SESSION_UPDATE:
+            self._connection.audio_codec = data.get('audio_codec', self._connection.audio_codec)
+            self._connection.video_codec = data.get('video_codec', self._connection.video_codec)
+            self._connection.media_session_id = data.get('media_session_id', self._connection.media_session_id)
+            self._connection.keyframe_interval = data.get('keyframe_interval', self._connection.keyframe_interval)
         elif op == self.HELLO:
             interval = data['heartbeat_interval'] / 1000.0
             self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=interval)
@@ -1159,6 +1320,16 @@ class DiscordVoiceWebSocket:
             self.voice_version = data.get('voice')
             self.rtc_worker_version = data.get('rtc_worker')
             _log.debug('Voice backend version: voice=%r, rtc_worker=%r.', self.voice_version, self.rtc_worker_version)
+        elif op == self.SPEAKING:
+            user_id = int(data['user_id'])
+            ssrc = data['ssrc']
+            self._connection.ssrc_user_ids[ssrc] = user_id
+        elif op == self.VIDEO:
+            user_id = int(data['user_id'])
+            self._update_video_state_streams(user_id, data)
+            self._connection.update_video_state(user_id, data)
+        elif op == self.MEDIA_SINK_WANTS:
+            self._connection.media_sink_wants = data
         elif self._connection.dave_session:
             state = self._connection
             if op == self.DAVE_PREPARE_TRANSITION:
@@ -1206,7 +1377,7 @@ class DiscordVoiceWebSocket:
             )
             if isinstance(result, davey.CommitWelcome):
                 await self.send_binary(
-                    DiscordVoiceWebSocket.MLS_COMMIT_WELCOME,
+                    self.MLS_COMMIT_WELCOME,
                     result.commit + result.welcome if result.welcome else result.commit,
                 )
             _log.debug('MLS proposals processed.')
@@ -1233,21 +1404,34 @@ class DiscordVoiceWebSocket:
 
     async def initial_connection(self, data: Dict[str, Any]) -> None:
         state = self._connection
+        state.clear_ssrc_mappings()
         state.ssrc = data['ssrc']
         state.voice_port = data['port']
         state.endpoint_ip = data['ip']
+        state.update_video_streams(data.get('streams', []))
+        state.experiments = data.get('experiments') or []
+        state.selected_experiments = list(state.voice_client.get_experiments(state.experiments))
 
         await self.request_voice_backend_version()
-        _log.debug('Connecting to voice socket...')
-        await self.loop.sock_connect(state.socket, (state.endpoint_ip, state.voice_port))
+        await self._connect_udp_socket()
 
         state.ip, state.port = await self.discover_ip()
-        modes = [mode for mode in data['modes'] if mode in self._connection.supported_modes]
+        ready_modes = set(data['modes'])
+
+        # supported_modes is ordered by preference
+        modes = [mode for mode in self._connection.supported_modes if mode in ready_modes]
         _log.debug('Received supported encryption modes: %s.', ', '.join(modes))
+        if not modes:
+            raise ClientException('Unable to find a supported voice encryption mode')
 
         mode = modes[0]
         await self.select_protocol(state.ip, state.port, mode)
         _log.debug('Selected the voice protocol for use: %s.', mode)
+
+    async def _connect_udp_socket(self) -> None:
+        state = self._connection
+        _log.debug('Connecting to voice socket...')
+        await self.loop.sock_connect(state.socket, (state.endpoint_ip, state.voice_port))
 
     async def discover_ip(self) -> Tuple[str, int]:
         state = self._connection
@@ -1262,7 +1446,13 @@ class DiscordVoiceWebSocket:
         fut: asyncio.Future[bytes] = self.loop.create_future()
 
         def get_ip_packet(data: bytes):
-            if data[1] == 0x02 and len(data) == 74:
+            if (
+                len(data) == 74
+                and data[0] <= 1
+                and struct.unpack_from('>H', data, 0)[0] == 2
+                and struct.unpack_from('>H', data, 2)[0] == 70
+                and struct.unpack_from('>I', data, 4)[0] == state.ssrc
+            ):
                 self.loop.call_soon_threadsafe(fut.set_result, data)
 
         fut.add_done_callback(lambda f: state.remove_socket_listener(get_ip_packet))
@@ -1273,7 +1463,9 @@ class DiscordVoiceWebSocket:
 
         # The IP is ascii starting at the 8th byte and ending at the first null
         ip_start = 8
-        ip_end = recv.index(0, ip_start)
+        ip_end = recv.find(0, ip_start, 72)
+        if ip_end == -1:
+            ip_end = 72
         ip = recv[ip_start:ip_end].decode('ascii')
 
         port = struct.unpack_from('>H', recv, len(recv) - 2)[0]
@@ -1303,7 +1495,7 @@ class DiscordVoiceWebSocket:
         # Send a speak command with the "not speaking" state
         # This also tells Discord our SSRC value, which Discord requires before
         # sending any voice data (and is the real reason why we call this here)
-        await self.speak(SpeakingState.none)
+        await self.speak(SpeakingFlags.none())
 
     async def poll_event(self) -> None:
         # This exception is handled up the chain

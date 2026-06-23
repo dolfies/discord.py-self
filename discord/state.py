@@ -47,6 +47,7 @@ from typing import (
     overload,
     Sequence,
     Set,
+    cast,
 )
 import warnings
 import weakref
@@ -77,6 +78,8 @@ from .enums import (
     RelationshipType,
     RequiredActionType,
     Status,
+    StreamDeleteReason,
+    StreamType,
     try_enum,
 )
 from . import utils
@@ -103,6 +106,7 @@ from .audit_logs import AuditLogEntry
 from .read_state import ReadState
 from .tutorial import Tutorial
 from .experiment import UserExperiment, GuildExperiment, ApexExperiment
+from .stream import Stream, StreamKey, StreamProtocol
 from .metadata import Metadata
 from .directory import DirectoryEntry
 
@@ -146,6 +150,7 @@ if TYPE_CHECKING:
 
 MISSING = utils.MISSING
 _log = logging.getLogger(__name__)
+ST = TypeVar('ST', bound=StreamProtocol)
 
 
 class ChunkRequest:
@@ -1171,6 +1176,9 @@ class ConnectionState:
         self._call_message_cache: Dict[int, Message] = {}
         self._voice_clients: Dict[int, VoiceProtocol] = {}
         self._voice_states: Dict[int, VoiceState] = {}
+        self._streams: Dict[StreamKey, Stream] = {}
+        self._stream_clients: Dict[StreamKey, StreamProtocol] = {}
+        self._stream_server_updates: Dict[StreamKey, gw.StreamServerUpdateEvent] = {}
 
         self._interaction_cache: Dict[Union[int, str], Tuple[int, Optional[str], MessageableChannel]] = {}
         self._interactions: OrderedDict[Union[int, str], Interaction] = OrderedDict()  # LRU of max size 15
@@ -1287,6 +1295,131 @@ class ConnectionState:
 
     def _remove_voice_client(self, guild_id: int) -> None:
         self._voice_clients.pop(guild_id, None)
+
+    def _get_voice_client_for_stream_key(self, stream_key: StreamKey) -> Optional[VoiceProtocol]:
+        if stream_key.type is StreamType.guild:
+            voice = self._get_voice_client(stream_key.guild_id)
+        elif stream_key.type is StreamType.call:
+            voice = self._get_voice_client(self.self_id)
+        else:
+            return None
+
+        if voice is None:
+            return None
+
+        if stream_key.channel_id is not None and voice.channel.id != stream_key.channel_id:
+            return None
+        return voice
+
+    def _stream_key_for_voice_client(self, voice_client: VoiceProtocol) -> StreamKey:
+        user: ClientUser = self.user  # type: ignore
+        channel = voice_client.channel
+        guild = getattr(channel, 'guild', None)
+        if guild is not None:
+            return StreamKey.from_guild(guild_id=guild.id, channel_id=channel.id, owner_id=user.id)
+        return StreamKey.from_call(channel_id=channel.id, owner_id=user.id)
+
+    def _streams_for_voice_client(self, voice_client: VoiceProtocol) -> Tuple[Stream, ...]:
+        return tuple(
+            stream for stream in self._streams.values() if self._get_voice_client_for_stream_key(stream.key) is voice_client
+        )
+
+    def _stream_clients_for_voice_client(self, voice_client: VoiceProtocol) -> Tuple[StreamProtocol, ...]:
+        return tuple(stream for stream in self._stream_clients.values() if stream.voice_client is voice_client)
+
+    def get_stream(self, stream_key: StreamKey) -> Optional[Stream]:
+        return self._streams.get(stream_key)
+
+    def _store_stream(self, data: gw.StreamEvent) -> Tuple[Optional[Stream], Stream]:
+        stream_key = StreamKey.from_value(data['stream_key'])
+        stream = self._streams.get(stream_key)
+        if stream is None:
+            stream = Stream(state=self, data=data)
+            self._streams[stream.key] = stream
+            return None, stream
+
+        old = copy.copy(stream)
+        stream._update(data)
+        return old, stream
+
+    def _get_stream_client(self, stream_key: StreamKey) -> Optional[StreamProtocol]:
+        return self._stream_clients.get(stream_key)
+
+    def _add_stream_client(self, stream_key: StreamKey, stream: StreamProtocol) -> None:
+        self._stream_clients[stream_key] = stream
+
+    def _remove_stream_client(self, stream_key: StreamKey) -> None:
+        self._stream_clients.pop(stream_key, None)
+
+    async def _connect_stream(
+        self,
+        voice_client: VoiceProtocol,
+        stream_key: StreamKey,
+        request: Callable[[], Coroutine[Any, Any, None]],
+        *,
+        cls: Callable[[VoiceProtocol, Stream], ST],
+        timeout: float,
+        reconnect: bool,
+    ) -> ST:
+        existing = self._get_stream_client(stream_key)
+        if existing is not None:
+            return cast(ST, existing)
+
+        def same_create(stream: Stream) -> bool:
+            return stream.key == stream_key
+
+        def same_delete(stream: Stream, reason: StreamDeleteReason) -> bool:
+            return stream.key == stream_key
+
+        create_task = self.loop.create_task(
+            self.client.wait_for('stream_create', check=same_create, timeout=timeout),
+            name='Stream create waiter',
+        )
+        delete_task = self.loop.create_task(
+            self.client.wait_for('stream_delete', check=same_delete, timeout=timeout),
+            name='Stream delete waiter',
+        )
+        tasks = {create_task, delete_task}
+        stream: Optional[Stream] = None
+
+        try:
+            await asyncio.sleep(0)
+            await request()
+            while stream is None:
+                done, _ = await asyncio.wait(tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    raise asyncio.TimeoutError
+                for task in done:
+                    tasks.discard(task)
+                    if task is delete_task:
+                        _, reason = task.result()
+                        raise ClientException(f'Stream connection rejected: {reason}')
+                    stream = task.result()
+        finally:
+            for task in tasks:
+                task.cancel()
+
+        protocol = cls(voice_client, stream)
+        if not isinstance(protocol, StreamProtocol):
+            raise TypeError('Type must meet StreamProtocol abstract base class')
+
+        self._add_stream_client(stream.key, protocol)
+        try:
+            server_update = self._stream_server_updates.get(stream.key)
+            if server_update is not None:
+                await protocol.on_stream_server_update(server_update)
+            await protocol.connect(timeout=timeout, reconnect=reconnect)
+        except asyncio.TimeoutError:
+            try:
+                await protocol.disconnect(force=True)
+            except Exception:
+                pass
+            raise
+        except Exception:
+            protocol.cleanup()
+            raise
+
+        return protocol
 
     def _get_preferred_regions(self) -> Dict[str, Union[List[str], str]]:
         regions = self.overriden_rtc_regions if self.overriden_rtc_regions is not None else self.client.preferred_rtc_regions
@@ -3469,6 +3602,95 @@ class ConnectionState:
         if vc is not None:
             coro = vc.on_voice_server_update(data)
             asyncio.create_task(logging_coroutine(coro, info='Voice Protocol voice server update handler'))
+
+    def _dispatch_stream_protocol_event(self, stream_key: StreamKey, handler: str, *args: Any, info: str) -> None:
+        stream = self._get_stream_client(stream_key)
+        if stream is not None:
+            coro = getattr(stream, handler)(*args)
+            asyncio.create_task(logging_coroutine(coro, info=info))
+
+    def parse_stream_create(self, data: gw.StreamCreateEvent) -> None:
+        old, stream = self._store_stream(data)
+        if old is not None and old.unavailable:
+            stream.unavailable = False
+            self._dispatch_stream_protocol_event(
+                stream.key,
+                'on_stream_available',
+                stream,
+                info='Stream Protocol stream available handler',
+            )
+            self.dispatch('stream_available', stream)
+            return
+
+        self._dispatch_stream_protocol_event(
+            stream.key,
+            'on_stream_create',
+            stream,
+            info='Stream Protocol stream create handler',
+        )
+        self.dispatch('stream_create', stream)
+
+    def parse_stream_server_update(self, data: gw.StreamServerUpdateEvent) -> None:
+        stream_key = StreamKey.from_value(data['stream_key'])
+        self._stream_server_updates[stream_key] = data
+        self._dispatch_stream_protocol_event(
+            stream_key,
+            'on_stream_server_update',
+            data,
+            info='Stream Protocol stream server update handler',
+        )
+
+    def parse_stream_update(self, data: gw.StreamUpdateEvent) -> None:
+        stream_key = StreamKey.from_value(data['stream_key'])
+        stream = self._streams.get(stream_key)
+        if stream is None:
+            _log.debug('STREAM_UPDATE referencing unknown stream %s. Discarding.', stream_key)
+            return
+
+        old = copy.copy(stream)
+        stream._update(data)
+        self._dispatch_stream_protocol_event(
+            stream.key,
+            'on_stream_update',
+            old,
+            stream,
+            info='Stream Protocol stream update handler',
+        )
+        self.dispatch('stream_update', old, stream)
+
+    def parse_stream_delete(self, data: gw.StreamDeleteEvent) -> None:
+        stream_key = StreamKey.from_value(data['stream_key'])
+        reason = try_enum(StreamDeleteReason, data['reason'])
+        if data.get('unavailable'):
+            stream = self._streams.get(stream_key)
+            if stream is None:
+                stream = Stream(state=self, data=data)
+                self._streams[stream.key] = stream
+            was_unavailable = stream.unavailable
+            stream.unavailable = True
+            if was_unavailable:
+                return
+            self._dispatch_stream_protocol_event(
+                stream.key,
+                'on_stream_unavailable',
+                stream,
+                info='Stream Protocol stream unavailable handler',
+            )
+            self.dispatch('stream_unavailable', stream)
+            return
+
+        stream = self._streams.pop(stream_key, None)
+        if stream is None:
+            stream = Stream(state=self, data=data)
+        self._stream_server_updates.pop(stream_key, None)
+        self._dispatch_stream_protocol_event(
+            stream.key,
+            'on_stream_delete',
+            stream,
+            reason,
+            info='Stream Protocol stream delete handler',
+        )
+        self.dispatch('stream_delete', stream, reason)
 
     def parse_typing_start(self, data: gw.TypingStartEvent) -> None:
         channel, guild = self._get_guild_channel(data)

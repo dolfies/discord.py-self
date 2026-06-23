@@ -252,7 +252,7 @@ class HeadersContext:
     .. warning::
 
         Configuring your own header context from scratch is not recommended,
-        as it may lead to account termination by anti abuse systems.
+        as it may lead to account termination by anti-abuse systems.
 
     Parameters
     -----------
@@ -312,7 +312,7 @@ class HeadersContext:
 
         Creates a new instance for the Chrome web client on Windows.
 
-        This is what the library uses by defualt if you do not provide a context.
+        This is what the library uses by default if you do not provide a context.
         As such, it has built-in fallbacks in case the info API is down or returns invalid data,
         or if the client build number or browser version cannot be retrieved for any reason.
 
