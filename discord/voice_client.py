@@ -67,17 +67,13 @@ if TYPE_CHECKING:
 
 
 has_nacl: bool
-nacl_secret: Any
-nacl_utils: Any
 
 try:
-    import nacl.secret as nacl_secret  # type: ignore
-    import nacl.utils as nacl_utils  # type: ignore
+    import nacl.secret  # type: ignore
+    import nacl.utils  # type: ignore
 
     has_nacl = True
 except ImportError:
-    nacl_secret = None
-    nacl_utils = None
     has_nacl = False
 
 __all__ = (
@@ -142,6 +138,11 @@ class VoiceProtocol:
         ----------
         ready_experiments: List[:class:`str`]
             The experiments offered by the server. This list is non-exhaustive.
+
+        Returns
+        -------
+        List[:class:`str`]
+            The chosen experiments.
         """
         return ()
 
@@ -164,7 +165,7 @@ class VoiceProtocol:
 
     @property
     def streams(self) -> Tuple[Stream, ...]:
-        """Tuple[:class:`discord.Stream`]: The Go Live streams known for this voice connection.
+        """Tuple[:class:`Stream`]: The Go Live streams known for this voice connection.
 
         .. versionadded:: 2.2
         """
@@ -172,25 +173,25 @@ class VoiceProtocol:
 
     @property
     def stream_clients(self) -> Tuple[StreamProtocol, ...]:
-        """Tuple[:class:`discord.StreamProtocol`]: The Go Live stream clients attached to this voice connection.
+        """Tuple[:class:`StreamProtocol`]: The Go Live stream clients attached to this voice connection.
 
         .. versionadded:: 2.2
         """
         return self.client._connection._stream_clients_for_voice_client(self)
 
     def get_stream(self, owner: abc.Snowflake) -> Optional[Stream]:
-        """Optional[:class:`discord.Stream`]: Returns a known Go Live stream by owner ID for this voice connection.
+        """Optional[:class:`Stream`]: Returns a known Go Live stream by owner ID for this voice connection.
 
         .. versionadded:: 2.2
 
         Parameters
         ----------
-        owner: :class:`~discord.abc.Snowflake`
+        owner: :class:`~abc.Snowflake`
             The owner of the stream.
 
         Returns
         --------
-        Optional[:class:`discord.Stream`]
+        Optional[:class:`Stream`]
             The stream if found.
         """
         state = self.client._connection
@@ -216,29 +217,29 @@ class VoiceProtocol:
         Watches a Go Live stream by stream key and connects with the provided stream protocol.
 
         This is useful when the stream is not already cached. If the stream is cached,
-        this delegates to :meth:`discord.Stream.watch`.
+        this delegates to :meth:`Stream.watch`.
 
         .. versionadded:: 2.2
 
         Parameters
         -----------
-        stream_key: :class:`discord.StreamKey`
+        stream_key: :class:`StreamKey`
             The stream key to watch.
         timeout: :class:`float`
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`discord.StreamProtocol`]
-            A type that subclasses :class:`discord.StreamProtocol` to connect with.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             You are not connected to the stream's voice channel, or you tried to watch your own stream.
 
         Returns
         --------
-        :class:`discord.StreamProtocol`
+        :class:`StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -282,12 +283,12 @@ class VoiceProtocol:
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`discord.StreamProtocol`]
-            A type that subclasses :class:`discord.StreamProtocol` to connect with.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
 
         Returns
         --------
-        :class:`discord.StreamProtocol`
+        :class:`StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -352,7 +353,7 @@ class VoiceProtocol:
         some point then :meth:`disconnect` is called.
 
         Within this method, to start the voice connection flow it is recommended to
-        use :meth:`discord.Guild.change_voice_state` to start the flow. After which,
+        use :meth:`Guild.change_voice_state` to start the flow. After which,
         :meth:`on_voice_server_update` and :meth:`on_voice_state_update` will be called.
         The order that these two are called is unspecified.
 
@@ -457,24 +458,27 @@ class VoiceClient(VoiceProtocol):
 
     @property
     def guild(self) -> Optional[Guild]:
-        """Optional[:class:`discord.Guild`]: The guild we're connected to, if applicable."""
+        """Optional[:class:`Guild`]: The guild we're connected to, if applicable."""
         return getattr(self.channel, 'guild', None)
 
     @property
     def user(self) -> ClientUser:
-        """:class:`discord.ClientUser`: The user connected to voice (i.e. ourselves)."""
+        """:class:`ClientUser`: The user connected to voice (i.e. ourselves)."""
         return self._state.user  # type: ignore
 
     @property
     def session_id(self) -> Optional[str]:
+        """:class:`str`: The voice connection session ID."""
         return self._connection.session_id
 
     @property
     def token(self) -> Optional[str]:
+        """:class:`str`: The voice connection token."""
         return self._connection.token
 
     @property
     def endpoint(self) -> Optional[str]:
+        """:class:`str`: The endpoint we are connecting to."""
         return self._connection.endpoint
 
     @property
@@ -579,7 +583,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         -----------
-        channel: Optional[:class:`~discord.abc.Snowflake`]
+        channel: Optional[:class:`~abc.Snowflake`]
             The channel to move to. Must be a voice channel.
         timeout: Optional[:class:`float`]
             How long to wait for the move to complete.
@@ -604,7 +608,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         ----------
-        flags: :class:`discord.SpeakingFlags`
+        flags: :class:`SpeakingFlags`
             The new speaking flags.
         """
         self._speaking_flags = flags
@@ -634,7 +638,7 @@ class VoiceClient(VoiceProtocol):
         return encrypt_packet(header, packet)
 
     def _encrypt_aead_xchacha20_poly1305_rtpsize(self, header: bytes, data) -> bytes:
-        box = nacl_secret.Aead(bytes(self.secret_key))
+        box = nacl.secret.Aead(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._incr_nonce)
@@ -643,20 +647,20 @@ class VoiceClient(VoiceProtocol):
         return header + box.encrypt(bytes(data), bytes(header), bytes(nonce)).ciphertext + nonce[:4]
 
     def _encrypt_xsalsa20_poly1305(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
         nonce[:12] = header[:12]
 
         return header + box.encrypt(bytes(data), bytes(nonce)).ciphertext
 
     def _encrypt_xsalsa20_poly1305_suffix(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
-        nonce = nacl_utils.random(nacl_secret.SecretBox.NONCE_SIZE)
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
+        nonce = nacl.utils.random(nacl.secret.SecretBox.NONCE_SIZE)
 
         return header + box.encrypt(bytes(data), nonce).ciphertext + nonce
 
     def _encrypt_xsalsa20_poly1305_lite(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._lite_nonce)
@@ -726,7 +730,7 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        discord.ClientException
+        ClientException
             Already playing audio or not connected.
         TypeError
             Source is not a :class:`AudioSource` or after is not a callable.
@@ -816,9 +820,9 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        discord.ClientException
+        ClientException
             You are not connected.
-        discord.opus.OpusError
+        opus.OpusError
             Encoding the data failed.
         """
         self.checked_add('sequence', 1, 65535)

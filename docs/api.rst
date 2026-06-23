@@ -837,12 +837,33 @@ Streams
 ~~~~~~~~
 
 .. function:: on_stream_create(stream)
-              on_stream_available(stream)
-              on_stream_unavailable(stream)
 
-    Called when a :class:`Stream` is created, becomes available, or becomes unavailable.
+    Called when a :class:`Stream` is created.
 
-    :param stream: The stream that changed availability.
+    This is not called when an unavailable stream becomes available again. Use
+    :func:`on_stream_available` for that case.
+
+    :param stream: The stream that was created.
+    :type stream: :class:`Stream`
+
+.. function:: on_stream_available(stream)
+
+    Called when a previously unavailable :class:`Stream` becomes available again.
+
+    The stream remains cached while unavailable and is updated in-place before
+    this event is dispatched.
+
+    :param stream: The stream that became available.
+    :type stream: :class:`Stream`
+
+.. function:: on_stream_unavailable(stream)
+
+    Called when a :class:`Stream` becomes temporarily unavailable.
+
+    Unavailable streams remain in the cache and may later dispatch
+    :func:`on_stream_available`.
+
+    :param stream: The stream that became unavailable.
     :type stream: :class:`Stream`
 
 .. function:: on_stream_update(before, after)
@@ -857,6 +878,9 @@ Streams
 .. function:: on_stream_delete(stream, reason)
 
     Called when a :class:`Stream` is deleted or a creation failed.
+
+    This is not called for temporary stream outages. Use
+    :func:`on_stream_unavailable` for that case.
 
     :param stream: The stream that was deleted.
     :type stream: :class:`Stream`

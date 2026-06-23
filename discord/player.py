@@ -307,7 +307,7 @@ class FFmpegPCMAudio(FFmpegAudio):
 
     Raises
     --------
-    discord.ClientException
+    ClientException
         The subprocess failed to be created.
     """
 
@@ -417,7 +417,7 @@ class FFmpegOpusAudio(FFmpegAudio):
 
     Raises
     --------
-    discord.ClientException
+    ClientException
         The subprocess failed to be created.
     """
 
@@ -670,7 +670,7 @@ class PCMVolumeTransformer(AudioSource, Generic[AT]):
     -------
     TypeError
         Not an audio source.
-    discord.ClientException
+    ClientException
         The audio source is opus encoded.
     """
 

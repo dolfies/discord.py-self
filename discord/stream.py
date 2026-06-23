@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, TYPE_CHECKING, TypeVar, cast
+from typing import Callable, List, Sequence, Tuple, TYPE_CHECKING, TypeVar
 
 from .enums import StreamDeleteReason, StreamType
 from .errors import ClientException
@@ -42,8 +42,6 @@ if TYPE_CHECKING:
     from .voice_client import VoiceProtocol
 
     StreamPayload = gw.StreamEvent | gw.StreamCreateEvent | gw.StreamDeleteEvent
-else:
-    StreamPayload = Any
 
 __all__ = (
     'Stream',
@@ -89,26 +87,72 @@ class StreamKey:
 
     @classmethod
     def from_guild(cls, *, guild_id: int, channel_id: int, owner_id: int) -> StreamKey:
-        """Create a guild stream key."""
+        """Create a guild stream key.
 
+        Parameters
+        ----------
+        guild_id: :class:`int`
+            The guild ID.
+        channel_id: :class:`int`
+            The channel ID the stream belongs to.
+        owner_id: :class:`int`
+            The user ID of the stream owner.
+
+        Returns
+        -------
+        :class:`StreamKey`
+            The stream key.
+        """
         return cls(StreamType.guild, guild_id=guild_id, channel_id=channel_id, owner_id=owner_id)
 
     @classmethod
     def from_call(cls, *, channel_id: int, owner_id: int) -> StreamKey:
-        """Create a private call stream key."""
+        """Create a private call stream key.
 
+        Parameters
+        ----------
+        channel_id: :class:`int`
+            The channel ID the stream belongs to.
+        owner_id: :class:`int`
+            The user ID of the stream owner.
+
+        Returns
+        -------
+        :class:`StreamKey`
+            The stream key.
+        """
         return cls(StreamType.call, channel_id=channel_id, owner_id=owner_id)
 
     @classmethod
     def from_test(cls, *, owner_id: int) -> StreamKey:
-        """Create a test stream key."""
+        """Create a test stream key.
 
+        Parameters
+        ----------
+        owner_id: :class:`int`
+            The user ID of the stream owner.
+
+        Returns
+        -------
+        :class:`StreamKey`
+            The stream key.
+        """
         return cls(StreamType.test, owner_id=owner_id)
 
     @classmethod
     def from_value(cls, value: str) -> StreamKey:
-        """Parse a stream key string."""
+        """Parse a stream key string.
 
+        Parameters
+        ----------
+        value: :class:`str`
+            The encoded stream key.
+
+        Returns
+        -------
+        :class:`StreamKey`
+            The stream key.
+        """
         parts = value.split(':')
         stream_type = parts[0] if parts else ''
         try:
@@ -159,7 +203,7 @@ class Stream:
 
     Attributes
     -----------
-    key: :class:`discord.StreamKey`
+    key: :class:`StreamKey`
         The stream key that uniquely identifies this stream.
     rtc_server_id: Optional[:class:`int`]
         The RTC server ID used when connecting to the stream voice server.
@@ -195,7 +239,7 @@ class Stream:
         self.rtc_server_id: int | None = None
         self.rtc_channel_id: int | None = None
         self.region: str | None = None
-        self.viewer_ids: list[int] = []
+        self.viewer_ids: List[int] = []
         self.paused: bool = False
         self.unavailable: bool = False
         self._update(data)
@@ -254,9 +298,9 @@ class Stream:
             guild = self.guild
             if guild is None:
                 return None
-            return cast('VoiceChannel | StageChannel | None', guild.get_channel(channel_id))
+            return guild.get_channel(channel_id)  # type: ignore
 
-        return cast('DMChannel | GroupChannel | None', self._state.get_channel(channel_id))
+        return self._state.get_channel(channel_id)  # type: ignore
 
     @property
     def owner(self) -> User | None:
@@ -264,8 +308,19 @@ class Stream:
         return self._state.get_user(self.owner_id)
 
     def is_owner(self) -> bool:
-        """Whether the client user is the owner of this stream."""
+        """:class:`bool`: Whether the client user is the owner of this stream."""
         return self.owner_id == self._state.self_id
+
+    @property
+    def viewers(self) -> List[User]:
+        """List[:class:`User`]: The watchers of the stream. Only cached users are returned."""
+        state = self._state
+        ret = []
+        for id in self.viewer_ids:
+            user = state.get_user(id)
+            if user is not None:
+                ret.append(user)
+        return ret
 
     async def watch(
         self,
@@ -289,7 +344,7 @@ class Stream:
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             You are not connected to the stream's voice channel, or you tried to watch your own stream.
 
         Returns
@@ -342,7 +397,7 @@ class Stream:
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             The stream is not owned by the client.
         """
         if not self.is_owner():
@@ -356,7 +411,7 @@ class Stream:
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             The stream is not owned by the client.
         """
         if not self.is_owner():
@@ -370,7 +425,7 @@ class Stream:
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             The stream is not owned by the client.
         """
         if self.paused:
@@ -384,7 +439,7 @@ class Stream:
 
         Raises
         -------
-        ~discord.ClientException
+        ClientException
             The stream is not owned by the client.
         """
         if not self.paused:
@@ -408,6 +463,15 @@ class StreamProtocol:
         The voice client connected to the stream's voice channel.
     stream: :class:`Stream`
         The stream being connected to.
+
+    Attributes
+    -----------
+    voice_client: :class:`VoiceProtocol`
+        The voice client connected to the stream's voice channel.
+    client: :class:`Client`
+        The client that owns the voice connection.
+    stream: :class:`Stream`
+        The stream being connected to.
     """
 
     supported_modes: tuple[TransportEncryptionModes, ...] = ()
@@ -424,6 +488,11 @@ class StreamProtocol:
         Defaults to ``False``. If your implementation supports video, override this method.
 
         .. versionadded:: 2.2
+
+        Returns
+        -------
+        :class:`bool`
+            Whether the protocol supports video.
         """
         return False
 
@@ -439,11 +508,16 @@ class StreamProtocol:
         ----------
         ready_experiments: List[:class:`str`]
             The experiments offered by the server. This list is non-exhaustive.
+
+        Returns
+        -------
+        List[:class:`str`]
+            The chosen experiments.
         """
         return ()
 
     @property
-    def codecs(self) -> tuple[VoiceCodec, ...]:
+    def codecs(self) -> Tuple[VoiceCodec, ...]:
         """Tuple[:class:`VoiceCodec`]: The codecs that the stream protocol supports. Defaults to Opus (required).
         For video support, you must include the video codecs here as well.
 
@@ -452,7 +526,7 @@ class StreamProtocol:
         return (VoiceCodec.opus(),)
 
     @property
-    def video_streams(self) -> tuple[VoiceStream, ...]:
+    def video_streams(self) -> Tuple[VoiceStream, ...]:
         """Tuple[:class:`VoiceStream`]: The video streams that the stream protocol advertises on connection. Defaults to none.
 
         .. versionadded:: 2.2
@@ -461,41 +535,139 @@ class StreamProtocol:
 
     @property
     def stream_key(self) -> StreamKey:
-        """:class:`discord.StreamKey`: The stream key being connected to."""
+        """:class:`StreamKey`: The stream key being connected to."""
         return self.stream.key
 
     async def on_stream_create(self, stream: Stream, /) -> None:
-        """Handle a stream create event for this stream client."""
+        """|coro|
+
+        An event handler called when the connected stream is created.
+
+        This mirrors :func:`on_stream_create` for the stream protocol instance
+        that is connected to the stream.
+
+        Parameters
+        ------------
+        stream: :class:`Stream`
+            The stream that was created.
+        """
         pass
 
     async def on_stream_available(self, stream: Stream, /) -> None:
-        """Handle a stream becoming available."""
+        """|coro|
+
+        An event handler called when the connected stream becomes available again.
+
+        This is dispatched after a stream that was previously marked
+        :attr:`Stream.unavailable` receives a new create event.
+
+        Parameters
+        ------------
+        stream: :class:`Stream`
+            The stream that became available.
+        """
         pass
 
     async def on_stream_server_update(self, data: gw.StreamServerUpdateEvent, /) -> None:
-        """Handle a stream server update event."""
+        """|coro|
+
+        An event handler called when Discord sends the stream RTC server data.
+
+        This event is used by stream protocol implementations to finish or
+        resume the stream RTC connection. Unlike the public stream events, this
+        exposes the raw gateway payload because it contains the stream token and
+        endpoint.
+
+        Parameters
+        ------------
+        data: :class:`dict`
+            The raw stream server update gateway payload.
+        """
         raise NotImplementedError
 
     async def on_stream_update(self, before: Stream, after: Stream, /) -> None:
-        """Handle an in-place stream update event."""
+        """|coro|
+
+        An event handler called when the connected stream is updated.
+
+        Parameters
+        ------------
+        before: :class:`Stream`
+            The stream before the update.
+        after: :class:`Stream`
+            The stream after the update.
+        """
         pass
 
     async def on_stream_unavailable(self, stream: Stream, /) -> None:
-        """Handle a stream becoming temporarily unavailable."""
+        """|coro|
+
+        An event handler called when the connected stream becomes temporarily unavailable.
+
+        Unavailable streams remain cached and may later dispatch
+        :meth:`on_stream_available` when Discord reports the stream again.
+
+        Parameters
+        ------------
+        stream: :class:`Stream`
+            The stream that became unavailable.
+        """
         pass
 
     async def on_stream_delete(self, stream: Stream, reason: StreamDeleteReason, /) -> None:
-        """Handle a stream delete event."""
+        """|coro|
+
+        An event handler called when the connected stream is deleted.
+
+        Parameters
+        ------------
+        stream: :class:`Stream`
+            The stream that was deleted.
+        reason: :class:`StreamDeleteReason`
+            The reason the stream was deleted or rejected.
+        """
         raise NotImplementedError
 
     async def connect(self, *, timeout: float, reconnect: bool) -> None:
-        """Connect this protocol to the stream RTC server."""
+        """|coro|
+
+        An abstract method called when the client initiates the stream connection request.
+
+        When a connection is requested initially, the library calls the constructor
+        under ``__init__`` and then calls :meth:`connect`. If :meth:`connect` fails at
+        some point then :meth:`disconnect` is called.
+
+        Parameters
+        ------------
+        timeout: :class:`float`
+            The timeout for the connection.
+        reconnect: :class:`bool`
+            Whether reconnection is expected.
+        """
         raise NotImplementedError
 
     async def disconnect(self, *, force: bool) -> None:
-        """Disconnect this protocol from the stream RTC server."""
+        """|coro|
+
+        An abstract method called when the client terminates the connection.
+
+        See :meth:`cleanup`.
+
+        Parameters
+        ------------
+        force: :class:`bool`
+            Whether the disconnection was forced.
+        """
         raise NotImplementedError
 
     def cleanup(self) -> None:
-        """Clean up this stream protocol and unregister it from state."""
+        """This method *must* be called to ensure proper clean-up during a disconnect.
+
+        It is advisable to call this from within :meth:`disconnect` when you are
+        completely done with the stream protocol instance.
+
+        This method removes it from the internal state cache that keeps track of
+        currently alive stream clients. Failure to clean-up will cause subsequent
+        connections to report that the stream client is still connected.
+        """
         self.client._connection._remove_stream_client(self.stream_key)
