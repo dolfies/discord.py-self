@@ -142,6 +142,11 @@ class VoiceProtocol:
         ----------
         ready_experiments: List[:class:`str`]
             The experiments offered by the server. This list is non-exhaustive.
+
+        Returns
+        -------
+        List[:class:`str`]
+            The chosen experiments.
         """
         return ()
 
@@ -164,7 +169,7 @@ class VoiceProtocol:
 
     @property
     def streams(self) -> Tuple[Stream, ...]:
-        """Tuple[:class:`selfcord.Stream`]: The Go Live streams known for this voice connection.
+        """Tuple[:class:`Stream`]: The Go Live streams known for this voice connection.
 
         .. versionadded:: 2.2
         """
@@ -172,25 +177,25 @@ class VoiceProtocol:
 
     @property
     def stream_clients(self) -> Tuple[StreamProtocol, ...]:
-        """Tuple[:class:`selfcord.StreamProtocol`]: The Go Live stream clients attached to this voice connection.
+        """Tuple[:class:`StreamProtocol`]: The Go Live stream clients attached to this voice connection.
 
         .. versionadded:: 2.2
         """
         return self.client._connection._stream_clients_for_voice_client(self)
 
     def get_stream(self, owner: abc.Snowflake) -> Optional[Stream]:
-        """Optional[:class:`selfcord.Stream`]: Returns a known Go Live stream by owner ID for this voice connection.
+        """Optional[:class:`Stream`]: Returns a known Go Live stream by owner ID for this voice connection.
 
         .. versionadded:: 2.2
 
         Parameters
         ----------
-        owner: :class:`~selfcord.abc.Snowflake`
+        owner: :class:`~abc.Snowflake`
             The owner of the stream.
 
         Returns
         --------
-        Optional[:class:`selfcord.Stream`]
+        Optional[:class:`Stream`]
             The stream if found.
         """
         state = self.client._connection
@@ -216,29 +221,29 @@ class VoiceProtocol:
         Watches a Go Live stream by stream key and connects with the provided stream protocol.
 
         This is useful when the stream is not already cached. If the stream is cached,
-        this delegates to :meth:`selfcord.Stream.watch`.
+        this delegates to :meth:`Stream.watch`.
 
         .. versionadded:: 2.2
 
         Parameters
         -----------
-        stream_key: :class:`selfcord.StreamKey`
+        stream_key: :class:`StreamKey`
             The stream key to watch.
         timeout: :class:`float`
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`selfcord.StreamProtocol`]
-            A type that subclasses :class:`selfcord.StreamProtocol` to connect with.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
 
         Raises
         -------
-        ~selfcord.ClientException
+        ClientException
             You are not connected to the stream's voice channel, or you tried to watch your own stream.
 
         Returns
         --------
-        :class:`selfcord.StreamProtocol`
+        :class:`StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -282,12 +287,12 @@ class VoiceProtocol:
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`selfcord.StreamProtocol`]
-            A type that subclasses :class:`selfcord.StreamProtocol` to connect with.
+        cls: Type[:class:`StreamProtocol`]
+            A type that subclasses :class:`StreamProtocol` to connect with.
 
         Returns
         --------
-        :class:`selfcord.StreamProtocol`
+        :class:`StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -352,7 +357,7 @@ class VoiceProtocol:
         some point then :meth:`disconnect` is called.
 
         Within this method, to start the voice connection flow it is recommended to
-        use :meth:`selfcord.Guild.change_voice_state` to start the flow. After which,
+        use :meth:`Guild.change_voice_state` to start the flow. After which,
         :meth:`on_voice_server_update` and :meth:`on_voice_state_update` will be called.
         The order that these two are called is unspecified.
 
@@ -457,12 +462,12 @@ class VoiceClient(VoiceProtocol):
 
     @property
     def guild(self) -> Optional[Guild]:
-        """Optional[:class:`selfcord.Guild`]: The guild we're connected to, if applicable."""
+        """Optional[:class:`Guild`]: The guild we're connected to, if applicable."""
         return getattr(self.channel, 'guild', None)
 
     @property
     def user(self) -> ClientUser:
-        """:class:`selfcord.ClientUser`: The user connected to voice (i.e. ourselves)."""
+        """:class:`ClientUser`: The user connected to voice (i.e. ourselves)."""
         return self._state.user  # type: ignore
 
     @property
@@ -579,7 +584,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         -----------
-        channel: Optional[:class:`~selfcord.abc.Snowflake`]
+        channel: Optional[:class:`~abc.Snowflake`]
             The channel to move to. Must be a voice channel.
         timeout: Optional[:class:`float`]
             How long to wait for the move to complete.
@@ -604,7 +609,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         ----------
-        flags: :class:`selfcord.SpeakingFlags`
+        flags: :class:`SpeakingFlags`
             The new speaking flags.
         """
         self._speaking_flags = flags
@@ -726,7 +731,7 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        selfcord.ClientException
+        ClientException
             Already playing audio or not connected.
         TypeError
             Source is not a :class:`AudioSource` or after is not a callable.
@@ -816,9 +821,9 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        selfcord.ClientException
+        ClientException
             You are not connected.
-        selfcord.opus.OpusError
+        opus.OpusError
             Encoding the data failed.
         """
         self.checked_add('sequence', 1, 65535)
