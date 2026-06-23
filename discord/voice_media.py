@@ -43,7 +43,7 @@ __all__ = (
     'VoiceStreamResolution',
 )
 
-RTP_ONE_BYTE_EXTENSION_PROFILE = b'\xBE\xDE'
+RTP_ONE_BYTE_EXTENSION_PROFILE = b'\xbe\xde'
 RTP_AUDIO_LEVEL_SILENCE = 127
 
 

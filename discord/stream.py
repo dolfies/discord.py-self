@@ -159,7 +159,7 @@ class Stream:
 
     Attributes
     -----------
-    key: :class:`StreamKey`
+    key: :class:`discord.StreamKey`
         The stream key that uniquely identifies this stream.
     rtc_server_id: Optional[:class:`int`]
         The RTC server ID used when connecting to the stream voice server.
@@ -461,7 +461,7 @@ class StreamProtocol:
 
     @property
     def stream_key(self) -> StreamKey:
-        """:class:`StreamKey`: The stream key being connected to."""
+        """:class:`discord.StreamKey`: The stream key being connected to."""
         return self.stream.key
 
     async def on_stream_create(self, stream: Stream, /) -> None:

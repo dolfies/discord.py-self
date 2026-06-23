@@ -352,9 +352,7 @@ class Encoder(_OpusStruct):
             raise ValueError(f'bitrate must be between 16 and 512, not {bitrate}')
 
         if not 0 <= expected_packet_loss <= 1.0:
-            raise ValueError(
-                f'expected_packet_loss must be between 0 and 1 inclusive, not {expected_packet_loss}'
-            )
+            raise ValueError(f'expected_packet_loss must be between 0 and 1 inclusive, not {expected_packet_loss}')
 
         _OpusStruct.get_opus_version()  # lazy loads the opus library
 

@@ -1321,9 +1321,7 @@ class ConnectionState:
 
     def _streams_for_voice_client(self, voice_client: VoiceProtocol) -> Tuple[Stream, ...]:
         return tuple(
-            stream
-            for stream in self._streams.values()
-            if self._get_voice_client_for_stream_key(stream.key) is voice_client
+            stream for stream in self._streams.values() if self._get_voice_client_for_stream_key(stream.key) is voice_client
         )
 
     def _stream_clients_for_voice_client(self, voice_client: VoiceProtocol) -> Tuple[StreamProtocol, ...]:

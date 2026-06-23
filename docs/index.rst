@@ -50,6 +50,10 @@ These extensions help you during development when it comes to common tasks.
   ext/commands/index.rst
   ext/tasks/index.rst
 
+External extensions:
+
+- **Native voice:** `discord.ext.native_voice <https://discord-ext-native-voice.readthedocs.io/en/latest/>`_
+
 Manuals
 ---------
 

@@ -56,6 +56,38 @@ HeadersContext
 Voice Related
 ---------------
 
+VoiceCodec
+~~~~~~~~~~~~
+
+.. attributetable:: VoiceCodec
+
+.. autoclass:: VoiceCodec
+    :members:
+
+VoiceStreamResolution
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. attributetable:: VoiceStreamResolution
+
+.. autoclass:: VoiceStreamResolution
+    :members:
+
+VoiceStream
+~~~~~~~~~~~~
+
+.. attributetable:: VoiceStream
+
+.. autoclass:: VoiceStream
+    :members:
+
+SpeakingFlags
+~~~~~~~~~~~~~~
+
+.. attributetable:: SpeakingFlags
+
+.. autoclass:: SpeakingFlags
+    :members:
+
 VoiceClient
 ~~~~~~~~~~~~
 

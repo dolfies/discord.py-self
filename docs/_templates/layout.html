@@ -58,9 +58,11 @@
     {#- The main navigation header #}
     <header class="grid-item">
       <nav>
-        <a href="{{ pathto(master_doc)|e }}" class="main-heading">discord.py-self</a>
-        <a href="https://github.com/dolfies/discord.py-self" title="GitHub"><span class="material-icons custom-icons">github</span></a>
+        <a href="{{ pathto(master_doc)|e }}" class="main-heading">{{ project_root_label|default('discord.py-self') }}</a>
+        <a href="{{ project_github_url|default('https://github.com/dolfies/discord.py-self') }}" title="GitHub"><span class="material-icons custom-icons">github</span></a>
+        {%- if hasdoc('faq') %}
         <a href="{{ pathto('faq') }}" title="FAQ"><span class="material-icons">help_center</span></a>
+        {%- endif %}
         {#- If we have more links we can put them here #}
         <a onclick="mobileSearch.open();" title="{{ _('Search') }}" id="open-search" class="mobile-only"><span class="material-icons">search</span></a>
         <a onclick="mobileSearch.close();" title="{{ _('Close') }}" id="close-search" class="mobile-only" hidden><span class="material-icons">close</span></a>
@@ -80,13 +82,18 @@
     <div class="sub-header grid-item">
       <label for="documentation_select">{{ _('View Documentation For') }}</label>
       <select id="documentation_select" onchange="window.location = this.value;">
+        {%- set documentation_label = documentation_root_label|default('discord') %}
         {%- if pagename is prefixedwith 'ext/' %}
-        <option value="{{ pathto(master_doc)|e }}">discord</option>
+        <option value="{{ pathto(master_doc)|e }}">{{ documentation_label }}</option>
         {%- else %}
-        <option value="{{ pathto(pagename) }}" selected>discord</option>
+        <option value="{{ pathto(pagename) }}" selected>{{ documentation_label }}</option>
         {%- endif %}
         {%- for ext, p in discord_extensions %}
+        {%- if p.startswith('http://') or p.startswith('https://') %}
+        <option value="{{ p|e }}">{{ ext }}</option>
+        {%- else %}
         <option value="{{ pathto(p + '/index')|e }}" {% if pagename is prefixedwith p %}selected{% endif %}>{{ ext }}</option>
+        {%- endif %}
         {%- endfor %}
       </select>
       <form id="search-form" role="search" class="search" action="{{ pathto('search') }}" method="get">

@@ -32,7 +32,7 @@ import time
 import threading
 import traceback
 
-from typing import Any, Callable, Coroutine, Dict, List, TYPE_CHECKING, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Callable, Coroutine, Dict, List, Literal, TYPE_CHECKING, NamedTuple, Optional, Sequence, Tuple
 
 from curl_cffi import CurlError, WebSocketError
 from curl_cffi.requests import AsyncWebSocket
@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from .types.activity import Activity as ActivityPayload
     from .types.snowflake import Snowflake
     from .types.gateway import BulkGuildSubscribePayload
+    from .types.voice import VoiceStream as VoiceStreamPayload
     from .voice_state import VoiceConnectionState
 
 
@@ -149,8 +150,8 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
     HEARTBEAT_VERSION = 27
     UPDATE_TIME_SPEND_INTERVAL_SECONDS = 30 * 60
 
-    def __init__(self, *, ws: DiscordWebSocket, interval: Optional[float] = None):
-        self.ws: DiscordWebSocket = ws
+    def __init__(self, *, ws: Any, interval: Optional[float] = None):
+        self.ws: Any = ws
         self.interval: Optional[float] = interval
         self.heartbeat_timeout: float = self.ws._max_heartbeat_timeout
 
@@ -270,9 +271,10 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
 
 class VoiceKeepAliveHandler(KeepAliveHandler):
     UPDATE_TIME_SPEND_INTERVAL_SECONDS = None
+    ws: DiscordVoiceWebSocket
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, ws: DiscordVoiceWebSocket, interval: Optional[float] = None):
+        super().__init__(ws=ws, interval=interval)
         self.recent_ack_latencies: deque[float] = deque(maxlen=20)
         self.msg: str = 'Keeping voice socket alive.'
         self.block_msg: str = 'Voice heartbeat blocked for more than %s seconds'
@@ -1175,7 +1177,9 @@ class DiscordVoiceWebSocket:
 
         await self.send_as_json(payload)
 
-    async def video_state(self, *, video_ssrc: int = 0, rtx_ssrc: int = 0, streams: Optional[Sequence[VoiceStream]] = None) -> None:
+    async def video_state(
+        self, *, video_ssrc: int = 0, rtx_ssrc: int = 0, streams: Optional[Sequence[VoiceStream]] = None
+    ) -> None:
         payload = {
             'op': self.VIDEO,
             'd': {
@@ -1260,20 +1264,18 @@ class DiscordVoiceWebSocket:
                 data[key] = previous[key]
 
         previous_streams = previous.get('streams', ())
-        streams_by_rid = {
-            stream.rid: stream
-            for stream in previous_streams
-            if isinstance(stream, VoiceStream)
-        }
-        default_type = getattr(self._connection.voice_client, 'media_stream_type', 'video')
-        streams = []
+        streams_by_rid = {stream.rid: stream for stream in previous_streams if isinstance(stream, VoiceStream)}
+        raw_default_type = getattr(self._connection.voice_client, 'media_stream_type', 'video')
+        default_type: Literal['video', 'screen'] = 'screen' if raw_default_type == 'screen' else 'video'
+        streams: List[VoiceStream] = []
 
         for payload in data.get('streams') or []:
+            payload: VoiceStreamPayload
             rid = payload['rid']
             stream = streams_by_rid.get(rid)
             if stream is None:
                 if 'type' not in payload:
-                    payload = {**payload, 'type': default_type}
+                    payload['type'] = default_type
                 stream = VoiceStream.from_dict(payload)
             else:
                 stream = stream.replace()

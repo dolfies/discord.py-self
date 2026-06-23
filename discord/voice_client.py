@@ -46,6 +46,7 @@ from .voice_media import (
     VoiceStreamResolution,
 )
 from .stream import Stream, StreamKey, StreamProtocol
+from .enums import StreamType
 
 if TYPE_CHECKING:
     from .gateway import DiscordVoiceWebSocket
@@ -163,7 +164,7 @@ class VoiceProtocol:
 
     @property
     def streams(self) -> Tuple[Stream, ...]:
-        """Tuple[:class:`Stream`]: The Go Live streams known for this voice connection.
+        """Tuple[:class:`discord.Stream`]: The Go Live streams known for this voice connection.
 
         .. versionadded:: 2.2
         """
@@ -171,21 +172,36 @@ class VoiceProtocol:
 
     @property
     def stream_clients(self) -> Tuple[StreamProtocol, ...]:
-        """Tuple[:class:`StreamProtocol`]: The Go Live stream clients attached to this voice connection.
+        """Tuple[:class:`discord.StreamProtocol`]: The Go Live stream clients attached to this voice connection.
 
         .. versionadded:: 2.2
         """
         return self.client._connection._stream_clients_for_voice_client(self)
 
-    def get_stream(self, stream_key: StreamKey) -> Optional[Stream]:
-        """Optional[:class:`Stream`]: Returns a known Go Live stream by stream key for this voice connection.
+    def get_stream(self, owner: abc.Snowflake) -> Optional[Stream]:
+        """Optional[:class:`discord.Stream`]: Returns a known Go Live stream by owner ID for this voice connection.
 
         .. versionadded:: 2.2
+
+        Parameters
+        ----------
+        owner: :class:`~discord.abc.Snowflake`
+            The owner of the stream.
+
+        Returns
+        --------
+        Optional[:class:`discord.Stream`]
+            The stream if found.
         """
         state = self.client._connection
-        if state._get_voice_client_for_stream_key(stream_key) is not self:
-            return None
-        return state.get_stream(stream_key)
+        guild_id = self.channel.guild.id if self.channel.guild else None
+        key = StreamKey(
+            type=StreamType.guild if self.channel.guild else StreamType.call,
+            guild_id=guild_id,
+            channel_id=self.channel.id,
+            owner_id=owner.id,
+        )
+        return state.get_stream(key)
 
     async def watch_stream(
         self,
@@ -200,20 +216,20 @@ class VoiceProtocol:
         Watches a Go Live stream by stream key and connects with the provided stream protocol.
 
         This is useful when the stream is not already cached. If the stream is cached,
-        this delegates to :meth:`Stream.watch`.
+        this delegates to :meth:`discord.Stream.watch`.
+
+        .. versionadded:: 2.2
 
         Parameters
         -----------
-        stream_key: :class:`StreamKey`
+        stream_key: :class:`discord.StreamKey`
             The stream key to watch.
         timeout: :class:`float`
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`StreamProtocol`]
-            A type that subclasses :class:`StreamProtocol` to connect with.
-
-        .. versionadded:: 2.2
+        cls: Type[:class:`discord.StreamProtocol`]
+            A type that subclasses :class:`discord.StreamProtocol` to connect with.
 
         Raises
         -------
@@ -222,7 +238,7 @@ class VoiceProtocol:
 
         Returns
         --------
-        :class:`StreamProtocol`
+        :class:`discord.StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -258,20 +274,20 @@ class VoiceProtocol:
 
         Creates a Go Live stream for this voice connection and connects with the provided stream protocol.
 
+        .. versionadded:: 2.2
+
         Parameters
         -----------
         timeout: :class:`float`
             The timeout in seconds to wait for the stream connection to complete.
         reconnect: :class:`bool`
             Whether the stream protocol should attempt reconnects.
-        cls: Type[:class:`StreamProtocol`]
-            A type that subclasses :class:`StreamProtocol` to connect with.
-
-        .. versionadded:: 2.2
+        cls: Type[:class:`discord.StreamProtocol`]
+            A type that subclasses :class:`discord.StreamProtocol` to connect with.
 
         Returns
         --------
-        :class:`StreamProtocol`
+        :class:`discord.StreamProtocol`
             The connected stream protocol.
         """
         state = self.client._connection
@@ -336,7 +352,7 @@ class VoiceProtocol:
         some point then :meth:`disconnect` is called.
 
         Within this method, to start the voice connection flow it is recommended to
-        use :meth:`Guild.change_voice_state` to start the flow. After which,
+        use :meth:`discord.Guild.change_voice_state` to start the flow. After which,
         :meth:`on_voice_server_update` and :meth:`on_voice_state_update` will be called.
         The order that these two are called is unspecified.
 
@@ -404,12 +420,6 @@ class VoiceClient(VoiceProtocol):
 
     Attributes
     -----------
-    session_id: :class:`str`
-        The voice connection session ID.
-    token: :class:`str`
-        The voice connection token.
-    endpoint: :class:`str`
-        The endpoint we are connecting to.
     channel: Union[:class:`VoiceChannel`, :class:`StageChannel`, :class:`DMChannel`, :class:`GroupChannel`]
         The voice channel connected to.
     """
@@ -447,60 +457,44 @@ class VoiceClient(VoiceProtocol):
 
     @property
     def guild(self) -> Optional[Guild]:
-        """Optional[:class:`Guild`]: The guild we're connected to, if applicable."""
+        """Optional[:class:`discord.Guild`]: The guild we're connected to, if applicable."""
         return getattr(self.channel, 'guild', None)
 
     @property
     def user(self) -> ClientUser:
-        """:class:`ClientUser`: The user connected to voice (i.e. ourselves)."""
+        """:class:`discord.ClientUser`: The user connected to voice (i.e. ourselves)."""
         return self._state.user  # type: ignore
 
     @property
     def session_id(self) -> Optional[str]:
-        """Optional[:class:`str`]: The current voice session ID."""
-
         return self._connection.session_id
 
     @property
     def token(self) -> Optional[str]:
-        """Optional[:class:`str`]: The current voice server token."""
-
         return self._connection.token
 
     @property
     def endpoint(self) -> Optional[str]:
-        """Optional[:class:`str`]: The current voice server endpoint."""
-
         return self._connection.endpoint
 
     @property
     def ssrc(self) -> int:
-        """:class:`int`: The negotiated audio SSRC."""
-
         return self._connection.ssrc
 
     @property
     def mode(self) -> TransportEncryptionModes:
-        """:class:`str`: The negotiated transport encryption mode."""
-
         return self._connection.mode
 
     @property
     def secret_key(self) -> List[int]:
-        """List[:class:`int`]: The negotiated transport secret key."""
-
         return self._connection.secret_key
 
     @property
     def ws(self) -> DiscordVoiceWebSocket:
-        """:class:`DiscordVoiceWebSocket`: The active voice websocket."""
-
         return self._connection.ws
 
     @property
     def timeout(self) -> float:
-        """:class:`float`: The voice connection timeout in seconds."""
-
         return self._connection.timeout
 
     @property
@@ -515,8 +509,6 @@ class VoiceClient(VoiceProtocol):
         return self._connection.dave_session.voice_privacy_code if self._connection.dave_session else None
 
     def checked_add(self, attr: str, value: int, limit: int) -> None:
-        """Add to an integer attribute and wrap it to zero past a limit."""
-
         val = getattr(self, attr)
         if val + value > limit:
             setattr(self, attr, 0)
@@ -526,25 +518,17 @@ class VoiceClient(VoiceProtocol):
     # connection related
 
     def create_connection_state(self) -> VoiceConnectionState:
-        """Create the connection state object for this voice client."""
-
         return VoiceConnectionState(self)
 
     async def on_voice_state_update(self, data: VoiceStateUpdatePayload) -> None:
-        """Handle a VOICE_STATE_UPDATE gateway payload for this client."""
-
         await self._connection.voice_state_update(data)
 
     async def on_voice_server_update(self, data: VoiceServerUpdatePayload) -> None:
-        """Handle a VOICE_SERVER_UPDATE gateway payload for this client."""
-
         await self._connection.voice_server_update(data)
 
     async def connect(
         self, *, reconnect: bool, timeout: float, self_deaf: bool = False, self_mute: bool = False, self_video: bool = False
     ) -> None:
-        """Connect this voice client to its channel."""
-
         await self._connection.connect(
             reconnect=reconnect,
             timeout=timeout,
@@ -555,8 +539,6 @@ class VoiceClient(VoiceProtocol):
         )
 
     def wait_until_connected(self, timeout: Optional[float] = 30.0) -> bool:
-        """Block until the voice connection is ready or times out."""
-
         self._connection.wait(timeout)
         return self._connection.is_connected()
 
@@ -597,7 +579,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         -----------
-        channel: Optional[:class:`~abc.Snowflake`]
+        channel: Optional[:class:`~discord.abc.Snowflake`]
             The channel to move to. Must be a voice channel.
         timeout: Optional[:class:`float`]
             How long to wait for the move to complete.
@@ -622,7 +604,7 @@ class VoiceClient(VoiceProtocol):
 
         Parameters
         ----------
-        flags: :class:`SpeakingFlags`
+        flags: :class:`discord.SpeakingFlags`
             The new speaking flags.
         """
         self._speaking_flags = flags
@@ -744,7 +726,7 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        ClientException
+        discord.ClientException
             Already playing audio or not connected.
         TypeError
             Source is not a :class:`AudioSource` or after is not a callable.
@@ -834,9 +816,9 @@ class VoiceClient(VoiceProtocol):
 
         Raises
         -------
-        ClientException
+        discord.ClientException
             You are not connected.
-        opus.OpusError
+        discord.opus.OpusError
             Encoding the data failed.
         """
         self.checked_add('sequence', 1, 65535)
