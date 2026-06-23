@@ -67,17 +67,13 @@ if TYPE_CHECKING:
 
 
 has_nacl: bool
-nacl_secret: Any
-nacl_utils: Any
 
 try:
-    import nacl.secret as nacl_secret  # type: ignore
-    import nacl.utils as nacl_utils  # type: ignore
+    import nacl.secret  # type: ignore
+    import nacl.utils  # type: ignore
 
     has_nacl = True
 except ImportError:
-    nacl_secret = None
-    nacl_utils = None
     has_nacl = False
 
 __all__ = (
@@ -472,14 +468,17 @@ class VoiceClient(VoiceProtocol):
 
     @property
     def session_id(self) -> Optional[str]:
+        """:class:`str`: The voice connection session ID."""
         return self._connection.session_id
 
     @property
     def token(self) -> Optional[str]:
+        """:class:`str`: The voice connection token."""
         return self._connection.token
 
     @property
     def endpoint(self) -> Optional[str]:
+        """:class:`str`: The endpoint we are connecting to."""
         return self._connection.endpoint
 
     @property
@@ -639,7 +638,7 @@ class VoiceClient(VoiceProtocol):
         return encrypt_packet(header, packet)
 
     def _encrypt_aead_xchacha20_poly1305_rtpsize(self, header: bytes, data) -> bytes:
-        box = nacl_secret.Aead(bytes(self.secret_key))
+        box = nacl.secret.Aead(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._incr_nonce)
@@ -648,20 +647,20 @@ class VoiceClient(VoiceProtocol):
         return header + box.encrypt(bytes(data), bytes(header), bytes(nonce)).ciphertext + nonce[:4]
 
     def _encrypt_xsalsa20_poly1305(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
         nonce[:12] = header[:12]
 
         return header + box.encrypt(bytes(data), bytes(nonce)).ciphertext
 
     def _encrypt_xsalsa20_poly1305_suffix(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
-        nonce = nacl_utils.random(nacl_secret.SecretBox.NONCE_SIZE)
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
+        nonce = nacl.utils.random(nacl.secret.SecretBox.NONCE_SIZE)
 
         return header + box.encrypt(bytes(data), nonce).ciphertext + nonce
 
     def _encrypt_xsalsa20_poly1305_lite(self, header: bytes, data) -> bytes:
-        box = nacl_secret.SecretBox(bytes(self.secret_key))
+        box = nacl.secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
 
         nonce[:4] = struct.pack('>I', self._lite_nonce)
