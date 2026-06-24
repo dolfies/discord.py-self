@@ -96,6 +96,7 @@ if TYPE_CHECKING:
         use_external_apps: BoolOrNoneT
         view_creator_monetization_analytics: BoolOrNoneT
         pin_messages: BoolOrNoneT
+        bypass_slowmode: BoolOrNoneT
 
     class _PermissionsKwargs(_BasePermissionsKwargs[bool]): ...
 
@@ -254,7 +255,7 @@ class Permissions(BaseFlags):
         permissions set to ``True``.
         """
         # Some of these are 0 because we don't want to set unnecessary bits
-        return cls(0b0000_0000_0000_1111_0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111)
+        return cls(0b0000_0000_0001_1111_0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111)
 
     @classmethod
     def _timeout_mask(cls) -> int:
@@ -309,8 +310,11 @@ class Permissions(BaseFlags):
            Added :attr:`create_expressions`, :attr:`use_soundboard`, :attr:`create_expressions`,
            :attr:`send_polls`, :attr:`send_voice_messages`, attr:`use_external_sounds`,
            :attr:`use_embedded_activities`, and :attr:`use_external_apps` permissions.
+
+        .. versionchanged:: 2.1
+           Added :attr:`bypass_slowmode` permission.
         """
-        return cls(0b0000_0000_0000_1110_0110_0100_1111_1101_1011_0011_1111_0111_1111_1111_0101_0001)
+        return cls(0b0000_0000_0001_1110_0110_0100_1111_1101_1011_0011_1111_0111_1111_1111_0101_0001)
 
     @classmethod
     def general(cls) -> Self:
@@ -355,9 +359,9 @@ class Permissions(BaseFlags):
 
         .. versionchanged:: 2.1
             Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`,
-            :attr:`set_voice_channel_status`, and :attr:`pin_messages` permissions.
+            :attr:`set_voice_channel_status`, :attr:`pin_messages`, and :attr:`bypass_slowmode` permissions.
         """
-        return cls(0b0000_0000_0000_1110_0100_0000_0111_1100_1000_0000_0000_0111_1111_1000_0100_0000)
+        return cls(0b0000_0000_0001_1110_0100_0000_0111_1100_1000_0000_0000_0111_1111_1000_0100_0000)
 
     @classmethod
     def voice(cls) -> Self:
@@ -555,7 +559,7 @@ class Permissions(BaseFlags):
 
     @flag_value
     def manage_messages(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can delete messages or bypass slowmode in a text channel.
+        """:class:`bool`: Returns ``True`` if a user can delete messages in a text channel.
 
         .. note::
 
@@ -861,6 +865,14 @@ class Permissions(BaseFlags):
         .. versionadded:: 2.1
         """
         return 1 << 51
+
+    @flag_value
+    def bypass_slowmode(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can bypass slowmode restrictions.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 52
 
 
 def _augment_from_permissions(cls):
