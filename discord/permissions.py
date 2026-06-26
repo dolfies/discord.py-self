@@ -360,7 +360,7 @@ class Permissions(BaseFlags):
         .. versionchanged:: 2.1
             Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`,
             :attr:`set_voice_channel_status` and :attr:`pin_messages`
-            
+
         .. versionchanged:: 2.2
             Added :attr:`bypass_slowmode` permission.
         """
