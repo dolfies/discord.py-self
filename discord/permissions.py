@@ -357,7 +357,7 @@ class Permissions(BaseFlags):
            Added :attr:`create_public_threads`, :attr:`create_private_threads`, :attr:`manage_threads`,
            :attr:`send_messages_in_threads` and :attr:`use_external_stickers` permissions.
 
-        .. versionchanged:: 2.1
+        .. versionchanged:: 2.2
             Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`,
             :attr:`set_voice_channel_status`, :attr:`pin_messages`, and :attr:`bypass_slowmode` permissions.
         """
@@ -870,7 +870,7 @@ class Permissions(BaseFlags):
     def bypass_slowmode(self) -> int:
         """:class:`bool`: Returns ``True`` if a user can bypass slowmode restrictions.
 
-        .. versionadded:: 2.1
+        .. versionadded:: 2.2
         """
         return 1 << 52
 
