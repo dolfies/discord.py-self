@@ -2016,15 +2016,15 @@ class Client:
         if activities is MISSING:
             if activity is not MISSING:
                 activities = [activity] if activity else []
-                activities_data = [activity.to_dict()] if activity else []
             else:
                 if ws.status == 'unknown':
-                    activities_data = [activity.to_dict() for activity in self.client_activities]
+                    activities = list(self.client_activities)
                 else:
                     activities_data = self.ws.activities
-                skip_activities = True
-        else:
-            activities_data = [a.to_dict() for a in activities] if activities else []
+                    skip_activities = True
+
+        if not skip_activities:
+            activities_data = [await a._to_processed_dict(self._connection) for a in activities] if activities else []
 
         skip_status = status is MISSING
         if status is MISSING:

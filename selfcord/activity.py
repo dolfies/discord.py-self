@@ -44,7 +44,7 @@ from .enums import (
 from .flags import ActivityFlags
 from .metadata import Metadata, MetadataObject
 from .partial_emoji import PartialEmoji
-from .utils import MISSING, _get_as_snowflake, deprecated, parse_time, parse_timestamp, utcnow
+from .utils import MISSING, _get_as_snowflake, as_chunks, deprecated, parse_time, parse_timestamp, utcnow
 
 __all__ = (
     'BaseActivity',
@@ -138,6 +138,9 @@ class BaseActivity:
 
     def to_dict(self) -> ActivityPayload:
         raise NotImplementedError
+
+    async def _to_processed_dict(self, state: ConnectionState) -> ActivityPayload:
+        return self.to_dict()
 
 
 class ActivityTimestamps:
@@ -245,9 +248,18 @@ class ActivityAssets:
         Discord CDN, media proxy, application, Twitch, YouTube, and Spotify assets
         are able to be used directly in activity assets by providing their URLs or URIs.
 
-        In order to provide an arbitrary image link, you must use :meth:`~selfcord.Client.proxy_external_application_assets`
-        or :meth:`~selfcord.Application.proxy_external_assets` to retrieved a proxied URL from Discord.
-        Otherwise, the image will not render in clients.
+        Arbitrary external image URLs (e.g. ``https://example.com/image.png``) can also
+        be passed directly to image parameters. When used with
+        :meth:`~selfcord.Client.change_presence`, these will be automatically proxied
+        through Discord's media CDN, as long as the activity has an ``application_id`` set.
+
+        You can also proxy them yourself with :meth:`~selfcord.Client.proxy_external_application_assets`
+        or :meth:`~selfcord.Application.proxy_external_assets` if you need more control.
+
+    .. versionchanged:: 2.1
+
+        Arbitrary external image URLs are automatically proxied when used with
+        :meth:`~selfcord.Client.change_presence`.
 
     Parameters
     -----------
@@ -1196,6 +1208,41 @@ class Activity(BaseActivity):
         if self.metadata:
             ret['metadata'] = dict(self.metadata)
         return ret
+
+    async def _to_processed_dict(self, state: ConnectionState) -> ActivityPayload:
+        assets = self.assets
+        if assets and self.application_id:
+            urls: List[str] = []
+            proxy_large_image = False
+            proxy_small_image = False
+            proxy_invite_cover_image = False
+
+            if assets._large_image is not None and assets._large_image.startswith(('http://', 'https://')):
+                urls.append(assets._large_image)
+                proxy_large_image = True
+            if assets._small_image is not None and assets._small_image.startswith(('http://', 'https://')):
+                urls.append(assets._small_image)
+                proxy_small_image = True
+            if assets._invite_cover_image is not None and assets._invite_cover_image.startswith(('http://', 'https://')):
+                urls.append(assets._invite_cover_image)
+                proxy_invite_cover_image = True
+
+            if urls:
+                proxied: List[str] = []
+                # This API will probably be updated to support 3 urls at some point, revisit soon
+                for chunk in as_chunks(urls, 2):
+                    data = await state.http.create_app_external_assets(self.application_id, chunk)
+                    proxied.extend(f'mp:{asset["external_asset_path"]}' for asset in data)
+
+                proxied_assets = iter(proxied)
+                if proxy_large_image:
+                    assets._large_image = next(proxied_assets)
+                if proxy_small_image:
+                    assets._small_image = next(proxied_assets)
+                if proxy_invite_cover_image:
+                    assets._invite_cover_image = next(proxied_assets)
+
+        return self.to_dict()
 
     @property
     def flags(self) -> ActivityFlags:
