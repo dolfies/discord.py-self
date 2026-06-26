@@ -311,7 +311,7 @@ class Permissions(BaseFlags):
            :attr:`send_polls`, :attr:`send_voice_messages`, attr:`use_external_sounds`,
            :attr:`use_embedded_activities`, and :attr:`use_external_apps` permissions.
 
-        .. versionchanged:: 2.1
+        .. versionchanged:: 2.2
            Added :attr:`bypass_slowmode` permission.
         """
         return cls(0b0000_0000_0001_1110_0110_0100_1111_1101_1011_0011_1111_0111_1111_1111_0101_0001)
