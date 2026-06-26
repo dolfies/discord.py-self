@@ -357,9 +357,12 @@ class Permissions(BaseFlags):
            Added :attr:`create_public_threads`, :attr:`create_private_threads`, :attr:`manage_threads`,
            :attr:`send_messages_in_threads` and :attr:`use_external_stickers` permissions.
 
-        .. versionchanged:: 2.2
+        .. versionchanged:: 2.1
             Added :attr:`send_voice_messages`, :attr:`send_polls`, :attr:`use_external_apps`,
-            :attr:`set_voice_channel_status`, :attr:`pin_messages`, and :attr:`bypass_slowmode` permissions.
+            :attr:`set_voice_channel_status` and :attr:`pin_messages`
+            
+        .. versionchanged:: 2.2
+            Added :attr:`bypass_slowmode` permission.
         """
         return cls(0b0000_0000_0001_1110_0100_0000_0111_1100_1000_0000_0000_0111_1111_1000_0100_0000)
 
