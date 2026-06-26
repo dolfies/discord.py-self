@@ -145,6 +145,7 @@ __all__ = (
     'ExperimentPlatform',
     'ApexExperimentUnitType',
     'ApexExperimentSurface',
+    'FavoriteGIFType',
 )
 
 
@@ -404,6 +405,15 @@ class StickerAnimationOptions(Enum):
     always = 0
     on_interaction = 1
     never = 2
+
+    def __int__(self) -> int:
+        return self.value
+
+
+class FavoriteGIFType(Enum):
+    none = 0
+    image = 1
+    video = 2
 
     def __int__(self) -> int:
         return self.value
