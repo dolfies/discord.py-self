@@ -468,7 +468,7 @@ class Guild(Hashable):
 
         .. versionadded:: 2.1
     tag: Optional[:class:`str`]
-        The guild's tag, if applicable.
+        The guild's tag, if applicable. Only provided for cached guilds.
 
         .. versionadded:: 2.2
     """
@@ -733,8 +733,9 @@ class Guild(Hashable):
         self.premium_progress_bar_enabled: bool = guild.get('premium_progress_bar_enabled', False)
         self._joined_at = guild.get('joined_at')
         self._incidents_data: Optional[IncidentData] = guild.get('incidents_data')
-        self.tag: Optional[str] = guild.get('tag')
-        self._badge_hash: Optional[str] = guild.get('badge')
+        profile = guild.get('profile') or {}
+        self.tag: Optional[str] = profile.get('tag')
+        self._badge_hash: Optional[str] = profile.get('badge')
 
         try:
             self._large = guild['large']  # type: ignore
@@ -1401,7 +1402,8 @@ class Guild(Hashable):
 
     @property
     def badge_icon(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Returns the badge's (tag) icon asset.
+        """Optional[:class:`Asset`]: Returns the tag badge's icon asset.
+        Only provided for cached guilds.
 
         .. versionadded:: 2.2
         """
@@ -5954,10 +5956,10 @@ class Guild(Hashable):
     async def edit_profile(
         self,
         *,
-        name: Optional[str] = ...,
-        icon: Optional[File] = ...,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
         description: Optional[str] = ...,
-        brand_color_primary: Optional[Colour] = ...,
+        brand_colour_primary: Optional[Colour] = ...,
         game_application_ids: Optional[List[int]] = ...,
         tag: Optional[str] = ...,
         badge: Optional[GuildBadgeType] = ...,
@@ -5965,15 +5967,15 @@ class Guild(Hashable):
         badge_colour_secondary: Optional[Colour] = ...,
         traits: Optional[List[GuildTrait]] = ...,
         visibility: Optional[GuildVisibility] = ...,
-        discovery_splash: Optional[File] = ...,
+        discovery_splash: Optional[bytes] = ...,
     ) -> GuildProfile: ...
 
     @overload
     async def edit_profile(
         self,
         *,
-        name: Optional[str] = ...,
-        icon: Optional[File] = ...,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
         description: Optional[str] = ...,
         brand_color_primary: Optional[Colour] = ...,
         game_application_ids: Optional[List[int]] = ...,
@@ -5983,26 +5985,27 @@ class Guild(Hashable):
         badge_color_secondary: Optional[Colour] = ...,
         traits: Optional[List[GuildTrait]] = ...,
         visibility: Optional[GuildVisibility] = ...,
-        discovery_splash: Optional[File] = ...,
+        discovery_splash: Optional[bytes] = ...,
     ) -> GuildProfile: ...
 
     async def edit_profile(
         self,
         *,
-        name: Optional[str] = None,
-        icon: Optional[File] = MISSING,
+        name: str = MISSING,
+        icon: Optional[bytes] = MISSING,
         description: Optional[str] = MISSING,
-        brand_color_primary: Optional[Colour] = None,
-        game_application_ids: Optional[List[int]] = None,
+        brand_colour_primary: Optional[Colour] = MISSING,
+        brand_color_primary: Optional[Colour] = MISSING,
+        game_application_ids: Optional[List[int]] = MISSING,
         tag: Optional[str] = MISSING,
-        badge: Optional[GuildBadgeType] = None,
+        badge: Optional[GuildBadgeType] = MISSING,
         badge_color_primary: Optional[Colour] = MISSING,
         badge_color_secondary: Optional[Colour] = MISSING,
         badge_colour_primary: Optional[Colour] = MISSING,
         badge_colour_secondary: Optional[Colour] = MISSING,
-        traits: Optional[List[GuildTrait]] = None,
-        visibility: Optional[GuildVisibility] = None,
-        discovery_splash: Optional[File] = None,
+        traits: Optional[List[GuildTrait]] = MISSING,
+        visibility: Optional[GuildVisibility] = MISSING,
+        discovery_splash: Optional[bytes] = MISSING,
     ) -> GuildProfile:
         """|coro|
 
@@ -6012,16 +6015,17 @@ class Guild(Hashable):
 
         Parameters
         -----------
-        name: Optional[:class:`str`]
+        name: :class:`str`
             The new name for the guild.
-        icon: Optional[:class:`str`]
-            The new icon for the guild. This should be a data URI string representing the image to use as the icon.
+        icon: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new icon.
             ``None`` can be passed to remove the icon.
         description: Optional[:class:`str`]
             The new description for the guild. Max 300 characters.
             ``None`` can be passed to remove the description.
-        brand_color_primary: Optional[:class:`discord.Colour`]
-            The new primary brand color for the guild.
+        brand_colour_primary: Optional[:class:`discord.Colour`]
+            The new primary brand colour for the guild.
+            This is aliased to ``brand_color_primary`` as well.
         game_application_ids: Optional[List[:class:`int`]]
             The new list of game application IDs representing the games the guild plays.
             Can only be up to 20.
@@ -6043,8 +6047,9 @@ class Guild(Hashable):
             The new list of traits for the guild.
         visibility: Optional[:class:`GuildVisibility`]
             The new visibility level for the guild.
-        discovery_splash: Optional[:class:`File`]
-            The new discovery splash for the guild.
+        discovery_splash: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new discovery splash.
+            ``None`` can be passed to remove the discovery splash.
 
         Returns
         --------
@@ -6059,24 +6064,22 @@ class Guild(Hashable):
             Editing the profile failed.
         """
         payload: Dict[str, Any] = {}
-        if name is not None:
+        if name is not MISSING:
             payload['name'] = name
         if icon is not MISSING:
-            if icon is not None:
-                payload['icon'] = utils._bytes_to_base64_data(icon.fp.read())
-            else:
-                payload['icon'] = None
+            payload['icon'] = utils._bytes_to_base64_data(icon) if icon is not None else None
 
         if description is not MISSING:
             payload['description'] = description
-        if brand_color_primary is not None:
-            payload['brand_color_primary'] = str(brand_color_primary)
-        if game_application_ids is not None:
+        actual_brand_colour_primary = brand_colour_primary if brand_colour_primary is not MISSING else brand_color_primary
+        if actual_brand_colour_primary is not MISSING:
+            payload['brand_color_primary'] = str(actual_brand_colour_primary) if actual_brand_colour_primary else None
+        if game_application_ids is not MISSING:
             payload['game_application_ids'] = game_application_ids
         if tag is not MISSING:
             payload['tag'] = tag
-        if badge is not None:
-            payload['badge'] = badge.value
+        if badge is not MISSING:
+            payload['badge'] = badge.value if badge else None
 
         actual_badge_colour_primary = badge_color_primary if badge_color_primary is not MISSING else badge_colour_primary
         if actual_badge_colour_primary is not MISSING:
@@ -6088,12 +6091,14 @@ class Guild(Hashable):
         if actual_badge_colour_secondary is not MISSING:
             payload['badge_color_secondary'] = str(actual_badge_colour_secondary) if actual_badge_colour_secondary else None
 
-        if traits is not None:
-            payload['traits'] = [trait.to_dict() for trait in traits]
-        if visibility is not None:
-            payload['visibility'] = visibility.value
-        if discovery_splash is not None:
-            payload['custom_banner'] = utils._bytes_to_base64_data(discovery_splash.fp.read())
+        if traits is not MISSING:
+            payload['traits'] = [trait.to_dict() for trait in traits] if traits else []
+        if visibility is not MISSING:
+            payload['visibility'] = visibility.value if visibility else None
+        if discovery_splash is not MISSING:
+            payload['custom_banner'] = (
+                utils._bytes_to_base64_data(discovery_splash) if discovery_splash is not None else None
+            )
 
-        data = await self._state.http.edit_guild_profile(self.id, **payload)
+        data = await self._state.http.edit_guild_profile(self.id, payload)
         return GuildProfile(data=data, state=self._state)

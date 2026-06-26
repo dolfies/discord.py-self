@@ -2435,6 +2435,7 @@ class Client:
         *,
         with_counts: bool = True,
         with_permissions: bool = True,
+        with_profile: bool = True,
         with_expiration: bool = True,
         scheduled_event_id: Optional[int] = None,
     ) -> Invite:
@@ -2474,6 +2475,11 @@ class Client:
             :attr:`.Invite.is_nickname_changeable` field.
 
             .. versionadded:: 2.1
+        with_profile: :class:`bool`
+            Whether to include guild profile information in the invite. This fills the
+            :attr:`.Invite.profile` field.
+
+            .. versionadded:: 2.2
         scheduled_event_id: Optional[:class:`int`]
             The ID of the scheduled event this invite is for.
 
@@ -2510,6 +2516,7 @@ class Client:
             resolved.code,
             with_counts=with_counts,
             with_permissions=with_permissions,
+            with_profile=with_profile,
             guild_scheduled_event_id=scheduled_event_id,
         )
         return Invite.from_incomplete(state=self._connection, data=data)
@@ -2567,6 +2574,7 @@ class Client:
             resolved.code,
             with_counts=True,
             with_permissions=True,
+            with_profile=True,
             input_value=resolved.code if isinstance(url, Invite) else url,
         )
         if isinstance(url, Invite):

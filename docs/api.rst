@@ -6851,6 +6851,7 @@ of :class:`enum.Enum`.
         The experiment is running on the ads portal.
 
 .. class:: GuildBadgeType
+
     Represents a guild badge.
 
     .. versionadded:: 2.2
@@ -6980,6 +6981,7 @@ of :class:`enum.Enum`.
         The guild has the dollar sign badge.
 
 .. class:: GuildVisibility
+
     Represents the visibility level of a guild.
 
     .. versionadded:: 2.2
@@ -9558,7 +9560,7 @@ Discovery
 
 .. attributetable:: GuildTrait
 
-.. autoclass:: GuildTrait
+.. autoclass:: GuildTrait()
     :members:
 
 .. attributetable:: GameActivity

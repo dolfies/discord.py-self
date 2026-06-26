@@ -2,11 +2,11 @@
 The MIT License (MIT)
 
 Copyright (c) 2021-present Dolfies
-            This is aliased to ``badge_color_primary`` as well.
+
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
 to deal in the Software without restriction, including without limitation
-            This is aliased to ``badge_color_secondary`` as well.
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
 and/or sell copies of the Software, and to permit persons to whom the
 Software is furnished to do so, subject to the following conditions:
 
@@ -24,15 +24,13 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, overload
+from typing import TYPE_CHECKING, Any, List, Optional, overload
 
 from .asset import Asset
 from .colour import Colour
 from .emoji import PartialEmoji
 from .enums import GuildBadgeType, GuildVisibility, try_enum
-from .file import File
 from .mixins import Hashable
-from .utils import MISSING, _bytes_to_base64_data
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -88,8 +86,6 @@ class GuildTrait:
 
     Attributes
     -----------
-    id: Optional[:class:`int`]
-        The ID of the emoji for this trait, if it has one.
     label: :class:`str`
         The label for this trait.
     position: :class:`int`
@@ -97,6 +93,8 @@ class GuildTrait:
     emoji: Optional[:class:`PartialEmoji`]
         The emoji for this trait, if it has one.
     """
+
+    __slots__ = ('label', 'position', 'emoji')
 
     def __init__(
         self,
@@ -156,15 +154,17 @@ class GuildProfile(Hashable):
         The name of the guild.
     approximate_member_count: :class:`int`
         Approximate count of total members in the guild.
-    approximate_online_count: :class:`int`
+    approximate_presence_count: :class:`int`
         Approximate count of non-offline members in the guild.
     description: :class:`str`
         The description for the guild.
-    brand_colour_primary: :class:`discord.Colour`
+    brand_colour_primary: Optional[:class:`discord.Colour`]
         The guild's accent colour.
+
+        This is aliased to ``brand_color_primary`` as well.
     game_application_ids: List[:class:`int`]
         The IDs of the applications representing the games the guild plays.
-    game_activity: Dict[:class:`int`, :class:`GameActivity`]
+    game_activity: List[:class:`GameActivity`]
         The activity of the guild in each game.
     tag: Optional[:class:`str`]
         The guild's tag, if applicable.
@@ -172,8 +172,12 @@ class GuildProfile(Hashable):
         The badge shown on the guild's tag, if applicable.
     badge_primary_colour: Optional[:class:`discord.Colour`]
         The primary colour of the guild's badge, if applicable.
+
+        This is aliased to ``badge_primary_color`` as well.
     badge_secondary_colour: Optional[:class:`discord.Colour`]
         The secondary colour of the guild's badge, if applicable.
+
+        This is aliased to ``badge_secondary_color`` as well.
     traits: List[:class:`GuildTrait`]
         The terms used to describe the guild's interest and personality.
     features: List[:class:`str`]
@@ -184,7 +188,7 @@ class GuildProfile(Hashable):
             but rather a list of community features that are enabled
             for the guild.
 
-    visibility: :class:`int`
+    visibility: :class:`GuildVisibility`
         The visibility level of the guild.
     premium_subscription_count: :class:`int`
         The number of premium subscriptions (boosts) the guild currently has.
@@ -192,6 +196,30 @@ class GuildProfile(Hashable):
         The premium tier for this guild. Corresponds to "Server Boost Level" in the official UI.
         The number goes from 0 to 3 inclusive.
     """
+
+    __slots__ = (
+        '_state',
+        '_icon_hash',
+        '_custom_banner_hash',
+        '_badge_hash',
+        'id',
+        'name',
+        'approximate_member_count',
+        'approximate_presence_count',
+        'description',
+        'brand_colour_primary',
+        'game_application_ids',
+        'game_activity',
+        'tag',
+        'badge',
+        'badge_primary_colour',
+        'badge_secondary_colour',
+        'traits',
+        'features',
+        'visibility',
+        'premium_subscription_count',
+        'premium_tier',
+    )
 
     def __init__(self, *, state: ConnectionState, data: GuildProfilePayload):
         self._state = state
@@ -219,24 +247,25 @@ class GuildProfile(Hashable):
         self.id = int(data['id'])
         self.name: str = data['name']
         self.approximate_member_count: int = data['member_count']
-        self.approximate_online_count: int = data['online_count']
+        self.approximate_presence_count: int = data['online_count']
         self.description: str = data['description']
 
-        brand_color_primary: str = data.get('brand_color_primary')
-        self.brand_color_primary: Optional[Colour] = Colour.from_str(brand_color_primary) if brand_color_primary else None
+        brand_colour_primary = data.get('brand_color_primary')
+        self.brand_colour_primary: Optional[Colour] = Colour.from_str(brand_colour_primary) if brand_colour_primary else None
 
         self.game_application_ids: List[int] = list(map(int, data['game_application_ids']))
-        self.game_activites: List[GameActivity] = [
+        self.game_activity: List[GameActivity] = [
             GameActivity(application_id=int(app_id), data=activity_data)
             for app_id, activity_data in data.get('game_activity', {}).items()
         ]
 
-        primary_colour: str = data.get('badge_color_primary')
-        secondary_colour: str = data.get('badge_color_secondary')
-        self._badge_hash: str = data.get('badge_hash')
+        primary_colour = data.get('badge_color_primary')
+        secondary_colour = data.get('badge_color_secondary')
+        self._badge_hash: Optional[str] = data.get('badge_hash')
 
         self.tag: Optional[str] = data.get('tag')
-        self.badge: Optional[GuildBadgeType] = try_enum(GuildBadgeType, data.get('badge', 0))
+        badge = data.get('badge')
+        self.badge: Optional[GuildBadgeType] = try_enum(GuildBadgeType, badge) if badge is not None else None
         self.badge_primary_colour: Optional[Colour] = Colour.from_str(primary_colour) if primary_colour else None
         self.badge_secondary_colour: Optional[Colour] = Colour.from_str(secondary_colour) if secondary_colour else None
 
@@ -244,7 +273,7 @@ class GuildProfile(Hashable):
             GuildTrait.from_dict(state=self._state, data=trait) for trait in data.get('traits', [])
         ]
         self.features: List[str] = data['features']
-        self.visibility = data['visibility']
+        self.visibility: GuildVisibility = try_enum(GuildVisibility, data['visibility'])
 
         self.premium_subscription_count: int = data['premium_subscription_count']
         self.premium_tier: int = data['premium_tier']
@@ -265,30 +294,20 @@ class GuildProfile(Hashable):
 
     @property
     def badge_icon(self) -> Optional[Asset]:
-        """Optional[:class:`Asset`]: Returns the badge's (tag) icon asset."""
+        """Optional[:class:`Asset`]: Returns the tag badge's icon asset."""
         if self._badge_hash is None:
             return None
         return Asset._from_guild_image(state=self._state, guild_id=self.id, image=self._badge_hash, path='guild-tag-badges')
 
     @property
     def member_count(self) -> int:
-        """:class:`int`: Returns the approximate member count for the guild.
-
-        .. warning::
-
-            Due to a Discord limitation, this may not always be up-to-date and accurate.
-        """
+        """:class:`int`: Returns the approximate member count for the guild."""
         return self.approximate_member_count
 
     @property
     def online_count(self) -> int:
-        """:class:`int`: Returns the approximate online count for the guild.
-
-        .. warning::
-
-            Due to a Discord limitation, this may not always be up-to-date and accurate.
-        """
-        return self.approximate_online_count
+        """:class:`int`: Returns the approximate online count for the guild."""
+        return self.approximate_presence_count
 
     @property
     def badge_secondary_color(self) -> Optional[Colour]:
@@ -300,14 +319,19 @@ class GuildProfile(Hashable):
         """Optional[:class:`discord.Colour`]: Alias for :attr:`badge_primary_colour`."""
         return self.badge_primary_colour
 
+    @property
+    def brand_color_primary(self) -> Optional[Colour]:
+        """Optional[:class:`discord.Colour`]: Alias for :attr:`brand_colour_primary`."""
+        return self.brand_colour_primary
+
     @overload
     async def edit(
         self,
         *,
-        name: Optional[str] = ...,
-        icon: Optional[File] = ...,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
         description: Optional[str] = ...,
-        brand_color_primary: Optional[Colour] = ...,
+        brand_colour_primary: Optional[Colour] = ...,
         game_application_ids: Optional[List[int]] = ...,
         tag: Optional[str] = ...,
         badge: Optional[GuildBadgeType] = ...,
@@ -315,15 +339,15 @@ class GuildProfile(Hashable):
         badge_colour_secondary: Optional[Colour] = ...,
         traits: Optional[List[GuildTrait]] = ...,
         visibility: Optional[GuildVisibility] = ...,
-        discovery_splash: Optional[File] = ...,
+        discovery_splash: Optional[bytes] = ...,
     ) -> GuildProfile: ...
 
     @overload
     async def edit(
         self,
         *,
-        name: Optional[str] = ...,
-        icon: Optional[File] = ...,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
         description: Optional[str] = ...,
         brand_color_primary: Optional[Colour] = ...,
         game_application_ids: Optional[List[int]] = ...,
@@ -333,43 +357,27 @@ class GuildProfile(Hashable):
         badge_color_secondary: Optional[Colour] = ...,
         traits: Optional[List[GuildTrait]] = ...,
         visibility: Optional[GuildVisibility] = ...,
-        discovery_splash: Optional[File] = ...,
+        discovery_splash: Optional[bytes] = ...,
     ) -> GuildProfile: ...
 
-    async def edit(
-        self,
-        *,
-        name: Optional[str] = None,
-        icon: Optional[File] = MISSING,
-        description: Optional[str] = MISSING,
-        brand_color_primary: Optional[Colour] = None,
-        game_application_ids: Optional[List[int]] = None,
-        tag: Optional[str] = MISSING,
-        badge: Optional[GuildBadgeType] = None,
-        badge_color_primary: Optional[Colour] = MISSING,
-        badge_color_secondary: Optional[Colour] = MISSING,
-        badge_colour_primary: Optional[Colour] = MISSING,
-        badge_colour_secondary: Optional[Colour] = MISSING,
-        traits: Optional[List[GuildTrait]] = None,
-        visibility: Optional[GuildVisibility] = None,
-        discovery_splash: Optional[File] = None,
-    ) -> GuildProfile:
+    async def edit(self, **kwargs: Any) -> GuildProfile:
         """|coro|
 
         Edits the guild's discovery profile.
 
         Parameters
         -----------
-        name: Optional[:class:`str`]
+        name: :class:`str`
             The new name for the guild.
-        icon: Optional[:class:`File`]
-            The new icon for the guild.
+        icon: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new icon.
             ``None`` can be passed to remove the icon.
         description: Optional[:class:`str`]
             The new description for the guild. Max 300 characters.
             ``None`` can be passed to remove the description.
-        brand_color_primary: Optional[:class:`discord.Colour`]
-            The new primary brand color for the guild.
+        brand_colour_primary: Optional[:class:`discord.Colour`]
+            The new primary brand colour for the guild.
+            This is aliased to ``brand_color_primary`` as well.
         game_application_ids: Optional[List[:class:`int`]]
             The new list of game application IDs representing the games the guild plays.
             Can only be up to 20.
@@ -388,8 +396,9 @@ class GuildProfile(Hashable):
             The new list of traits for the guild.
         visibility: Optional[:class:`GuildVisibility`]
             The new visibility level for the guild.
-        discovery_splash: Optional[:class:`File`]
-            The new discovery splash for the guild.
+        discovery_splash: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new discovery splash.
+            ``None`` can be passed to remove the discovery splash.
 
         Returns
         --------
@@ -403,43 +412,5 @@ class GuildProfile(Hashable):
         HTTPException
             Editing the profile failed.
         """
-        payload: Dict[str, Any] = {}
-        if name is not None:
-            payload['name'] = name
-        if icon is not MISSING:
-            if icon is not None:
-                payload['icon'] = _bytes_to_base64_data(icon.fp.read())
-            else:
-                payload['icon'] = None
-
-        if description is not MISSING:
-            payload['description'] = description
-        if brand_color_primary is not None:
-            payload['brand_color_primary'] = str(brand_color_primary)
-        if game_application_ids is not None:
-            payload['game_application_ids'] = game_application_ids
-        if tag is not MISSING:
-            payload['tag'] = tag
-        if badge is not None:
-            payload['badge'] = badge.value
-
-        actual_badge_colour_primary = badge_color_primary if badge_color_primary is not MISSING else badge_colour_primary
-        if actual_badge_colour_primary is not MISSING:
-            payload['badge_color_primary'] = str(actual_badge_colour_primary) if actual_badge_colour_primary else None
-
-        actual_badge_colour_secondary = (
-            badge_color_secondary if badge_color_secondary is not MISSING else badge_colour_secondary
-        )
-        if actual_badge_colour_secondary is not MISSING:
-            payload['badge_color_secondary'] = str(actual_badge_colour_secondary) if actual_badge_colour_secondary else None
-
-        if traits is not None:
-            payload['traits'] = [trait.to_dict() for trait in traits]
-        if visibility is not None:
-            payload['visibility'] = visibility.value
-        if discovery_splash is not None:
-            payload['custom_banner'] = _bytes_to_base64_data(discovery_splash.fp.read())
-
-        data = await self._state.http.edit_guild_profile(self.id, **payload)
-        self._update(data)
-        return self
+        guild = self._state._get_or_create_unavailable_guild(self.id)
+        return await guild.edit_profile(**kwargs)

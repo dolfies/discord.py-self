@@ -23,20 +23,22 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from __future__ import annotations
-from typing import List, Literal, TypedDict, Optional
+
+from typing import List, Literal, Optional, TypedDict
+
 from .snowflake import Snowflake
 from .activity import GameActivity
 from .guild import PremiumTier
 
 # fmt: off
 GuildProfileBadge = Literal[
-    0, 1, 2, 3, 4, 5, 6, 7, 
-    8, 9, 10, 11, 12, 13, 14, 
-    15, 16, 17, 18, 19, 20, 21, 
-    22, 23, 24, 25, 26, 27, 28, 
-    29, 30
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21,
+    22, 23, 24, 25, 26, 27, 28,
+    29, 30,
 ]
-GuildVisibility = Literal[0, 1, 2]
+GuildVisibility = Literal[1, 2, 3]
 # fmt: on
 
 
@@ -47,14 +49,14 @@ class GuildProfile(TypedDict):
     member_count: int
     online_count: int
     description: str
-    brand_color_primary: str
+    brand_color_primary: Optional[str]
     game_application_ids: list[Snowflake]
     game_activity: dict[Snowflake, GameActivity]
     tag: Optional[str]
-    badge: GuildProfileBadge
-    badge_color_primary: str
-    badge_color_secondary: str
-    badge_hash: str
+    badge: Optional[GuildProfileBadge]
+    badge_color_primary: Optional[str]
+    badge_color_secondary: Optional[str]
+    badge_hash: Optional[str]
     traits: list[GuildProfileTrait]
     features: List[str]  # only community features
     visibility: GuildVisibility

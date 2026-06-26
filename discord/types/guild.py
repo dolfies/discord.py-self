@@ -86,7 +86,7 @@ class _GuildCounts(TypedDict):
     approximate_presence_count: int
 
 
-class GuildProfile:
+class GuildProfile(TypedDict):
     tag: Optional[str]
     badge: Optional[str]
 
