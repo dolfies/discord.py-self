@@ -300,7 +300,12 @@ class Widget:
         return self._invite
 
     async def fetch_invite(
-        self, *, with_counts: bool = True, with_expiration: bool = True, with_permissions: bool = True
+        self,
+        *,
+        with_counts: bool = True,
+        with_expiration: bool = True,
+        with_permissions: bool = True,
+        with_profile: bool = True,
     ) -> Optional[Invite]:
         """|coro|
 
@@ -328,6 +333,11 @@ class Widget:
             :attr:`Invite.is_nickname_changeable` field.
 
             .. versionadded:: 2.1
+        with_profile: :class:`bool`
+            Whether to include guild profile information in the invite. This fills the
+            :attr:`Invite.profile` field.
+
+            .. versionadded:: 2.2
 
         Returns
         --------
@@ -337,7 +347,10 @@ class Widget:
         if self._invite:
             resolved = resolve_invite(self._invite)
             data = await self._state.http.get_invite(
-                resolved.code, with_counts=with_counts, with_permissions=with_permissions
+                resolved.code,
+                with_counts=with_counts,
+                with_permissions=with_permissions,
+                with_profile=with_profile,
             )
             return Invite.from_incomplete(state=self._state, data=data)
         return None

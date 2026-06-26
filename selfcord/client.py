@@ -115,6 +115,7 @@ from .affinity import *
 from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import ApexExperiment, UserExperiment, GuildExperiment
 from .tracking import HeadersContext
+from .discovery import GuildProfile
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -2224,6 +2225,32 @@ class Client:
         data = await state.http.get_guild_preview(guild_id)
         return state.create_guild(data)
 
+    async def fetch_guild_profile(self, guild_id: int, /) -> GuildProfile:
+        """|coro|
+
+        Retrieves a :class:`.GuildProfile` from an ID.
+
+        You must either be a member of the guild or the guild must be
+        discoverable or have a public visibility to fetch the guild profile.
+
+        .. versionadded:: 2.2
+
+        Raises
+        ------
+        NotFound
+            Guild with given ID does not exist or you have no access to it.
+        HTTPException
+            Retrieving the guild profile failed.
+
+        Returns
+        --------
+        :class:`.GuildProfile`
+            The guild profile from the ID.
+        """
+        state = self._connection
+        data = await state.http.get_guild_profile(guild_id)
+        return GuildProfile(data=data, state=state)
+
     async def create_guild(
         self,
         name: str,
@@ -2410,6 +2437,7 @@ class Client:
         *,
         with_counts: bool = True,
         with_permissions: bool = True,
+        with_profile: bool = True,
         with_expiration: bool = True,
         scheduled_event_id: Optional[int] = None,
     ) -> Invite:
@@ -2449,6 +2477,11 @@ class Client:
             :attr:`.Invite.is_nickname_changeable` field.
 
             .. versionadded:: 2.1
+        with_profile: :class:`bool`
+            Whether to include guild profile information in the invite. This fills the
+            :attr:`.Invite.profile` field.
+
+            .. versionadded:: 2.2
         scheduled_event_id: Optional[:class:`int`]
             The ID of the scheduled event this invite is for.
 
@@ -2485,6 +2518,7 @@ class Client:
             resolved.code,
             with_counts=with_counts,
             with_permissions=with_permissions,
+            with_profile=with_profile,
             guild_scheduled_event_id=scheduled_event_id,
         )
         return Invite.from_incomplete(state=self._connection, data=data)
@@ -2542,6 +2576,7 @@ class Client:
             resolved.code,
             with_counts=True,
             with_permissions=True,
+            with_profile=True,
             input_value=resolved.code if isinstance(url, Invite) else url,
         )
         if isinstance(url, Invite):
