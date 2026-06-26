@@ -316,18 +316,29 @@ class Relationship(Hashable):
 
         await self._state.http.remove_relationship(self.user.id, action=action)
 
-    async def accept(self) -> None:
+    async def accept(self, *, confirm_stranger_request: bool = False) -> None:
         """|coro|
 
         Accepts the relationship request. Only applicable for
         type :class:`RelationshipType.incoming_request`.
+
+        Parameters
+        -----------
+        confirm_stranger_request: :class:`bool`
+            Friend requests from users Discord ascertains to be strangers require additional confirmation to accept.
+
+            Without this confirmation, the acceptance will fail, prompting clients to show a warning before retrying.
+
+            .. versionadded:: 2.2
 
         Raises
         -------
         HTTPException
             Accepting the relationship failed.
         """
-        await self._state.http.add_relationship(self.user.id, action=RelationshipAction.accept_request)
+        await self._state.http.add_relationship(
+            self.user.id, action=RelationshipAction.accept_request, confirm_stranger_request=confirm_stranger_request
+        )
 
     async def edit(self, nick: Optional[str] = MISSING) -> None:
         """|coro|

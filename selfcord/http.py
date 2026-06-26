@@ -3050,10 +3050,13 @@ class HTTPClient:
         type: Optional[int] = None,
         *,
         action: RelationshipAction,
+        confirm_stranger_request: bool = False,
     ) -> Response[None]:
         payload = {}
         if type is not None:
             payload['type'] = type
+        if confirm_stranger_request:
+            payload['confirm_stranger_request'] = True
 
         if action is RelationshipAction.accept_request:  # User Profile, Friends, DM Channel
             props = choice(
