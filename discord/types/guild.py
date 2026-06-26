@@ -86,6 +86,11 @@ class _GuildCounts(TypedDict):
     approximate_presence_count: int
 
 
+class GuildProfile(TypedDict):
+    tag: Optional[str]
+    badge: Optional[str]
+
+
 class GuildPreview(_GuildMedia, _GuildCounts): ...
 
 
@@ -133,6 +138,7 @@ class Guild(UnavailableGuild, _GuildMedia):
     hub_type: Optional[Literal[0, 1, 2]]
     incidents_data: Optional[IncidentData]
     safety_alerts_channel_id: Optional[Snowflake]
+    profile: NotRequired[GuildProfile]
 
 
 class UserGuild(BaseGuild):

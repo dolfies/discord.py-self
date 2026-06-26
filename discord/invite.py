@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from .abc import GuildChannel, Snowflake
     from .application import PartialApplication
     from .channel import DMChannel, GroupChannel
+    from .discovery import GuildProfile
     from .guild import Guild
     from .message import Message
     from .state import ConnectionState
@@ -339,6 +340,8 @@ class Invite(Hashable):
     +------------------------------------+---------------------------------------------------------------+
     | :attr:`is_nickname_changeable`     | :meth:`Client.fetch_invite` with ``with_permissions`` enabled |
     +------------------------------------+---------------------------------------------------------------+
+    | :attr:`profile`                    | :meth:`Client.fetch_invite` with ``with_profile`` enabled     |
+    +------------------------------------+---------------------------------------------------------------+
     | :attr:`new_member`                 | :meth:`Client.accept_invite`\, :meth:`Invite.use`             |
     +------------------------------------+---------------------------------------------------------------+
     | :attr:`show_verification_form`     | :meth:`Client.accept_invite`\, :meth:`Invite.use`             |
@@ -363,6 +366,10 @@ class Invite(Hashable):
         .. versionadded:: 2.0
     guild: Optional[Union[:class:`Guild`, :class:`Object`, :class:`PartialInviteGuild`]]
         The guild the invite is for. Can be ``None`` if not a guild invite.
+    profile: Optional[:class:`GuildProfile`]
+        The profile of the guild this invite is for, if available.
+
+        .. versionadded:: 2.2
     created_at: Optional[:class:`datetime.datetime`]
         An aware UTC datetime object denoting the time the invite was created.
     temporary: Optional[:class:`bool`]
@@ -438,6 +445,7 @@ class Invite(Hashable):
         'max_age',
         'code',
         'guild',
+        'profile',
         'created_at',
         'uses',
         'temporary',
@@ -479,6 +487,13 @@ class Invite(Hashable):
         self.max_age: Optional[int] = data.get('max_age')
         self.code: str = data['code']
         self.guild: Optional[InviteGuildType] = self._resolve_guild(data.get('guild'), guild)
+        profile = data.get('profile')
+        if profile is not None:
+            from .discovery import GuildProfile
+
+            self.profile: Optional[GuildProfile] = GuildProfile(state=state, data=profile)
+        else:
+            self.profile = None
         self.created_at: Optional[datetime.datetime] = parse_time(data.get('created_at'))
         self.temporary: Optional[bool] = data.get('temporary')
         self.uses: Optional[int] = data.get('uses')

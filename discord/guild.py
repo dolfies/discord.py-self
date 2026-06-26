@@ -101,6 +101,7 @@ from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
 from .partial_emoji import _EmojiTag, PartialEmoji
 from .commands import _command_factory
+from .discovery import GuildProfile
 
 if TYPE_CHECKING:
     from .abc import Snowflake, SnowflakeTime
@@ -143,6 +144,8 @@ if TYPE_CHECKING:
     from .read_state import ReadState
     from .commands import UserCommand, MessageCommand, SlashCommand
     from .onboarding import OnboardingPrompt
+    from .enums import GuildBadgeType, GuildVisibility
+    from .discovery import GuildTrait
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     NonCategoryChannel = Union[VocalGuildChannel, ForumChannel, TextChannel, DirectoryChannel]
@@ -464,6 +467,10 @@ class Guild(Hashable):
         The type of Student Hub the guild is, if applicable.
 
         .. versionadded:: 2.1
+    tag: Optional[:class:`str`]
+        The guild's tag, if applicable. Only provided for cached guilds.
+
+        .. versionadded:: 2.2
     """
 
     __slots__ = (
@@ -524,6 +531,8 @@ class Guild(Hashable):
         '_joined_at',
         '_cs_joined',
         '_incidents_data',
+        'tag',
+        '_badge_hash',
     )
 
     _PREMIUM_GUILD_LIMITS: ClassVar[Dict[int, _GuildLimit]] = {
@@ -724,6 +733,9 @@ class Guild(Hashable):
         self.premium_progress_bar_enabled: bool = guild.get('premium_progress_bar_enabled', False)
         self._joined_at = guild.get('joined_at')
         self._incidents_data: Optional[IncidentData] = guild.get('incidents_data')
+        profile = guild.get('profile') or {}
+        self.tag: Optional[str] = profile.get('tag')
+        self._badge_hash: Optional[str] = profile.get('badge')
 
         try:
             self._large = guild['large']  # type: ignore
@@ -1387,6 +1399,17 @@ class Guild(Hashable):
     def created_at(self) -> datetime:
         """:class:`datetime.datetime`: Returns the guild's creation time in UTC."""
         return utils.snowflake_time(self.id)
+
+    @property
+    def badge_icon(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Returns the tag badge's icon asset.
+        Only provided for cached guilds.
+
+        .. versionadded:: 2.2
+        """
+        if self._badge_hash is None:
+            return None
+        return Asset._from_guild_image(state=self._state, guild_id=self.id, image=self._badge_hash, path='guild-tag-badges')
 
     def get_member_named(self, name: str, /) -> Optional[Member]:
         """Returns the first member found that matches the name provided.
@@ -5915,3 +5938,169 @@ class Guild(Hashable):
             reason=reason if reason is not MISSING else None,
         )
         return Onboarding(data=data, guild=self, state=self._state)
+
+    async def profile(self) -> GuildProfile:
+        """|coro|
+
+        Fetches the profile for this guild.
+
+        .. versionadded:: 2.2
+
+        Returns
+        --------
+        :class:`GuildProfile`
+            The profile that was fetched.
+        """
+        data = await self._state.http.get_guild_profile(self.id)
+        return GuildProfile(data=data, state=self._state)
+
+    @overload
+    async def edit_profile(
+        self,
+        *,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
+        description: Optional[str] = ...,
+        brand_colour_primary: Optional[Colour] = ...,
+        game_application_ids: Optional[List[int]] = ...,
+        tag: Optional[str] = ...,
+        badge: Optional[GuildBadgeType] = ...,
+        badge_colour_primary: Optional[Colour] = ...,
+        badge_colour_secondary: Optional[Colour] = ...,
+        traits: Optional[List[GuildTrait]] = ...,
+        visibility: Optional[GuildVisibility] = ...,
+        discovery_splash: Optional[bytes] = ...,
+    ) -> GuildProfile: ...
+
+    @overload
+    async def edit_profile(
+        self,
+        *,
+        name: str = ...,
+        icon: Optional[bytes] = ...,
+        description: Optional[str] = ...,
+        brand_color_primary: Optional[Colour] = ...,
+        game_application_ids: Optional[List[int]] = ...,
+        tag: Optional[str] = ...,
+        badge: Optional[GuildBadgeType] = ...,
+        badge_color_primary: Optional[Colour] = ...,
+        badge_color_secondary: Optional[Colour] = ...,
+        traits: Optional[List[GuildTrait]] = ...,
+        visibility: Optional[GuildVisibility] = ...,
+        discovery_splash: Optional[bytes] = ...,
+    ) -> GuildProfile: ...
+
+    async def edit_profile(
+        self,
+        *,
+        name: str = MISSING,
+        icon: Optional[bytes] = MISSING,
+        description: Optional[str] = MISSING,
+        brand_colour_primary: Optional[Colour] = MISSING,
+        brand_color_primary: Optional[Colour] = MISSING,
+        game_application_ids: Optional[List[int]] = MISSING,
+        tag: Optional[str] = MISSING,
+        badge: Optional[GuildBadgeType] = MISSING,
+        badge_color_primary: Optional[Colour] = MISSING,
+        badge_color_secondary: Optional[Colour] = MISSING,
+        badge_colour_primary: Optional[Colour] = MISSING,
+        badge_colour_secondary: Optional[Colour] = MISSING,
+        traits: Optional[List[GuildTrait]] = MISSING,
+        visibility: Optional[GuildVisibility] = MISSING,
+        discovery_splash: Optional[bytes] = MISSING,
+    ) -> GuildProfile:
+        """|coro|
+
+        Edits the guild's profile.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        name: :class:`str`
+            The new name for the guild.
+        icon: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new icon.
+            ``None`` can be passed to remove the icon.
+        description: Optional[:class:`str`]
+            The new description for the guild. Max 300 characters.
+            ``None`` can be passed to remove the description.
+        brand_colour_primary: Optional[:class:`discord.Colour`]
+            The new primary brand colour for the guild.
+            This is aliased to ``brand_color_primary`` as well.
+        game_application_ids: Optional[List[:class:`int`]]
+            The new list of game application IDs representing the games the guild plays.
+            Can only be up to 20.
+        tag: Optional[:class:`str`]
+            The new tag for the guild. Can only be between 3-4 characters.
+
+            Can be ``None`` to remove the tag.
+        badge: Optional[:class:`GuildBadgeType`]
+            The new badge for the guild.
+        badge_colour_primary: Optional[:class:`discord.Colour`]
+            The new primary badge color for the guild.
+
+            This is aliased to ``badge_color_primary`` as well.
+        badge_colour_secondary: Optional[:class:`discord.Colour`]
+            The new secondary badge color for the guild.
+
+            This is aliased to ``badge_color_secondary`` as well.
+        traits: Optional[List[:class:`GuildTrait`]]
+            The new list of traits for the guild.
+        visibility: Optional[:class:`GuildVisibility`]
+            The new visibility level for the guild.
+        discovery_splash: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new discovery splash.
+            ``None`` can be passed to remove the discovery splash.
+
+        Returns
+        --------
+        :class:`GuildProfile`
+            The updated guild profile.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to edit this guild's profile.
+        HTTPException
+            Editing the profile failed.
+        """
+        payload: Dict[str, Any] = {}
+        if name is not MISSING:
+            payload['name'] = name
+        if icon is not MISSING:
+            payload['icon'] = utils._bytes_to_base64_data(icon) if icon is not None else None
+
+        if description is not MISSING:
+            payload['description'] = description
+        actual_brand_colour_primary = brand_colour_primary if brand_colour_primary is not MISSING else brand_color_primary
+        if actual_brand_colour_primary is not MISSING:
+            payload['brand_color_primary'] = str(actual_brand_colour_primary) if actual_brand_colour_primary else None
+        if game_application_ids is not MISSING:
+            payload['game_application_ids'] = game_application_ids
+        if tag is not MISSING:
+            payload['tag'] = tag
+        if badge is not MISSING:
+            payload['badge'] = badge.value if badge else None
+
+        actual_badge_colour_primary = badge_color_primary if badge_color_primary is not MISSING else badge_colour_primary
+        if actual_badge_colour_primary is not MISSING:
+            payload['badge_color_primary'] = str(actual_badge_colour_primary) if actual_badge_colour_primary else None
+
+        actual_badge_colour_secondary = (
+            badge_color_secondary if badge_color_secondary is not MISSING else badge_colour_secondary
+        )
+        if actual_badge_colour_secondary is not MISSING:
+            payload['badge_color_secondary'] = str(actual_badge_colour_secondary) if actual_badge_colour_secondary else None
+
+        if traits is not MISSING:
+            payload['traits'] = [trait.to_dict() for trait in traits] if traits else []
+        if visibility is not MISSING:
+            payload['visibility'] = visibility.value if visibility else None
+        if discovery_splash is not MISSING:
+            payload['custom_banner'] = (
+                utils._bytes_to_base64_data(discovery_splash) if discovery_splash is not None else None
+            )
+
+        data = await self._state.http.edit_guild_profile(self.id, payload)
+        return GuildProfile(data=data, state=self._state)

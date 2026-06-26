@@ -29,6 +29,7 @@ from typing_extensions import NotRequired
 
 from .application import PartialApplication
 from .channel import InviteStageInstance, PartialChannel
+from .discovery import GuildProfile
 from .gateway import InviteCreateEvent, InviteDeleteEvent
 from .guild import InviteGuild, _GuildCounts
 from .scheduled_event import GuildScheduledEvent
@@ -63,6 +64,7 @@ class PartialInvite(_InviteTargetType):
     channel: Optional[PartialChannel]
     guild_id: NotRequired[Snowflake]
     guild: NotRequired[InviteGuild]
+    profile: NotRequired[GuildProfile]
     inviter: NotRequired[PartialUser]
     flags: NotRequired[int]
     expires_at: Optional[str]
