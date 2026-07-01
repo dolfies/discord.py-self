@@ -3548,7 +3548,7 @@ class ConnectionState:
         self.dispatch('call_update', old_call, call)
 
     def parse_call_delete(self, data: gw.CallDeleteEvent) -> None:
-        call = self._calls.pop(int(data['channel_id']), None)
+        call = self._calls.get(int(data['channel_id']), None)
         if call is not None:
             if data.get('unavailable'):
                 old_call = copy.copy(call)
