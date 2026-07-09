@@ -24,20 +24,30 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired, Required
 
-from .application import IntegrationApplication
 from .channel import ChannelType
+from .interactions import InteractionContextType, InteractionInstallationType
 from .snowflake import Snowflake
+from .user import PartialUser
 
-ApplicationCommandType = Literal[1, 2, 3]
+if TYPE_CHECKING:
+    from .application import EmbeddedActivityConfig
+
+ApplicationCommandType = Literal[1, 2, 3, 4]
 ApplicationCommandOptionType = Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+ApplicationCommandHandlerType = Literal[1, 2]
+ApplicationIntegrationType = InteractionInstallationType
 
 
 class _BaseApplicationCommandOption(TypedDict):
     name: str
     description: str
+    name_localizations: NotRequired[Optional[Dict[str, str]]]
+    name_localized: NotRequired[Optional[str]]
+    description_localizations: NotRequired[Optional[Dict[str, str]]]
+    description_localized: NotRequired[Optional[str]]
 
 
 class _SubCommandCommandOption(_BaseApplicationCommandOption):
@@ -56,17 +66,23 @@ class _BaseValueApplicationCommandOption(_BaseApplicationCommandOption, total=Fa
 
 class _StringApplicationCommandOptionChoice(TypedDict):
     name: str
+    name_localizations: NotRequired[Optional[Dict[str, str]]]
+    name_localized: NotRequired[Optional[str]]
     value: str
 
 
 class _StringApplicationCommandOption(_BaseApplicationCommandOption):
     type: Literal[3]
     choices: NotRequired[List[_StringApplicationCommandOptionChoice]]
+    min_length: NotRequired[int]
+    max_length: NotRequired[int]
     autocomplete: NotRequired[bool]
 
 
 class _IntegerApplicationCommandOptionChoice(TypedDict):
     name: str
+    name_localizations: NotRequired[Optional[Dict[str, str]]]
+    name_localized: NotRequired[Optional[str]]
     value: int
 
 
@@ -99,6 +115,8 @@ _SnowflakeApplicationCommandOptionChoice = Union[
 
 class _NumberApplicationCommandOptionChoice(TypedDict):
     name: str
+    name_localizations: NotRequired[Optional[Dict[str, str]]]
+    name_localized: NotRequired[Optional[str]]
     value: float
 
 
@@ -133,11 +151,40 @@ ApplicationCommandOptionChoice = Union[
 ]
 
 
+class ApplicationCommandIndexPermissions(TypedDict, total=False):
+    user: bool
+    roles: Dict[Snowflake, bool]
+    channels: Dict[Snowflake, bool]
+
+
+class CommandApplication(TypedDict):
+    id: Snowflake
+    name: str
+    description: str
+    icon: Optional[str]
+    permissions: NotRequired[ApplicationCommandIndexPermissions]
+    bot: NotRequired[PartialUser]
+    bot_id: NotRequired[Snowflake]
+    flags: str
+    embedded_activity_config: NotRequired[EmbeddedActivityConfig]
+
+
 class _BaseApplicationCommand(TypedDict):
     id: Snowflake
     application_id: Snowflake
     name: str
     version: Snowflake
+    contexts: NotRequired[List[InteractionContextType]]
+    integration_types: NotRequired[List[ApplicationIntegrationType]]
+    default_member_permissions: NotRequired[Optional[str]]
+    dm_permission: NotRequired[Optional[bool]]
+    nsfw: NotRequired[bool]
+    name_localizations: NotRequired[Optional[Dict[str, str]]]
+    name_localized: NotRequired[Optional[str]]
+    description_localizations: NotRequired[Optional[Dict[str, str]]]
+    description_localized: NotRequired[Optional[str]]
+    permissions: NotRequired[ApplicationCommandIndexPermissions]
+    global_popularity_rank: NotRequired[int]
 
 
 class _ChatInputApplicationCommand(_BaseApplicationCommand):
@@ -158,10 +205,17 @@ class _MessageApplicationCommand(_BaseContextMenuApplicationCommand):
     type: Literal[3]
 
 
+class _PrimaryEntryPointApplicationCommand(_BaseApplicationCommand):
+    description: str
+    type: Literal[4]
+    handler: NotRequired[ApplicationCommandHandlerType]
+
+
 GlobalApplicationCommand = Union[
     _ChatInputApplicationCommand,
     _UserApplicationCommand,
     _MessageApplicationCommand,
+    _PrimaryEntryPointApplicationCommand,
 ]
 
 
@@ -200,7 +254,7 @@ ApplicationCommand = Union[
 ]
 
 
-ApplicationCommandPermissionType = Literal[1, 2]
+ApplicationCommandPermissionType = Literal[1, 2, 3]
 
 
 class ApplicationCommandPermissions(TypedDict):
@@ -224,7 +278,7 @@ class ApplicationCommandCursor(TypedDict):
 
 class ApplicationCommandIndex(TypedDict):
     application_commands: List[ApplicationCommand]
-    applications: Optional[List[IntegrationApplication]]
+    applications: Optional[List[CommandApplication]]
 
 
 class GuildApplicationCommandIndex(ApplicationCommandIndex):

@@ -27,20 +27,26 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from .components import _component_factory
-from .enums import InteractionType
+from .enums import IFrameModalSize, InteractionType, try_enum
 from .interactions import _wrapped_interaction
 from .mixins import Hashable
 from .utils import _generate_nonce
 
 if TYPE_CHECKING:
     from .application import IntegrationApplication
-    from .components import ActionRow
+    from .abc import MessageableChannel
+    from .components import Component
+    from .file import _FileBase
     from .interactions import Interaction
+    from .state import ConnectionState
+    from .types.gateway import InteractionIframeModalCreateEvent
     from .types.interactions import Modal as ModalPayload, ModalSubmitInteractionData
+    from .types.message import PartialAttachment as PartialAttachmentPayload
 
 # fmt: off
 __all__ = (
     'Modal',
+    'IFrameModal',
 )
 # fmt: on
 
@@ -93,48 +99,121 @@ class Modal(Hashable):
         self.nonce: Optional[Union[int, str]] = data.get('nonce')
         self.title: str = data.get('title', '')
         self.custom_id: str = data.get('custom_id', '')
-        self.components: List[ActionRow] = [_component_factory(d) for d in data.get('components', [])]
+        self.components: List[Component] = []
+        for component_data in data.get('components', []):
+            component = _component_factory(component_data)
+            if component is not None:
+                self.components.append(component)
         self.application: IntegrationApplication = interaction._state.create_integration_application(data['application'])
 
     def __str__(self) -> str:
         return self.title
 
-    def to_dict(self) -> ModalSubmitInteractionData:
-        return {
+    def to_dict(self, files: Optional[List[_FileBase]] = None) -> ModalSubmitInteractionData:
+        submit_files: List[_FileBase] = [] if files is None else files
+        attachments: List[PartialAttachmentPayload] = []
+        payload: ModalSubmitInteractionData = {
             'id': str(self.id),
             'custom_id': self.custom_id,
-            'components': [c.to_dict() for c in self.components],  # type: ignore
+            'components': [c.to_submit_dict(submit_files, attachments) for c in self.components],  # type: ignore
         }
+        if attachments:
+            payload['attachments'] = attachments
+        return payload
 
-    async def submit(self):
+    async def submit(self) -> None:
         """|coro|
 
         Submits the modal.
 
         All required components must be already answered.
 
+        .. versionchanged:: 2.2
+
+            This no longer returns the created interaction.
+
         Raises
         -------
-        InvalidData
-            Didn't receive a response from Discord
-            (doesn't mean the interaction failed).
         NotFound
             The originating message was not found.
         HTTPException
-            Choosing the options failed.
-
-        Returns
-        --------
-        :class:`Interaction`
-            The interaction that was created.
+            Submitting the modal failed.
         """
         interaction = self.interaction
-        return await _wrapped_interaction(
+        files: List[_FileBase] = []
+        await _wrapped_interaction(
             self._state,
             _generate_nonce(),
             InteractionType.modal_submit,
             None,
             interaction.channel,
-            self.to_dict(),
+            self.to_dict(files),
             application_id=self.application.id,
+            files=files or None,
         )
+
+
+class IFrameModal(Hashable):
+    """Represents an iframe modal from an interaction.
+
+    .. versionadded:: 2.1
+
+    Attributes
+    -----------
+    id: :class:`int`
+        The interaction ID.
+    nonce: Optional[Union[:class:`int`, :class:`str`]]
+        The modal's nonce. May not be present.
+    channel: :class:`abc.Messageable`
+        The channel this iframe modal originated from.
+    interaction: Optional[:class:`Interaction`]
+        The interaction that created this iframe modal, if it was cached.
+    title: :class:`str`
+        The modal's title.
+    custom_id: :class:`str`
+        The modal's custom ID.
+    iframe_path: :class:`str`
+        The iframe path Discord provided for the modal.
+    modal_size: :class:`IFrameModalSize`
+        The modal size Discord provided.
+    application: :class:`IntegrationApplication`
+        The application that sent the iframe modal.
+    """
+
+    __slots__ = (
+        '_state',
+        'interaction',
+        'id',
+        'nonce',
+        'channel',
+        'title',
+        'custom_id',
+        'iframe_path',
+        'modal_size',
+        'application',
+    )
+
+    def __init__(
+        self,
+        *,
+        data: InteractionIframeModalCreateEvent,
+        state: ConnectionState,
+        channel: MessageableChannel,
+        interaction: Optional[Interaction] = None,
+    ) -> None:
+        self._state = state
+        self.interaction = interaction
+        self.id = int(data['id'])
+        self.nonce: Optional[Union[int, str]] = data.get('nonce')
+        self.channel = channel
+        self.title: str = data.get('title', '')
+        self.custom_id: str = data.get('custom_id', '')
+        self.iframe_path: str = data['iframe_path']
+        self.modal_size: IFrameModalSize = try_enum(IFrameModalSize, data['modal_size'])
+        self.application: IntegrationApplication = state.create_integration_application(data['application'])
+
+    def __str__(self) -> str:
+        return self.title
+
+    def __repr__(self) -> str:
+        return f'<IFrameModal id={self.id} title={self.title!r} application={self.application!r}>'

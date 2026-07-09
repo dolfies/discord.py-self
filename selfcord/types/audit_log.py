@@ -36,6 +36,7 @@ from .snowflake import Snowflake
 from .role import Role, RoleColours
 from .channel import ChannelType, DefaultReaction, PrivacyLevel, VideoQualityMode, PermissionOverwrite, ForumTag
 from .threads import Thread
+from .command import ApplicationCommand, ApplicationCommandPermissions
 from .automod import AutoModerationTriggerMetadata
 from .onboarding import PromptOption, Prompt
 
@@ -269,6 +270,12 @@ class _AuditLogChange_EntityType(TypedDict):
     old_value: EntityType
 
 
+class _AuditLogChange_ApplicationCommandPermissions(TypedDict):
+    key: str
+    new_value: ApplicationCommandPermissions
+    old_value: ApplicationCommandPermissions
+
+
 class _AuditLogChange_SnowflakeList(TypedDict):
     key: Literal['applied_tags', 'default_channel_ids']
     new_value: List[Snowflake]
@@ -329,6 +336,7 @@ AuditLogChange = Union[
     _AuditLogChange_PrivacyLevel,
     _AuditLogChange_Status,
     _AuditLogChange_EntityType,
+    _AuditLogChange_ApplicationCommandPermissions,
     _AuditLogChange_SnowflakeList,
     _AuditLogChange_AvailableTags,
     _AuditLogChange_DefaultReactionEmoji,
@@ -371,3 +379,4 @@ class AuditLog(TypedDict):
     integrations: List[PartialIntegration]
     threads: List[Thread]
     guild_scheduled_events: List[GuildScheduledEvent]
+    application_commands: NotRequired[List[ApplicationCommand]]

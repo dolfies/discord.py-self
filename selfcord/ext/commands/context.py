@@ -28,8 +28,6 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
-    Collection,
     Dict,
     Generic,
     List,
@@ -51,7 +49,6 @@ if TYPE_CHECKING:
     from typing_extensions import ParamSpec, TypeGuard
 
     from selfcord.abc import MessageableChannel
-    from selfcord.commands import MessageCommand
     from selfcord.file import _FileBase
     from selfcord.guild import Guild
     from selfcord.member import Member
@@ -517,18 +514,3 @@ class Context(selfcord.abc.Messageable, Generic[BotT]):
     @selfcord.utils.copy_doc(Message.reply)
     async def reply(self, content: Optional[str] = None, **kwargs: Any) -> Message:
         return await self.message.reply(content, **kwargs)
-
-    @selfcord.utils.deprecated('Context.application_commands')
-    @selfcord.utils.copy_doc(Message.message_commands)
-    def message_commands(
-        self,
-        query: Optional[str] = None,
-        *,
-        limit: Optional[int] = None,
-        command_ids: Optional[Collection[int]] = None,
-        application: Optional[selfcord.abc.Snowflake] = None,
-        with_applications: bool = True,
-    ) -> AsyncIterator[MessageCommand]:
-        return self.message.message_commands(
-            query, limit=limit, command_ids=command_ids, with_applications=with_applications, application=application
-        )
