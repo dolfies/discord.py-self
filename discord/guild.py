@@ -4391,14 +4391,10 @@ class Guild(Hashable):
 
         Retrieves a mapping of roles to the number of members that have it.
 
-        You must have :attr:`~Permissions.manage_roles` to do this.
-
         .. versionadded:: 2.1
 
         Raises
         -------
-        Forbidden
-            You do not have permissions to view the role member counts.
         HTTPException
             Retrieving the role member counts failed.
 
