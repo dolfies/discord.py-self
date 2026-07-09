@@ -30,6 +30,7 @@ from urllib.parse import quote
 
 from . import utils
 from .asset import Asset, AssetMixin
+from .commands import GuildApplicationCommandPermissions, _commands_from_index, _command_factory
 from .entitlements import Entitlement, GiftBatch
 from .enums import (
     ApplicationAssetType,
@@ -65,11 +66,13 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .abc import Snowflake, SnowflakeTime
+    from .commands import MessageCommand, PrimaryEntryPointCommand, SlashCommand, UserCommand
     from .enums import SKUAccessLevel, SKUFeature, SKUGenre, SKUType
     from .file import File
     from .guild import Guild
     from .metadata import MetadataObject
     from .state import ConnectionState
+    from .types.command import CommandApplication as CommandApplicationPayload
     from .store import ContentRating
     from .types.application import (
         EULA as EULAPayload,
@@ -117,6 +120,7 @@ __all__ = (
     'PartialApplication',
     'Application',
     'IntegrationApplication',
+    'CommandApplication',
     'DetectableApplication',
     'UnverifiedApplication',
 )
@@ -330,7 +334,7 @@ class EmbeddedActivityConfig:
 
     Attributes
     -----------
-    application: :class:`PartialApplication`
+    application: Union[:class:`PartialApplication`, :class:`CommandApplication`]
         The application that the configuration is for.
     supported_platforms: List[:class:`EmbeddedActivityPlatform`]
         A list of platforms that the activity supports.
@@ -368,8 +372,13 @@ class EmbeddedActivityConfig:
         '_preview_video_asset_id',
     )
 
-    def __init__(self, *, data: EmbeddedActivityConfigPayload, application: PartialApplication) -> None:
-        self.application: PartialApplication = application
+    def __init__(
+        self,
+        *,
+        data: EmbeddedActivityConfigPayload,
+        application: Union[PartialApplication, CommandApplication],
+    ) -> None:
+        self.application: Union[PartialApplication, CommandApplication] = application
         self._update(data)
 
     def __repr__(self) -> str:
@@ -771,7 +780,7 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     Attributes
     -----------
-    application: Union[:class:`PartialApplication`, :class:`IntegrationApplication`]
+    application: Union[:class:`PartialApplication`, :class:`IntegrationApplication`, :class:`CommandApplication`]
         The application that the asset is for.
     id: :class:`int`
         The asset's ID.
@@ -781,7 +790,12 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     __slots__ = ('_state', 'id', 'name', 'type', 'application')
 
-    def __init__(self, *, data: AssetPayload, application: Union[PartialApplication, IntegrationApplication]) -> None:
+    def __init__(
+        self,
+        *,
+        data: AssetPayload,
+        application: Union[PartialApplication, IntegrationApplication, CommandApplication],
+    ) -> None:
         self._state: ConnectionState = application._state
         self.application = application
         self.id: int = int(data['id'])
@@ -796,7 +810,7 @@ class ApplicationAsset(AssetMixin, Hashable):
 
     @classmethod
     def _from_embedded_activity_config(
-        cls, application: Union[PartialApplication, IntegrationApplication], id: int
+        cls, application: Union[PartialApplication, IntegrationApplication, CommandApplication], id: int
     ) -> ApplicationAsset:
         return cls(data={'id': id, 'name': '', 'type': 1}, application=application)
 
@@ -879,11 +893,11 @@ class ApplicationActivityStatistics:
     ) -> None:
         self._state = state
         self.application_id = application.id if application else int(data['application_id'])  # type: ignore
-        self.application: Optional[PartialApplication] = application or (
-            PartialApplication(state=state, data=data['application']) if 'application' in data else None  # type: ignore
+        self.application: Optional[Union[PartialApplication, IntegrationApplication]] = application or (
+            PartialApplication(state=state, data=data['application']) if 'application' in data else None
         )
         self._user = state.create_user(data['user']) if 'user' in data else None
-        self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
+        self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
         self.first_played_at: Optional[datetime] = utils.parse_time(data.get('first_played_at'))
@@ -1668,6 +1682,144 @@ class _BaseApplication(Hashable):
         return [prefix + asset['external_asset_path'] for asset in data]
 
 
+class CommandApplication(Hashable):
+    """Represents an application received in a command index.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two applications are equal.
+
+        .. describe:: x != y
+
+            Checks if two applications are not equal.
+
+        .. describe:: hash(x)
+
+            Return the application's hash.
+
+        .. describe:: str(x)
+
+            Returns the application's name.
+
+    .. versionadded:: 2.2
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The application ID.
+    name: :class:`str`
+        The application name.
+    description: :class:`str`
+        The application description.
+    bot: Optional[:class:`User`]
+        The bot attached to the application, if included.
+    bot_id: Optional[:class:`int`]
+        The ID of the bot attached to the application, if any.
+    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+        The application-wide command permission overwrites from a guild command
+        index, if available. User overwrite entries are only included for the
+        current user.
+    embedded_activity_config: Optional[:class:`EmbeddedActivityConfig`]
+        The partial embedded activity configuration for the application, if included.
+    """
+
+    # Regrettably, this guy is so partial I can't make it import from BaseApplication :(
+
+    __slots__ = (
+        '_state',
+        'id',
+        'name',
+        'description',
+        'bot',
+        'bot_id',
+        'permissions',
+        'embedded_activity_config',
+        '_icon',
+        '_flags',
+    )
+
+    def __init__(
+        self,
+        *,
+        state: ConnectionState,
+        data: CommandApplicationPayload,
+        guild: Optional[Guild] = None,
+    ) -> None:
+        self._state: ConnectionState = state
+        self._update(data, guild=guild)
+
+    def __repr__(self) -> str:
+        return f'<CommandApplication id={self.id} name={self.name!r}>'
+
+    def __str__(self) -> str:
+        return self.name
+
+    def _update(self, data: CommandApplicationPayload, *, guild: Optional[Guild] = None) -> None:
+        self.id: int = int(data['id'])
+        self.name: str = data['name']
+        self.description: str = data.get('description') or ''
+        self._icon: Optional[str] = data.get('icon')
+        self._flags: int = int(data.get('flags', 0))  # flags are given as a string here
+
+        self.bot: Optional[User] = self._state.create_user(data['bot']) if 'bot' in data else None
+        self.bot_id: Optional[int] = utils._get_as_snowflake(data, 'bot_id')
+
+        config = data.get('embedded_activity_config')
+        self.embedded_activity_config: Optional[EmbeddedActivityConfig] = (
+            EmbeddedActivityConfig(data=config, application=self) if config else None
+        )
+
+        self.permissions: Optional[GuildApplicationCommandPermissions]
+        index_permissions = data.get('permissions')
+        if guild is not None:
+            self.permissions = GuildApplicationCommandPermissions._from_index(
+                state=self._state,
+                guild=guild,
+                application_id=self.id,
+                id=self.id,
+                data=index_permissions,
+            )
+        else:
+            self.permissions = None
+
+    @property
+    def created_at(self) -> datetime:
+        """:class:`datetime.datetime`: Returns the application's creation time in UTC."""
+        return utils.snowflake_time(self.id)
+
+    @property
+    def icon(self) -> Optional[Asset]:
+        """Optional[:class:`Asset`]: Retrieves the application's icon asset, if any."""
+        if self._icon is None:
+            return None
+        return Asset._from_icon(self._state, self.id, self._icon, path='app')
+
+    @property
+    def flags(self) -> ApplicationFlags:
+        """:class:`ApplicationFlags`: The application's flags."""
+        return ApplicationFlags._from_value(self._flags)
+
+    async def assets(self) -> List[ApplicationAsset]:
+        """|coro|
+
+        Retrieves the assets of this application.
+
+        Raises
+        ------
+        HTTPException
+            Retrieving the assets failed.
+
+        Returns
+        -------
+        List[:class:`ApplicationAsset`]
+            The application's assets.
+        """
+        data = await self._state.http.get_app_assets(self.id)
+        return [ApplicationAsset(data=d, application=self) for d in data]
+
+
 class DetectableApplication(_BaseApplication):
     """Represents a detectable application.
 
@@ -1936,7 +2088,7 @@ class PartialApplication(_BaseApplication):
         self.terms_of_service_url: Optional[str] = data.get('terms_of_service_url')
         self.privacy_policy_url: Optional[str] = data.get('privacy_policy_url')
         self.deeplink_uri: Optional[str] = data.get('deeplink_uri')
-        self._flags: int = data.get('flags', 0)
+        self._flags: int = int(data.get('new_flags', data.get('flags', 0)))
         self.type: Optional[ApplicationType] = try_enum(ApplicationType, data['type']) if data.get('type') else None
         self.hook: bool = data.get('hook', False)
         self.max_participants: Optional[int] = data.get('max_participants')
@@ -2221,6 +2373,50 @@ class PartialApplication(_BaseApplication):
         app_id = self.id
         data = await state.http.get_app_activity_statistics(app_id)
         return [ApplicationActivityStatistics(data=activity, state=state, application=self) for activity in data]
+
+    async def application_commands(
+        self, *, from_index: bool = True
+    ) -> List[Union[SlashCommand, UserCommand, MessageCommand, PrimaryEntryPointCommand]]:
+        """|coro|
+
+        Returns a list of all application commands available for this application.
+
+        .. versionadded:: 2.2
+
+        .. note::
+
+            This endpoint is heavily rate limited. The application command index should be cached
+            and only refetched if necessary.
+
+        Parameters
+        -----------
+        from_index: :class:`bool`
+            Whether to fetch the commands from the command index. Otherwise,
+            uses the application commands API, which requires that you have
+            owner access to the application, but includes all commands,
+            while the command index only includes usable ones.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the commands failed.
+
+        Returns
+        --------
+        List[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`]]
+            The list of application commands that are available for this application.
+        """
+        state = self._state
+        if from_index:
+            data = await state.http.application_command_index(self.id)
+            return _commands_from_index(state=state, data=data)
+
+        data = await state.http.get_application_commands(self.id)
+        result = []
+        for command in data:
+            _, cls = _command_factory(command['type'])
+            result.append(cls(state=state, data=command, application=self))
+        return result
 
 
 class Application(PartialApplication):
@@ -4037,6 +4233,50 @@ class IntegrationApplication(Hashable):
         state = self._state
         data = await state.http.get_app_entitlement_ticket(self.id)
         return data['ticket']
+
+    async def application_commands(
+        self, *, from_index: bool = True
+    ) -> List[Union[SlashCommand, UserCommand, MessageCommand, PrimaryEntryPointCommand]]:
+        """|coro|
+
+        Returns a list of all application commands available for this application.
+
+        .. versionadded:: 2.2
+
+        .. note::
+
+            This endpoint is heavily rate limited. The application command index should be cached
+            and only refetched if necessary.
+
+        Parameters
+        -----------
+        from_index: :class:`bool`
+            Whether to fetch the commands from the command index. Otherwise,
+            uses the application commands API, which requires that you have
+            owner access to the application, but includes all commands,
+            while the command index only includes usable ones.
+
+        Raises
+        -------
+        HTTPException
+            Fetching the commands failed.
+
+        Returns
+        --------
+        List[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`]]
+            The list of application commands that are available for this application.
+        """
+        state = self._state
+        if from_index:
+            data = await state.http.application_command_index(self.id)
+            return _commands_from_index(state=state, data=data)
+
+        data = await state.http.get_application_commands(self.id)
+        result = []
+        for command in data:
+            _, cls = _command_factory(command['type'])
+            result.append(cls(state=state, data=command, application=self))
+        return result
 
     async def activity_statistics(self) -> List[ApplicationActivityStatistics]:
         """|coro|

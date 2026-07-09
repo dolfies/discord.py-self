@@ -62,6 +62,8 @@ __all__ = (
     'PrivateUserFlags',
     'MemberCacheFlags',
     'ApplicationFlags',
+    'ApplicationCommandContext',
+    'ApplicationIntegrationType',
     'ActivityFlags',
     'ChannelFlags',
     'PremiumUsageFlags',
@@ -237,8 +239,161 @@ class ArrayFlags(BaseFlags):
         self.value = reduce(or_, map((1).__lshift__, value), 0) >> 1
         return self
 
-    def to_array(self) -> List[int]:
-        return [i + 1 for i in range(self.value.bit_length()) if self.value & (1 << i)]
+    def to_array(self, *, offset: int = 0) -> List[int]:
+        return [i + offset for i in range(self.value.bit_length()) if self.value & (1 << i)]
+
+    @classmethod
+    def all(cls: Type[Self]) -> Self:
+        """A factory method that creates an instance of ArrayFlags with everything enabled."""
+        bits = max(cls.VALID_FLAGS.values()).bit_length()
+        value = (1 << bits) - 1
+        self = cls.__new__(cls)
+        self.value = value
+        return self
+
+    @classmethod
+    def none(cls: Type[Self]) -> Self:
+        """A factory method that creates an instance of ArrayFlags with everything disabled."""
+        self = cls.__new__(cls)
+        self.value = self.DEFAULT_VALUE
+        return self
+
+
+class ZeroBasedArrayFlags(ArrayFlags):
+    @classmethod
+    def _from_value(cls: Type[Self], value: Sequence[int]) -> Self:
+        self = cls.__new__(cls)
+        self.value = reduce(or_, map((1).__lshift__, value), 0)
+        return self
+
+
+@fill_with_flags()
+class ApplicationCommandContext(ZeroBasedArrayFlags):
+    r"""Wraps up an application command's interaction contexts.
+
+    .. versionadded:: 2.2
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two ApplicationCommandContext flags are equal.
+        .. describe:: x != y
+
+            Checks if two ApplicationCommandContext flags are not equal.
+        .. describe:: x | y, x |= y
+
+            Returns an ApplicationCommandContext instance with all enabled
+            flags from both x and y.
+        .. describe:: x & y, x &= y
+
+            Returns an ApplicationCommandContext instance with only flags
+            enabled on both x and y.
+        .. describe:: x ^ y, x ^= y
+
+            Returns an ApplicationCommandContext instance with only flags
+            enabled on only one of x or y, not both.
+        .. describe:: ~x
+
+            Returns an ApplicationCommandContext instance with all flags
+            inverted from x.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties rather than
+        using this raw value.
+    """
+
+    __slots__ = ()
+
+    DEFAULT_VALUE = 3
+
+    @flag_value
+    def guild(self):
+        """:class:`bool`: Whether the command can be used in guilds."""
+        return 1 << 0
+
+    @flag_value
+    def dm_channel(self):
+        """:class:`bool`: Whether the command can be used in bot DMs."""
+        return 1 << 1
+
+    @flag_value
+    def private_channel(self):
+        """:class:`bool`: Whether the command can be used in private channels."""
+        return 1 << 2
+
+
+@fill_with_flags()
+class ApplicationIntegrationType(ZeroBasedArrayFlags):
+    r"""Wraps up an application command's installation contexts.
+
+    .. versionadded:: 2.2
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two ApplicationIntegrationType flags are equal.
+        .. describe:: x != y
+
+            Checks if two ApplicationIntegrationType flags are not equal.
+        .. describe:: x | y, x |= y
+
+            Returns an ApplicationIntegrationType instance with all enabled
+            flags from both x and y.
+        .. describe:: x & y, x &= y
+
+            Returns an ApplicationIntegrationType instance with only flags
+            enabled on both x and y.
+        .. describe:: x ^ y, x ^= y
+
+            Returns an ApplicationIntegrationType instance with only flags
+            enabled on only one of x or y, not both.
+        .. describe:: ~x
+
+            Returns an ApplicationIntegrationType instance with all flags
+            inverted from x.
+        .. describe:: hash(x)
+
+            Return the flag's hash.
+        .. describe:: iter(x)
+
+            Returns an iterator of ``(name, value)`` pairs. This allows it
+            to be, for example, constructed as a dict or a list of pairs.
+        .. describe:: bool(b)
+
+            Returns whether any flag is set to ``True``.
+
+    Attributes
+    -----------
+    value: :class:`int`
+        The raw value. You should query flags via the properties rather than
+        using this raw value.
+    """
+
+    __slots__ = ()
+
+    @flag_value
+    def guild(self):
+        """:class:`bool`: Whether the command is available for guild installs."""
+        return 1 << 0
+
+    @flag_value
+    def user(self):
+        """:class:`bool`: Whether the command is available for user installs."""
+        return 1 << 1
 
 
 @fill_with_flags()
@@ -2975,6 +3130,9 @@ class AutoModPresets(ArrayFlags):
     """
 
     __slots__ = ()
+
+    def to_array(self) -> List[int]:
+        return super().to_array(offset=1)
 
     @classmethod
     def all(cls: Type[Self]) -> Self:

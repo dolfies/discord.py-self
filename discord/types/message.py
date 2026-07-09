@@ -33,7 +33,7 @@ from .user import PartialUser
 from .emoji import PartialEmoji
 from .embed import Embed
 from .channel import ChannelType
-from .components import MessageActionRow
+from .components import Component
 from .interactions import MessageInteraction
 from .application import BaseApplication, PartialApplication
 from .sticker import StickerItem
@@ -188,7 +188,7 @@ class MessageSnapshot(TypedDict):
     mentions: List[UserWithMember]
     mention_roles: SnowflakeList
     sticker_items: NotRequired[List[StickerItem]]
-    components: NotRequired[List[MessageActionRow]]
+    components: NotRequired[List[Component]]
 
 
 class Message(PartialMessage):
@@ -219,7 +219,7 @@ class Message(PartialMessage):
     sticker_items: NotRequired[List[StickerItem]]
     referenced_message: NotRequired[Optional[Message]]
     interaction: NotRequired[MessageInteraction]
-    components: NotRequired[List[MessageActionRow]]
+    components: NotRequired[List[Component]]
     position: NotRequired[int]
     call: NotRequired[Call]
     role_subscription_data: NotRequired[RoleSubscriptionData]

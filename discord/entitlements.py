@@ -158,7 +158,7 @@ class Entitlement(Hashable):
 
         self.id: int = int(data['id'])
         self.type: EntitlementType = try_enum(EntitlementType, data['type'])
-        self.user_id: int = int(data.get('user_id') or state.self_id)  # type: ignore
+        self.user_id: int = int(data.get('user_id') or state.self_id)
         self.sku_id: int = int(data['sku_id'])
         self.application_id: int = int(data['application_id'])
         self.promotion_id: Optional[int] = _get_as_snowflake(data, 'promotion_id')

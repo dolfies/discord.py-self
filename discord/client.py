@@ -124,6 +124,7 @@ if TYPE_CHECKING:
 
     from .abc import Snowflake, SnowflakeTime
     from .channel import DMChannel, GroupChannel
+    from .commands import MessageCommand, PrimaryEntryPointCommand, SlashCommand, UserCommand
     from .guild import GuildChannel
     from .message import Message
     from .member import Member
@@ -2430,6 +2431,36 @@ class Client:
         data = await state.http.get_friend_invites()
         return [Invite.from_incomplete(state=state, data=d) for d in data]
 
+    async def application_commands(
+        self,
+    ) -> List[Union[SlashCommand, UserCommand, MessageCommand, PrimaryEntryPointCommand]]:
+        """|coro|
+
+        Returns a list of application commands installed to the current user's account.
+
+        .. versionadded:: 2.2
+
+        .. note::
+
+            This endpoint is heavily rate limited. The application command index should be cached
+            and only refetched if necessary.
+
+        Raises
+        ------
+        HTTPException
+            Fetching the commands failed.
+
+        Returns
+        -------
+        List[Union[:class:`~discord.SlashCommand`, :class:`~discord.UserCommand`, :class:`~discord.MessageCommand`, :class:`~discord.PrimaryEntryPointCommand`]]
+            The list of application commands installed to the current user's account.
+        """
+        from .commands import _commands_from_index
+
+        state = self._connection
+        data = await state.http.user_application_command_index()
+        return _commands_from_index(state=state, data=data)
+
     async def fetch_invite(
         self,
         url: Union[Invite, str],
@@ -3465,7 +3496,7 @@ class Client:
         users: List[_Snowflake] = [u.id for u in recipients]
         if len(users) == 1:
             # To create a group DM with one user, the client user must be included
-            users.append(state.self_id)  # type: ignore # user is always present when logged in
+            users.append(state.self_id)
 
         data = await state.http.start_group(users)
         return GroupChannel(me=self.user, data=data, state=state)  # type: ignore # user is always present when logged in

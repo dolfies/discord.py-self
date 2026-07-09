@@ -24,11 +24,9 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Optional, Union
 
-from .enums import InteractionType, try_enum
-from .errors import InvalidData
+from .enums import InteractionFailureReason, InteractionType, try_enum
 from .mixins import Hashable
 from .utils import MISSING, cached_slot_property, find
 
@@ -96,12 +94,28 @@ class Interaction(Hashable):
         Whether the interaction succeeded.
         If this is your interaction, this is not immediately available.
         It is filled when Discord notifies us about the outcome of the interaction.
+    reason_code: Optional[:class:`InteractionFailureReason`]
+        The failure reason code Discord provided, if the interaction failed.
+
+        .. versionadded:: 2.2
     modal: Optional[:class:`Modal`]
         The modal that is in response to this interaction.
         This is not immediately available and is filled when the modal is dispatched.
     """
 
-    __slots__ = ('id', 'type', 'nonce', 'channel', 'user', 'name', 'successful', 'modal', '_cs_message', '_state')
+    __slots__ = (
+        'id',
+        'type',
+        'nonce',
+        'channel',
+        'user',
+        'name',
+        'successful',
+        'reason_code',
+        'modal',
+        '_cs_message',
+        '_state',
+    )
 
     def __init__(
         self,
@@ -122,6 +136,7 @@ class Interaction(Hashable):
         self.user = user
         self.name = name
         self.successful: bool = MISSING
+        self.reason_code: Optional[InteractionFailureReason] = None
         self.modal: Optional[Modal] = None
         self._state = state
         if message is not None:
@@ -196,26 +211,14 @@ async def _wrapped_interaction(
     channel: MessageableChannel,
     data: InteractionData,
     **kwargs,
-) -> Interaction:
+) -> None:
     state._interaction_cache[nonce] = (type.value, name, channel)
+    state._interaction_cache.move_to_end(nonce)
+    if len(state._interaction_cache) > 50:
+        state._interaction_cache.popitem(last=False)
 
     try:
         await state.http.interact(type, data, channel, nonce=nonce, **kwargs)
-        # The maximum possible time a response can take is 3 seconds,
-        # +/- a few milliseconds for network latency
-        # However, people have been getting errors because their gateway
-        # disconnects while waiting for the interaction, causing the
-        # response to be delayed until the gateway is reconnected
-        # 12 seconds should be enough to account for this
-        i = await state.client.wait_for(
-            'interaction_finish',
-            check=lambda d: d.nonce == nonce,
-            timeout=12,
-        )
-    except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
-        raise InvalidData('Did not receive a response from Discord') from exc
-    finally:
-        # Cleanup even if we failed
+    except Exception:
         state._interaction_cache.pop(nonce, None)
-
-    return i
+        raise

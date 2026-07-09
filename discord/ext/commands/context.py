@@ -28,8 +28,6 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
-    Collection,
     Dict,
     Generic,
     List,
@@ -51,7 +49,6 @@ if TYPE_CHECKING:
     from typing_extensions import ParamSpec, TypeGuard
 
     from discord.abc import MessageableChannel
-    from discord.commands import MessageCommand
     from discord.file import _FileBase
     from discord.guild import Guild
     from discord.member import Member
@@ -517,18 +514,3 @@ class Context(discord.abc.Messageable, Generic[BotT]):
     @discord.utils.copy_doc(Message.reply)
     async def reply(self, content: Optional[str] = None, **kwargs: Any) -> Message:
         return await self.message.reply(content, **kwargs)
-
-    @discord.utils.deprecated('Context.application_commands')
-    @discord.utils.copy_doc(Message.message_commands)
-    def message_commands(
-        self,
-        query: Optional[str] = None,
-        *,
-        limit: Optional[int] = None,
-        command_ids: Optional[Collection[int]] = None,
-        application: Optional[discord.abc.Snowflake] = None,
-        with_applications: bool = True,
-    ) -> AsyncIterator[MessageCommand]:
-        return self.message.message_commands(
-            query, limit=limit, command_ids=command_ids, with_applications=with_applications, application=application
-        )

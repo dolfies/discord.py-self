@@ -1104,6 +1104,15 @@ Interactions
     :param interaction: The interaction data with :attr:`Interaction.successful` filled.
     :type interaction: :class:`Interaction`
 
+.. function:: on_application_command_autocomplete_response(response)
+
+    Called when an application command autocomplete request receives a response.
+
+    .. versionadded:: 2.2
+
+    :param response: The autocomplete response data.
+    :type response: :class:`ApplicationCommandAutocomplete`
+
 .. function:: on_modal(modal)
 
     Called when a modal is sent.
@@ -3447,6 +3456,21 @@ of :class:`enum.Enum`.
         - :attr:`~AuditLogDiff.invitable`
 
         .. versionadded:: 2.0
+
+    .. attribute:: application_command_permission_update
+
+        An application command's permissions were updated.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        an :class:`Integration`, one of :class:`SlashCommand`, :class:`UserCommand`,
+        :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`, or
+        :class:`Object`.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.application_command_permissions`
+
+        .. versionadded:: 2.2
 
     .. attribute:: automod_rule_create
 
@@ -6078,6 +6102,11 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.1
 
+    .. attribute:: fallback
+
+        Optional[:class:`Locale`]: Returns the locale's fallback locale if one exists.
+
+        .. versionadded:: 2.2
 
 .. class:: MFALevel
 
@@ -6403,6 +6432,110 @@ of :class:`enum.Enum`.
 
         Represents submission of a modal interaction.
 
+.. class:: InteractionFailureReason
+
+    Specifies why an :class:`Interaction` failed.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: unknown
+
+        The failure reason is unknown.
+
+    .. attribute:: timeout
+
+        The interaction timed out.
+
+    .. attribute:: activity_launch_unknown_application
+
+        The activity application is unknown.
+
+    .. attribute:: activity_launch_unknown_channel
+
+        The activity channel is unknown.
+
+    .. attribute:: activity_launch_unknown_guild
+
+        The activity guild is unknown.
+
+    .. attribute:: activity_launch_invalid_platform
+
+        The activity cannot be launched on the current platform.
+
+    .. attribute:: activity_launch_not_in_experiment
+
+        The guild or user is not eligible for a required experiment.
+
+    .. attribute:: activity_launch_invalid_channel_type
+
+        The activity cannot be launched in the current channel type.
+
+    .. attribute:: activity_launch_invalid_channel_no_afk
+
+        The activity cannot be launched in an AFK channel.
+
+    .. attribute:: activity_launch_invalid_dev_preview_guild_size
+
+        The guild is too large for the activity's development preview.
+
+    .. attribute:: activity_launch_invalid_user_age_gate
+
+        The user cannot use an NSFW interaction.
+
+    .. attribute:: activity_launch_invalid_user_verification_level
+
+        The user does not meet the guild's verification level.
+
+    .. attribute:: activity_launch_invalid_user_permissions
+
+        The user has insufficient permissions for the interaction.
+
+    .. attribute:: activity_launch_invalid_configuration_not_embedded
+
+        The application is not an embedded activity.
+
+    .. attribute:: activity_launch_invalid_configuration_platform_not_supported
+
+        The embedded activity does not support the current platform.
+
+    .. attribute:: activity_launch_invalid_configuration_platform_not_released
+
+        The embedded activity is not released for the current platform.
+
+    .. attribute:: activity_launch_failed_to_launch
+
+        The activity failed to launch.
+
+    .. attribute:: activity_launch_invalid_user_no_access_to_activity
+
+        The user does not have access to launch the activity.
+
+    .. attribute:: activity_launch_invalid_location_type
+
+        The activity cannot be launched from the current location type.
+
+    .. attribute:: activity_launch_invalid_user_region_for_application
+
+        The embedded activity is not supported in the current region.
+
+.. class:: IFrameModalSize
+
+    Specifies the size of an :class:`IFrameModal`.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: small
+
+        A small modal.
+
+    .. attribute:: normal
+
+        A normal modal.
+
+    .. attribute:: big
+
+        A big modal.
+
 .. class:: ComponentType
 
     Represents the component type of a component.
@@ -6421,9 +6554,77 @@ of :class:`enum.Enum`.
 
         Represents a select component.
 
+    .. attribute:: string_select
+
+        Represents a string select component. This is an alias for :attr:`select`.
+
     .. attribute:: text_input
 
         Represents a text box component.
+
+    .. attribute:: user_select
+
+        Represents a user select component.
+
+    .. attribute:: role_select
+
+        Represents a role select component.
+
+    .. attribute:: mentionable_select
+
+        Represents a mentionable select component.
+
+    .. attribute:: channel_select
+
+        Represents a channel select component.
+
+    .. attribute:: section
+
+        Represents a section component.
+
+    .. attribute:: text_display
+
+        Represents a text display component.
+
+    .. attribute:: thumbnail
+
+        Represents a thumbnail component.
+
+    .. attribute:: media_gallery
+
+        Represents a media gallery component.
+
+    .. attribute:: file
+
+        Represents a file component.
+
+    .. attribute:: separator
+
+        Represents a separator component.
+
+    .. attribute:: container
+
+        Represents a container component.
+
+    .. attribute:: label
+
+        Represents a label component.
+
+    .. attribute:: file_upload
+
+        Represents a file upload component.
+
+    .. attribute:: radio_group
+
+        Represents a radio group component.
+
+    .. attribute:: checkbox_group
+
+        Represents a checkbox group component.
+
+    .. attribute:: checkbox
+
+        Represents a checkbox component.
 
 .. class:: ButtonStyle
 
@@ -6450,6 +6651,10 @@ of :class:`enum.Enum`.
     .. attribute:: link
 
         Represents a link button.
+
+    .. attribute:: premium
+
+        Represents a premium button.
 
     .. attribute:: blurple
 
@@ -6493,6 +6698,60 @@ of :class:`enum.Enum`.
 
         An alias for :attr:`paragraph`.
 
+.. class:: SelectDefaultValueType
+
+    Represents the type of default value for a select component.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: user
+
+        Represents a user default value.
+
+    .. attribute:: role
+
+        Represents a role default value.
+
+    .. attribute:: channel
+
+        Represents a channel default value.
+
+.. class:: SeparatorSpacing
+
+    Represents the spacing size of a separator component.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: small
+
+        Represents small separator spacing.
+
+    .. attribute:: large
+
+        Represents large separator spacing.
+
+.. class:: MediaItemLoadingState
+
+    Represents the loading state of media in a component.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: unknown
+
+        The loading state is unknown.
+
+    .. attribute:: loading
+
+        The media is loading.
+
+    .. attribute:: loaded
+
+        The media has loaded.
+
+    .. attribute:: not_found
+
+        The media could not be found.
+
 .. class:: ApplicationCommandType
 
     The type of application command.
@@ -6510,6 +6769,76 @@ of :class:`enum.Enum`.
     .. attribute:: message
 
         A message context menu command.
+
+    .. attribute:: primary_entry_point
+
+        A primary entry point command.
+
+        .. versionadded:: 2.2
+
+.. class:: ApplicationCommandPermissionType
+
+    The type of application command permission overwrite.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: role
+
+        The overwrite applies to a role.
+
+    .. attribute:: user
+
+        The overwrite applies to a user or guild member.
+
+    .. attribute:: channel
+
+        The overwrite applies to a channel.
+
+.. class:: ApplicationCommandHandlerType
+
+    The handler type of an application command.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: app_handler
+
+        The command is handled by the application.
+
+    .. attribute:: discord_launch_activity
+
+        The command launches an activity through Discord.
+
+.. class:: InteractionContextType
+
+    The interaction context where an application command can be used.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: guild
+
+        The command can be used in guilds.
+
+    .. attribute:: bot_dm
+
+        The command can be used in bot DMs.
+
+    .. attribute:: private_channel
+
+        The command can be used in private channels.
+
+.. class:: InteractionInstallationType
+
+    The installation context where an application command can be installed.
+
+    .. versionadded:: 2.2
+
+    .. attribute:: guild
+
+        The command can be installed to guilds.
+
+    .. attribute:: user
+
+        The command can be installed to users.
 
 .. class:: ApplicationCommandOptionType
 
@@ -7487,6 +7816,14 @@ AuditLogDiff
 
         :type: :class:`Permissions`
 
+    .. attribute:: application_command_permissions
+
+        A list of application command permission overwrites.
+
+        .. versionadded:: 2.2
+
+        :type: List[:class:`ApplicationCommandPermissions`]
+
     .. attribute:: colour
                    color
 
@@ -8061,16 +8398,10 @@ Messageable
 
 .. autoclass:: discord.abc.Messageable()
     :members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 Connectable
 ~~~~~~~~~~~~
@@ -8128,16 +8459,10 @@ User
 .. autoclass:: User()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: UserProfile
 
@@ -8308,6 +8633,11 @@ Application
 .. autoclass:: PartialApplication()
     :members:
     :inherited-members:
+
+.. attributetable:: CommandApplication
+
+.. autoclass:: CommandApplication()
+    :members:
 
 .. attributetable:: ApplicationProfile
 
@@ -8779,16 +9109,10 @@ Member
 .. autoclass:: Member()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: MemberProfile
 
@@ -8861,32 +9185,20 @@ GuildChannel
 .. autoclass:: TextChannel()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: VoiceChannel
 
 .. autoclass:: VoiceChannel()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: StageChannel
 
@@ -8914,32 +9226,20 @@ PrivateChannel
 .. autoclass:: DMChannel()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: GroupChannel
 
 .. autoclass:: GroupChannel()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 PartialMessageable
 ~~~~~~~~~~~~~~~~~~~
@@ -8958,16 +9258,10 @@ Thread
 .. autoclass:: Thread()
     :members:
     :inherited-members:
-    :exclude-members: typing, slash_commands, user_commands
+    :exclude-members: typing
 
     .. automethod:: typing
         :async-with:
-
-    .. automethod:: slash_commands
-        :async-for:
-
-    .. automethod:: user_commands
-        :async-for:
 
 .. attributetable:: ThreadMember
 
@@ -9009,10 +9303,6 @@ Message
 .. autoclass:: Message()
     :members:
     :inherited-members:
-    :exclude-members: message_commands
-
-    .. automethod:: message_commands
-        :async-for:
 
 .. attributetable:: PartialMessage
 
@@ -9078,6 +9368,11 @@ Modal
 .. autoclass:: Modal()
     :members:
 
+.. attributetable:: IFrameModal
+
+.. autoclass:: IFrameModal()
+    :members:
+
 Component
 ~~~~~~~~~~
 
@@ -9102,6 +9397,7 @@ Component
 .. autoclass:: SelectMenu()
     :members:
     :inherited-members:
+    :exclude-members: type
 
 .. attributetable:: SelectOption
 
@@ -9111,6 +9407,105 @@ Component
 .. attributetable:: TextInput
 
 .. autoclass:: TextInput()
+    :members:
+    :inherited-members:
+
+.. attributetable:: SelectDefaultValue
+
+.. autoclass:: SelectDefaultValue()
+    :members:
+    :exclude-members: type
+
+.. attributetable:: SectionComponent
+
+.. autoclass:: SectionComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: TextDisplay
+
+.. autoclass:: TextDisplay()
+    :members:
+    :inherited-members:
+
+.. attributetable:: UnfurledMediaItem
+
+.. autoclass:: UnfurledMediaItem()
+    :members:
+
+.. attributetable:: ThumbnailComponent
+
+.. autoclass:: ThumbnailComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: MediaGalleryItem
+
+.. autoclass:: MediaGalleryItem()
+    :members:
+    :exclude-members: media
+
+.. attributetable:: MediaGalleryComponent
+
+.. autoclass:: MediaGalleryComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: FileComponent
+
+.. autoclass:: FileComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: SeparatorComponent
+
+.. autoclass:: SeparatorComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: Container
+
+.. autoclass:: Container()
+    :members:
+    :inherited-members:
+
+.. attributetable:: LabelComponent
+
+.. autoclass:: LabelComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: FileUploadComponent
+
+.. autoclass:: FileUploadComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: RadioGroupOption
+
+.. autoclass:: RadioGroupOption()
+    :members:
+
+.. attributetable:: RadioGroupComponent
+
+.. autoclass:: RadioGroupComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: CheckboxGroupOption
+
+.. autoclass:: CheckboxGroupOption()
+    :members:
+
+.. attributetable:: CheckboxGroupComponent
+
+.. autoclass:: CheckboxGroupComponent()
+    :members:
+    :inherited-members:
+
+.. attributetable:: CheckboxComponent
+
+.. autoclass:: CheckboxComponent()
     :members:
     :inherited-members:
 
@@ -9128,6 +9523,14 @@ ApplicationCommand
 .. attributetable:: MessageCommand
 
 .. autoclass:: MessageCommand()
+    :members:
+    :inherited-members:
+
+    .. automethod:: __call__
+
+.. attributetable:: PrimaryEntryPointCommand
+
+.. autoclass:: PrimaryEntryPointCommand()
     :members:
     :inherited-members:
 
@@ -9157,6 +9560,31 @@ ApplicationCommand
 .. attributetable:: OptionChoice
 
 .. autoclass:: OptionChoice()
+    :members:
+
+.. attributetable:: AllChannels
+
+.. autoclass:: AllChannels()
+    :members:
+
+.. attributetable:: ApplicationCommandPermissions
+
+.. autoclass:: ApplicationCommandPermissions()
+    :members:
+
+.. attributetable:: GuildApplicationCommandPermissions
+
+.. autoclass:: GuildApplicationCommandPermissions()
+    :members:
+
+.. attributetable:: ApplicationCommandAutocompleteChoice
+
+.. autoclass:: ApplicationCommandAutocompleteChoice()
+    :members:
+
+.. attributetable:: ApplicationCommandAutocomplete
+
+.. autoclass:: ApplicationCommandAutocomplete()
     :members:
 
 Invite
@@ -9553,6 +9981,16 @@ Flags
 .. attributetable:: ApplicationFlags
 
 .. autoclass:: ApplicationFlags()
+    :members:
+
+.. attributetable:: ApplicationCommandContext
+
+.. autoclass:: ApplicationCommandContext()
+    :members:
+
+.. attributetable:: ApplicationIntegrationType
+
+.. autoclass:: ApplicationIntegrationType()
     :members:
 
 .. attributetable:: ApplicationDiscoveryFlags

@@ -39,6 +39,7 @@ from typing import (
     Callable,
     Any,
     List,
+    Mapping,
     TypeVar,
     Coroutine,
     Tuple,
@@ -72,6 +73,9 @@ from .relationship import Relationship, FriendSuggestion
 from .role import Role
 from .enums import (
     ChannelType,
+    InteractionFailureReason,
+    InteractionType,
+    Locale,
     MessageType,
     PaymentSourceType,
     ReadStateType,
@@ -93,9 +97,9 @@ from .sticker import GuildSticker
 from .settings import UserSettings, GuildSettings, ChannelSettings, TrackingSettings
 from .interactions import Interaction
 from .permissions import Permissions
-from .modal import Modal
+from .modal import Modal, IFrameModal
 from .member import VoiceState
-from .application import IntegrationApplication, PartialApplication
+from .application import CommandApplication, IntegrationApplication, PartialApplication
 from .connections import Connection
 from .payments import Payment
 from .entitlements import Entitlement, Gift
@@ -116,7 +120,7 @@ if TYPE_CHECKING:
     from .abc import Snowflake as abcSnowflake
     from .activity import ActivityTypes
     from .message import MessageableChannel
-    from .guild import GuildChannel
+    from .guild import Guild, GuildChannel
     from .http import HTTPClient
     from .voice_client import VoiceProtocol
     from .client import Client
@@ -130,6 +134,7 @@ if TYPE_CHECKING:
     from .types.application import (
         IntegrationApplication as IntegrationApplicationPayload,
     )
+    from .types.command import CommandApplication as CommandApplicationPayload
     from .types.channel import DMChannel as DMChannelPayload
     from .types.user import User as UserPayload, PartialUser as PartialUserPayload
     from .types.emoji import Emoji as EmojiPayload, PartialEmoji as PartialEmojiPayload
@@ -741,7 +746,7 @@ class GuildSubscriptions:
         new_payload = self._pending.copy()
         for guild_id, subscriptions in changes.items():
             old = new_payload.get(guild_id, EMPTY)
-            new_payload[guild_id] = {**old, **subscriptions}  # type: ignore # ???
+            new_payload[guild_id] = {**old, **subscriptions}
 
         if len(utils._to_json(new_payload)) > self.MAX_PAYLOAD_SIZE:
             if len(utils._to_json(changes)) > self.MAX_PAYLOAD_SIZE:
@@ -1180,8 +1185,12 @@ class ConnectionState:
         self._stream_clients: Dict[StreamKey, StreamProtocol] = {}
         self._stream_server_updates: Dict[StreamKey, gw.StreamServerUpdateEvent] = {}
 
-        self._interaction_cache: Dict[Union[int, str], Tuple[int, Optional[str], MessageableChannel]] = {}
-        self._interactions: OrderedDict[Union[int, str], Interaction] = OrderedDict()  # LRU of max size 15
+        self._interaction_cache: OrderedDict[Union[int, str], Tuple[int, Optional[str], MessageableChannel]] = OrderedDict()
+        self._interactions: OrderedDict[Union[int, str], Interaction] = OrderedDict()
+        self._application_command_autocomplete_cache: OrderedDict[
+            Union[int, str], Tuple[MessageableChannel, Any, Any, Union[str, int, float]]
+        ] = OrderedDict()
+        self._interaction_iframe_modals: Dict[int, IFrameModal] = {}
         self._relationships: Dict[int, Relationship] = {}
         self._private_channels: Dict[int, PrivateChannel] = {}
         self._private_channels_by_user: Dict[int, DMChannel] = {}
@@ -1251,6 +1260,10 @@ class ConnectionState:
     @property
     def locale(self) -> str:
         return str(getattr(self.user, 'locale', 'en-US'))
+
+    @property
+    def parsed_locale(self) -> Locale:
+        return getattr(self.user, 'locale', Locale.american_english)
 
     @property
     def voice_clients(self) -> List[VoiceProtocol]:
@@ -1433,8 +1446,49 @@ class ConnectionState:
 
     def _add_interaction(self, interaction: Interaction) -> None:
         self._interactions[interaction.id] = interaction
-        if len(self._interactions) > 15:
-            self._interactions.popitem(last=False)
+        self._interactions.move_to_end(interaction.id)
+
+    def _pop_interaction(self, interaction: Interaction, data: gw.InteractionEvent) -> None:
+        self._interactions.pop(interaction.id, None)
+        nonce = data.get('nonce', interaction.nonce)
+        if nonce is not None:
+            self._application_command_autocomplete_cache.pop(nonce, None)
+
+    def _get_interaction_from_terminal_event(self, data: Mapping[str, Any]) -> Optional[Interaction]:
+        interaction_id = int(data['id'])
+        interaction = self._interactions.get(interaction_id)
+        if interaction is not None:
+            return interaction
+
+        nonce = data.get('nonce')
+        if nonce is None:
+            return None
+
+        cached = self._interaction_cache.get(nonce)
+        if cached is not None:
+            type, name, channel = cached
+            return Interaction._from_self(
+                channel,  # pyright: ignore[reportArgumentType]
+                id=data['id'],
+                type=type,
+                nonce=nonce,
+                user=self.user,  # type: ignore # self.user is always present here
+                name=name,
+            )
+
+        autocomplete = self._application_command_autocomplete_cache.get(nonce)
+        if autocomplete is not None:
+            channel, command, _, _ = autocomplete
+            return Interaction._from_self(
+                channel,  # pyright: ignore[reportArgumentType]
+                id=data['id'],
+                type=InteractionType.autocomplete.value,
+                nonce=nonce,
+                user=self.user,  # type: ignore # self.user is always present here
+                name=command.name,
+            )
+
+        return None
 
     def store_user(self, data: Union[UserPayload, PartialUserPayload], *, cache: bool = True) -> User:
         # this way is 300% faster than `dict.setdefault`.
@@ -1573,7 +1627,7 @@ class ConnectionState:
 
     async def _can_chunk_guild(self, guild: Guild) -> bool:
         if not guild.me:
-            await guild.query_members(user_ids=[self.self_id], cache=True)  # type: ignore # self_id is always present here
+            await guild.query_members(user_ids=[self.self_id], cache=True)
 
         return guild.me is not None and any(
             (
@@ -2247,7 +2301,7 @@ class ConnectionState:
         self.read_state_version = data.get('version', self.read_state_version)
 
         raw = RawUserFeatureAckEvent(data)
-        read_state = self.get_read_state(self.self_id, raw.type)  # type: ignore
+        read_state = self.get_read_state(self.self_id, raw.type)
         read_state.last_acked_id = int(data['entity_id'])
         self.dispatch('user_feature_ack', raw)
 
@@ -2946,6 +3000,7 @@ class ConnectionState:
         entry = AuditLogEntry(
             users=self._users,
             integrations={},
+            application_commands={},
             automod_rules={},
             webhooks={},
             data=data,
@@ -3076,7 +3131,7 @@ class ConnectionState:
         delay: Union[int, float] = MISSING,
     ) -> Union[List[Member], asyncio.Future[List[Member]]]:
         if not guild.me:
-            await guild.query_members(user_ids=[self.self_id], cache=True)  # type: ignore # self_id is always present here
+            await guild.query_members(user_ids=[self.self_id], cache=True)
 
         if (
             not chunk
@@ -3764,38 +3819,105 @@ class ConnectionState:
             # Most likely user is messing around with the raw API
             return
 
-        type, name, channel = self._interaction_cache.pop(data['nonce'], (0, None, None))
+        type, name, channel = self._interaction_cache.get(data['nonce'], (0, None, None))
         i = Interaction._from_self(channel, type=type, user=self.user, name=name, **data)  # type: ignore # self.user is always present here
-        self._interactions[i.id] = i
+        self._add_interaction(i)
         self.dispatch('interaction', i)
 
     def parse_interaction_success(self, data: gw.InteractionEvent) -> None:
         id = int(data['id'])
-        i = self._interactions.get(id, None)
+        i = self._get_interaction_from_terminal_event(data)
         if i is None:
             _log.warning('INTERACTION_SUCCESS referencing an unknown interaction ID: %s. Discarding.', id)
             return
 
         i.successful = True
         self.dispatch('interaction_finish', i)
+        self._pop_interaction(i, data)
 
-    def parse_interaction_failed(self, data: gw.InteractionEvent) -> None:
+    def parse_interaction_failure(self, data: gw.InteractionFailureEvent) -> None:
         id = int(data['id'])
-        i = self._interactions.pop(id, None)
+        i = self._get_interaction_from_terminal_event(data)
         if i is None:
-            _log.warning('INTERACTION_FAILED referencing an unknown interaction ID: %s. Discarding.', id)
+            _log.warning('INTERACTION_FAILURE referencing an unknown interaction ID: %s. Discarding.', id)
             return
 
         i.successful = False
+        i.reason_code = try_enum(InteractionFailureReason, data['reason_code'])
         self.dispatch('interaction_finish', i)
+        self._pop_interaction(i, data)
+
+    def parse_application_command_autocomplete_response(self, data: gw.ApplicationCommandAutocompleteEvent) -> None:
+        from .commands import ApplicationCommandAutocomplete
+
+        nonce = data['nonce']
+        context = self._application_command_autocomplete_cache.get(nonce)
+        if context is None:
+            _log.warning('APPLICATION_COMMAND_AUTOCOMPLETE_RESPONSE referencing an unknown nonce: %s. Discarding.', nonce)
+            return
+
+        response = ApplicationCommandAutocomplete(state=self, data=data, context=context)
+        self.dispatch('application_command_autocomplete_response', response)
 
     def parse_interaction_modal_create(self, data: gw.InteractionModalCreateEvent) -> None:
         id = int(data['id'])
-        interaction = self._interactions.pop(id, None)
-        if interaction is not None:
-            modal = Modal(data=data, interaction=interaction)
-            interaction.modal = modal
-            self.dispatch('modal', modal)
+        interaction = self._get_interaction_from_terminal_event(data)
+        if interaction is None:
+            _log.warning('INTERACTION_MODAL_CREATE referencing an unknown interaction ID: %s. Discarding.', id)
+            return
+
+        modal = Modal(data=data, interaction=interaction)
+        interaction.modal = modal
+        self._add_interaction(interaction)
+        self.dispatch('modal', modal)
+
+    def parse_interaction_iframe_modal_create(self, data: gw.InteractionIframeModalCreateEvent) -> None:
+        interaction = None
+        channel = None
+        try:
+            interaction = self._interactions.get(int(data['id']), None)
+        except KeyError:
+            pass
+        else:
+            if interaction is not None:
+                channel = interaction.channel
+
+        nonce = data.get('nonce')
+        if interaction is None and nonce is not None:
+            type, name, channel = self._interaction_cache.get(nonce, (0, None, None))
+            if channel is not None:
+                interaction = Interaction._from_self(
+                    channel,  # type: ignore
+                    id=data['id'],
+                    type=type,
+                    nonce=nonce,
+                    user=self.user,  # type: ignore # self.user is always present here
+                    name=name,
+                )
+                self._add_interaction(interaction)
+
+        if channel is None:
+            channel = self._get_or_create_partial_messageable(int(data['channel_id']))
+        if channel is None:
+            _log.warning(
+                'INTERACTION_IFRAME_MODAL_CREATE referencing an unknown channel ID: %s. Discarding.', data['channel_id']
+            )
+            return
+
+        modal = IFrameModal(data=data, state=self, channel=channel, interaction=interaction)  # type: ignore
+        self._interaction_iframe_modals[modal.application.id] = modal
+        self.dispatch('iframe_modal', modal)
+
+    def parse_interaction_iframe_modal_close(self, data: gw.InteractionIframeModalCloseEvent) -> None:
+        application_id = int(data['application_id'])
+        modal = self._interaction_iframe_modals.pop(application_id, None)
+        if modal is None:
+            _log.warning(
+                'INTERACTION_IFRAME_MODAL_CLOSE referencing an unknown application ID: %s. Discarding.', application_id
+            )
+            return
+
+        self.dispatch('iframe_modal_close', modal)
 
     # Silence "unknown event" warnings for events parsed elsewhere
     parse_nothing = lambda *_: None
@@ -3913,6 +4035,14 @@ class ConnectionState:
 
     def create_integration_application(self, data: IntegrationApplicationPayload) -> IntegrationApplication:
         return IntegrationApplication(state=self, data=data)
+
+    def create_command_application(
+        self,
+        data: CommandApplicationPayload,
+        *,
+        guild: Optional[Guild] = None,
+    ) -> CommandApplication:
+        return CommandApplication(state=self, data=data, guild=guild)
 
     def default_guild_settings(self, guild_id: Optional[int]) -> GuildSettings:
         return GuildSettings(data={'guild_id': guild_id}, state=self)  # type: ignore

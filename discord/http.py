@@ -60,7 +60,8 @@ import curl_cffi
 from curl_cffi import requests, CurlMime
 
 from . import utils
-from .enums import InviteType, NetworkConnectionType, RelationshipAction
+from .components import ActionRow, Container, LabelComponent, SectionComponent
+from .enums import ComponentType, InviteType, NetworkConnectionType, RelationshipAction
 from .errors import (
     CaptchaRequired,
     DiscordServerError,
@@ -90,6 +91,7 @@ if TYPE_CHECKING:
     from .message import Attachment, Message
     from .threads import Thread
     from .poll import Poll
+    from .components import Component
 
     from .types import (
         activity,
@@ -239,6 +241,33 @@ class MultipartParameters(NamedTuple):
                 file.close()
 
 
+_COMPONENTS_V2_TYPES = {
+    ComponentType.section,
+    ComponentType.text_display,
+    ComponentType.thumbnail,
+    ComponentType.media_gallery,
+    ComponentType.file,
+    ComponentType.separator,
+    ComponentType.container,
+}
+
+
+def _component_is_v2(component: Component) -> bool:
+    if component.type in _COMPONENTS_V2_TYPES:
+        return True
+
+    if isinstance(component, ActionRow):
+        return any(_component_is_v2(child) for child in component.children)
+    if isinstance(component, SectionComponent):
+        return any(_component_is_v2(child) for child in component.children) or _component_is_v2(component.accessory)
+    if isinstance(component, Container):
+        return any(_component_is_v2(child) for child in component.children)
+    if isinstance(component, LabelComponent):
+        return _component_is_v2(component.component)
+
+    return False
+
+
 def handle_message_parameters(
     content: Optional[str] = MISSING,
     *,
@@ -262,6 +291,7 @@ def handle_message_parameters(
     channel_payload: Dict[str, Any] = MISSING,
     applied_tags: Optional[SnowflakeList] = MISSING,
     poll: Optional[Poll] = MISSING,
+    components: Optional[Sequence[Component]] = MISSING,
 ) -> MultipartParameters:
     if files is not MISSING and file is not MISSING:
         raise TypeError('Cannot mix file and files keyword arguments.')
@@ -311,9 +341,6 @@ def handle_message_parameters(
     if username:
         payload['username'] = username
 
-    if flags is not MISSING:
-        payload['flags'] = flags.value
-
     if thread_name is not MISSING:
         payload['thread_name'] = thread_name
 
@@ -356,14 +383,35 @@ def handle_message_parameters(
         else:
             payload['applied_tags'] = []
 
+    if components is not MISSING:
+        if components is None:
+            component_payload = []
+            has_v2_components = False
+        else:
+            has_v2_components = any(_component_is_v2(component) for component in components)
+            component_payload = [component.to_dict() for component in components]
+
+        payload['components'] = component_payload
+
+        if has_v2_components:
+            if payload.get('content') or payload.get('embeds') or payload.get('sticker_ids') or poll not in (MISSING, None):
+                raise ValueError('Components v2 messages cannot contain content, embeds, stickers, or polls')
+            if flags is not MISSING:
+                flags.components_v2 = True
+            else:
+                flags = MessageFlags(components_v2=True)
+
+    if flags is not MISSING:
+        payload['flags'] = flags.value
+
+    if poll not in (MISSING, None):
+        payload['poll'] = poll._to_dict()
+
     if channel_payload is not MISSING:
         payload = {
             'message': payload,
         }
         payload.update(channel_payload)
-
-    if poll not in (MISSING, None):
-        payload['poll'] = poll._to_dict()
 
     # Legacy uploading
     multipart = []
@@ -695,7 +743,7 @@ class HTTPClient:
         )
         _log.info('Found TLS fingerprint target "%s".', headers.impersonate)
 
-        self.__session = requests.AsyncSession(impersonate=headers.impersonate, default_headers=False)  # type: ignore
+        self.__session = requests.AsyncSession(impersonate=headers.impersonate, default_headers=False)  # pyright: ignore[reportArgumentType]
         self._started = True
 
     async def ws_connect(self, url: str, **kwargs) -> requests.AsyncWebSocket:
@@ -4873,36 +4921,57 @@ class HTTPClient:
     def get_application_commands(self, application_id: Snowflake) -> Response[List[command.ApplicationCommand]]:
         return self.request(Route('GET', '/applications/{application_id}/commands', application_id=application_id))
 
-    def search_application_commands(
-        self,
-        channel_id: Snowflake,
-        type: int,
-        *,
-        limit: Optional[int] = None,
-        query: Optional[str] = None,
-        cursor: Optional[str] = None,
-        command_ids: Optional[List[Snowflake]] = None,
-        application_id: Optional[Snowflake] = None,
-        include_applications: Optional[bool] = None,
-    ) -> Response[command.ApplicationCommandSearch]:
-        params: Dict[str, Any] = {
-            'type': type,
-        }
-        if include_applications is not None:
-            params['include_applications'] = str(include_applications).lower()
-        if limit is not None:
-            params['limit'] = limit
-        if query:
-            params['query'] = query
-        if cursor:
-            params['cursor'] = cursor
-        if command_ids:
-            params['command_ids'] = ','.join(map(str, command_ids))
-        if application_id:
-            params['application_id'] = application_id
-
+    def application_command_index(self, application_id: Snowflake) -> Response[command.ApplicationCommandIndex]:
         return self.request(
-            Route('GET', '/channels/{channel_id}/application-commands/search', channel_id=channel_id), params=params
+            Route('GET', '/applications/{application_id}/application-command-index', application_id=application_id)
+        )
+
+    def get_guild_application_command_permissions(
+        self,
+        application_id: Snowflake,
+        guild_id: Snowflake,
+    ) -> Response[List[command.GuildApplicationCommandPermissions]]:
+        return self.request(
+            Route(
+                'GET',
+                '/applications/{application_id}/guilds/{guild_id}/commands/permissions',
+                application_id=application_id,
+                guild_id=guild_id,
+            )
+        )
+
+    def get_application_command_permissions(
+        self,
+        application_id: Snowflake,
+        guild_id: Snowflake,
+        command_id: Snowflake,
+    ) -> Response[command.GuildApplicationCommandPermissions]:
+        return self.request(
+            Route(
+                'GET',
+                '/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions',
+                application_id=application_id,
+                guild_id=guild_id,
+                command_id=command_id,
+            )
+        )
+
+    def edit_application_command_permissions(
+        self,
+        application_id: Snowflake,
+        guild_id: Snowflake,
+        command_id: Snowflake,
+        payload: List[command.ApplicationCommandPermissions],
+    ) -> Response[command.GuildApplicationCommandPermissions]:
+        return self.request(
+            Route(
+                'PUT',
+                '/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions',
+                application_id=application_id,
+                guild_id=guild_id,
+                command_id=command_id,
+            ),
+            json={'permissions': payload},
         )
 
     def guild_application_command_index(self, guild_id: Snowflake) -> Response[command.GuildApplicationCommandIndex]:
@@ -4945,23 +5014,25 @@ class HTTPClient:
             payload['guild_id'] = str(guild.id)
 
         form = []
-        to_upload = [file for file in files if isinstance(file, File)] if files else []
-        if files is not None:
-            form.append({'name': 'payload_json', 'data': utils._to_json(payload)})
-
+        to_upload: List[File] = []
+        if files:
             # Legacy uploading
-            for index, file in enumerate(to_upload or []):
-                form.append(
-                    {
-                        'name': f'files[{index}]',
-                        'data': file.fp,
-                        'filename': file.filename,
-                        'content_type': 'application/octet-stream',
-                    }
-                )
-            payload = None
+            for index, file in enumerate(files):
+                if isinstance(file, File):
+                    to_upload.append(file)
+                    form.append(
+                        {
+                            'name': f'files[{index}]',
+                            'data': file.fp,
+                            'filename': file.filename,
+                            'content_type': 'application/octet-stream',
+                        }
+                    )
+            if to_upload:
+                form.insert(0, {'name': 'payload_json', 'data': utils._to_json(payload)})
+                payload = None
 
-        return self.request(Route('POST', '/interactions'), json=payload, form=form, files=to_upload)
+        return self.request(Route('POST', '/interactions'), json=payload, form=form, files=to_upload or None)
 
     def get_user_affinities(self) -> Response[user.UserAffinities]:
         return self.request(Route('GET', '/users/@me/affinities/users'))

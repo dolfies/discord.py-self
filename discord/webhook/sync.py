@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from ..message import Attachment
     from ..abc import Snowflake
     from ..state import ConnectionState
+    from ..components import Component as ComponentObject
     from ..types.webhook import (
         Webhook as WebhookPayload,
     )
@@ -873,6 +874,7 @@ class SyncWebhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
+        components: Sequence[ComponentObject] = MISSING,
     ) -> SyncWebhookMessage: ...
 
     @overload
@@ -895,6 +897,7 @@ class SyncWebhook(BaseWebhook):
         silent: bool = MISSING,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
+        components: Sequence[ComponentObject] = MISSING,
     ) -> None: ...
 
     def send(
@@ -916,6 +919,7 @@ class SyncWebhook(BaseWebhook):
         silent: bool = False,
         applied_tags: List[ForumTag] = MISSING,
         poll: Poll = MISSING,
+        components: Sequence[ComponentObject] = MISSING,
     ) -> Optional[SyncWebhookMessage]:
         """Sends a message using the webhook.
 
@@ -989,6 +993,11 @@ class SyncWebhook(BaseWebhook):
 
             .. versionadded:: 2.1
 
+        components: List[:class:`Component`]
+            The components to send with this message.
+
+            .. versionadded:: 2.2
+
         Raises
         --------
         HTTPException
@@ -1047,6 +1056,7 @@ class SyncWebhook(BaseWebhook):
             flags=flags,
             applied_tags=applied_tag_ids,
             poll=poll,
+            components=components,
         ) as params:
             adapter: WebhookAdapter = _get_webhook_adapter()
             thread_id: Optional[int] = None
@@ -1130,6 +1140,7 @@ class SyncWebhook(BaseWebhook):
         attachments: Sequence[Union[Attachment, File]] = MISSING,
         allowed_mentions: Optional[AllowedMentions] = None,
         thread: Snowflake = MISSING,
+        components: Sequence[ComponentObject] = MISSING,
     ) -> SyncWebhookMessage:
         """Edits a message owned by this webhook.
 
@@ -1162,6 +1173,11 @@ class SyncWebhook(BaseWebhook):
 
             .. versionadded:: 2.0
 
+        components: List[:class:`Component`]
+            The components to replace the message components with.
+
+            .. versionadded:: 2.2
+
         Raises
         -------
         HTTPException
@@ -1186,6 +1202,7 @@ class SyncWebhook(BaseWebhook):
             embeds=embeds,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            components=components,
         ) as params:
             thread_id: Optional[int] = None
             if thread is not MISSING:

@@ -24,18 +24,30 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 from typing_extensions import NotRequired
 
 from .application import IntegrationApplication
 from .command import ApplicationCommand
-from .components import ModalActionRow
+from .components import Component, ComponentBase
 from .member import Member
 from .message import PartialAttachment
 from .snowflake import Snowflake
 from .user import User
 
 InteractionType = Literal[1, 2, 3, 4, 5]
+InteractionContextType = Literal[0, 1, 2]
+InteractionInstallationType = Literal[0, 1]
+IFrameModalSize = Literal[1, 2, 3]
+
+
+class ResolvedData(TypedDict, total=False):
+    users: Dict[str, User]
+    members: Dict[str, Member]
+    roles: Dict[str, Any]
+    channels: Dict[str, Any]
+    messages: Dict[str, Any]
+    attachments: Dict[str, PartialAttachment]
 
 
 class _BaseApplicationCommandInteractionDataOption(TypedDict):
@@ -117,10 +129,15 @@ class MessageCommandInteractionData(_BaseNonChatInputApplicationCommandInteracti
     type: Literal[3]
 
 
+class PrimaryEntryPointCommandInteractionData(_BaseApplicationCommandInteractionData, total=False):
+    type: Literal[4]
+
+
 ApplicationCommandInteractionData = Union[
     ChatInputCommandInteractionData,
     UserCommandInteractionData,
     MessageCommandInteractionData,
+    PrimaryEntryPointCommandInteractionData,
 ]
 
 
@@ -133,20 +150,58 @@ class ButtonInteractionData(_BaseMessageComponentInteractionData):
 
 
 class SelectInteractionData(_BaseMessageComponentInteractionData):
-    component_type: Literal[3]
+    component_type: Literal[3, 5, 6, 7, 8]
     values: List[str]
+    resolved: NotRequired[ResolvedData]
 
 
 MessageComponentInteractionData = Union[ButtonInteractionData, SelectInteractionData]
 
 
-class TextInputInteractionData(TypedDict):
+class TextInputInteractionData(ComponentBase):
     type: Literal[4]
     custom_id: str
     value: str
 
 
-ModalSubmitComponentInteractionData = TextInputInteractionData
+class ModalSubmitSelectInteractionData(ComponentBase):
+    type: Literal[3, 5, 6, 7, 8]
+    custom_id: str
+    values: List[str]
+
+
+class ModalSubmitFileUploadInteractionData(ComponentBase):
+    type: Literal[19]
+    custom_id: str
+    values: List[str]
+
+
+class ModalSubmitRadioGroupInteractionData(ComponentBase):
+    type: Literal[21]
+    custom_id: str
+    value: Optional[str]
+
+
+class ModalSubmitCheckboxGroupInteractionData(ComponentBase):
+    type: Literal[22]
+    custom_id: str
+    values: List[str]
+
+
+class ModalSubmitCheckboxInteractionData(ComponentBase):
+    type: Literal[23]
+    custom_id: str
+    value: bool
+
+
+ModalSubmitLabelComponentItemInteractionData = Union[
+    TextInputInteractionData,
+    ModalSubmitSelectInteractionData,
+    ModalSubmitFileUploadInteractionData,
+    ModalSubmitRadioGroupInteractionData,
+    ModalSubmitCheckboxGroupInteractionData,
+    ModalSubmitCheckboxInteractionData,
+]
 
 
 class MessageActionRowData(TypedDict):
@@ -154,15 +209,34 @@ class MessageActionRowData(TypedDict):
     components: List[MessageComponentInteractionData]
 
 
-class ModalSubmitActionRowData(TypedDict):
+class ModalSubmitActionRowData(ComponentBase):
     type: Literal[1]
-    components: List[ModalSubmitComponentInteractionData]
+    components: List[ModalSubmitLabelComponentItemInteractionData]
+
+
+class ModalSubmitTextDisplayInteractionData(ComponentBase):
+    type: Literal[10]
+    content: str
+
+
+class ModalSubmitLabelInteractionData(ComponentBase):
+    type: Literal[18]
+    component: ModalSubmitLabelComponentItemInteractionData
+
+
+ModalSubmitComponentInteractionData = Union[
+    ModalSubmitActionRowData,
+    ModalSubmitTextDisplayInteractionData,
+    ModalSubmitLabelInteractionData,
+]
 
 
 class ModalSubmitInteractionData(TypedDict):
     id: Snowflake
     custom_id: str
     components: List[ModalSubmitComponentInteractionData]
+    resolved: NotRequired[ResolvedData]
+    attachments: NotRequired[List[PartialAttachment]]
 
 
 ActionRowInteractionData = Union[MessageActionRowData, ModalSubmitActionRowData]
@@ -189,4 +263,4 @@ class Modal(TypedDict):
     title: str
     custom_id: str
     application: IntegrationApplication
-    components: List[ModalActionRow]
+    components: List[Component]

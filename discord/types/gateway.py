@@ -38,7 +38,7 @@ from .entitlements import Entitlement, GatewayGift
 from .experiment import ApexExperimentResponse, GuildExperiment, UserExperiment
 from .guild import Guild, SupplementalGuild, UnavailableGuild
 from .integration import BaseIntegration, IntegrationApplication
-from .interactions import Modal
+from .interactions import IFrameModalSize, Modal
 from .invite import _InviteTargetType
 from .library import LibraryApplication
 from .member import MemberWithPresence, MemberWithUser
@@ -625,6 +625,36 @@ UserGuildSettingsEvent = UserGuildSettings
 class InteractionEvent(TypedDict):
     id: Snowflake
     nonce: NotRequired[Snowflake]
+
+
+class InteractionFailureEvent(InteractionEvent):
+    reason_code: int
+
+
+class ApplicationCommandAutocompleteChoice(TypedDict):
+    name: str
+    value: Union[str, int, float]
+    name_localized: NotRequired[str]
+
+
+class ApplicationCommandAutocompleteEvent(TypedDict):
+    nonce: Snowflake
+    choices: List[ApplicationCommandAutocompleteChoice]
+
+
+class InteractionIframeModalCreateEvent(TypedDict):
+    id: Snowflake
+    channel_id: Snowflake
+    custom_id: str
+    application: IntegrationApplication
+    title: str
+    iframe_path: str
+    modal_size: IFrameModalSize
+    nonce: NotRequired[Snowflake]
+
+
+class InteractionIframeModalCloseEvent(TypedDict):
+    application_id: Snowflake
 
 
 InteractionModalCreateEvent = Modal

@@ -69,12 +69,14 @@ if TYPE_CHECKING:
         ForumTag as ForumTagPayload,
         DefaultReaction as DefaultReactionPayload,
     )
+    from .types.command import ApplicationCommandPermissions as ApplicationCommandPermissionsPayload
     from .types.invite import Invite as InvitePayload
     from .types.role import Role as RolePayload, RoleColours
     from .types.snowflake import Snowflake
     from .types.automod import AutoModerationAction
     from .types.integration import IntegrationType
     from .types.onboarding import Prompt as PromptPayload, PromptOption as PromptOptionPayload
+    from .commands import BaseCommand
     from .user import User
     from .webhook import Webhook
 
@@ -91,6 +93,7 @@ if TYPE_CHECKING:
         Thread,
         Object,
         Integration,
+        BaseCommand,
         AutoModRule,
         ScheduledEvent,
         Webhook,
@@ -375,6 +378,25 @@ class AuditLogChanges:
         self.before: AuditLogDiff = AuditLogDiff()
         self.after: AuditLogDiff = AuditLogDiff()
 
+        # Special case the entire process since each element in data is a different target;
+        # the key is the target ID
+        if entry.action is enums.AuditLogAction.application_command_permission_update:
+            self.before.application_command_permissions = []
+            self.after.application_command_permissions = []
+
+            for elem in data:
+                self._handle_application_command_permissions(
+                    self.before,
+                    entry,
+                    elem.get('old_value'),  # type: ignore # value will be ApplicationCommandPermissions when present
+                )
+                self._handle_application_command_permissions(
+                    self.after,
+                    entry,
+                    elem.get('new_value'),  # type: ignore # value will be ApplicationCommandPermissions when present
+                )
+            return
+
         for elem in data:
             attr = elem['key']
 
@@ -466,6 +488,21 @@ class AuditLogChanges:
             data.append(role)
 
         setattr(second, 'roles', data)
+
+    def _handle_application_command_permissions(
+        self,
+        diff: AuditLogDiff,
+        entry: AuditLogEntry,
+        data: Optional[ApplicationCommandPermissionsPayload],
+    ) -> None:
+        if data is None:
+            return
+
+        from .commands import ApplicationCommandPermissions
+
+        diff.application_command_permissions.append(
+            ApplicationCommandPermissions.with_state(data=data, guild=entry.guild, state=entry._state)
+        )
 
     def _handle_trigger_metadata(
         self,
@@ -650,6 +687,7 @@ class AuditLogEntry(Hashable):
         *,
         users: Mapping[int, User],
         integrations: Mapping[int, Integration],
+        application_commands: Mapping[int, BaseCommand],
         automod_rules: Mapping[int, AutoModRule],
         webhooks: Mapping[int, Webhook],
         data: AuditLogEntryPayload,
@@ -659,6 +697,7 @@ class AuditLogEntry(Hashable):
         self.guild: Guild = guild
         self._users: Mapping[int, User] = users
         self._integrations: Mapping[int, Integration] = integrations
+        self._application_commands: Mapping[int, BaseCommand] = application_commands
         self._automod_rules: Mapping[int, AutoModRule] = automod_rules
         self._webhooks: Mapping[int, Webhook] = webhooks
         self._from_data(data)
@@ -754,6 +793,13 @@ class AuditLogEntry(Hashable):
                 self.extra = _AuditLogProxyStageInstanceAction(
                     channel=self.guild.get_channel(channel_id) or Object(id=channel_id, type=StageChannel)
                 )
+            elif self.action.name.startswith('application_command'):
+                application_id = utils._get_as_snowflake(extra, 'application_id')
+                if application_id is not None:
+                    self.extra = self._get_integration_by_app_id(application_id) or Object(
+                        application_id,
+                        type=Integration,
+                    )
 
         # this key is not present when the above is present, typically.
         # It's a list of { new_value: a, old_value: b, key: c }
@@ -784,6 +830,12 @@ class AuditLogEntry(Hashable):
 
         # get PartialIntegration by application id
         return utils.get(self._integrations.values(), application_id=application_id)
+
+    def _get_application_command(self, application_command_id: Optional[int]) -> Optional[BaseCommand]:
+        if application_command_id is None:
+            return None
+
+        return self._application_commands.get(application_command_id)
 
     def __repr__(self) -> str:
         return f'<AuditLogEntry id={self.id} action={self.action} user={self.user!r}>'
@@ -894,6 +946,25 @@ class AuditLogEntry(Hashable):
 
     def _convert_target_integration(self, target_id: int) -> Union[Integration, Object]:
         return self._get_integration(target_id) or Object(target_id, type=Integration)
+
+    def _convert_target_application_command(self, target_id: int) -> Union[BaseCommand, Object]:
+        from .commands import BaseCommand
+
+        return self._get_application_command(target_id) or Object(target_id, type=BaseCommand)
+
+    def _convert_target_integration_or_application_command(self, target_id: int) -> Union[Integration, BaseCommand, Object]:
+        target = self._get_integration_by_app_id(target_id) or self._get_application_command(target_id)
+        if target is not None:
+            return target
+
+        from .commands import BaseCommand
+
+        application_id = getattr(self.extra, 'application_id', None)
+        if application_id is None and isinstance(self.extra, Object):
+            application_id = self.extra.id
+
+        target_type = Integration if target_id == application_id else BaseCommand
+        return Object(target_id, type=target_type)
 
     def _convert_target_auto_moderation(self, target_id: int) -> Union[AutoModRule, Object]:
         return self._automod_rules.get(target_id) or Object(target_id, type=AutoModRule)

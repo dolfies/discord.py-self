@@ -99,8 +99,8 @@ from .guild_premium import PremiumGuildSubscription
 from .entitlements import Entitlement
 from .onboarding import Onboarding
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
-from .partial_emoji import _EmojiTag, PartialEmoji
-from .commands import _command_factory
+from .partial_emoji import _EmojiTag
+from .commands import GuildApplicationCommandPermissions, _command_factory, _commands_from_index
 from .discovery import GuildProfile
 
 if TYPE_CHECKING:
@@ -142,7 +142,13 @@ if TYPE_CHECKING:
     from .types.oauth2 import OAuth2Guild as OAuth2GuildPayload
     from .message import EmojiInputType, Message
     from .read_state import ReadState
-    from .commands import UserCommand, MessageCommand, SlashCommand
+    from .commands import (
+        GuildApplicationCommandPermissions,
+        MessageCommand,
+        PrimaryEntryPointCommand,
+        SlashCommand,
+        UserCommand,
+    )
     from .onboarding import OnboardingPrompt
     from .enums import GuildBadgeType, GuildVisibility
     from .discovery import GuildTrait
@@ -842,7 +848,7 @@ class Guild(Hashable):
             is not a member of the guild, or the current user's member object is not cached.
         """
         self_id = self._state.self_id
-        return self.get_member(self_id)  # type: ignore
+        return self.get_member(self_id)
 
     def is_joined(self) -> bool:
         """Returns whether you are a full member of this guild.
@@ -2188,7 +2194,7 @@ class Guild(Hashable):
             elif isinstance(default_reaction_emoji, str):
                 options['default_reaction_emoji'] = PartialEmoji.from_str(default_reaction_emoji)._to_forum_tag_payload()
             else:
-                raise ValueError(f'default_reaction_emoji parameter must be either Emoji, PartialEmoji, or str')
+                raise ValueError('default_reaction_emoji parameter must be either Emoji, PartialEmoji, or str')
 
         if not media and default_layout is not MISSING:
             if not isinstance(default_layout, ForumLayoutType):
@@ -3407,12 +3413,19 @@ class Guild(Hashable):
 
         return [convert(d) for d in data]
 
-    async def application_commands(self) -> List[Union[SlashCommand, UserCommand, MessageCommand]]:
+    async def application_commands(
+        self,
+    ) -> List[Union[SlashCommand, UserCommand, MessageCommand, PrimaryEntryPointCommand]]:
         """|coro|
 
         Returns a list of all application commands available in the guild.
 
         .. versionadded:: 2.1
+
+        .. note::
+
+            This endpoint is heavily rate limited. The application command index should be cached
+            and only refetched if necessary.
 
         .. note::
 
@@ -3425,20 +3438,44 @@ class Guild(Hashable):
 
         Returns
         --------
-        List[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`]]
+        List[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`]]
             The list of application commands that are available in the guild.
         """
         state = self._state
         data = await state.http.guild_application_command_index(self.id)
-        cmds = data['application_commands']
-        apps = {int(app['id']): state.create_integration_application(app) for app in data.get('applications') or []}
+        return _commands_from_index(state=state, data=data, guild=self)
 
-        result = []
-        for cmd in cmds:
-            _, cls = _command_factory(cmd['type'])
-            application = apps.get(int(cmd['application_id']))
-            result.append(cls(state=state, data=cmd, application=application))
-        return result
+    async def fetch_application_command_permissions(
+        self,
+        application: Snowflake,
+        /,
+    ) -> List[GuildApplicationCommandPermissions]:
+        """|coro|
+
+        Retrieves all configured application command permissions for an application in this guild.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        ----------
+        application: :class:`abc.Snowflake`
+            The application to retrieve permissions for.
+
+        Raises
+        ------
+        Forbidden
+            You do not have access to the application command permissions.
+        HTTPException
+            Retrieving the application command permissions failed.
+
+        Returns
+        -------
+        List[:class:`GuildApplicationCommandPermissions`]
+            The configured command permissions.
+        """
+        state = self._state
+        data = await state.http.get_guild_application_command_permissions(application.id, self.id)
+        return [GuildApplicationCommandPermissions(state=state, data=permissions, guild=self) for permissions in data]
 
     async def fetch_stickers(self) -> List[GuildSticker]:
         r"""|coro|
@@ -4737,6 +4774,12 @@ class Guild(Hashable):
             integrations = (Integration(data=raw_i, guild=self) for raw_i in data.get('integrations', []))
             integration_map = {integration.id: integration for integration in integrations}
 
+            application_commands = (
+                _command_factory(raw_command['type'])[1](state=self._state, data=raw_command, guild=self)
+                for raw_command in data.get('application_commands', [])
+            )
+            application_command_map = {command.id: command for command in application_commands}
+
             automod_rules = (
                 AutoModRule(data=raw_rule, guild=self, state=self._state)
                 for raw_rule in data.get('auto_moderation_rules', [])
@@ -4757,6 +4800,7 @@ class Guild(Hashable):
                     data=raw_entry,
                     users=user_map,
                     integrations=integration_map,
+                    application_commands=application_command_map,
                     automod_rules=automod_rule_map,
                     webhooks=webhook_map,
                     guild=self,
