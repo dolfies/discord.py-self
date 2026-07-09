@@ -429,6 +429,10 @@ class HeadersContext:
             extra_gateway_properties=data.get('extra_gateway_properties'),
         )
 
+    def is_mobile(self) -> bool:
+        """:class:`bool`: Whether this context is for a mobile platform."""
+        return self.platform in ('Android', 'iOS')
+
     @cached_property
     def user_agent(self) -> str:
         """:class:`str`: The user agent to be used for HTTP requests."""

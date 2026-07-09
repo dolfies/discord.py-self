@@ -371,7 +371,7 @@ class GuildApplicationCommandPermissions:
         The ID of the guild the permissions belong to.
     guild: :class:`Guild`
         The guild the permissions belong to.
-    command: Optional[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`, :class:`Object`]]
+    command: Optional[Union[:class:`~selfcord.SlashCommand`, :class:`~selfcord.UserCommand`, :class:`~selfcord.MessageCommand`, :class:`~selfcord.PrimaryEntryPointCommand`, :class:`~selfcord.Object`]]
         The command these permissions belong to, if known. ``None`` for application-wide permissions.
     permissions: List[:class:`ApplicationCommandPermissions`]
         The configured permission overwrites.
@@ -463,7 +463,7 @@ class GuildApplicationCommandPermissions:
 
         Returns
         -------
-        :class:`GuildApplicationCommandPermissions`
+        :class:`~selfcord.GuildApplicationCommandPermissions`
             The updated permissions.
         """
         data = await self._state.http.edit_application_command_permissions(
@@ -500,7 +500,7 @@ class ApplicationCommand(Protocol):
         The localized name of the command, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -510,7 +510,7 @@ class ApplicationCommand(Protocol):
         The localized description of the command, if available.
 
         .. versionadded:: 2.2
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -523,22 +523,26 @@ class ApplicationCommand(Protocol):
             Use :attr:`contexts` instead.
     nsfw: :class:`bool`
         Whether the command is marked NSFW and only available in NSFW channels.
-    contexts: Optional[:class:`ApplicationCommandContext`]
+    contexts: Optional[:class:`~selfcord.ApplicationCommandContext`]
         The contexts where the command can be used.
 
         .. versionadded:: 2.2
-    integration_types: Optional[:class:`ApplicationIntegrationType`]
+    integration_types: Optional[:class:`~selfcord.ApplicationIntegrationType`]
         The installation types where the command is available.
 
         .. versionadded:: 2.2
-    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+    permissions: Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]
         The command's permission overwrites from an application command index
         response. User overwrite entries are only included
         for the current user.
 
         .. versionadded:: 2.2
     application: Optional[Union[:class:`~selfcord.CommandApplication`, :class:`~selfcord.IntegrationApplication`, :class:`~selfcord.PartialApplication`]]
-        The application this command belongs to.
+        The application this command belongs to
+
+        .. versionchanged:: 2.2
+
+            Added :class:`~selfcord.CommandApplication` and :class:`~selfcord.PartialApplication` as possible types for this attribute.
     application_id: :class:`int`
         The ID of the application this command belongs to.
     guild_id: Optional[:class:`int`]
@@ -691,11 +695,14 @@ class ApplicationCommand(Protocol):
     def permission_for(self, channel: Union[GuildChannel, Thread], /) -> bool:
         """Returns whether this command can be used by the current user in the given guild channel.
 
+        As this function requires that the command has attached guild context,
+        it does not take into account the special behavior of user-installed apps.
+
         .. versionadded:: 2.2
 
         Parameters
         ----------
-        channel: Union[:class:`abc.GuildChannel`, :class:`Thread`]
+        channel: Union[:class:`~selfcord.abc.GuildChannel`, :class:`~selfcord.Thread`]
             The guild channel to resolve command permissions in.
 
         Returns
@@ -939,7 +946,7 @@ class BaseCommand(ApplicationCommand, Hashable):
 
         Returns
         -------
-        :class:`GuildApplicationCommandPermissions`
+        :class:`~selfcord.GuildApplicationCommandPermissions`
             The command permissions.
         """
         guild = self._require_guild()
@@ -974,7 +981,7 @@ class BaseCommand(ApplicationCommand, Hashable):
 
         Returns
         -------
-        :class:`GuildApplicationCommandPermissions`
+        :class:`~selfcord.GuildApplicationCommandPermissions`
             The updated command permissions.
         """
         guild = self._require_guild()
@@ -1126,7 +1133,7 @@ class SlashMixin(ApplicationCommand, Protocol):
             await state.http.interact(
                 InteractionType.autocomplete,
                 data,
-                resolved_channel,  # type: ignore[arg-type] # channel is resolved by Messageable._get_channel
+                resolved_channel,  # pyright: ignore[reportArgumentType] # channel is resolved by Messageable._get_channel
                 nonce=nonce,
                 application_id=obj.application_id,
             )
@@ -1235,7 +1242,7 @@ class UserCommand(BaseCommand):
         The localized name of the command, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1245,7 +1252,7 @@ class UserCommand(BaseCommand):
         The localized description of the command, if available.
 
         .. versionadded:: 2.2
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1256,15 +1263,15 @@ class UserCommand(BaseCommand):
             Use :attr:`contexts` instead.
     nsfw: :class:`bool`
         Whether the command is marked NSFW and only available in NSFW channels.
-    contexts: Optional[:class:`ApplicationCommandContext`]
+    contexts: Optional[:class:`~selfcord.ApplicationCommandContext`]
         The contexts where the command can be used.
 
         .. versionadded:: 2.2
-    integration_types: Optional[:class:`ApplicationIntegrationType`]
+    integration_types: Optional[:class:`~selfcord.ApplicationIntegrationType`]
         The installation types where the command is available.
 
         .. versionadded:: 2.2
-    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+    permissions: Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]
         The command's permission overwrites from an application command index
         response. User overwrite entries are only included
         for the current user.
@@ -1275,7 +1282,11 @@ class UserCommand(BaseCommand):
 
         .. versionadded:: 2.2
     application: Optional[Union[:class:`~selfcord.CommandApplication`, :class:`~selfcord.IntegrationApplication`, :class:`~selfcord.PartialApplication`]]
-        The application this command belongs to.
+        The application this command belongs to
+
+        .. versionchanged:: 2.2
+
+            Added :class:`~selfcord.CommandApplication` and :class:`~selfcord.PartialApplication` as possible types for this attribute.
     application_id: :class:`int`
         The ID of the application this command belongs to.
     guild_id: Optional[:class:`int`]
@@ -1392,7 +1403,7 @@ class MessageCommand(BaseCommand):
         The localized name of the command, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1402,7 +1413,7 @@ class MessageCommand(BaseCommand):
         The localized description of the command, if available.
 
         .. versionadded:: 2.2
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1413,15 +1424,15 @@ class MessageCommand(BaseCommand):
             Use :attr:`contexts` instead.
     nsfw: :class:`bool`
         Whether the command is marked NSFW and only available in NSFW channels.
-    contexts: Optional[:class:`ApplicationCommandContext`]
+    contexts: Optional[:class:`~selfcord.ApplicationCommandContext`]
         The contexts where the command can be used.
 
         .. versionadded:: 2.2
-    integration_types: Optional[:class:`ApplicationIntegrationType`]
+    integration_types: Optional[:class:`~selfcord.ApplicationIntegrationType`]
         The installation types where the command is available.
 
         .. versionadded:: 2.2
-    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+    permissions: Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]
         The command's permission overwrites from an application command index
         response. User overwrite entries are only included
         for the current user.
@@ -1432,7 +1443,11 @@ class MessageCommand(BaseCommand):
 
         .. versionadded:: 2.2
     application: Optional[Union[:class:`~selfcord.CommandApplication`, :class:`~selfcord.IntegrationApplication`, :class:`~selfcord.PartialApplication`]]
-        The application this command belongs to.
+        The application this command belongs to
+
+        .. versionchanged:: 2.2
+
+            Added :class:`~selfcord.CommandApplication` and :class:`~selfcord.PartialApplication` as possible types for this attribute.
     application_id: :class:`int`
         The ID of the application this command belongs to.
     guild_id: Optional[:class:`int`]
@@ -1525,13 +1540,13 @@ class PrimaryEntryPointCommand(BaseCommand):
         The command's name.
     name_localized: Optional[:class:`str`]
         The localized name of the command, if available.
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
     description: :class:`str`
         The command's description, if any.
     description_localized: Optional[:class:`str`]
         The localized description of the command, if available.
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
     dm_permission: :class:`bool`
         Whether the command is enabled in DMs.
@@ -1540,20 +1555,24 @@ class PrimaryEntryPointCommand(BaseCommand):
             Use :attr:`contexts` instead.
     nsfw: :class:`bool`
         Whether the command is marked NSFW and only available in NSFW channels.
-    contexts: Optional[:class:`ApplicationCommandContext`]
+    contexts: Optional[:class:`~selfcord.ApplicationCommandContext`]
         The contexts where the command can be used.
-    integration_types: Optional[:class:`ApplicationIntegrationType`]
+    integration_types: Optional[:class:`~selfcord.ApplicationIntegrationType`]
         The installation types where the command is available.
-    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+    permissions: Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]
         The command's permission overwrites from an application command index
         response. User overwrite entries are only included
         for the current user.
     global_popularity_rank: Optional[:class:`int`]
         The command's global popularity rank, if provided.
-    handler: :class:`ApplicationCommandHandlerType`
+    handler: :class:`~selfcord.ApplicationCommandHandlerType`
         The command handler type.
     application: Optional[Union[:class:`~selfcord.CommandApplication`, :class:`~selfcord.IntegrationApplication`, :class:`~selfcord.PartialApplication`]]
-        The application this command belongs to.
+        The application this command belongs to
+
+        .. versionchanged:: 2.2
+
+            Added :class:`~selfcord.CommandApplication` and :class:`~selfcord.PartialApplication` as possible types for this attribute.
     application_id: :class:`int`
         The ID of the application this command belongs to.
     guild_id: Optional[:class:`int`]
@@ -1645,7 +1664,7 @@ class SlashCommand(BaseCommand, SlashMixin):
         The localized name of the command, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1655,7 +1674,7 @@ class SlashCommand(BaseCommand, SlashMixin):
         The localized description of the command, if available.
 
         .. versionadded:: 2.2
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -1666,15 +1685,15 @@ class SlashCommand(BaseCommand, SlashMixin):
             Use :attr:`contexts` instead.
     nsfw: :class:`bool`
         Whether the command is marked NSFW and only available in NSFW channels.
-    contexts: Optional[:class:`ApplicationCommandContext`]
+    contexts: Optional[:class:`~selfcord.ApplicationCommandContext`]
         The contexts where the command can be used.
 
         .. versionadded:: 2.2
-    integration_types: Optional[:class:`ApplicationIntegrationType`]
+    integration_types: Optional[:class:`~selfcord.ApplicationIntegrationType`]
         The installation types where the command is available.
 
         .. versionadded:: 2.2
-    permissions: Optional[:class:`GuildApplicationCommandPermissions`]
+    permissions: Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]
         The command's permission overwrites from an application command index
         response. User overwrite entries are only included
         for the current user.
@@ -1685,7 +1704,11 @@ class SlashCommand(BaseCommand, SlashMixin):
 
         .. versionadded:: 2.2
     application: Optional[Union[:class:`~selfcord.CommandApplication`, :class:`~selfcord.IntegrationApplication`, :class:`~selfcord.PartialApplication`]]
-        The application this command belongs to.
+        The application this command belongs to
+
+        .. versionchanged:: 2.2
+
+            Added :class:`~selfcord.CommandApplication` and :class:`~selfcord.PartialApplication` as possible types for this attribute.
     application_id: :class:`int`
         The ID of the application this command belongs to.
     guild_id: Optional[:class:`int`]
@@ -1788,7 +1811,7 @@ class SubCommand(SlashMixin):
         The subcommand's name.
     description: :class:`str`
         The subcommand's description, if any.
-    parent: Union[:class:`SlashCommand`, :class:`SubCommand`]
+    parent: Union[:class:`~selfcord.SlashCommand`, :class:`~selfcord.SubCommand`]
         The parent command.
     options: List[:class:`Option`]
         The subcommand's options.
@@ -1951,17 +1974,17 @@ class SubCommand(SlashMixin):
 
     @property
     def contexts(self) -> Optional[ApplicationCommandContext]:
-        """Optional[:class:`ApplicationCommandContext`]: The contexts where the parent command can be used."""
+        """Optional[:class:`~selfcord.ApplicationCommandContext`]: The contexts where the parent command can be used."""
         return self._parent.contexts
 
     @property
     def integration_types(self) -> Optional[ApplicationIntegrationType]:
-        """Optional[:class:`ApplicationIntegrationType`]: The installation types where the parent command is available."""
+        """Optional[:class:`~selfcord.ApplicationIntegrationType`]: The installation types where the parent command is available."""
         return self._parent.integration_types
 
     @property
     def permissions(self) -> Optional[GuildApplicationCommandPermissions]:
-        """Optional[:class:`GuildApplicationCommandPermissions`]: The parent command's permission overwrites, if provided."""
+        """Optional[:class:`~selfcord.GuildApplicationCommandPermissions`]: The parent command's permission overwrites, if provided."""
         return self._parent.permissions
 
     @property
@@ -2046,7 +2069,7 @@ class Option:
         The localized name of the option, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -2056,7 +2079,7 @@ class Option:
         The localized description of the option, if available.
 
         .. versionadded:: 2.2
-    description_localizations: Dict[:class:`Locale`, :class:`str`]
+    description_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full description localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -2213,7 +2236,7 @@ class OptionChoice:
         The localized choice name, if available.
 
         .. versionadded:: 2.2
-    name_localizations: Dict[:class:`Locale`, :class:`str`]
+    name_localizations: Dict[:class:`~selfcord.Locale`, :class:`str`]
         The full name localization mapping, if available.
 
         .. versionadded:: 2.2
@@ -2304,7 +2327,7 @@ class ApplicationCommandAutocomplete:
         The nonce used to correlate the response to the request.
     channel: :class:`abc.Messageable`
         The channel the autocomplete request originated from.
-    command: :class:`SlashCommand`
+    command: :class:`~selfcord.SlashCommand`
         The root command that requested autocomplete choices.
     option: :class:`Option`
         The focused option that requested autocomplete choices.

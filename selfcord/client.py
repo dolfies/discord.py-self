@@ -2452,7 +2452,7 @@ class Client:
 
         Returns
         -------
-        List[Union[:class:`SlashCommand`, :class:`UserCommand`, :class:`MessageCommand`, :class:`PrimaryEntryPointCommand`]]
+        List[Union[:class:`~selfcord.SlashCommand`, :class:`~selfcord.UserCommand`, :class:`~selfcord.MessageCommand`, :class:`~selfcord.PrimaryEntryPointCommand`]]
             The list of application commands installed to the current user's account.
         """
         from .commands import _commands_from_index

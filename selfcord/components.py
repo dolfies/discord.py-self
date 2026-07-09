@@ -579,7 +579,7 @@ class SelectMenu(Component):
         self._validate_answer_count(len(selected), self.min_values, self.max_values, self.required, 'options')
         values = [option.value for option in selected]
         payload: SelectInteractionData = {
-            'component_type': self.type.value,  # type: ignore[typeddict-item]
+            'component_type': self.type.value,  # pyright: ignore
             'custom_id': self.custom_id,
             'values': values,
         }
@@ -972,7 +972,7 @@ class SectionComponent(Component):
         self.message = None if message is MISSING else message
         self.id = data.get('id')
         self.children: List[Component] = []
-        self.accessory: Component = _component_factory(data['accessory'], message)  # type: ignore[assignment]
+        self.accessory: Component = _component_factory(data['accessory'], message)  # pyright: ignore[reportAttributeAccessIssue]
         for component_data in data['components']:
             component = _component_factory(component_data, message)
             if component is not None:
@@ -990,7 +990,7 @@ class SectionComponent(Component):
         }
         if self.id is not None:
             payload['id'] = self.id
-        return payload  # type: ignore[return-value]
+        return payload  # pyright: ignore[reportReturnType]
 
 
 class TextDisplay(Component):

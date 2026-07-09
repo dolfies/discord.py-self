@@ -1468,7 +1468,7 @@ class ConnectionState:
         if cached is not None:
             type, name, channel = cached
             return Interaction._from_self(
-                channel,  # type: ignore[arg-type]
+                channel,  # pyright: ignore[reportArgumentType]
                 id=data['id'],
                 type=type,
                 nonce=nonce,
@@ -1480,7 +1480,7 @@ class ConnectionState:
         if autocomplete is not None:
             channel, command, _, _ = autocomplete
             return Interaction._from_self(
-                channel,  # type: ignore[arg-type]
+                channel,  # pyright: ignore[reportArgumentType]
                 id=data['id'],
                 type=InteractionType.autocomplete.value,
                 nonce=nonce,

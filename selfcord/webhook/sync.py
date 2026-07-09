@@ -993,7 +993,7 @@ class SyncWebhook(BaseWebhook):
 
             .. versionadded:: 2.1
 
-        components: Sequence[:class:`Component`]
+        components: List[:class:`Component`]
             The components to send with this message.
 
             .. versionadded:: 2.2
@@ -1173,7 +1173,7 @@ class SyncWebhook(BaseWebhook):
 
             .. versionadded:: 2.0
 
-        components: Sequence[:class:`Component`]
+        components: List[:class:`Component`]
             The components to replace the message components with.
 
             .. versionadded:: 2.2
