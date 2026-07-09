@@ -213,7 +213,7 @@ AutoMod
 
 .. function:: on_automod_rule_create(rule)
 
-    Called when a :class:`AutoModRule` is created.
+    Called when an :class:`AutoModRule` is created.
     You must have :attr:`~Permissions.manage_guild` to receive this.
 
     .. versionadded:: 2.0
@@ -223,7 +223,7 @@ AutoMod
 
 .. function:: on_automod_rule_update(rule)
 
-    Called when a :class:`AutoModRule` is updated.
+    Called when an :class:`AutoModRule` is updated.
     You must have :attr:`~Permissions.manage_guild` to receive this.
 
     .. versionadded:: 2.0
@@ -233,7 +233,7 @@ AutoMod
 
 .. function:: on_automod_rule_delete(rule)
 
-    Called when a :class:`AutoModRule` is deleted.
+    Called when an :class:`AutoModRule` is deleted.
     You must have :attr:`~Permissions.manage_guild` to receive this.
 
     .. versionadded:: 2.0
@@ -243,7 +243,7 @@ AutoMod
 
 .. function:: on_automod_action(execution)
 
-    Called when a :class:`AutoModAction` is created/performed.
+    Called when an :class:`AutoModAction` is created/performed.
     You must have :attr:`~Permissions.manage_guild` to receive this.
 
     .. versionadded:: 2.0
