@@ -547,8 +547,8 @@ class Client:
         return self._connection.stickers
 
     @property
-    def soundboard_sounds(self) -> List[SoundboardSound]:
-        """List[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has."""
+    def soundboard_sounds(self) -> Sequence[SoundboardSound]:
+        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has."""
         return self._connection.soundboard_sounds
 
     @property
