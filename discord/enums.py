@@ -588,6 +588,9 @@ class AuditLogAction(Enum):
     sticker_create                                    = 90
     sticker_update                                    = 91
     sticker_delete                                    = 92
+    soundboard_sound_create                         = 130
+    soundboard_sound_update                         = 131
+    soundboard_sound_delete                         = 132
     scheduled_event_create                            = 100
     scheduled_event_update                            = 101
     scheduled_event_delete                            = 102
@@ -659,6 +662,9 @@ class AuditLogAction(Enum):
             AuditLogAction.sticker_create:                           AuditLogActionCategory.create,
             AuditLogAction.sticker_update:                           AuditLogActionCategory.update,
             AuditLogAction.sticker_delete:                           AuditLogActionCategory.delete,
+            AuditLogAction.soundboard_sound_create:                    AuditLogActionCategory.create,
+            AuditLogAction.soundboard_sound_update:                    AuditLogActionCategory.update,
+            AuditLogAction.soundboard_sound_delete:                    AuditLogActionCategory.delete,
             AuditLogAction.scheduled_event_create:                   AuditLogActionCategory.create,
             AuditLogAction.scheduled_event_update:                   AuditLogActionCategory.update,
             AuditLogAction.scheduled_event_delete:                   AuditLogActionCategory.delete,

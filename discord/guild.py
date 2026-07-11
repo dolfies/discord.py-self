@@ -88,6 +88,7 @@ from .scheduled_event import ScheduledEvent
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker
+from .soundboard import SoundboardSound
 from .file import File
 from .audit_logs import AuditLogEntry
 from .object import OLDEST_OBJECT, Object
@@ -525,6 +526,7 @@ class Guild(Hashable):
         '_stage_instances',
         '_scheduled_events',
         '_threads',
+        '_soundboard_sounds',
         'approximate_member_count',
         'approximate_presence_count',
         'premium_progress_bar_enabled',
@@ -558,6 +560,7 @@ class Guild(Hashable):
         self._threads: Dict[int, Thread] = {}
         self._stage_instances: Dict[int, StageInstance] = {}
         self._scheduled_events: Dict[int, ScheduledEvent] = {}
+        self._soundboard_sounds: Dict[int, SoundboardSound] = {}
         self._state: ConnectionState = state
         self._member_count: Optional[int] = None
         self._presence_count: Optional[int] = None
@@ -602,6 +605,12 @@ class Guild(Hashable):
 
     def _filter_threads(self, channel_ids: Set[int]) -> Dict[int, Thread]:
         return {k: t for k, t in self._threads.items() if t.parent_id in channel_ids}
+
+    def _add_soundboard_sound(self, sound: SoundboardSound) -> None:
+        self._soundboard_sounds[sound.id] = sound
+
+    def _remove_soundboard_sound(self, sound_id: int) -> None:
+        self._soundboard_sounds.pop(sound_id, None)
 
     def __str__(self) -> str:
         return self.name or ''
@@ -708,6 +717,8 @@ class Guild(Hashable):
         self.stickers: Tuple[GuildSticker, ...] = tuple(
             map(lambda d: state.store_sticker(self, d), guild.get('stickers', []))
         )
+        for s in guild.get('soundboard_sounds', []):
+            self._add_soundboard_sound(state.store_soundboard_sound(self, s))
         self.features: List[str] = guild.get('features', [])
         self._icon: Optional[str] = guild.get('icon')
         self._banner: Optional[str] = guild.get('banner')
@@ -1154,6 +1165,11 @@ class Guild(Hashable):
         """
         more_stickers = 60 if 'MORE_STICKERS' in self.features else 0
         return max(more_stickers, self._PREMIUM_GUILD_LIMITS[self.premium_tier].stickers)
+
+    @property
+    def soundboard_sounds(self) -> Sequence[SoundboardSound]:
+        """Sequence[:class:`SoundboardSound`]: Returns a sequence of the guild's soundboard sounds."""
+        return utils.SequenceProxy(self._soundboard_sounds.values())
 
     @property
     def bitrate_limit(self) -> float:
@@ -3613,6 +3629,158 @@ class Guild(Hashable):
             An error occurred deleting the sticker.
         """
         await self._state.http.delete_guild_sticker(self.id, sticker.id, reason)
+
+    async def fetch_soundboard_sounds(self) -> List[SoundboardSound]:
+        """|coro|
+
+        Retrieves a list of all :class:`SoundboardSound`\\s for the guild.
+
+        .. note::
+
+            This method is an API call. For general usage, consider :attr:`soundboard_sounds` instead.
+
+        Raises
+        ---------
+        HTTPException
+            An error occurred fetching the soundboard sounds.
+
+        Returns
+        --------
+        List[:class:`SoundboardSound`]
+            The retrieved soundboard sounds.
+        """
+        data = await self._state.http.get_soundboard_sounds(self.id)
+        sounds = []
+        for sound_data in data.get('items', []):
+            sound = SoundboardSound(guild=self, state=self._state, data=sound_data)
+            self._add_soundboard_sound(sound)
+            sounds.append(sound)
+        return sounds
+
+    async def fetch_soundboard_sound(self, sound_id: int, /) -> SoundboardSound:
+        """|coro|
+
+        Retrieves a custom :class:`SoundboardSound` from the guild.
+
+        .. note::
+
+            This method is an API call.
+            For general usage, consider iterating over :attr:`soundboard_sounds` instead.
+
+        Parameters
+        -------------
+        sound_id: :class:`int`
+            The soundboard sound's ID.
+
+        Raises
+        ---------
+        NotFound
+            The soundboard sound requested could not be found.
+        HTTPException
+            An error occurred fetching the soundboard sound.
+
+        Returns
+        --------
+        :class:`SoundboardSound`
+            The soundboard sound.
+        """
+        data = await self._state.http.get_soundboard_sound(self.id, sound_id)
+        return SoundboardSound(guild=self, state=self._state, data=data)
+
+    async def create_soundboard_sound(
+        self,
+        *,
+        name: str,
+        sound: bytes,
+        volume: float = 1.0,
+        emoji: Optional[EmojiInputType] = None,
+        reason: Optional[str] = None,
+    ) -> SoundboardSound:
+        r"""|coro|
+
+        Creates a :class:`SoundboardSound` for the guild.
+
+        You must have :attr:`~Permissions.create_expressions` to do this.
+
+        Parameters
+        -----------
+        name: :class:`str`
+            The name of the sound. Must be between 2 and 32 characters.
+        sound: :class:`bytes`
+            The :term:`py:bytes-like object` representing the sound data.
+            Only MP3 and OGG sound files that don't exceed the duration of 5.2s are supported.
+        volume: :class:`float`
+            The volume of the sound as floating point percentage (e.g. ``1.0`` for 100%).
+            Must be between 0 and 1.
+        emoji: Optional[Union[:class:`Emoji`, :class:`PartialEmoji`, :class:`str`]]
+            The emoji of the sound.
+        reason: Optional[:class:`str`]
+            The reason for creating this soundboard sound. Shows up on the audit log.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to create soundboard sounds.
+        HTTPException
+            An error occurred creating the soundboard sound.
+
+        Returns
+        --------
+        :class:`SoundboardSound`
+            The newly created soundboard sound.
+        """
+        from .partial_emoji import PartialEmoji, _EmojiTag
+
+        payload: Dict[str, Any] = {
+            'name': name,
+            'sound': utils._bytes_to_base64_data(sound),
+            'volume': volume,
+            'emoji_id': None,
+            'emoji_name': None,
+        }
+
+        if emoji is not None:
+            if isinstance(emoji, _EmojiTag):
+                partial_emoji = emoji._to_partial()
+            elif isinstance(emoji, str):
+                partial_emoji = PartialEmoji.from_str(emoji)
+            else:
+                partial_emoji = None
+
+            if partial_emoji is not None:
+                if partial_emoji.id is None:
+                    payload['emoji_name'] = partial_emoji.name
+                else:
+                    payload['emoji_id'] = partial_emoji.id
+
+        data = await self._state.http.create_soundboard_sound(self.id, reason=reason, **payload)
+        sound_obj = SoundboardSound(guild=self, state=self._state, data=data)
+        self._add_soundboard_sound(sound_obj)
+        return sound_obj
+
+    async def delete_soundboard_sound(self, sound_id: int, /, *, reason: Optional[str] = None) -> None:
+        """|coro|
+
+        Deletes a :class:`SoundboardSound` from the guild.
+
+        You must have :attr:`~Permissions.manage_expressions` to do this.
+
+        Parameters
+        -----------
+        sound_id: :class:`int`
+            The ID of the soundboard sound to delete.
+        reason: Optional[:class:`str`]
+            The reason for deleting this soundboard sound. Shows up on the audit log.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to delete soundboard sounds.
+        HTTPException
+            An error occurred deleting the soundboard sound.
+        """
+        await self._state.http.delete_soundboard_sound(self.id, sound_id, reason=reason)
+        self._remove_soundboard_sound(sound_id)
 
     async def subscribed_scheduled_events(self) -> List[Union[ScheduledEvent, Object]]:
         """|coro|

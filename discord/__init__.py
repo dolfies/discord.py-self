@@ -75,6 +75,7 @@ from .scheduled_event import *
 from .settings import *
 from .stage_instance import *
 from .sticker import *
+from .soundboard import *
 from .store import *
 from .subscriptions import *
 from .team import *

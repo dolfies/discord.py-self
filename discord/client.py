@@ -98,6 +98,7 @@ from .application import (
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
+from .soundboard import SoundboardDefaultSound, SoundboardSound
 from .profile import UserProfile
 from .connections import Connection
 from .team import Team
@@ -544,6 +545,12 @@ class Client:
         .. versionadded:: 2.0
         """
         return self._connection.stickers
+
+    @property
+    def soundboard_sounds(self) -> Sequence[SoundboardSound]:
+        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has.
+        """
+        return self._connection.soundboard_sounds
 
     @property
     def sessions(self) -> Sequence[Session]:
@@ -2967,6 +2974,24 @@ class Client:
         """
         data = await self.http.get_sticker_pack(pack_id)
         return StickerPack(state=self._connection, data=data)
+
+    async def fetch_soundboard_default_sounds(self) -> List[SoundboardDefaultSound]:
+        """|coro|
+
+        Retrieves all default soundboard sounds.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the default soundboard sounds failed.
+
+        Returns
+        ---------
+        List[:class:`.SoundboardDefaultSound`]
+            All default soundboard sounds.
+        """
+        data = await self.http.get_soundboard_default_sounds()
+        return [SoundboardDefaultSound(state=self._connection, data=sound) for sound in data]
 
     async def fetch_notes(self) -> Dict[int, str]:
         """|coro|

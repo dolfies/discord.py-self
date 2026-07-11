@@ -74,6 +74,7 @@ from .http import handle_message_parameters
 from .invite import Invite
 from .voice_client import VoiceClient
 from .directory import DirectoryEntry
+from .soundboard import BaseSoundboardSound, SoundboardDefaultSound
 
 __all__ = (
     'TextChannel',
@@ -102,6 +103,7 @@ if TYPE_CHECKING:
     from .webhook import Webhook
     from .state import ConnectionState
     from .sticker import GuildSticker, StickerItem
+    from .soundboard import SoundboardSound
     from .file import File
     from .user import BaseUser, ClientUser, User
     from .guild import Guild, GuildChannel as GuildChannelType, UserGuild
@@ -1246,6 +1248,29 @@ class VocalGuildChannel(discord.abc.Messageable, discord.abc.Connectable, discor
         from .message import PartialMessage
 
         return PartialMessage(channel=self, id=message_id)  # type: ignore # VocalGuildChannel is an impl detail
+
+    async def send_soundboard_sound(self, sound: BaseSoundboardSound) -> None:
+        """|coro|
+
+        Sends a soundboard sound to this voice channel.
+
+        Parameters
+        -----------
+        sound: :class:`BaseSoundboardSound`
+            The soundboard sound to send.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to send sounds.
+        HTTPException
+            Sending the sound failed.
+        """
+        payload: Dict[str, Any] = {'sound_id': sound.id}
+        if not isinstance(sound, SoundboardDefaultSound) and self.guild.id != sound.guild.id:
+            payload['source_guild_id'] = sound.guild.id
+
+        await self._state.http.send_soundboard_sound(self.id, **payload)
 
     async def delete_messages(self, messages: Iterable[Snowflake], /, *, reason: Optional[str] = None) -> None:
         """|coro|

@@ -49,6 +49,7 @@ from .role import Role
 from .scheduled_event import GuildScheduledEvent
 from .snowflake import Snowflake
 from .sticker import GuildSticker
+from .soundboard import SoundboardSound
 from .subscriptions import PremiumGuildSubscriptionSlot
 from .threads import BaseThreadMember, Thread, ThreadMember
 from .user import (
@@ -364,6 +365,13 @@ class GuildStickersUpdateEvent(TypedDict):
     stickers: List[GuildSticker]
 
 
+
+GuildSoundBoardSoundCreateEvent = GuildSoundBoardSoundUpdateEvent = SoundboardSound
+
+
+class GuildSoundBoardSoundDeleteEvent(TypedDict):
+    sound_id: Snowflake
+    guild_id: Snowflake
 GuildCreateEvent = GuildUpdateEvent = Guild
 GuildDeleteEvent = UnavailableGuild
 
