@@ -1644,6 +1644,32 @@ Scheduled Events
     :param event: The scheduled event that was marked as read.
     :type event: :class:`ScheduledEvent`
 
+Soundboard
+~~~~~~~~~~~
+
+.. function:: on_soundboard_sound_create(sound)
+              on_soundboard_sound_delete(sound)
+
+    Called when a :class:`SoundboardSound` is created or deleted.
+
+    :param sound: The soundboard sound that was created or deleted.
+    :type sound: :class:`SoundboardSound`
+
+.. function:: on_soundboard_sound_update(before, after)
+
+    Called when a :class:`SoundboardSound` is updated.
+
+    The following examples illustrate when this event is called:
+
+    - The name is changed.
+    - The emoji is changed.
+    - The volume is changed.
+
+    :param before: The soundboard sound before the update.
+    :type before: :class:`SoundboardSound`
+    :param after: The soundboard sound after the update.
+    :type after: :class:`SoundboardSound`
+
 Stages
 ~~~~~~~
 
@@ -3618,6 +3644,36 @@ of :class:`enum.Enum`.
         The terms and conditions for creator monetization were accepted.
 
         .. versionadded:: 2.1
+
+    .. attribute:: soundboard_sound_create
+
+        A soundboard sound was created.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.name`
+        - :attr:`~AuditLogDiff.emoji`
+        - :attr:`~AuditLogDiff.volume`
+
+    .. attribute:: soundboard_sound_update
+
+        A soundboard sound was updated.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.name`
+        - :attr:`~AuditLogDiff.emoji`
+        - :attr:`~AuditLogDiff.volume`
+
+    .. attribute:: soundboard_sound_delete
+
+        A soundboard sound was deleted.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.name`
+        - :attr:`~AuditLogDiff.emoji`
+        - :attr:`~AuditLogDiff.volume`
 
     .. attribute:: onboarding_prompt_create
 
@@ -7987,6 +8043,14 @@ AuditLogDiff
 
         :type: :class:`str`
 
+    .. attribute:: volume
+
+        The volume of a soundboard sound.
+
+        See also :attr:`SoundboardSound.volume`
+
+        :type: :class:`float`
+
     .. attribute:: unicode_emoji
 
         The unicode emoji that is used as an icon for the role being changed.
@@ -9169,6 +9233,24 @@ Sticker
 .. attributetable:: GuildSticker
 
 .. autoclass:: GuildSticker()
+    :members:
+
+Soundboard
+~~~~~~~~~~~
+
+.. attributetable:: BaseSoundboardSound
+
+.. autoclass:: BaseSoundboardSound()
+    :members:
+
+.. attributetable:: SoundboardSound
+
+.. autoclass:: SoundboardSound()
+    :members:
+
+.. attributetable:: SoundboardDefaultSound
+
+.. autoclass:: SoundboardDefaultSound()
     :members:
 
 GuildChannel
