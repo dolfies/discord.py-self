@@ -8,9 +8,8 @@ The following is a set of guidelines for contributing to the repository. These a
 
 Generally speaking questions are better suited in our resources below.
 
-- The official Telegram: https://t.me/dpy_self_discussions
+- [The official Telegram](https://t.me/dpy_self_discussions)
 - [The FAQ in the documentation](https://discordpy-self.readthedocs.io/en/latest/faq.html)
-- [The r/discord_selfbots subreddit](https://reddit.com/r/discord_selfbots)
 - [The discussions tab](https://github.com/dolfies/discord.py-self/discussions/categories/help)
 
 Please try your best not to ask questions in our issue tracker. Most of them don't belong there unless they provide value to a larger audience.
@@ -33,6 +32,12 @@ If the bug report is missing this information then it'll take us longer to fix t
 ## Submitting a Pull Request
 
 Submitting a pull request is fairly simple, just make sure it focuses on a single aspect and doesn't manage to have scope creep and it's probably good to go. It would be incredibly lovely if the style is consistent to that found in the project. This project follows PEP-8 guidelines (mostly) with a column limit of 125.
+
+### AI Contributions
+
+Entirely AI contributions are banned. If you do not understand the code you are committing, the implications of your changes, or the APIs you are interacting with, your contribution is not welcome and will be rejected. Using tools like Claude Code, OpenAI Codex, Cursor, GitHub Copilot, etc. to create your entire contribution is not acceptable.
+
+You are free to use AI tools to assist you in your programming, but any code submitted is your responsibility and must be presented as your own with full understanding. This means that if the usage of AI is obvious and apparent, your PR will be closed, as this indicates that AI tools were used without proper supervision. Additionally, do not use AI throughout issues, discussions, or PR comments (an exception applies for translation). A lack of effort in communication is typically an indication of poor understanding and code quality, so your contribution will typically be immediately closed.
 
 ### Git Commit Guidelines
 
