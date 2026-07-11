@@ -59,7 +59,7 @@ from .enums import (
     VideoQualityMode,
     DirectoryCategory,
     DirectoryEntryType,
-    SoundAnimationType
+    SoundAnimationType,
 )
 from .calls import PrivateCall, GroupCall
 from .mixins import Hashable
@@ -1687,7 +1687,6 @@ class VoiceChannel(VocalGuildChannel):
 
         await self._state.http.send_soundboard_sound(self.id, **payload)
 
-
     async def send_custom_call_sounds(self, animation: Optional[SoundAnimationType] = SoundAnimationType.SPARKLES) -> None:
         """|coro|
 
@@ -1716,7 +1715,6 @@ class VoiceChannel(VocalGuildChannel):
         payload = {'animation_type': animation}
 
         await self._state.http.custom_call_sounds(self.id, **payload)
-
 
 
 class StageChannel(VocalGuildChannel):
