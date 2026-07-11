@@ -548,8 +548,7 @@ class Client:
 
     @property
     def soundboard_sounds(self) -> Sequence[SoundboardSound]:
-        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has.
-        """
+        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has."""
         return self._connection.soundboard_sounds
 
     @property

@@ -122,7 +122,14 @@ class SoundboardSound(BaseSoundboardSound):
             return self._state.get_user(self._user_id)
         return User(state=self._state, data=self._user)
 
-    async def edit(self, *, name: str = MISSING, volume: Optional[float] = MISSING, emoji: Optional[EmojiInputType] = MISSING, reason: Optional[str] = None):
+    async def edit(
+        self,
+        *,
+        name: str = MISSING,
+        volume: Optional[float] = MISSING,
+        emoji: Optional[EmojiInputType] = MISSING,
+        reason: Optional[str] = None,
+    ):
         payload: Dict[str, Any] = {}
         if name is not MISSING:
             payload['name'] = name

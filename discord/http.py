@@ -2379,7 +2379,6 @@ class HTTPClient:
             reason=reason,
         )
 
-
     # Soundboard
 
     def get_soundboard_default_sounds(self) -> Response[List[soundboard.SoundboardDefaultSound]]:
@@ -2421,7 +2420,9 @@ class HTTPClient:
             reason=reason,
         )
 
-    def delete_soundboard_sound(self, guild_id: Snowflake, sound_id: Snowflake, *, reason: Optional[str] = None) -> Response[None]:
+    def delete_soundboard_sound(
+        self, guild_id: Snowflake, sound_id: Snowflake, *, reason: Optional[str] = None
+    ) -> Response[None]:
         return self.request(
             Route('DELETE', '/guilds/{guild_id}/soundboard-sounds/{sound_id}', guild_id=guild_id, sound_id=sound_id),
             reason=reason,

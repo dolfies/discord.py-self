@@ -365,13 +365,14 @@ class GuildStickersUpdateEvent(TypedDict):
     stickers: List[GuildSticker]
 
 
-
 GuildSoundBoardSoundCreateEvent = GuildSoundBoardSoundUpdateEvent = SoundboardSound
 
 
 class GuildSoundBoardSoundDeleteEvent(TypedDict):
     sound_id: Snowflake
     guild_id: Snowflake
+
+
 GuildCreateEvent = GuildUpdateEvent = Guild
 GuildDeleteEvent = UnavailableGuild
 
