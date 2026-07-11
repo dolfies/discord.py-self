@@ -2703,7 +2703,7 @@ class Message(PartialMessage, Hashable):
         self,
         content: Optional[str] = MISSING,
         attachments: Sequence[Union[Attachment, _FileBase]] = MISSING,
-        suppress: bool = False,
+        suppress: bool = MISSING,
         delete_after: Optional[float] = None,
         allowed_mentions: Optional[AllowedMentions] = MISSING,
     ) -> Message:
