@@ -758,9 +758,21 @@ def _get_extension_for_mime_type(mime_type: str) -> str:
         return 'webp'
 
 
-def _bytes_to_base64_data(data: bytes) -> str:
+def _get_mime_type_for_audio(data: bytes) -> str:
+    if data.startswith(b'\x49\x44\x33') or data.startswith(b'\xff\xfb'):
+        return 'audio/mpeg'
+    elif data.startswith(b'\x4f\x67\x67\x53'):
+        return 'audio/ogg'
+    else:
+        raise ValueError('Unsupported audio type given')
+
+
+def _bytes_to_base64_data(data: bytes, *, audio: bool = False) -> str:
     fmt = 'data:{mime};base64,{data}'
-    mime = _get_mime_type_for_image(data, fallback=True)
+    if audio:
+        mime = _get_mime_type_for_audio(data)
+    else:
+        mime = _get_mime_type_for_image(data, fallback=True)
     b64 = b64encode(data).decode('ascii')
     return fmt.format(mime=mime, data=b64)
 

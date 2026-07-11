@@ -73,6 +73,7 @@ from .relationship import *
 from .role import *
 from .scheduled_event import *
 from .settings import *
+from .soundboard import *
 from .stage_instance import *
 from .sticker import *
 from .store import *

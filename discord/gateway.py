@@ -348,6 +348,7 @@ class DiscordWebSocket:
     STREAM_PING                  = 21
     STREAM_SET_PAUSED            = 22
     # REQUEST_COMMANDS           = 24
+    REQUEST_SOUNDBOARD_SOUNDS    = 31
     SEARCH_RECENT_MEMBERS        = 35
     BULK_GUILD_SUBSCRIBE         = 37
     QOS_HEARTBEAT                = 40
@@ -810,6 +811,17 @@ class DiscordWebSocket:
         self.afk = afk
         self.idle_since = since
         self._has_sent_presence = True
+
+    async def request_soundboard_sounds(self, guild_ids: List[Snowflake]) -> None:
+        payload = {
+            'op': self.REQUEST_SOUNDBOARD_SOUNDS,
+            'd': {
+                'guild_ids': [str(guild_id) for guild_id in guild_ids],
+            },
+        }
+
+        _log.debug('Requesting soundboard sounds for guilds %s.', guild_ids)
+        await self.send_as_json(payload)
 
     async def guild_subscribe(
         self,

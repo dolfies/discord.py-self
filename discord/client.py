@@ -95,6 +95,7 @@ from .application import (
     PartialApplication,
     UnverifiedApplication,
 )
+from .soundboard import SoundboardDefaultSound, SoundboardSound
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -544,6 +545,11 @@ class Client:
         .. versionadded:: 2.0
         """
         return self._connection.stickers
+
+    @property
+    def soundboard_sounds(self) -> List[SoundboardSound]:
+        """List[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has."""
+        return self._connection.soundboard_sounds
 
     @property
     def sessions(self) -> Sequence[Session]:
@@ -1728,6 +1734,21 @@ class Client:
             The sticker or ``None`` if not found.
         """
         return self._connection.get_sticker(id)
+
+    def get_soundboard_sound(self, id: int, /) -> Optional[SoundboardSound]:
+        """Returns a soundboard sound with the given ID.
+
+        Parameters
+        -----------
+        id: :class:`int`
+            The ID to search for.
+
+        Returns
+        --------
+        Optional[:class:`.SoundboardSound`]
+            The soundboard sound or ``None`` if not found.
+        """
+        return self._connection.get_soundboard_sound(id)
 
     def get_all_channels(self) -> Generator[GuildChannel, None, None]:
         """A generator that retrieves every :class:`.abc.GuildChannel` the client can 'access'.
@@ -2945,6 +2966,24 @@ class Client:
         state = self._connection
         data = await self.http.list_premium_sticker_packs(state.country_code or 'US', state.locale)
         return [StickerPack(state=state, data=pack) for pack in data['sticker_packs']]
+
+    async def fetch_soundboard_default_sounds(self) -> List[SoundboardDefaultSound]:
+        """|coro|
+
+        Retrieves all default soundboard sounds.
+
+        Raises
+        -------
+        HTTPException
+            Retrieving the default soundboard sounds failed.
+
+        Returns
+        ---------
+        List[:class:`.SoundboardDefaultSound`]
+            All default soundboard sounds.
+        """
+        data = await self.http.get_soundboard_default_sounds()
+        return [SoundboardDefaultSound(state=self._connection, data=sound) for sound in data]
 
     async def fetch_sticker_pack(self, pack_id: int, /):
         """|coro|

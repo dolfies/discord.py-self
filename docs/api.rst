@@ -1644,6 +1644,32 @@ Scheduled Events
     :param event: The scheduled event that was marked as read.
     :type event: :class:`ScheduledEvent`
 
+Soundboard
+~~~~~~~~~~~
+
+.. function:: on_soundboard_sound_create(sound)
+              on_soundboard_sound_delete(sound)
+
+    Called when a :class:`SoundboardSound` is created or deleted.
+
+    :param sound: The soundboard sound that was created or deleted.
+    :type sound: :class:`SoundboardSound`
+
+.. function:: on_soundboard_sound_update(before, after)
+
+    Called when a :class:`SoundboardSound` is updated.
+
+    The following examples illustrate when this event is called:
+
+    - The name is changed.
+    - The emoji is changed.
+    - The volume is changed.
+
+    :param before: The soundboard sound before the update.
+    :type before: :class:`SoundboardSound`
+    :param after: The soundboard sound after the update.
+    :type after: :class:`SoundboardSound`
+
 Stages
 ~~~~~~~
 
@@ -9169,6 +9195,24 @@ Sticker
 .. attributetable:: GuildSticker
 
 .. autoclass:: GuildSticker()
+    :members:
+
+Soundboard
+~~~~~~~~~~~
+
+.. attributetable:: BaseSoundboardSound
+
+.. autoclass:: BaseSoundboardSound()
+    :members:
+
+.. attributetable:: SoundboardDefaultSound
+
+.. autoclass:: SoundboardDefaultSound()
+    :members:
+
+.. attributetable:: SoundboardSound
+
+.. autoclass:: SoundboardSound()
     :members:
 
 GuildChannel
