@@ -143,6 +143,11 @@ Bot Example
 
 You can find more examples in the examples directory.
 
+Contributing
+-------------
+
+Thank you for your interest in contribution. Before doing anything, please read the `contribution guide <https://github.com/dolfies/discord.py-self/blob/master/.github/CONTRIBUTING.md>`_, taking special note of the AI contribution guidelines.
+
 Links
 ------
 
