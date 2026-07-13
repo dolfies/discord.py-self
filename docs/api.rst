@@ -7170,6 +7170,20 @@ of :class:`enum.Enum`.
 
         An alias for :attr:`.default`.
 
+.. class:: SoundAnimationType
+
+    Represents the animation used when sending a join soundboard sound.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: SPARKLES
+
+        The sparkles animation.
+
+    .. attribute:: SIGNAL
+
+        The signal animation.
+
 .. class:: PromotionType
 
     Represents the type of a promotion.
