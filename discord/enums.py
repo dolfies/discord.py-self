@@ -58,6 +58,7 @@ __all__ = (
     'ExpireBehavior',
     'StickerType',
     'StickerFormatType',
+    'SoundAnimationType',
     'InviteTarget',
     'VideoQualityMode',
     'ComponentType',
