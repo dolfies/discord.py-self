@@ -26,6 +26,7 @@ from typing import Dict, List, Literal, Optional, TypedDict
 from typing_extensions import NotRequired
 
 from .scheduled_event import GuildScheduledEvent
+from .soundboard import SoundboardSound
 from .sticker import GuildSticker
 from .snowflake import Snowflake
 from .channel import GuildChannel, StageInstance
@@ -117,6 +118,7 @@ class Guild(UnavailableGuild, _GuildMedia):
     stickers: List[GuildSticker]
     stage_instances: List[StageInstance]
     guild_scheduled_events: List[GuildScheduledEvent]
+    soundboard_sounds: NotRequired[List[SoundboardSound]]
     owner: NotRequired[bool]
     permissions: NotRequired[str]
     widget_enabled: NotRequired[bool]

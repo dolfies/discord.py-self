@@ -91,6 +91,7 @@ from .flags import MemberCacheFlags
 from .invite import Invite
 from .integrations import _integration_factory
 from .scheduled_event import ScheduledEvent
+from .soundboard import SoundboardSound
 from .stage_instance import StageInstance
 from .threads import Thread, ThreadMember
 from .sticker import GuildSticker
@@ -139,6 +140,7 @@ if TYPE_CHECKING:
     from .types.user import User as UserPayload, PartialUser as PartialUserPayload
     from .types.emoji import Emoji as EmojiPayload, PartialEmoji as PartialEmojiPayload
     from .types.sticker import GuildSticker as GuildStickerPayload
+    from .types.soundboard import SoundboardSound as SoundboardSoundPayload
     from .types.guild import BaseGuild as BaseGuildPayload, Guild as GuildPayload
     from .types.message import (
         Message as MessagePayload,
@@ -1168,6 +1170,7 @@ class ConnectionState:
         self.disclose: List[str] = []
         self._emojis: Dict[int, Emoji] = {}
         self._stickers: Dict[int, GuildSticker] = {}
+        self._soundboard_sounds: Dict[int, SoundboardSound] = {}
         self._guilds: Dict[int, Guild] = {}
         self.tutorial: Tutorial = Tutorial.default(self)
 
@@ -1525,6 +1528,13 @@ class ConnectionState:
             self._stickers[sticker_id] = sticker
         return sticker
 
+    def store_soundboard_sound(self, guild: Guild, data: SoundboardSoundPayload) -> SoundboardSound:
+        sound_id = int(data['sound_id'])
+        sound = SoundboardSound(guild=guild, state=self, data=data)
+        if not self.is_guild_evicted(guild):
+            self._soundboard_sounds[sound_id] = sound
+        return sound
+
     @property
     def guilds(self) -> Sequence[Guild]:
         return utils.SequenceProxy(self._guilds.values())
@@ -1550,6 +1560,9 @@ class ConnectionState:
         for sticker in guild.stickers:
             self._stickers.pop(sticker.id, None)
 
+        for sound in guild.soundboard_sounds:
+            self._soundboard_sounds.pop(sound.id, None)
+
         del guild
 
     def create_guild(self, guild: BaseGuildPayload, /) -> Guild:
@@ -1563,6 +1576,10 @@ class ConnectionState:
     def stickers(self) -> Sequence[GuildSticker]:
         return utils.SequenceProxy(self._stickers.values())
 
+    @property
+    def soundboard_sounds(self) -> Sequence[SoundboardSound]:
+        return utils.SequenceProxy(self._soundboard_sounds.values())
+
     def get_emoji(self, emoji_id: Optional[int]) -> Optional[Emoji]:
         # the keys of self._emojis are ints
         return self._emojis.get(emoji_id)  # type: ignore
@@ -1570,6 +1587,10 @@ class ConnectionState:
     def get_sticker(self, sticker_id: Optional[int]) -> Optional[GuildSticker]:
         # the keys of self._stickers are ints
         return self._stickers.get(sticker_id)  # type: ignore
+
+    def get_soundboard_sound(self, id: Optional[int]) -> Optional[SoundboardSound]:
+        # the keys of self._soundboard_sounds are ints
+        return self._soundboard_sounds.get(id)  # type: ignore
 
     @property
     def private_channels(self) -> Sequence[PrivateChannel]:
@@ -1713,6 +1734,9 @@ class ConnectionState:
             guild_ids, query=query, limit=limit, presences=presences, user_ids=user_ids, nonce=nonce
         )
 
+    def request_soundboard_sounds(self, guild_ids: List[Snowflake]) -> Coroutine[Any, Any, None]:
+        return self.ws.request_soundboard_sounds(guild_ids)
+
     async def query_members(
         self,
         guild: Guild,
@@ -1783,6 +1807,7 @@ class ConnectionState:
             member_nonce = utils._generate_nonce()
             states = []
             to_chunk = []
+            to_request_sounds = []
 
             if not manager.empty:
                 await manager._requeue_subscriptions()
@@ -1790,6 +1815,8 @@ class ConnectionState:
             for guild in self._guilds.values():
                 if self._subscribe_guilds:
                     await self.subscribe_guild(guild)
+
+                to_request_sounds.append(guild.id)
 
                 if self._guild_needs_chunking(guild):
                     if await self._can_chunk_guild(guild):
@@ -1808,6 +1835,9 @@ class ConnectionState:
 
             manager.blocked = False
             await self.chunker(to_chunk, nonce=member_nonce)
+
+            if to_request_sounds:
+                await self.request_soundboard_sounds(to_request_sounds)
 
             for guild, future in states:
                 timeout = self._chunk_timeout(guild)
@@ -2990,6 +3020,75 @@ class ConnectionState:
             self._stickers.pop(emoji.id, None)
         guild.stickers = tuple(map(lambda d: self.store_sticker(guild, d), data['stickers']))
         self.dispatch('guild_stickers_update', guild, before_stickers, guild.stickers)
+
+    def parse_soundboard_sounds(self, data: gw.SoundboardSoundsEvent) -> None:
+        guild_id = int(data['guild_id'])
+        guild = self._get_guild(guild_id)
+        if guild is None:
+            _log.debug('SOUNDBOARD_SOUNDS referencing unknown guild ID: %s. Discarding.', guild_id)
+            return
+
+        for raw_sound in data['soundboard_sounds']:
+            sound = self.store_soundboard_sound(guild, raw_sound)
+            guild._add_soundboard_sound(sound)
+
+    def parse_guild_soundboard_sound_create(self, data: gw.GuildSoundBoardSoundCreateEvent) -> None:
+        guild_id = int(data['guild_id'])  # type: ignore # can't be None here
+        guild = self._get_guild(guild_id)
+        if guild is not None:
+            sound = self.store_soundboard_sound(guild, data)
+            guild._add_soundboard_sound(sound)
+            self.dispatch('soundboard_sound_create', sound)
+        else:
+            _log.debug('GUILD_SOUNDBOARD_SOUND_CREATE referencing unknown guild ID: %s. Discarding.', guild_id)
+
+    def _update_and_dispatch_sound_update(self, sound: SoundboardSound, data: gw.GuildSoundBoardSoundUpdateEvent):
+        old_sound = copy.copy(sound)
+        sound._update(data)
+        self.dispatch('soundboard_sound_update', old_sound, sound)
+
+    def parse_guild_soundboard_sound_update(self, data: gw.GuildSoundBoardSoundUpdateEvent) -> None:
+        guild_id = int(data['guild_id'])  # type: ignore # can't be None here
+        guild = self._get_guild(guild_id)
+        if guild is not None:
+            sound_id = int(data['sound_id'])
+            sound = guild.get_soundboard_sound(sound_id)
+            if sound is not None:
+                self._update_and_dispatch_sound_update(sound, data)
+            else:
+                _log.warning('GUILD_SOUNDBOARD_SOUND_UPDATE referencing unknown sound ID: %s. Discarding.', sound_id)
+        else:
+            _log.debug('GUILD_SOUNDBOARD_SOUND_UPDATE referencing unknown guild ID: %s. Discarding.', guild_id)
+
+    def parse_guild_soundboard_sound_delete(self, data: gw.GuildSoundBoardSoundDeleteEvent) -> None:
+        guild_id = int(data['guild_id'])
+        guild = self._get_guild(guild_id)
+        if guild is not None:
+            sound_id = int(data['sound_id'])
+            sound = guild.get_soundboard_sound(sound_id)
+            if sound is not None:
+                guild._remove_soundboard_sound(sound)
+                self._soundboard_sounds.pop(sound_id, None)
+                self.dispatch('soundboard_sound_delete', sound)
+            else:
+                _log.warning('GUILD_SOUNDBOARD_SOUND_DELETE referencing unknown sound ID: %s. Discarding.', sound_id)
+        else:
+            _log.debug('GUILD_SOUNDBOARD_SOUND_DELETE referencing unknown guild ID: %s. Discarding.', guild_id)
+
+    def parse_guild_soundboard_sounds_update(self, data: gw.GuildSoundBoardSoundsUpdateEvent) -> None:
+        guild_id = int(data['guild_id'])
+        guild = self._get_guild(guild_id)
+        if guild is None:
+            _log.debug('GUILD_SOUNDBOARD_SOUNDS_UPDATE referencing unknown guild ID: %s. Discarding.', guild_id)
+            return
+
+        for raw_sound in data['soundboard_sounds']:
+            sound_id = int(raw_sound['sound_id'])
+            sound = guild.get_soundboard_sound(sound_id)
+            if sound is not None:
+                self._update_and_dispatch_sound_update(sound, raw_sound)
+            else:
+                _log.warning('GUILD_SOUNDBOARD_SOUNDS_UPDATE referencing unknown sound ID: %s. Discarding.', sound_id)
 
     def parse_guild_audit_log_entry_create(self, data: gw.GuildAuditLogEntryCreate) -> None:
         guild = self._get_guild(int(data['guild_id']))
