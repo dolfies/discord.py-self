@@ -35,14 +35,15 @@ import discord.abc
 from . import utils
 from .asset import Asset
 from .utils import MISSING
-from .user import BaseUser, User, _UserTag
+from .user import BaseUser, User, _UserTag, DisplayNameStyle, RecentAvatar
 from .permissions import Permissions
-from .enums import Status, try_enum
+from .enums import Status, NameFont, NameEffect, try_enum
 from .errors import ClientException
 from .colour import Colour
 from .object import Object
 from .flags import MemberFlags
 from .voice_client import VoiceClient
+from .collectible import Collectible
 
 __all__ = (
     'VoiceState',
@@ -70,7 +71,12 @@ if TYPE_CHECKING:
         UserWithMember as UserWithMemberPayload,
     )
     from .types.gateway import GuildMemberUpdateEvent
-    from .types.user import AvatarDecorationData, PartialUser as PartialUserPayload
+    from .types.user import (
+        AvatarDecorationData,
+        PartialUser as PartialUserPayload,
+        DisplayNameStyle as DisplayNameStylePayload,
+        UserCollectibles as UserCollectiblesPayload,
+    )
     from .abc import Snowflake
     from .state import ConnectionState, Presence
     from .message import Message
@@ -79,7 +85,6 @@ if TYPE_CHECKING:
     from .relationship import Relationship
     from .calls import PrivateCall
     from .primary_guild import PrimaryGuild
-    from .collectible import Collectible
 
     VocalGuildChannel = Union[VoiceChannel, StageChannel]
     ConnectableChannel = Union[VocalGuildChannel, DMChannel, GroupChannel]
@@ -281,6 +286,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         '_avatar_decoration_data',
         '_banner',
         '_flags',
+        '_display_name_style',
+        '_collectibles',
     )
 
     if TYPE_CHECKING:
@@ -316,7 +323,6 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         accent_color: Optional[Colour]
         accent_colour: Optional[Colour]
         primary_guild: PrimaryGuild
-        collectibles: List[Collectible]
 
     def __init__(self, *, data: MemberWithUserPayload, guild: Guild, state: ConnectionState):
         self._state: ConnectionState = state
@@ -333,6 +339,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         self._banner: Optional[str] = data.get('banner')
         self._flags: int = data.get('flags', 0)
         self.timed_out_until: Optional[datetime.datetime] = utils.parse_time(data.get('communication_disabled_until'))
+        self._display_name_style: Optional[DisplayNameStylePayload] = data.get('display_name_styles', None)
+        self._collectibles: Optional[UserCollectiblesPayload] = data.get('collectibles', None)
 
     def __str__(self) -> str:
         return str(self._user)
@@ -369,6 +377,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         self._banner = data.get('banner')
         self._flags = data.get('flags', 0)
         self.timed_out_until = utils.parse_time(data.get('communication_disabled_until'))
+        self._display_name_style = data.get('display_name_styles', None)
+        self._collectibles = data.get('collectibles', None)
 
     @classmethod
     def _try_upgrade(cls, *, data: UserWithMemberPayload, guild: Guild, state: ConnectionState) -> Union[User, Self]:
@@ -398,6 +408,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         self._avatar = member._avatar
         self._avatar_decoration_data = member._avatar_decoration_data
         self._banner = member._banner
+        self._display_name_style = member._display_name_style
+        self._collectibles = member._collectibles
 
         # Reference will not be copied unless necessary by PRESENCE_UPDATE
         # See below
@@ -425,6 +437,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         self._avatar = data.get('avatar')
         self._banner = data.get('banner')
         self._flags = data.get('flags', 0)
+        self._display_name_style = data.get('display_name_styles', None)
+        self._collectibles = data.get('collectibles', None)
 
         attrs = {'joined_at', 'premium_since', '_roles', '_avatar', '_banner', 'timed_out_until', 'nick', 'pending'}
 
@@ -809,6 +823,63 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         """
         return MemberFlags._from_value(self._flags)
 
+    @property
+    def guild_display_name_style(self) -> Optional[DisplayNameStyle]:
+        """Optional[:class:`DisplayNameStylePayload`]: Returns the member's display name style in the guild.
+
+        .. versionadded:: 2.2
+        """
+        if self._display_name_style is None:
+            return None
+
+        return DisplayNameStyle(data=self._display_name_style)
+
+    @property
+    def global_display_name_style(self) -> Optional[DisplayNameStyle]:
+        """Optional[:class:`DisplayNameStylePayload`]: Returns the user's global display name style.
+
+        .. versionadded:: 2.2
+        """
+        if self._user._display_name_style is None:
+            return None
+
+        return DisplayNameStyle(data=self._user._display_name_style)
+
+    @property
+    def display_name_style(self) -> Optional[DisplayNameStyle]:
+        """Optional[:class:`DisplayNameStylePayload`]: Returns the member's display name style.
+
+        This will return the guild display name style if available, otherwise it will return the global display name style.
+
+        .. versionadded:: 2.2
+        """
+        return self.guild_display_name_style or self.global_display_name_style
+
+    def global_collectibles(self) -> List[Collectible]:
+        """Optional[List[:class:`Collectible`]]: Returns the user's global collectibles.
+
+        .. versionadded:: 2.2
+        """
+        return self._user.collectibles()
+
+    def guild_collectibles(self) -> List[Collectible]:
+        """Optional[List[:class:`Collectible`]]: Returns the member's guild collectibles.
+
+        .. versionadded:: 2.2
+        """
+        if self._collectibles is None:
+            return []
+        return [Collectible(state=self._state, type=key, data=value) for key, value in self._collectibles.items() if value]  # type: ignore
+
+    def collectibles(self) -> Optional[List[Collectible]]:
+        """Optional[List[:class:`Collectible`]]: Returns the member's collectibles.
+
+        This will return the guild collectibles if available, otherwise it will return the global collectibles.
+
+        .. versionadded:: 2.2
+        """
+        return self.guild_collectibles() or self.global_collectibles()
+
     async def ban(
         self,
         *,
@@ -851,10 +922,19 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         roles: Collection[discord.abc.Snowflake] = MISSING,
         voice_channel: Optional[VocalGuildChannel] = MISSING,
         timed_out_until: Optional[datetime.datetime] = MISSING,
-        avatar: Optional[bytes] = MISSING,
         banner: Optional[bytes] = MISSING,
         bio: Optional[str] = MISSING,
         bypass_verification: bool = MISSING,
+        display_name_font: Optional[NameFont] = MISSING,
+        display_name_effect: Optional[NameEffect] = MISSING,
+        display_name_colors: Optional[List[Colour]] = MISSING,
+        avatar_decoration_id: Optional[int] = MISSING,
+        avatar_decoration_sku_id: Optional[int] = MISSING,
+        nameplate_id: Optional[int] = MISSING,
+        nameplate_sku_id: Optional[int] = MISSING,
+        pronouns: Optional[str] = MISSING,
+        avatar: Optional[Union[bytes, RecentAvatar]] = MISSING,
+        avatar_description: str = MISSING,
         reason: Optional[str] = None,
     ) -> Optional[Member]:
         """|coro|
@@ -918,11 +998,14 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             This must be a timezone-aware datetime object. Consider using :func:`utils.utcnow`.
 
             .. versionadded:: 2.0
-        avatar: Optional[:class:`bytes`]
+        avatar: Optional[Union[:class:`bytes`, :class:`RecentAvatar`]]
             The member's new guild avatar. Pass ``None`` to remove the avatar.
             You can only change your own guild avatar.
 
             .. versionadded:: 2.0
+            .. versionchanged:: 2.2
+
+                You can now pass a :class:`RecentAvatar` to set a recent user avatar as the guild avatar.
         banner: Optional[:class:`bytes`]
             The member's new guild banner. Pass ``None`` to remove the banner.
             You can only change your own guild banner.
@@ -937,6 +1020,54 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             Indicates if the member should be allowed to bypass the guild verification requirements.
 
             .. versionadded:: 2.0
+        display_name_font: Optional[:class:`NameFont`]
+            The member's new display name font. Pass ``None`` to remove the font.
+            You can only change your own display name font.
+
+            .. versionadded:: 2.2
+        display_name_effect: Optional[:class:`NameEffect`]
+            The member's new display name effect. Pass ``None`` to remove the effect.
+            You can only change your own display name effect.
+
+            .. versionadded:: 2.2
+        display_name_colors: Optional[List[:class:`NameColor`]]
+            The member's new display name colors. Pass ``None`` to remove the colors.
+            You can only change your own display name effect.
+
+            .. versionadded:: 2.2
+        avatar_decoration_id: Optional[:class:`int`]
+            The member's new avatar decoration ID. Pass ``None`` to remove the decoration.
+            You can only change your own avatar decoration.
+
+            .. versionadded:: 2.2
+        avatar_decoration_sku_id: Optional[:class:`int`]
+            The member's new avatar decoration SKU ID. Pass ``None`` to remove the decoration.
+            You can only change your own avatar decoration.
+
+            .. versionadded:: 2.2
+        nameplate_id: Optional[:class:`int`]
+            The member's new nameplate ID. Pass ``None`` to remove the nameplate.
+            You can only change your own nameplate.
+
+            .. versionadded:: 2.2
+        nameplate_sku_id: Optional[:class:`int`]
+            The member's new nameplate SKU ID. Pass ``None`` to remove the nameplate.
+            You can only change your own nameplate.
+
+            .. versionadded:: 2.2
+        pronouns: Optional[:class:`str`]
+            The member's new pronouns. Pass ``None`` to remove the pronouns.
+            You can only change your own pronouns.
+
+            .. versionadded:: 2.2
+
+        avatar_description: Optional[:class:`str`]
+            The description of the user's newly-uploaded avatar, used for displaying in recent avatars.
+            Formatted typically as "{filename}, added {date}".
+            Not applicable when setting a :class:`RecentAvatar`.
+
+            ... versionadded:: 2.2
+
         reason: Optional[:class:`str`]
             The reason for editing this member. Shows up on the audit log.
 
@@ -948,6 +1079,10 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             The operation failed.
         TypeError
             The datetime object passed to ``timed_out_until`` was not timezone-aware.
+            `display_name_font` parameter was not a :class:`NameFont`.
+            `display_name_effect` parameter was not a :class:`NameEffect`.
+            `display_name_colors` parameter was not a list of :class:`Colour`.
+
 
         Returns
         --------
@@ -959,23 +1094,80 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         guild_id = self.guild.id
         me = self._user.id == self._state.self_id
         payload: Dict[str, Any] = {}
+        me_payload: Dict[str, Any] = {}
         data = None
 
         if nick is not MISSING:
             payload['nick'] = nick
+            me_payload['nick'] = nick
 
         if avatar is not MISSING:
-            payload['avatar'] = utils._bytes_to_base64_data(avatar) if avatar is not None else None
+            if isinstance(avatar, RecentAvatar):
+                me_payload['avatar_id'] = avatar.id
+            elif avatar is not None:
+                me_payload['avatar'] = utils._bytes_to_base64_data(avatar)
+            else:
+                me_payload['avatar'] = None
+
+        if avatar_description is not MISSING:
+            me_payload['avatar_description'] = avatar_description
 
         if banner is not MISSING:
-            payload['banner'] = utils._bytes_to_base64_data(banner) if banner is not None else None
+            me_payload['banner'] = utils._bytes_to_base64_data(banner) if banner is not None else None
 
         if bio is not MISSING:
-            payload['bio'] = bio or ''
+            me_payload['bio'] = bio or ''
 
-        if me and payload:
-            data = await http.edit_me(self.guild.id, **payload)
-            payload = {}
+        if display_name_font is not MISSING:
+            if display_name_font is None:
+                me_payload['display_name_font_id'] = None
+            elif not isinstance(display_name_font, NameFont):
+                raise TypeError('display_name_font must be a NameFont')
+            else:
+                me_payload['display_name_font_id'] = display_name_font.value
+
+        if display_name_effect is not MISSING:
+            if display_name_effect is None:
+                me_payload['display_name_effect_id'] = None
+            elif not isinstance(display_name_effect, NameEffect):
+                raise TypeError('display_name_effect must be a NameEffect')
+            else:
+                me_payload['display_name_effect_id'] = display_name_effect.value
+
+        if display_name_colors is not MISSING:
+            if display_name_colors is None:
+                me_payload['display_name_colors'] = None
+            elif not isinstance(display_name_colors, list) or not all(
+                isinstance(color, Colour) for color in display_name_colors
+            ):
+                raise TypeError('display_name_colors must be a list of Colour')
+            else:
+                me_payload['display_name_colors'] = [color.value for color in display_name_colors]
+
+        if avatar_decoration_id is not MISSING:
+            me_payload['avatar_decoration_id'] = avatar_decoration_id
+        if avatar_decoration_sku_id is not MISSING:
+            me_payload['avatar_decoration_sku_id'] = avatar_decoration_sku_id
+
+        collectibles_payload: Dict[str, Any] = {}
+        nameplate_payload: Dict[str, Any] = {}
+        if nameplate_id is not MISSING:
+            nameplate_payload['id'] = nameplate_id
+        if nameplate_sku_id is not MISSING:
+            nameplate_payload['sku_id'] = nameplate_sku_id
+
+        if nameplate_payload:
+            me_payload['nameplate'] = nameplate_payload
+
+        if collectibles_payload:
+            me_payload['collectibles'] = collectibles_payload
+
+        if pronouns is not MISSING:
+            me_payload['pronouns'] = pronouns
+
+        if me and me_payload:
+            data = await http.edit_me(self.guild.id, **me_payload)
+            me_payload = {}
 
         if deafen is not MISSING:
             payload['deaf'] = deafen

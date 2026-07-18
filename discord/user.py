@@ -816,6 +816,14 @@ class ClientUser(BaseUser):
         date_of_birth: datetime.date = MISSING,
         pomelo: bool = MISSING,
         primary_guild: Optional[discord.abc.Snowflake] = MISSING,
+        display_name_font: Optional[NameFont] = MISSING,
+        display_name_effect: Optional[NameEffect] = MISSING,
+        display_name_colors: Optional[List[Colour]] = MISSING,
+        nameplate_id: Optional[int] = MISSING,
+        nameplate_sku_id: Optional[int] = MISSING,
+        avatar_decoration_id: Optional[int] = MISSING,
+        avatar_decoration_sku_id: Optional[int] = MISSING,
+        pronouns: Optional[str] = MISSING,
     ) -> ClientUser:
         """|coro|
 
@@ -865,6 +873,10 @@ class ClientUser(BaseUser):
             Could be ``None`` to denote no avatar decoration.
 
             .. versionadded:: 2.0
+            .. deprecated:: 2.2
+
+                This parameter is deprecated and will be removed in a future version.
+                Use :attr:`avatar_decoration_id` and :attr:`avatar_decoration_sku_id` instead.
         banner: :class:`bytes`
             A :term:`py:bytes-like object` representing the image to upload.
             Could be ``None`` to denote no banner.
@@ -905,6 +917,38 @@ class ClientUser(BaseUser):
             - If ``None`` is passed, then the primary guild is removed and the identity is disabled.
 
             .. versionadded:: 2.2
+        display_name_font: Optional[:class:`NameFont`]
+            The font to use for your display name. Pass ``None`` to remove the font.
+
+            .. versionadded:: 2.2
+        display_name_effect: Optional[:class:`NameEffect`]
+            The effect to use for your display name. Pass ``None`` to remove the effect.
+
+            .. versionadded:: 2.2
+        display_name_colors: Optional[List[:class:`Colour`]]
+            The colours to use for your display name. Pass ``None`` to remove the colours.
+
+            .. versionadded:: 2.2
+        nameplate_id: Optional[:class:`int`]
+            The ID of the nameplate to use. Pass ``None`` to remove the nameplate.
+
+            .. versionadded:: 2.2
+        nameplate_sku_id: Optional[:class:`int`]
+            The SKU ID of the nameplate to use. Pass ``None`` to remove the nameplate.
+
+            .. versionadded:: 2.2
+        avatar_decoration_id: Optional[:class:`int`]
+            The ID of the avatar decoration to use. Pass ``None`` to remove the avatar decoration.
+
+            .. versionadded:: 2.2
+        avatar_decoration_sku_id: Optional[:class:`int`]
+            The SKU ID of the avatar decoration to use. Pass ``None`` to remove the avatar decoration.
+
+            .. versionadded:: 2.2
+        pronouns: Optional[:class:`str`]
+            The pronouns to use for your profile. Pass ``None`` to remove the pronouns.
+
+            .. versionadded:: 2.2
 
         Raises
         ------
@@ -919,6 +963,9 @@ class ClientUser(BaseUser):
             `date_of_birth` field was not a :class:`datetime.date`.
             `accent_colo(u)r` parameter was not a :class:`Colour`.
             `primary_guild` parameter was not a :class:`discord.abc.Snowflake`.
+            `display_name_font` parameter was not a :class:`NameFont`.
+            `display_name_effect` parameter was not a :class:`NameEffect`.
+            `display_name_colors` parameter was not a list of :class:`Colour`.
 
         Returns
         ---------
@@ -1022,6 +1069,43 @@ class ClientUser(BaseUser):
                 primary_guild_enabled = primary_guild.identity_enabled
 
             data = await http.set_guild_identity(guild_id=primary_guild_id, enabled=primary_guild_enabled)
+
+        if display_name_font is not MISSING:
+            if display_name_font is None:
+                args['display_name_font_id'] = None
+            elif not isinstance(display_name_font, NameFont):
+                raise ValueError('`display_name_font` parameter was not a NameFont')
+            else:
+                args['display_name_font_id'] = display_name_font.value
+
+        if display_name_effect is not MISSING:
+            if display_name_effect is None:
+                args['display_name_effect_id'] = None
+            elif not isinstance(display_name_effect, NameEffect):
+                raise ValueError('`display_name_effect` parameter was not a NameEffect')
+            else:
+                args['display_name_effect_id'] = display_name_effect.value
+
+        if display_name_colors is not MISSING:
+            if display_name_colors is None:
+                args['display_name_colors'] = None
+            elif not isinstance(display_name_colors, list) or not all(isinstance(c, Colour) for c in display_name_colors):
+                raise ValueError('`display_name_colors` parameter was not a list of Colour')
+            else:
+                args['display_name_colors'] = [c.value for c in display_name_colors]
+
+        if nameplate_id is not MISSING:
+            args['nameplate_id'] = nameplate_id
+        if nameplate_sku_id is not MISSING:
+            args['nameplate_sku_id'] = nameplate_sku_id
+
+        if avatar_decoration_id is not MISSING:
+            args['avatar_decoration_id'] = avatar_decoration_id
+        if avatar_decoration_sku_id is not MISSING:
+            args['avatar_decoration_sku_id'] = avatar_decoration_sku_id
+
+        if pronouns is not MISSING:
+            args['pronouns'] = pronouns
 
         if args or data is None:
             data = await http.edit_profile(args)
