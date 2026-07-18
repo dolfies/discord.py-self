@@ -840,10 +840,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
         .. versionadded:: 2.2
         """
-        if self._user._display_name_style is None:
-            return None
-
-        return DisplayNameStyle(data=self._user._display_name_style)
+        return self._user.display_name_style
 
     @property
     def display_name_style(self) -> Optional[DisplayNameStyle]:
