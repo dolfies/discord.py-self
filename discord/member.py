@@ -825,7 +825,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
     @property
     def guild_display_name_style(self) -> Optional[DisplayNameStyle]:
-        """Optional[:class:`DisplayNameStylePayload`]: Returns the member's display name style in the guild.
+        """Optional[:class:`DisplayNameStyle`]: Returns the member's display name style in the guild.
 
         .. versionadded:: 2.2
         """
@@ -836,7 +836,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
     @property
     def global_display_name_style(self) -> Optional[DisplayNameStyle]:
-        """Optional[:class:`DisplayNameStylePayload`]: Returns the user's global display name style.
+        """Optional[:class:`DisplayNameStyle`]: Returns the user's global display name style.
 
         .. versionadded:: 2.2
         """
@@ -847,7 +847,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
 
     @property
     def display_name_style(self) -> Optional[DisplayNameStyle]:
-        """Optional[:class:`DisplayNameStylePayload`]: Returns the member's display name style.
+        """Optional[:class:`DisplayNameStyle`]: Returns the member's display name style.
 
         This will return the guild display name style if available, otherwise it will return the global display name style.
 
@@ -856,14 +856,14 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         return self.guild_display_name_style or self.global_display_name_style
 
     def global_collectibles(self) -> List[Collectible]:
-        """Optional[List[:class:`Collectible`]]: Returns the user's global collectibles.
+        """List[:class:`Collectible`]: Returns the user's global collectibles.
 
         .. versionadded:: 2.2
         """
         return self._user.collectibles()
 
     def guild_collectibles(self) -> List[Collectible]:
-        """Optional[List[:class:`Collectible`]]: Returns the member's guild collectibles.
+        """List[:class:`Collectible`]: Returns the member's guild collectibles.
 
         .. versionadded:: 2.2
         """
@@ -871,8 +871,8 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             return []
         return [Collectible(state=self._state, type=key, data=value) for key, value in self._collectibles.items() if value]  # type: ignore
 
-    def collectibles(self) -> Optional[List[Collectible]]:
-        """Optional[List[:class:`Collectible`]]: Returns the member's collectibles.
+    def collectibles(self) -> List[Collectible]:
+        """List[:class:`Collectible`]: Returns the member's collectibles.
 
         This will return the guild collectibles if available, otherwise it will return the global collectibles.
 
@@ -1030,9 +1030,9 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             You can only change your own display name effect.
 
             .. versionadded:: 2.2
-        display_name_colors: Optional[List[:class:`NameColor`]]
+        display_name_colors: Optional[List[:class:`Colour`]]
             The member's new display name colors. Pass ``None`` to remove the colors.
-            You can only change your own display name effect.
+            You can only change your own display name colors.
 
             .. versionadded:: 2.2
         avatar_decoration_id: Optional[:class:`int`]
@@ -1150,12 +1150,12 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             me_payload['avatar_decoration_sku_id'] = avatar_decoration_sku_id
 
         collectibles_payload: Dict[str, Any] = {}
+
         nameplate_payload: Dict[str, Any] = {}
         if nameplate_id is not MISSING:
             nameplate_payload['id'] = nameplate_id
         if nameplate_sku_id is not MISSING:
             nameplate_payload['sku_id'] = nameplate_sku_id
-
         if nameplate_payload:
             me_payload['nameplate'] = nameplate_payload
 

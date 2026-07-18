@@ -876,7 +876,7 @@ class ClientUser(BaseUser):
             .. deprecated:: 2.2
 
                 This parameter is deprecated and will be removed in a future version.
-                Use :attr:`avatar_decoration_id` and :attr:`avatar_decoration_sku_id` instead.
+                Use ``avatar_decoration_id`` and ``avatar_decoration_sku_id`` instead.
         banner: :class:`bytes`
             A :term:`py:bytes-like object` representing the image to upload.
             Could be ``None`` to denote no banner.
