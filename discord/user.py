@@ -803,7 +803,6 @@ class ClientUser(BaseUser):
         global_name: Optional[str] = MISSING,
         avatar: Optional[Union[bytes, RecentAvatar]] = MISSING,
         avatar_description: str = MISSING,
-        avatar_decoration: Optional[bytes] = MISSING,
         password: str = MISSING,
         new_password: str = MISSING,
         email: str = MISSING,
@@ -870,15 +869,6 @@ class ClientUser(BaseUser):
             The description of the user's newly-uploaded avatar, used for displaying in recent avatars.
             Formatted typically as "{filename}, added {date}".
             Not applicable when setting a :class:`RecentAvatar`.
-        avatar_decoration: Optional[:class:`bytes`]
-            A :term:`py:bytes-like object` representing the image to upload.
-            Could be ``None`` to denote no avatar decoration.
-
-            .. versionadded:: 2.0
-            .. deprecated:: 2.2
-
-                This parameter is deprecated and will be removed in a future version.
-                Use ``avatar_decoration_id`` and ``avatar_decoration_sku_id`` instead.
         banner: :class:`bytes`
             A :term:`py:bytes-like object` representing the image to upload.
             Could be ``None`` to denote no banner.
@@ -993,12 +983,6 @@ class ClientUser(BaseUser):
 
         if avatar_description is not MISSING:
             args['avatar_description'] = avatar_description
-
-        if avatar_decoration is not MISSING:
-            if avatar_decoration is not None:
-                args['avatar_decoration'] = _bytes_to_base64_data(avatar_decoration)
-            else:
-                args['avatar_decoration'] = None
 
         if banner is not MISSING:
             if banner is not None:
