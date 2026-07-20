@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .member import VoiceState
     from .message import Message
-    from .profile import UserProfile
+    from .profile import ProfileMetadata, UserProfile
     from .state import ConnectionState
     from .types.channel import DMChannel as DMChannelPayload
     from .types.user import (
@@ -818,10 +818,9 @@ class ClientUser(BaseUser):
         primary_guild: Optional[discord.abc.Snowflake] = MISSING,
         display_name_font: Optional[NameFont] = MISSING,
         display_name_effect: Optional[NameEffect] = MISSING,
+        display_name_colours: Optional[List[Colour]] = MISSING,
         display_name_colors: Optional[List[Colour]] = MISSING,
-        nameplate_id: Optional[int] = MISSING,
         nameplate_sku_id: Optional[int] = MISSING,
-        avatar_decoration_id: Optional[int] = MISSING,
         avatar_decoration_sku_id: Optional[int] = MISSING,
         pronouns: Optional[str] = MISSING,
     ) -> ClientUser:
@@ -842,6 +841,9 @@ class ClientUser(BaseUser):
         .. versionchanged:: 2.0
             This function will now raise :exc:`ValueError` instead of
             ``InvalidArgument``.
+
+        .. versionchanged:: 2.2
+            The ``avatar_decoration`` parameter was removed in favor of ``avatar_decoration_sku_id``.
 
         Parameters
         -----------
@@ -925,20 +927,12 @@ class ClientUser(BaseUser):
             The effect to use for your display name. Pass ``None`` to remove the effect.
 
             .. versionadded:: 2.2
-        display_name_colors: Optional[List[:class:`Colour`]]
+        display_name_colours: Optional[List[:class:`Colour`]]
             The colours to use for your display name. Pass ``None`` to remove the colours.
-
-            .. versionadded:: 2.2
-        nameplate_id: Optional[:class:`int`]
-            The ID of the nameplate to use. Pass ``None`` to remove the nameplate.
 
             .. versionadded:: 2.2
         nameplate_sku_id: Optional[:class:`int`]
             The SKU ID of the nameplate to use. Pass ``None`` to remove the nameplate.
-
-            .. versionadded:: 2.2
-        avatar_decoration_id: Optional[:class:`int`]
-            The ID of the avatar decoration to use. Pass ``None`` to remove the avatar decoration.
 
             .. versionadded:: 2.2
         avatar_decoration_sku_id: Optional[:class:`int`]
@@ -1086,21 +1080,19 @@ class ClientUser(BaseUser):
             else:
                 args['display_name_effect_id'] = display_name_effect.value
 
-        if display_name_colors is not MISSING:
-            if display_name_colors is None:
-                args['display_name_colors'] = None
-            elif not isinstance(display_name_colors, list) or not all(isinstance(c, Colour) for c in display_name_colors):
-                raise ValueError('`display_name_colors` parameter was not a list of Colour')
-            else:
-                args['display_name_colors'] = [c.value for c in display_name_colors]
+        if display_name_colors is not MISSING or display_name_colours is not MISSING:
+            display_name_colours = display_name_colours if display_name_colours is not MISSING else display_name_colors
 
-        if nameplate_id is not MISSING:
-            args['nameplate_id'] = nameplate_id
+            if display_name_colours is None:
+                args['display_name_colours'] = None
+            elif not isinstance(display_name_colours, list) or not all(isinstance(c, Colour) for c in display_name_colours):
+                raise ValueError('`display_name_colours` parameter was not a list of Colour')
+            else:
+                args['display_name_colours'] = [c.value for c in display_name_colours]
+
         if nameplate_sku_id is not MISSING:
             args['nameplate_sku_id'] = nameplate_sku_id
 
-        if avatar_decoration_id is not MISSING:
-            args['avatar_decoration_id'] = avatar_decoration_id
         if avatar_decoration_sku_id is not MISSING:
             args['avatar_decoration_sku_id'] = avatar_decoration_sku_id
 
@@ -1108,13 +1100,98 @@ class ClientUser(BaseUser):
             args['pronouns'] = pronouns
 
         if args or data is None:
-            data = await http.edit_profile(args)
+            data = await http.edit_current_user(args)
             try:
                 http._token(data['token'])
             except KeyError:
                 pass
 
         return self.__class__(state=self._state, data=data)  # type: ignore # ???
+
+    async def edit_profile(
+        self,
+        *,
+        pronouns: Optional[str] = MISSING,
+        bio: Optional[str] = MISSING,
+        banner: Optional[bytes] = MISSING,
+        accent_colour: Optional[Colour] = MISSING,
+        accent_color: Optional[Colour] = MISSING,
+        theme_colours: Optional[List[Colour]] = MISSING,
+        theme_colors: Optional[List[Colour]] = MISSING,
+        popout_animation_particle_type: Optional[int] = MISSING,
+        emoji_id: Optional[int] = MISSING,
+        profile_effect_id: Optional[int] = MISSING,
+    ) -> ProfileMetadata:
+        """|coro|
+
+        Edits the current user's profile metadata.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        pronouns: Optional[:class:`str`]
+            The pronouns to use for your profile. Can be up to 40 characters.
+            Pass ``None`` to remove the pronouns.
+        bio: Optional[:class:`str`]
+            Your "about me" section. Can be up to 190 characters.
+            Could be ``None`` to represent no bio.
+        banner: Optional[:class:`bytes`]
+            A :term:`py:bytes-like object` representing the new banner.
+            Could be ``None`` to denote no banner.
+        accent_colour: Optional[:class:`Colour`]
+            A :class:`Colour` object of the colour you want to set your profile to.
+            Pass ``None`` to remove the accent colour.
+        theme_colours: Optional[List[:class:`Colour`]]
+            A list of two :class:`Colour` objects to use for your profile theme.
+            Pass ``None`` to remove the theme colours.
+        popout_animation_particle_type: Optional[:class:`int`]
+            The ID of the particle type to use for your profile popout animation.
+            Pass ``None`` to remove the particle type.
+        emoji_id: Optional[:class:`int`]
+            The ID of the emoji to use for your profile. Pass ``None`` to remove the emoji.
+        profile_effect_id: Optional[:class:`int`]
+            The ID of the profile effect to use for your profile. Pass ``None`` to remove the profile effect.
+
+        Raises
+        ------
+        HTTPException
+            Editing your profile failed.
+
+        Returns
+        ---------
+        :class:`ProfileMetadata`
+            The newly edited profile metadata.
+        """
+        state = self._state
+        payload: Dict[str, Any] = {}
+        data = None
+
+        if pronouns is not MISSING:
+            payload['pronouns'] = pronouns
+        if bio is not MISSING:
+            payload['bio'] = bio or ''
+        if banner is not MISSING:
+            payload['banner'] = _bytes_to_base64_data(banner) if banner is not None else None
+        if accent_color is not MISSING or accent_colour is not MISSING:
+            colour = accent_colour if accent_colour is not MISSING else accent_color
+            payload['accent_color'] = colour.value if colour is not None else None
+        if theme_colors is not MISSING or theme_colours is not MISSING:
+            theme_colours = theme_colours if theme_colours is not MISSING else theme_colors
+            payload['theme_colors'] = [c.value for c in theme_colours] if theme_colours is not None else None
+        if popout_animation_particle_type is not MISSING:
+            payload['popout_animation_particle_type'] = popout_animation_particle_type
+        if emoji_id is not MISSING:
+            payload['emoji_id'] = emoji_id
+        if profile_effect_id is not MISSING:
+            payload['profile_effect_id'] = profile_effect_id
+
+        if payload or data is None:
+            data = await state.http.edit_current_user_profile(payload)
+
+        from .profile import ProfileMetadata
+
+        return ProfileMetadata(id=self.id, state=self._state, data=data)
 
 
 class User(BaseUser, discord.abc.Connectable, discord.abc.Messageable):

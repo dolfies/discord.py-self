@@ -852,13 +852,7 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         """
         return self.guild_display_name_style or self.global_display_name_style
 
-    def global_collectibles(self) -> List[Collectible]:
-        """List[:class:`Collectible`]: Returns the user's global collectibles.
-
-        .. versionadded:: 2.2
-        """
-        return self._user.collectibles()
-
+    @property
     def guild_collectibles(self) -> List[Collectible]:
         """List[:class:`Collectible`]: Returns the member's guild collectibles.
 
@@ -868,14 +862,16 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             return []
         return [Collectible(state=self._state, type=key, data=value) for key, value in self._collectibles.items() if value]  # type: ignore
 
+    @property
     def collectibles(self) -> List[Collectible]:
-        """List[:class:`Collectible`]: Returns the member's collectibles.
+        """List[:class:`Collectible`]: Returns the member's or user's collectibles.
 
-        This will return the guild collectibles if available, otherwise it will return the global collectibles.
+        This will return the guild specific collectibles if available, otherwise it will
+        return the user's collectibles.
 
         .. versionadded:: 2.2
         """
-        return self.guild_collectibles() or self.global_collectibles()
+        return self.guild_collectibles or self._user.collectibles()
 
     async def ban(
         self,
@@ -924,10 +920,9 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
         bypass_verification: bool = MISSING,
         display_name_font: Optional[NameFont] = MISSING,
         display_name_effect: Optional[NameEffect] = MISSING,
+        display_name_colours: Optional[List[Colour]] = MISSING,
         display_name_colors: Optional[List[Colour]] = MISSING,
-        avatar_decoration_id: Optional[int] = MISSING,
         avatar_decoration_sku_id: Optional[int] = MISSING,
-        nameplate_id: Optional[int] = MISSING,
         nameplate_sku_id: Optional[int] = MISSING,
         pronouns: Optional[str] = MISSING,
         avatar: Optional[Union[bytes, RecentAvatar]] = MISSING,
@@ -1027,24 +1022,14 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             You can only change your own display name effect.
 
             .. versionadded:: 2.2
-        display_name_colors: Optional[List[:class:`Colour`]]
-            The member's new display name colors. Pass ``None`` to remove the colors.
-            You can only change your own display name colors.
-
-            .. versionadded:: 2.2
-        avatar_decoration_id: Optional[:class:`int`]
-            The member's new avatar decoration ID. Pass ``None`` to remove the decoration.
-            You can only change your own avatar decoration.
+        display_name_colours: Optional[List[:class:`Colour`]]
+            The member's new display name colours. Pass ``None`` to remove the colours.
+            You can only change your own display name colours.
 
             .. versionadded:: 2.2
         avatar_decoration_sku_id: Optional[:class:`int`]
             The member's new avatar decoration SKU ID. Pass ``None`` to remove the decoration.
             You can only change your own avatar decoration.
-
-            .. versionadded:: 2.2
-        nameplate_id: Optional[:class:`int`]
-            The member's new nameplate ID. Pass ``None`` to remove the nameplate.
-            You can only change your own nameplate.
 
             .. versionadded:: 2.2
         nameplate_sku_id: Optional[:class:`int`]
@@ -1131,26 +1116,21 @@ class Member(discord.abc.Messageable, discord.abc.Connectable, _UserTag):
             else:
                 me_payload['display_name_effect_id'] = display_name_effect.value
 
-        if display_name_colors is not MISSING:
-            if display_name_colors is None:
+        if display_name_colours is not MISSING or display_name_colors is not MISSING:
+            colors = display_name_colours if display_name_colours is not MISSING else display_name_colors
+            if colors is None:
                 me_payload['display_name_colors'] = None
-            elif not isinstance(display_name_colors, list) or not all(
-                isinstance(color, Colour) for color in display_name_colors
-            ):
-                raise TypeError('display_name_colors must be a list of Colour')
+            elif not isinstance(colors, list) or not all(isinstance(colour, Colour) for colour in colors):
+                raise TypeError('display_name_colo(u)rs must be a list of Colour')
             else:
-                me_payload['display_name_colors'] = [color.value for color in display_name_colors]
+                me_payload['display_name_colors'] = [color.value for color in colors]
 
-        if avatar_decoration_id is not MISSING:
-            me_payload['avatar_decoration_id'] = avatar_decoration_id
         if avatar_decoration_sku_id is not MISSING:
             me_payload['avatar_decoration_sku_id'] = avatar_decoration_sku_id
 
         collectibles_payload: Dict[str, Any] = {}
 
         nameplate_payload: Dict[str, Any] = {}
-        if nameplate_id is not MISSING:
-            nameplate_payload['id'] = nameplate_id
         if nameplate_sku_id is not MISSING:
             nameplate_payload['sku_id'] = nameplate_sku_id
         if nameplate_payload:
