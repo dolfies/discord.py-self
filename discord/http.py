@@ -1265,8 +1265,11 @@ class HTTPClient:
         params = {'with_analytics_token': str(with_analytics_token).lower()}
         return self.request(Route('GET', '/users/@me'), params=params)
 
-    def edit_profile(self, payload: Dict[str, Any]) -> Response[user.UserWithToken]:
+    def edit_current_user(self, payload: Dict[str, Any]) -> Response[user.UserWithToken]:
         return self.request(Route('PATCH', '/users/@me'), json=payload)
+
+    def edit_current_user_profile(self, payload: Dict[str, Any]) -> Response[profile.ProfileMetadata]:
+        return self.request(Route('PATCH', '/users/@me/profile'), json=payload)
 
     def pomelo(self, username: str) -> Response[user.User]:
         payload = {'username': username}
