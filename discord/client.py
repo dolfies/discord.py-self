@@ -548,7 +548,10 @@ class Client:
 
     @property
     def soundboard_sounds(self) -> Sequence[SoundboardSound]:
-        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has."""
+        """Sequence[:class:`.SoundboardSound`]: The soundboard sounds that the connected client has.
+
+        .. versionadded:: 2.2
+        """
         return self._connection.soundboard_sounds
 
     @property
@@ -1737,6 +1740,8 @@ class Client:
 
     def get_soundboard_sound(self, id: int, /) -> Optional[SoundboardSound]:
         """Returns a soundboard sound with the given ID.
+
+        .. versionadded:: 2.2
 
         Parameters
         -----------
@@ -2971,6 +2976,8 @@ class Client:
         """|coro|
 
         Retrieves all default soundboard sounds.
+
+        .. versionadded:: 2.2
 
         Raises
         -------

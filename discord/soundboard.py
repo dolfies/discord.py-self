@@ -52,6 +52,8 @@ __all__ = ('BaseSoundboardSound', 'SoundboardDefaultSound', 'SoundboardSound')
 class BaseSoundboardSound(Hashable, AssetMixin):
     """Represents a generic Discord soundboard sound.
 
+    .. versionadded:: 2.2
+
     .. container:: operations
 
         .. describe:: x == y
@@ -101,6 +103,8 @@ class BaseSoundboardSound(Hashable, AssetMixin):
 class SoundboardDefaultSound(BaseSoundboardSound):
     """Represents a Discord soundboard default sound.
 
+    .. versionadded:: 2.2
+
     .. container:: operations
 
         .. describe:: x == y
@@ -147,6 +151,8 @@ class SoundboardDefaultSound(BaseSoundboardSound):
 
 class SoundboardSound(BaseSoundboardSound):
     """Represents a Discord soundboard sound.
+
+    .. versionadded:: 2.2
 
     .. container:: operations
 
