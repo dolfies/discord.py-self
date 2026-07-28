@@ -2358,7 +2358,7 @@ class ConnectionState:
         if 'access_token' not in data or 'application_id' not in data:
             _log.warning('OAUTH2_TOKEN_REVOKE payload has invalid data: %s. Discarding.', list(data.keys()))
             return
-        self.dispatch('oauth2_token_revoke', data['access_token'], data['application_id'])
+        self.dispatch('oauth2_token_revoke', data['access_token'], int(data['application_id']))
 
     def parse_auth_session_change(self, data: gw.AuthSessionChangeEvent) -> None:
         self.auth_session_id = auth_session_id = data['auth_session_id_hash']
@@ -2781,8 +2781,6 @@ class ConnectionState:
                 self.dispatch('raw_thread_member_remove', raw)
                 if member is not None:
                     self.dispatch('thread_member_remove', member)
-                else:
-                    self.dispatch('raw_thread_member_remove', thread, member_id)
             else:
                 self.dispatch('thread_remove', thread)
 

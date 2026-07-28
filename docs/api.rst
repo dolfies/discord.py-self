@@ -208,49 +208,6 @@ to handle it, which defaults to logging the traceback and ignoring the exception
     All the events must be a |coroutine_link|_. If they aren't, then you might get unexpected
     errors. In order to turn a function into a coroutine they must be defined with ``async def``.
 
-AutoMod
-~~~~~~~
-
-.. function:: on_automod_rule_create(rule)
-
-    Called when an :class:`AutoModRule` is created.
-    You must have :attr:`~Permissions.manage_guild` to receive this.
-
-    .. versionadded:: 2.0
-
-    :param rule: The rule that was created.
-    :type rule: :class:`AutoModRule`
-
-.. function:: on_automod_rule_update(rule)
-
-    Called when an :class:`AutoModRule` is updated.
-    You must have :attr:`~Permissions.manage_guild` to receive this.
-
-    .. versionadded:: 2.0
-
-    :param rule: The rule that was updated.
-    :type rule: :class:`AutoModRule`
-
-.. function:: on_automod_rule_delete(rule)
-
-    Called when an :class:`AutoModRule` is deleted.
-    You must have :attr:`~Permissions.manage_guild` to receive this.
-
-    .. versionadded:: 2.0
-
-    :param rule: The rule that was deleted.
-    :type rule: :class:`AutoModRule`
-
-.. function:: on_automod_action(execution)
-
-    Called when an :class:`AutoModAction` is created/performed.
-    You must have :attr:`~Permissions.manage_guild` to receive this.
-
-    .. versionadded:: 2.0
-
-    :param execution: The rule execution that was performed.
-    :type execution: :class:`AutoModAction`
-
 Channels
 ~~~~~~~~~
 
@@ -436,8 +393,8 @@ Debug
         WebSocket. The voice WebSocket will not trigger this event.
 
     :param payload: The message that is about to be passed on to the
-                    WebSocket library. It can be :class:`bytes` to denote a binary
-                    message or :class:`str` to denote a regular text message.
+                    WebSocket library.
+    :type payload: :class:`str`
     :type payload: Union[:class:`bytes`, :class:`str`]
 
 Directory Entries
@@ -504,8 +461,8 @@ Client
 
     .. versionadded:: 2.0
 
-    :param before: The guild settings prior to being updated.
-    :type before: :class:`GuildSettings`
+    :param before: The guild settings prior to being updated, if cached.
+    :type before: Optional[:class:`GuildSettings`]
     :param after: The guild settings after being updated.
     :type after: :class:`GuildSettings`
 
@@ -598,8 +555,8 @@ Billing
     :type path: :class:`str`
     :param query: The URL query parameters of the callback.
     :type query: Mapping[:class:`str`, :class:`str`]
-    :param state: A hash to verify the callback.
-    :type state: :class:`str`
+    :param state: A hash to verify the callback, if provided.
+    :type state: Optional[:class:`str`]
 
 Entitlements
 ~~~~~~~~~~~~
@@ -829,9 +786,9 @@ Calls
     e.g. when a member is added or another person is rung.
 
     :param before: The previous call.
-    :type before: :class:`Relationship`
+    :type before: Union[:class:`PrivateCall`, :class:`GroupCall`]
     :param after: The updated call.
-    :type after: :class:`Relationship`
+    :type after: Union[:class:`PrivateCall`, :class:`GroupCall`]
 
 Streams
 ~~~~~~~~
@@ -1788,8 +1745,9 @@ Voice
     - A member is muted or deafened by their own accord.
     - A member is muted or deafened by a guild administrator.
 
-    :param member: The member whose voice states changed.
-    :type member: :class:`Member`
+    :param member: The member whose voice states changed. This is a :class:`User`
+                   for voice states outside of a guild, such as in a private call.
+    :type member: Union[:class:`Member`, :class:`User`]
     :param before: The voice state prior to the changes.
     :type before: :class:`VoiceState`
     :param after: The voice state after the changes.
