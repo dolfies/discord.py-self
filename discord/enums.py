@@ -58,7 +58,6 @@ __all__ = (
     'ExpireBehavior',
     'StickerType',
     'StickerFormatType',
-    'SoundAnimationType',
     'InviteTarget',
     'VideoQualityMode',
     'ComponentType',
@@ -947,14 +946,6 @@ class StickerFormatType(Enum):
         }
         # fmt: on
         return lookup.get(self, 'png')
-
-
-class SoundAnimationType(Enum):
-    SPARKLES = 0
-    SIGNAL = 1
-
-    def __int__(self) -> int:
-        return self.value
 
 
 class ReportType(Enum):

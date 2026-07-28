@@ -59,7 +59,6 @@ from .enums import (
     VideoQualityMode,
     DirectoryCategory,
     DirectoryEntryType,
-    SoundAnimationType,
 )
 from .calls import PrivateCall, GroupCall
 from .mixins import Hashable
@@ -1669,6 +1668,8 @@ class VoiceChannel(VocalGuildChannel):
         Additionally, you must have :attr:`~Permissions.use_external_sounds` if the sound is from
         a different guild.
 
+        .. versionadded:: 2.2
+
         Parameters
         -----------
         sound: Union[:class:`SoundboardSound`, :class:`SoundboardDefaultSound`]
@@ -1686,35 +1687,6 @@ class VoiceChannel(VocalGuildChannel):
             payload['source_guild_id'] = sound.guild.id
 
         await self._state.http.send_soundboard_sound(self.id, **payload)
-
-    async def send_custom_call_sounds(self, animation: Optional[SoundAnimationType] = SoundAnimationType.SPARKLES) -> None:
-        """|coro|
-
-        Sends a join soundboard sound for this channel.
-
-        You must have :attr:`~Permissions.speak` and :attr:`~Permissions.use_soundboard` to do this.
-        Additionally, you must have :attr:`~Permissions.use_external_sounds` if the sound is from
-        a different guild.
-
-        You must have nitro to use this feature.
-
-        Parameters
-        -----------
-        animation: Optional[:class:`SoundAnimationType`]
-            The animation to use for the sound. Defaults to :attr:`SoundAnimationType.SPARKLES`.
-
-        Raises
-        -------
-        Forbidden
-            You do not have permissions to send a sound for this channel or you do not have nitro.
-        HTTPException
-            Sending the sound failed.
-        """
-        if not isinstance(animation, SoundAnimationType):
-            raise TypeError(f'animation must be a SoundAnimationType, not {animation.__class__.__name__}')
-        payload = {'animation_type': animation}
-
-        await self._state.http.custom_call_sounds(self.id, **payload)
 
 
 class StageChannel(VocalGuildChannel):

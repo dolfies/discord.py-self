@@ -1652,12 +1652,16 @@ Soundboard
 
     Called when a :class:`SoundboardSound` is created or deleted.
 
+    .. versionadded:: 2.2
+
     :param sound: The soundboard sound that was created or deleted.
     :type sound: :class:`SoundboardSound`
 
 .. function:: on_soundboard_sound_update(before, after)
 
     Called when a :class:`SoundboardSound` is updated.
+
+    .. versionadded:: 2.2
 
     The following examples illustrate when this event is called:
 
@@ -7169,20 +7173,6 @@ of :class:`enum.Enum`.
     .. attribute:: reply
 
         An alias for :attr:`.default`.
-
-.. class:: SoundAnimationType
-
-    Represents the animation used when sending a join soundboard sound.
-
-    .. versionadded:: 2.1
-
-    .. attribute:: SPARKLES
-
-        The sparkles animation.
-
-    .. attribute:: SIGNAL
-
-        The signal animation.
 
 .. class:: PromotionType
 

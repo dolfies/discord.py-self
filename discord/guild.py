@@ -1084,11 +1084,16 @@ class Guild(Hashable):
 
     @property
     def soundboard_sounds(self) -> Sequence[SoundboardSound]:
-        """Sequence[:class:`SoundboardSound`]: Returns a sequence of the guild's soundboard sounds."""
+        """Sequence[:class:`SoundboardSound`]: Returns a sequence of the guild's soundboard sounds.
+
+        .. versionadded:: 2.2
+        """
         return utils.SequenceProxy(self._soundboard_sounds.values())
 
     def get_soundboard_sound(self, sound_id: int, /) -> Optional[SoundboardSound]:
         """Returns a soundboard sound with the given ID.
+
+        .. versionadded:: 2.2
 
         Parameters
         -----------
@@ -1101,12 +1106,6 @@ class Guild(Hashable):
             The soundboard sound or ``None`` if not found.
         """
         return self._soundboard_sounds.get(sound_id)
-
-    def _resolve_soundboard_sound(self, id: Optional[int], /) -> Optional[SoundboardSound]:
-        if id is None:
-            return
-
-        return self._soundboard_sounds.get(id)
 
     @property
     def system_channel(self) -> Optional[TextChannel]:
@@ -3658,6 +3657,8 @@ class Guild(Hashable):
 
         Retrieves a :class:`SoundboardSound` with the specified ID.
 
+        .. versionadded:: 2.2
+
         .. note::
 
             Using this, in order to receive :attr:`SoundboardSound.user`, you must have :attr:`~Permissions.create_expressions`
@@ -3686,6 +3687,8 @@ class Guild(Hashable):
         """|coro|
 
         Retrieves a list of all soundboard sounds for the guild.
+
+        .. versionadded:: 2.2
 
         .. note::
 
@@ -3722,6 +3725,8 @@ class Guild(Hashable):
 
         Creates a :class:`SoundboardSound` for the guild.
         You must have :attr:`Permissions.create_expressions` to do this.
+
+        .. versionadded:: 2.2
 
         Parameters
         ----------

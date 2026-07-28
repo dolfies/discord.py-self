@@ -3056,7 +3056,9 @@ class ConnectionState:
             if sound is not None:
                 self._update_and_dispatch_sound_update(sound, data)
             else:
-                _log.warning('GUILD_SOUNDBOARD_SOUND_UPDATE referencing unknown sound ID: %s. Discarding.', sound_id)
+                sound = self.store_soundboard_sound(guild, data)
+                guild._add_soundboard_sound(sound)
+                _log.warning('GUILD_SOUNDBOARD_SOUND_UPDATE referencing unknown sound ID: %s.', sound_id)
         else:
             _log.debug('GUILD_SOUNDBOARD_SOUND_UPDATE referencing unknown guild ID: %s. Discarding.', guild_id)
 
@@ -3088,7 +3090,9 @@ class ConnectionState:
             if sound is not None:
                 self._update_and_dispatch_sound_update(sound, raw_sound)
             else:
-                _log.warning('GUILD_SOUNDBOARD_SOUNDS_UPDATE referencing unknown sound ID: %s. Discarding.', sound_id)
+                sound = self.store_soundboard_sound(guild, raw_sound)
+                guild._add_soundboard_sound(sound)
+                _log.warning('GUILD_SOUNDBOARD_SOUNDS_UPDATE referencing unknown sound ID: %s.', sound_id)
 
     def parse_guild_audit_log_entry_create(self, data: gw.GuildAuditLogEntryCreate) -> None:
         guild = self._get_guild(int(data['guild_id']))
@@ -3333,6 +3337,9 @@ class ConnectionState:
 
         if self._subscribe_guilds and not guild.unavailable:
             asyncio.ensure_future(self.subscribe_guild(guild), loop=self.loop)
+
+        if not guild.unavailable:
+            asyncio.ensure_future(self.request_soundboard_sounds([guild.id]), loop=self.loop)
 
         # Chunk if needed
         needs_chunking = self._guild_needs_chunking(guild)
