@@ -214,6 +214,9 @@ class KeepAliveHandler:  # Inspired by enhanced-selfcord.py/Gnome
 
             data = self.get_heartbeat_payload()
             _log.debug(self.msg)
+            # Stamp the send time before the send actually happens, otherwise a slow
+            # send makes the measured latency smaller than it really is
+            self._last_send = time.perf_counter()
             try:
                 total = 0
                 while True:
@@ -228,8 +231,6 @@ class KeepAliveHandler:  # Inspired by enhanced-selfcord.py/Gnome
                         _log.warning(msg, total)
             except Exception:
                 self.stop()
-            else:
-                self._last_send = time.perf_counter()
 
     def get_heartbeat_payload(self) -> Dict[str, Any]:
         reasons = ['foregrounded']
@@ -260,6 +261,10 @@ class KeepAliveHandler:  # Inspired by enhanced-selfcord.py/Gnome
 
     def tick(self) -> None:
         self._last_recv = time.perf_counter()
+
+    def beat(self) -> Dict[str, Any]:
+        self._last_send = time.perf_counter()
+        return self.get_heartbeat_payload()
 
     def ack(self) -> None:
         ack_time = time.perf_counter()
@@ -601,7 +606,7 @@ class DiscordWebSocket:
 
             if op == self.HEARTBEAT:
                 if self._keep_alive:
-                    beat = self._keep_alive.get_heartbeat_payload()
+                    beat = self._keep_alive.beat()
                     await self.send_heartbeat(beat)
                 return
 

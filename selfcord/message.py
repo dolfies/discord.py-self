@@ -2385,7 +2385,7 @@ class Message(PartialMessage, Hashable):
     def clean_content(self) -> str:
         """:class:`str`: A property that returns the content in a "cleaned up"
         manner. This basically means that mentions are transformed
-        into the way the client shows it. e.g. ``<#id>`` will transform
+        into the way the client shows them. e.g. ``<#id>`` will transform
         into ``#name``.
 
         This will also transform @everyone and @here mentions into
@@ -2703,7 +2703,7 @@ class Message(PartialMessage, Hashable):
         self,
         content: Optional[str] = MISSING,
         attachments: Sequence[Union[Attachment, _FileBase]] = MISSING,
-        suppress: bool = False,
+        suppress: bool = MISSING,
         delete_after: Optional[float] = None,
         allowed_mentions: Optional[AllowedMentions] = MISSING,
     ) -> Message:
@@ -2849,3 +2849,30 @@ class Message(PartialMessage, Hashable):
             The newly edited message.
         """
         return await self.edit(attachments=[a for a in self.attachments if a not in attachments])
+
+    def is_forwardable(self) -> bool:
+        """:class:`bool`: Whether the message can be forwarded using :meth:`Message.forward`.
+
+        A message is forwardable only if it is a basic message type and does not
+        contain a poll, call, or activity, and is not a system message.
+
+        .. versionadded:: 2.2
+        """
+        if self.type not in (
+            MessageType.default,
+            MessageType.reply,
+            MessageType.chat_input_command,
+            MessageType.context_menu_command,
+        ):
+            return False
+
+        if self.poll is not None:
+            return False
+
+        if self.call is not None:
+            return False
+
+        if self.activity is not None:
+            return False
+
+        return True

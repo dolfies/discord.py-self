@@ -58,6 +58,7 @@ __all__ = (
     'LoginFailure',
     'ConnectionClosed',
     'CaptchaRequired',
+    'FFmpegProcessError',
 )
 
 
@@ -77,6 +78,15 @@ class ClientException(DiscordException):
     """
 
     __slots__ = ()
+
+
+class FFmpegProcessError(ClientException):
+    """Exception that's raised when an FFmpeg process fails.
+
+    .. versionadded:: 2.2
+    """
+
+    pass
 
 
 class GatewayNotFound(DiscordException):

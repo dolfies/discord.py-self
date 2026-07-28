@@ -55,6 +55,14 @@ def show_version() -> None:
         f'- curl_cffi v{curl_cffi.__version__} (curl v{curl_cffi.__curl_version__} impersonating {curl_cffi.requests.impersonate.DEFAULT_CHROME})'  # type: ignore
     )
     entries.append(f'- aiohttp v{aiohttp.__version__}')
+
+    try:
+        import davey  # type: ignore
+    except ImportError:
+        entries.append('- davey not found')
+    else:
+        entries.append(f'- davey v{davey.__version__}')
+
     uname = platform.uname()
     entries.append('- system info: {0.system} {0.release} {0.version}'.format(uname))
     print('\n'.join(entries))

@@ -434,7 +434,7 @@ class Command(_BaseCommand, Generic[CogT, P, T]):
         /,
         **kwargs: Unpack[_CommandKwargs],
     ) -> None:
-        if not asyncio.iscoroutinefunction(func):
+        if not selfcord.utils._iscoroutinefunction(func):
             raise TypeError('Callback must be a coroutine.')
 
         name = kwargs.get('name') or func.__name__
@@ -1099,7 +1099,7 @@ class Command(_BaseCommand, Generic[CogT, P, T]):
             The coroutine passed is not actually a coroutine.
         """
 
-        if not asyncio.iscoroutinefunction(coro):
+        if not selfcord.utils._iscoroutinefunction(coro):
             raise TypeError('The error handler must be a coroutine.')
 
         self.on_error: Error[CogT, Any] = coro
@@ -1137,7 +1137,7 @@ class Command(_BaseCommand, Generic[CogT, P, T]):
         TypeError
             The coroutine passed is not actually a coroutine.
         """
-        if not asyncio.iscoroutinefunction(coro):
+        if not selfcord.utils._iscoroutinefunction(coro):
             raise TypeError('The pre-invoke hook must be a coroutine.')
 
         self._before_invoke = coro
@@ -1168,7 +1168,7 @@ class Command(_BaseCommand, Generic[CogT, P, T]):
         TypeError
             The coroutine passed is not actually a coroutine.
         """
-        if not asyncio.iscoroutinefunction(coro):
+        if not selfcord.utils._iscoroutinefunction(coro):
             raise TypeError('The post-invoke hook must be a coroutine.')
 
         self._after_invoke = coro
@@ -1501,15 +1501,7 @@ class GroupMixin(Generic[CogT]):
         name: str = ...,
         *args: Any,
         **kwargs: Unpack[_CommandDecoratorKwargs],
-    ) -> Callable[
-        [
-            Union[
-                Callable[Concatenate[CogT, ContextT, P], Coro[T]],
-                Callable[Concatenate[ContextT, P], Coro[T]],
-            ]
-        ],
-        Command[CogT, P, T],
-    ]: ...
+    ) -> _CogCommandDecorator[CogT]: ...
 
     @overload
     def command(
@@ -1518,15 +1510,7 @@ class GroupMixin(Generic[CogT]):
         cls: Type[CommandT] = ...,  # type: ignore  # previous overload handles case where cls is not set
         *args: Any,
         **kwargs: Unpack[_CommandDecoratorKwargs],
-    ) -> Callable[
-        [
-            Union[
-                Callable[Concatenate[CogT, ContextT, P], Coro[T]],
-                Callable[Concatenate[ContextT, P], Coro[T]],
-            ]
-        ],
-        CommandT,
-    ]: ...
+    ) -> _CogCommandDecoratorWithCls[CogT, CommandT]: ...
 
     def command(
         self,
@@ -1558,15 +1542,7 @@ class GroupMixin(Generic[CogT]):
         name: str = ...,
         *args: Any,
         **kwargs: Unpack[_GroupDecoratorKwargs],
-    ) -> Callable[
-        [
-            Union[
-                Callable[Concatenate[CogT, ContextT, P], Coro[T]],
-                Callable[Concatenate[ContextT, P], Coro[T]],
-            ]
-        ],
-        Group[CogT, P, T],
-    ]: ...
+    ) -> _CogGroupDecorator[CogT]: ...
 
     @overload
     def group(
@@ -1575,15 +1551,7 @@ class GroupMixin(Generic[CogT]):
         cls: Type[GroupT] = ...,  # type: ignore  # previous overload handles case where cls is not set
         *args: Any,
         **kwargs: Unpack[_GroupDecoratorKwargs],
-    ) -> Callable[
-        [
-            Union[
-                Callable[Concatenate[CogT, ContextT, P], Coro[T]],
-                Callable[Concatenate[ContextT, P], Coro[T]],
-            ]
-        ],
-        GroupT,
-    ]: ...
+    ) -> _CogGroupDecoratorWithCls[CogT, GroupT]: ...
 
     def group(
         self,
@@ -1745,6 +1713,60 @@ if TYPE_CHECKING:
 
         def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
 
+    class _CogCommandDecorator(Generic[CogT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> Command[CogT, P, T]: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> Command[CogT, P, T]: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
+    class _CogGroupDecorator(Generic[CogT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> Group[CogT, P, T]: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> Group[CogT, P, T]: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
+    class _CommandDecoratorWithCls(Generic[CommandT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> CommandT: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> CommandT: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
+    class _GroupDecoratorWithCls(Generic[GroupT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> GroupT: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> GroupT: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
+    class _CogCommandDecoratorWithCls(Generic[CogT, CommandT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> CommandT: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> CommandT: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
+    class _CogGroupDecoratorWithCls(Generic[CogT, GroupT]):
+        @overload
+        def __call__(self, func: Callable[Concatenate[CogT, ContextT, P], Coro[T]], /) -> GroupT: ...
+
+        @overload
+        def __call__(self, func: Callable[Concatenate[ContextT, P], Coro[T]], /) -> GroupT: ...
+
+        def __call__(self, func: Callable[..., Coro[T]], /) -> Any: ...
+
 
 @overload
 def command(
@@ -1758,15 +1780,7 @@ def command(
     name: str = ...,
     cls: Type[CommandT] = ...,  # type: ignore  # previous overload handles case where cls is not set
     **attrs: Unpack[_CommandDecoratorKwargs],
-) -> Callable[
-    [
-        Union[
-            Callable[Concatenate[ContextT, P], Coro[Any]],
-            Callable[Concatenate[CogT, ContextT, P], Coro[Any]],  # type: ignore # CogT is used here to allow covariance
-        ]
-    ],
-    CommandT,
-]: ...
+) -> _CommandDecoratorWithCls[CommandT]: ...
 
 
 def command(
@@ -1826,15 +1840,7 @@ def group(
     name: str = ...,
     cls: Type[GroupT] = ...,  # type: ignore  # previous overload handles case where cls is not set
     **attrs: Unpack[_GroupDecoratorKwargs],
-) -> Callable[
-    [
-        Union[
-            Callable[Concatenate[CogT, ContextT, P], Coro[Any]],  # type: ignore # CogT is used here to allow covariance
-            Callable[Concatenate[ContextT, P], Coro[Any]],
-        ]
-    ],
-    GroupT,
-]: ...
+) -> _GroupDecoratorWithCls[GroupT]: ...
 
 
 def group(
@@ -1942,7 +1948,7 @@ def check(predicate: UserCheck[ContextT], /) -> Check[ContextT]:
 
         return func
 
-    if inspect.iscoroutinefunction(predicate):
+    if selfcord.utils._iscoroutinefunction(predicate):
         decorator.predicate = predicate
     else:
 

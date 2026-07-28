@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import array
 import asyncio
+import inspect
 from typing import (
     Any,
     AsyncIterable,
@@ -128,6 +129,7 @@ __all__ = (
 
 DISCORD_EPOCH = 1420070400000
 DEFAULT_FILE_SIZE_LIMIT_BYTES = 10485760
+TIMESTAMP_PATTERN: re.Pattern[str] = re.compile(r'<t:(-?\d+)(?::[tTdDfFsSR])?>')
 
 
 class _MissingSentinel:
@@ -1173,7 +1175,7 @@ def escape_markdown(text: str, *, as_needed: bool = False, ignore_links: bool = 
         regex = _MARKDOWN_STOCK_REGEX
         if ignore_links:
             regex = f'(?:{_URL_REGEX}|{regex})'
-        return re.sub(regex, replacement, text, 0, re.MULTILINE)
+        return re.sub(regex, replacement, text, count=0, flags=re.MULTILINE)
     else:
         text = re.sub(r'\\', r'\\\\', text)
         return _MARKDOWN_ESCAPE_REGEX.sub(r'\\\1', text)
@@ -1784,3 +1786,11 @@ else:
             return msg.decode('utf-8')
 
     _ActiveDecompressionContext: Type[_DecompressionContext] = _ZlibDecompressionContext
+
+
+# `inspect.iscoroutinefunction()` only became equivalent to (now deprecated) `asyncio.iscoroutinefunction()` in Python 3.12
+# https://github.com/python/cpython/issues/122858#issuecomment-2466239748
+if sys.version_info >= (3, 12):
+    _iscoroutinefunction = inspect.iscoroutinefunction
+else:
+    _iscoroutinefunction = asyncio.iscoroutinefunction

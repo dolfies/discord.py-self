@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self
 
+    from .client import Client
     from .guild import Guild
     from .state import ConnectionState
     from .types.activity import ActivityEmoji
@@ -124,7 +125,7 @@ class PartialEmoji(_EmojiTag, AssetMixin):
         return self
 
     @classmethod
-    def from_str(cls, value: str) -> Self:
+    def from_str(cls, value: str, *, client: Client = utils.MISSING) -> Self:
         """Converts a Discord string representation of an emoji to a :class:`PartialEmoji`.
 
         The formats accepted are:
@@ -142,6 +143,11 @@ class PartialEmoji(_EmojiTag, AssetMixin):
         ------------
         value: :class:`str`
             The string representation of an emoji.
+        client: :class:`Client`
+            The client to initialise this emoji with. This allows it to
+            attach the client's internal state.
+
+            .. versionadded:: 2.2
 
         Returns
         --------
@@ -154,8 +160,12 @@ class PartialEmoji(_EmojiTag, AssetMixin):
             animated = bool(groups['animated'])
             emoji_id = int(groups['id'])
             name = groups['name']
+            if client is not utils.MISSING:
+                return cls.with_state(name=name, animated=animated, id=emoji_id, state=client._connection)
             return cls(name=name, animated=animated, id=emoji_id)
 
+        if client is not utils.MISSING:
+            return cls.with_state(name=value, animated=False, id=None, state=client._connection)
         return cls(name=value, id=None, animated=False)
 
     def to_dict(self) -> EmojiPayload:

@@ -2544,7 +2544,6 @@ class ForumChannel(selfcord.abc.GuildChannel, Hashable):
         'default_layout',
         'default_sort_order',
         '_available_tags',
-        '_flags',
     )
 
     def __init__(self, *, state: ConnectionState, guild: Guild, data: Union[ForumChannelPayload, MediaChannelPayload]):

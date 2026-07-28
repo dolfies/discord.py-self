@@ -39,8 +39,8 @@ dependencies = { file = "requirements.txt" }
 
 [project.optional-dependencies]
 voice = [
-    "PyNaCl>=1.5.0,<1.6",
-    "davey==0.1.0"
+    "PyNaCl>=1.6.0,<1.7",
+    "davey>=0.1.0"
 ]
 docs = [
     "sphinx==4.4.0",
@@ -90,13 +90,12 @@ packages = [
 ]
 include-package-data = true
 
-[tool.black]
-line-length = 125
-skip-string-normalization = true
-fast = true
-
 [tool.ruff]
 line-length = 125
+extend-exclude = ["docs", "tests"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
 
 [tool.ruff.format]
 line-ending = "auto"
@@ -114,12 +113,6 @@ exclude_lines = [
     "pragma: no cover",
     "@overload",
 ]
-
-[tool.isort]
-profile = "black"
-combine_as_imports = true
-combine_star = true
-line_length = 125
 
 [tool.pyright]
 include = [

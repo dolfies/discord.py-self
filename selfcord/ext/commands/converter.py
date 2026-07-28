@@ -24,6 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+import datetime
 import inspect
 import re
 from typing import (
@@ -85,6 +86,7 @@ __all__ = (
     'clean_content',
     'Greedy',
     'Range',
+    'Timestamp',
     'run_converters',
 )
 
@@ -892,6 +894,28 @@ class GuildStickerConverter(IDConverter[selfcord.GuildSticker]):
         return result
 
 
+if TYPE_CHECKING:
+    Timestamp = datetime.datetime
+else:
+
+    class Timestamp(Converter[str]):
+        """Converts to a :class:`datetime.datetime`.
+
+        Conversion is attempted based on the :ddocs:`Discord style timestamp <reference#message-formatting>` input format.
+
+        .. versionadded:: 2.2
+
+        .. warning::
+            Due to a Discord limitation, no timezone is provided with the input. The UTC timezone has been supplanted instead.
+        """
+
+        async def convert(self, ctx: Context[BotT], argument: str) -> datetime.datetime:
+            match = selfcord.utils.TIMESTAMP_PATTERN.match(argument)
+            if not match:
+                raise BadTimestampArgument(argument)
+            return datetime.datetime.fromtimestamp(int(match[1]), tz=datetime.timezone.utc)
+
+
 class ScheduledEventConverter(IDConverter[selfcord.ScheduledEvent]):
     """Converts to a :class:`~selfcord.ScheduledEvent`.
 
@@ -1070,6 +1094,9 @@ class Greedy(List[T]):
     def __repr__(self) -> str:
         converter = getattr(self.converter, '__name__', repr(self.converter))
         return f'Greedy[{converter}]'
+
+    def __or__(self, value: Any) -> Any:
+        return Union[self, value]
 
     def __class_getitem__(cls, params: Union[Tuple[T], T]) -> Greedy[T]:
         if not isinstance(params, tuple):

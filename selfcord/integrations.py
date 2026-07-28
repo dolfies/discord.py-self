@@ -105,6 +105,10 @@ class Integration:
         .. versionadded:: 2.1
     user: Optional[:class:`User`]
         The user that added this integration, if available.
+    scopes: List[:class:`str`]
+        The OAuth2 scopes the application has been authorized for.
+
+        .. versionadded:: 2.2
     """
 
     __slots__ = (
@@ -117,6 +121,7 @@ class Integration:
         'application_id',
         'user',
         'enabled',
+        'scopes',
     )
 
     def __init__(self, *, data: IntegrationPayload, guild: Guild) -> None:
@@ -137,6 +142,7 @@ class Integration:
         user = data.get('user')
         self.user: Optional[User] = User(state=self._state, data=user) if user else None
         self.enabled: bool = data.get('enabled', True)
+        self.scopes: List[str] = data.get('scopes', [])
 
     async def delete(self, *, reason: Optional[str] = None) -> None:
         """|coro|
@@ -209,6 +215,10 @@ class StreamIntegration(Integration):
         The integration account information.
     synced_at: :class:`datetime.datetime`
         An aware UTC datetime representing when the integration was last synced.
+    scopes: List[:class:`str`]
+        The OAuth2 scopes the application has been authorized for.
+
+        .. versionadded:: 2.2
     """
 
     __slots__ = (
@@ -375,10 +385,10 @@ class BotIntegration(Integration):
     application: Optional[:class:`IntegrationApplication`]
         The application tied to this integration. Not available in some contexts.
     scopes: List[:class:`str`]
-        The scopes the integration is authorized for.
+        The OAuth2 scopes the application has been authorized for.
     """
 
-    __slots__ = ('application', 'application_id', 'scopes')
+    __slots__ = ('application', 'application_id')
 
     def _from_data(self, data: BotIntegrationPayload) -> None:
         super()._from_data(data)
@@ -386,7 +396,6 @@ class BotIntegration(Integration):
             self._state.create_integration_application(data['application']) if 'application' in data else None
         )
         self.application_id = self.application.id if self.application else int(data['application_id'])  # type: ignore # One or the other
-        self.scopes: List[str] = data.get('scopes', [])
 
 
 def _integration_factory(value: str) -> Tuple[Type[Integration], str]:
