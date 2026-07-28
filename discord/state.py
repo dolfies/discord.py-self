@@ -2462,6 +2462,9 @@ class ConnectionState:
         gift = Gift(state=self, data=data)  # type: ignore
         self.dispatch('gift_update', gift)
 
+    # Invite events are no longer dispatched for user accounts...
+    # Kept here for future proofing
+
     def parse_invite_create(self, data: gw.InviteCreateEvent) -> None:
         invite = Invite.from_gateway(state=self, data=data)
         self.dispatch('invite_create', invite)

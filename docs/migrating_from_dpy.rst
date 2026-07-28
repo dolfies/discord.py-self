@@ -65,10 +65,12 @@ AutoMod
 
 The following Gateway events are not dispatched to user accounts:
 
+- ``on_invite_create``
+- ``on_invite_delete``
 - ``on_automod_rule_create``
 - ``on_automod_rule_update``
 - ``on_automod_rule_delete``
 - ``on_automod_action``
 
-The first three can be replaced by listening to the :func:`discord.on_audit_log_entry_create` event and checking the :attr:`~discord.AuditLogEntry.action` attribute.
+The first five can be replaced by listening to the :func:`discord.on_audit_log_entry_create` event and checking the :attr:`~discord.AuditLogEntry.action` attribute.
 The last one is partially replaceable by listening to the :func:`discord.on_message` event and checking for AutoMod system messages, but this is not a perfect solution.

@@ -157,7 +157,6 @@ if TYPE_CHECKING:
     from .flags import MemberCacheFlags
     from .errors import CaptchaRequired
     from .audit_logs import AuditLogEntry
-    from .automod import AutoModAction, AutoModRule
     from .calls import Call
     from .directory import DirectoryEntry
     from .integrations import Integration
@@ -2357,16 +2356,6 @@ class Client:
         check: Optional[Callable[[RawUserFeatureAckEvent], bool]] = ...,
         timeout: Optional[float] = ...,
     ) -> Coroutine[Any, Any, RawUserFeatureAckEvent]: ...
-
-    @overload
-    def wait_for(
-        self,
-        event: Literal['invite_create', 'invite_delete'],
-        /,
-        *,
-        check: Optional[Callable[[Invite], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Coroutine[Any, Any, Invite]: ...
 
     @overload
     def wait_for(

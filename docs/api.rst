@@ -461,7 +461,7 @@ Client
 
     .. versionadded:: 2.0
 
-    :param before: The guild settings prior to being updated, if cached.
+    :param before: The guild settings prior to being updated, if any.
     :type before: Optional[:class:`GuildSettings`]
     :param after: The guild settings after being updated.
     :type after: :class:`GuildSettings`
@@ -946,39 +946,6 @@ Guilds
 
     :param entry: The audit log entry that was created.
     :type entry: :class:`AuditLogEntry`
-
-.. function:: on_invite_create(invite)
-
-    Called when an :class:`Invite` is created.
-    You must have :attr:`~Permissions.manage_channels` to receive this.
-
-    .. versionadded:: 1.3
-
-    .. note::
-
-        There is a rare possibility that the :attr:`Invite.guild` and :attr:`Invite.channel`
-        attributes will be of :class:`Object` rather than the respective models.
-
-    :param invite: The invite that was created.
-    :type invite: :class:`Invite`
-
-.. function:: on_invite_delete(invite)
-
-    Called when an :class:`Invite` is deleted.
-    You must have :attr:`~Permissions.manage_channels` to receive this.
-
-    .. versionadded:: 1.3
-
-    .. note::
-
-        There is a rare possibility that the :attr:`Invite.guild` and :attr:`Invite.channel`
-        attributes will be of :class:`Object` rather than the respective models.
-
-        Outside of those two attributes, the only other attribute guaranteed to be
-        filled by the Discord gateway for this event is :attr:`Invite.code`.
-
-    :param invite: The invite that was deleted.
-    :type invite: :class:`Invite`
 
 .. function:: on_guild_feature_ack(payload)
 
