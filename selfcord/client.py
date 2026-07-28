@@ -157,7 +157,6 @@ if TYPE_CHECKING:
     from .flags import MemberCacheFlags
     from .errors import CaptchaRequired
     from .audit_logs import AuditLogEntry
-    from .automod import AutoModAction, AutoModRule
     from .calls import Call
     from .directory import DirectoryEntry
     from .integrations import Integration
