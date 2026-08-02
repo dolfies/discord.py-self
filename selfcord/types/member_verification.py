@@ -76,7 +76,6 @@ class JoinRequest(TypedDict):
     guild_id: Snowflake
     form_responses: NotRequired[Optional[List[MemberVerificationFormField]]]
     last_seen: Optional[str]
-    actioned_at: NotRequired[Snowflake]  # Deprecated in favour of reviewed_at
     reviewed_at: NotRequired[str]
     actioned_by_user: NotRequired[PartialUser]
     rejection_reason: Optional[str]
