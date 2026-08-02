@@ -6241,6 +6241,11 @@ class Guild(Hashable):
             This method is an API call. For general usage, consider
             :attr:`join_request` instead.
 
+        .. admonition:: Fetching by ID
+            :class: helpful
+
+            To fetch a join request by ID, see :meth:`~Client.fetch_join_request`.
+
         .. versionadded:: 2.2
 
         Raises

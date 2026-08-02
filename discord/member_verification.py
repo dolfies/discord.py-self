@@ -310,14 +310,10 @@ class MemberVerification:
 
     @property
     def enabled(self) -> bool:
-        """:class:`bool`: Whether the member verification gate is enabled.
-
-        This is determined by the presence of the ``MEMBER_VERIFICATION_GATE_ENABLED``
-        guild feature, and is ``False`` if the guild is unknown.
-        """
+        """:class:`bool`: Whether the member verification gate is enabled."""
         guild = self.guild
         if guild is None:
-            return False
+            return True  # Cannot fetch another guild's disabled obj if we aren't members (cache may kill this)
         return 'MEMBER_VERIFICATION_GATE_ENABLED' in guild.features
 
     @property
