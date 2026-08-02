@@ -2530,7 +2530,7 @@ class HTTPClient:
         return self.request(
             Route(
                 'PATCH',
-                '/guilds/{guild_id}/requests/id/{request_id}',
+                '/guilds/{guild_id}/requests/{request_id}',
                 guild_id=guild_id,
                 request_id=request_id,
             ),
