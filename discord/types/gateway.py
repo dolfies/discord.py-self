@@ -49,6 +49,7 @@ from .read_state import ReadState, ReadStateType
 from .role import Role
 from .scheduled_event import GuildScheduledEvent
 from .snowflake import Snowflake
+from .soundboard import SoundboardSound
 from .sticker import GuildSticker
 from .subscriptions import PremiumGuildSubscriptionSlot
 from .threads import BaseThreadMember, Thread, ThreadMember
@@ -364,6 +365,22 @@ class GuildEmojisUpdateEvent(TypedDict):
 class GuildStickersUpdateEvent(TypedDict):
     guild_id: Snowflake
     stickers: List[GuildSticker]
+
+
+GuildSoundBoardSoundCreateEvent = GuildSoundBoardSoundUpdateEvent = SoundboardSound
+
+
+class GuildSoundBoardSoundsUpdateEvent(TypedDict):
+    guild_id: Snowflake
+    soundboard_sounds: List[SoundboardSound]
+
+
+SoundboardSoundsEvent = GuildSoundBoardSoundsUpdateEvent
+
+
+class GuildSoundBoardSoundDeleteEvent(TypedDict):
+    sound_id: Snowflake
+    guild_id: Snowflake
 
 
 GuildCreateEvent = GuildUpdateEvent = Guild
