@@ -644,7 +644,7 @@ class Client:
         """Sequence[:class:`.JoinRequest`]: Returns the connected client's active join requests.
 
         A join request stops being active once it is acknowledged with
-        :meth:`JoinRequest.ack`.
+        :meth:`.JoinRequest.ack`.
 
         Note that the guild a join request is for is not necessarily in :attr:`guilds`,
         as guilds with previewing disabled are not joined until the request is approved.
@@ -3359,7 +3359,7 @@ class Client:
 
         Retrieves a :class:`.JoinRequest` from an ID.
 
-        You must have :attr:`~Permissions.kick_members` in the relevant guild if the
+        You must have :attr:`~.Permissions.kick_members` in the relevant guild if the
         join request is not your own.
 
         .. versionadded:: 2.2
@@ -3404,7 +3404,7 @@ class Client:
         guild_id: :class:`int`
             The ID of the guild to fetch the member verification of.
         with_guild: :class:`bool`
-            Whether to include a partial :class:`Guild` in the response.
+            Whether to include a partial :class:`.Guild` in the response.
             This requires that you are not a member of the guild and that the guild
             is not full.
         invite: Optional[:class:`str`]
