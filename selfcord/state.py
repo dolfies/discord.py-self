@@ -113,6 +113,7 @@ from .experiment import UserExperiment, GuildExperiment, ApexExperiment
 from .stream import Stream, StreamKey, StreamProtocol
 from .metadata import Metadata
 from .directory import DirectoryEntry
+from .member_verification import JoinRequest
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -1177,6 +1178,7 @@ class ConnectionState:
         self.guild_settings: Dict[Optional[int], GuildSettings] = {}
         self.guild_settings_version: int = 0
 
+        self._join_requests: Dict[int, JoinRequest] = {}
         self._calls: Dict[int, Call] = {}
         self._call_message_cache: Dict[int, Message] = {}
         self._voice_clients: Dict[int, VoiceProtocol] = {}
@@ -1939,6 +1941,11 @@ class ConnectionState:
         # Guild parsing
         for guild_data in data.get('guilds', []):
             self._add_guild_from_data(guild_data)
+
+        # Join request parsing
+        for request in data.get('guild_join_requests', []):
+            join_request = JoinRequest(data=request, state=self)
+            self._join_requests[join_request.guild_id] = join_request
 
         # Relationship parsing
         for relationship in data.get('relationships', []):
@@ -3526,6 +3533,30 @@ class ConnectionState:
                 )
         else:
             _log.debug('SCHEDULED_EVENT_USER_REMOVE referencing unknown guild ID: %s. Discarding.', data['guild_id'])
+
+    def parse_guild_join_request_create(self, data: gw.GuildJoinRequestCreateEvent) -> None:
+        request = JoinRequest(data=data['request'], state=self)
+        # The event is also received as a moderator, but only our own requests are cached
+        # n.b. this may be doubly received (i.e. for a moderator w/ a join request) in some rare cases but currently we don't care
+        if request.user_id == self.self_id:
+            self._join_requests[request.guild_id] = request
+        self.dispatch('join_request_create', request)
+
+    def parse_guild_join_request_update(self, data: gw.GuildJoinRequestUpdateEvent) -> None:
+        request = JoinRequest(data=data['request'], state=self)
+        if request.user_id == self.self_id:
+            self._join_requests[request.guild_id] = request
+        self.dispatch('join_request_update', request)
+
+    def parse_guild_join_request_delete(self, data: gw.GuildJoinRequestDeleteEvent) -> None:
+        raw = RawJoinRequestDeleteEvent(data, self)
+        if raw.user_id == self.self_id:
+            self._join_requests.pop(raw.guild_id, None)
+        self.dispatch('raw_join_request_delete', raw)
+
+        user = self.get_user(raw.user_id)
+        if user is not None:
+            self.dispatch('join_request_delete', raw.guild, user)
 
     def parse_guild_directory_entry_create(self, data: gw.DirectoryEntryEvent) -> None:
         guild = self._get_guild(int(data['guild_id']))

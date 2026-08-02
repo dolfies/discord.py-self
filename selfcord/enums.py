@@ -149,6 +149,8 @@ __all__ = (
     'StatusDisplayType',
     'OnboardingPromptType',
     'OnboardingMode',
+    'MemberVerificationFieldType',
+    'JoinRequestStatus',
     'CollectibleType',
     'NameplatePalette',
     'ExperimentPlatform',
@@ -2044,6 +2046,27 @@ class OnboardingPromptType(Enum):
 class OnboardingMode(Enum):
     default = 0
     advanced = 1
+
+
+class MemberVerificationFieldType(Enum):
+    terms = 'TERMS'
+    text_input = 'TEXT_INPUT'
+    paragraph = 'PARAGRAPH'
+    multiple_choice = 'MULTIPLE_CHOICE'
+    # verification = 'VERIFICATION'  # dead
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class JoinRequestStatus(Enum):
+    started = 'STARTED'
+    submitted = 'SUBMITTED'
+    rejected = 'REJECTED'
+    approved = 'APPROVED'
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class CollectibleType(Enum):

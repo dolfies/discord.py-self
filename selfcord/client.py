@@ -60,6 +60,7 @@ from .invite import Invite
 from .template import Template
 from .widget import Widget
 from .guild import UserGuild
+from .member_verification import JoinRequest, MemberVerification
 from .emoji import Emoji
 from .channel import _private_channel_factory, _threaded_channel_factory, GroupChannel, PartialMessageable
 from .enums import (
@@ -166,6 +167,7 @@ if TYPE_CHECKING:
     from .raw_models import (
         RawBulkMessageDeleteEvent,
         RawGuildFeatureAckEvent,
+        RawJoinRequestDeleteEvent,
         RawIntegrationDeleteEvent,
         RawMemberRemoveEvent,
         RawMessageAckEvent,
@@ -636,6 +638,21 @@ class Client:
         .. versionadded:: 2.0
         """
         return utils.SequenceProxy(self._connection._relationships.values())
+
+    @property
+    def join_requests(self) -> Sequence[JoinRequest]:
+        """Sequence[:class:`.JoinRequest`]: Returns the connected client's active join requests.
+
+        A join request stops being active once it is acknowledged with
+        :meth:`JoinRequest.ack`.
+
+        Note that the guild a join request is for is not necessarily in :attr:`guilds`,
+        as guilds with previewing disabled are not joined until the request is approved.
+        For these guilds, see :meth:`join_request_guilds`.
+
+        .. versionadded:: 2.2
+        """
+        return utils.SequenceProxy(self._connection._join_requests.values())
 
     @property
     def friends(self) -> List[Relationship]:
@@ -2389,6 +2406,38 @@ class Client:
         timeout: Optional[float] = ...,
     ) -> Coroutine[Any, Any, RawIntegrationDeleteEvent]: ...
 
+    # Member Verification
+
+    @overload
+    def wait_for(
+        self,
+        event: Literal['join_request_create', 'join_request_update'],
+        /,
+        *,
+        check: Optional[Callable[[JoinRequest], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Coroutine[Any, Any, JoinRequest]: ...
+
+    @overload
+    def wait_for(
+        self,
+        event: Literal['join_request_delete'],
+        /,
+        *,
+        check: Optional[Callable[[Guild, User], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Coroutine[Any, Any, Tuple[Guild, User]]: ...
+
+    @overload
+    def wait_for(
+        self,
+        event: Literal['raw_join_request_delete'],
+        /,
+        *,
+        check: Optional[Callable[[RawJoinRequestDeleteEvent], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Coroutine[Any, Any, RawJoinRequestDeleteEvent]: ...
+
     # Interactions
 
     @overload
@@ -3274,6 +3323,110 @@ class Client:
         guild = state.create_guild(data)
         guild._cs_joined = True
         return guild
+
+    async def join_request_guilds(self) -> List[Guild]:
+        """|coro|
+
+        Retrieves every guild the current user has a pending join request for
+        that cannot be previewed.
+
+        These guilds are not returned by cache or :meth:`fetch_guilds`,
+        as the user is not a member of them until their join request is approved.
+
+        .. note::
+
+            Using this, you will **not** receive :attr:`.Guild.channels` and :attr:`.Guild.members`,
+            as well as most rich guild attributes.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        HTTPException
+            Fetching the guilds failed.
+
+        Returns
+        --------
+        List[:class:`.Guild`]
+            The guilds the current user has a pending join request for.
+        """
+        state = self._connection
+        data = await state.http.get_join_request_guilds()
+        return [state.create_guild(guild) for guild in data]
+
+    async def fetch_join_request(self, request_id: int, /) -> JoinRequest:
+        """|coro|
+
+        Retrieves a :class:`.JoinRequest` from an ID.
+
+        You must have :attr:`~Permissions.kick_members` in the relevant guild if the
+        join request is not your own.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        request_id: :class:`int`
+            The ID of the join request to retrieve.
+
+        Raises
+        -------
+        NotFound
+            The join request was not found.
+        Forbidden
+            You do not have permissions to fetch the join request.
+        HTTPException
+            Fetching the join request failed.
+
+        Returns
+        --------
+        :class:`.JoinRequest`
+            The join request from the ID.
+        """
+        state = self._connection
+        data = await state.http.get_join_request(request_id)
+        return JoinRequest(data=data, state=state)
+
+    async def fetch_member_verification(
+        self, guild_id: int, /, *, with_guild: bool = True, invite: Optional[str] = None
+    ) -> MemberVerification:
+        """|coro|
+
+        Retrieves a :class:`.MemberVerification` for a guild.
+
+        You must be a member of the guild, or the guild must be
+        discoverable or have guild previewing disabled.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        guild_id: :class:`int`
+            The ID of the guild to fetch the member verification of.
+        with_guild: :class:`bool`
+            Whether to include a partial :class:`Guild` in the response.
+            This requires that you are not a member of the guild and that the guild
+            is not full.
+        invite: Optional[:class:`str`]
+            The invite code the member verification is being fetched from.
+
+        Raises
+        -------
+        NotFound
+            The guild does not have member verification enabled.
+        Forbidden
+            You do not have permissions to fetch the member verification.
+        HTTPException
+            Fetching the member verification failed.
+
+        Returns
+        --------
+        :class:`.MemberVerification`
+            The member verification that was fetched.
+        """
+        state = self._connection
+        data = await state.http.get_member_verification(guild_id, with_guild=with_guild, invite=invite)
+        return MemberVerification(data=data, state=state, guild=state._get_guild(guild_id))
 
     async def fetch_guild_preview(self, guild_id: int, /) -> Guild:
         """|coro|

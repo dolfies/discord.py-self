@@ -113,6 +113,7 @@ if TYPE_CHECKING:
         invite,
         library,
         member,
+        member_verification,
         message,
         oauth2,
         onboarding,
@@ -2437,20 +2438,115 @@ class HTTPClient:
         )
 
     def get_member_verification(
-        self, guild_id: Snowflake, *, with_guild: bool = False, invite: str = MISSING
-    ):  # TODO: return type
+        self, guild_id: Snowflake, *, with_guild: bool = False, invite: Optional[str] = None
+    ) -> Response[member_verification.MemberVerification]:
         params = {
             'with_guild': str(with_guild).lower(),
         }
-        if invite is not MISSING:
+        if invite is not None:
             params['invite_code'] = invite
 
         return self.request(Route('GET', '/guilds/{guild_id}/member-verification', guild_id=guild_id), params=params)
 
-    def accept_member_verification(
-        self, guild_id: Snowflake, **fields
-    ) -> Response[None]:  # payload is the same as the above return type
-        return self.request(Route('PUT', '/guilds/{guild_id}/requests/@me', guild_id=guild_id), json=fields)
+    def edit_member_verification(
+        self, guild_id: Snowflake, payload: Dict[str, Any], *, reason: Optional[str] = None
+    ) -> Response[member_verification.MemberVerification]:
+        return self.request(
+            Route('PATCH', '/guilds/{guild_id}/member-verification', guild_id=guild_id), json=payload, reason=reason
+        )
+
+    def get_join_requests(
+        self,
+        guild_id: Snowflake,
+        status: str,
+        *,
+        limit: int = 100,
+        before: Optional[Snowflake] = None,
+        after: Optional[Snowflake] = None,
+    ) -> Response[member_verification.JoinRequestList]:
+        params: Dict[str, Any] = {
+            'status': status,
+            'limit': limit,
+        }
+        if before is not None:
+            params['before'] = before
+        if after is not None:
+            params['after'] = after
+
+        return self.request(Route('GET', '/guilds/{guild_id}/requests', guild_id=guild_id), params=params)
+
+    def get_join_request(self, request_id: Snowflake) -> Response[member_verification.JoinRequest]:
+        return self.request(Route('GET', '/join-requests/{request_id}', request_id=request_id))
+
+    def get_own_join_request(self, guild_id: Snowflake) -> Response[member_verification.JoinRequest]:
+        return self.request(Route('GET', '/guilds/{guild_id}/requests/@me', guild_id=guild_id))
+
+    def get_join_request_cooldown(self, guild_id: Snowflake) -> Response[member_verification.JoinRequestCooldown]:
+        return self.request(Route('GET', '/guilds/{guild_id}/requests/@me/cooldown', guild_id=guild_id))
+
+    def create_join_request(
+        self,
+        guild_id: Snowflake,
+        form_fields: List[member_verification.MemberVerificationFormField],
+        version: Optional[str],
+    ) -> Response[member_verification.JoinRequest]:
+        payload = {
+            'form_fields': form_fields,
+            'version': version,
+        }
+        return self.request(Route('PUT', '/guilds/{guild_id}/requests/@me', guild_id=guild_id), json=payload)
+
+    def reset_join_request(self, guild_id: Snowflake) -> Response[member_verification.JoinRequest]:
+        return self.request(Route('POST', '/guilds/{guild_id}/requests/@me', guild_id=guild_id))
+
+    def ack_join_request(self, guild_id: Snowflake, request_id: Snowflake) -> Response[None]:
+        return self.request(
+            Route(
+                'POST',
+                '/guilds/{guild_id}/requests/{request_id}/ack',
+                guild_id=guild_id,
+                request_id=request_id,
+            )
+        )
+
+    def delete_join_request(self, guild_id: Snowflake) -> Response[Optional[member_verification.JoinRequest]]:
+        return self.request(Route('DELETE', '/guilds/{guild_id}/requests/@me', guild_id=guild_id))
+
+    def create_join_request_interview(self, request_id: Snowflake) -> Response[channel.GroupDMChannel]:
+        return self.request(Route('POST', '/join-requests/{request_id}/interview', request_id=request_id))
+
+    def action_join_request(
+        self,
+        guild_id: Snowflake,
+        request_id: Snowflake,
+        action: str,
+        *,
+        rejection_reason: Optional[str] = None,
+    ) -> Response[member_verification.JoinRequest]:
+        payload: Dict[str, Any] = {'action': action}
+        if rejection_reason is not None:
+            payload['rejection_reason'] = rejection_reason
+
+        return self.request(
+            Route(
+                'PATCH',
+                '/guilds/{guild_id}/requests/id/{request_id}',
+                guild_id=guild_id,
+                request_id=request_id,
+            ),
+            json=payload,
+        )
+
+    def bulk_action_join_requests(self, guild_id: Snowflake, action: str) -> Response[None]:
+        return self.request(Route('PATCH', '/guilds/{guild_id}/requests', guild_id=guild_id), json={'action': action})
+
+    def get_user_join_requests(
+        self, guild_id: Snowflake, user_id: Snowflake
+    ) -> Response[List[member_verification.JoinRequest]]:
+        return self.request(Route('GET', '/guilds/{guild_id}/requests/users/{user_id}', guild_id=guild_id, user_id=user_id))
+
+    def get_join_request_guilds(self) -> Response[List[guild.PartialGuild]]:
+        return self.request(Route('GET', '/users/@me/join-request-guilds'))
 
     def get_all_integrations(
         self,
