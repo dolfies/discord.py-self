@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .threads import Thread
     from .types.gateway import (
+        GuildJoinRequestDeleteEvent,
         GuildMemberRemoveEvent,
         IntegrationDeleteEvent,
         MessageAckEvent,
@@ -76,6 +77,7 @@ __all__ = (
     'RawUserFeatureAckEvent',
     'RawGuildFeatureAckEvent',
     'RawPollVoteActionEvent',
+    'RawJoinRequestDeleteEvent',
 )
 
 
@@ -544,3 +546,37 @@ class RawPollVoteActionEvent(_RawReprMixin):
         self.message_id: int = int(data['message_id'])
         self.guild_id: Optional[int] = _get_as_snowflake(data, 'guild_id')
         self.answer_id: int = int(data['answer_id'])
+
+
+class RawJoinRequestDeleteEvent(_RawReprMixin):
+    """Represents the payload for a :func:`on_raw_join_request_delete` event.
+
+    .. versionadded:: 2.2
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the join request that was deleted.
+    guild_id: :class:`int`
+        The ID of the guild the join request was for.
+    user_id: :class:`int`
+        The ID of the user that created the join request.
+    """
+
+    __slots__ = ('id', 'guild_id', 'user_id', '_state')
+
+    def __init__(self, data: GuildJoinRequestDeleteEvent, state: ConnectionState) -> None:
+        self._state: ConnectionState = state
+        self.id: int = int(data['id'])
+        self.guild_id: int = int(data['guild_id'])
+        self.user_id: int = int(data['user_id'])
+
+    @property
+    def guild(self) -> Guild:
+        """:class:`Guild`: The guild the join request was for."""
+        return self._state._get_or_create_unavailable_guild(self.guild_id)
+
+    @property
+    def user(self) -> Optional[User]:
+        """Optional[:class:`User`]: The user that created the join request, if found."""
+        return self._state.get_user(self.user_id)

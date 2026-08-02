@@ -42,6 +42,7 @@ from .interactions import IFrameModalSize, Modal
 from .invite import _InviteTargetType
 from .library import LibraryApplication
 from .member import MemberWithPresence, MemberWithUser
+from .member_verification import JoinRequest, JoinRequestStatus
 from .message import Message, ReactionType
 from .payments import Payment
 from .read_state import ReadState, ReadStateType
@@ -98,6 +99,7 @@ class ReadyEvent(ResumedEvent):
     geo_ordered_rtc_regions: List[str]
     guild_experiments: List[GuildExperiment]
     guilds: List[Guild]
+    guild_join_requests: List[JoinRequest]
     merged_members: List[List[MemberWithUser]]
     pending_payments: NotRequired[List[Payment]]
     private_channels: List[Union[DMChannel, GroupDMChannel]]
@@ -771,6 +773,21 @@ class PollVoteActionEvent(TypedDict):
     message_id: Snowflake
     guild_id: NotRequired[Snowflake]
     answer_id: int
+
+
+class GuildJoinRequestCreateEvent(TypedDict):
+    guild_id: Snowflake
+    request: JoinRequest
+    status: JoinRequestStatus
+
+
+GuildJoinRequestUpdateEvent = GuildJoinRequestCreateEvent
+
+
+class GuildJoinRequestDeleteEvent(TypedDict):
+    guild_id: Snowflake
+    id: Snowflake
+    user_id: Snowflake
 
 
 class DirectoryEntryEvent(DirectoryEntry):

@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from operator import attrgetter
 from typing import (
     Any,
@@ -66,6 +66,7 @@ from .enums import (
     PrivacyLevel,
     try_enum,
     VerificationLevel,
+    JoinRequestStatus,
     ContentFilter,
     NotificationLevel,
     NSFWLevel,
@@ -98,6 +99,7 @@ from .application import PartialApplication
 from .guild_premium import PremiumGuildSubscription
 from .entitlements import Entitlement
 from .onboarding import Onboarding
+from .member_verification import JoinRequest, MemberVerification, MemberVerificationFormField
 from .automod import AutoModRule, AutoModTrigger, AutoModRuleAction
 from .partial_emoji import _EmojiTag
 from .commands import GuildApplicationCommandPermissions, _command_factory, _commands_from_index
@@ -849,6 +851,18 @@ class Guild(Hashable):
         """
         self_id = self._state.self_id
         return self.get_member(self_id)
+
+    @property
+    def join_request(self) -> Optional[JoinRequest]:
+        """Optional[:class:`JoinRequest`]: The current user's active join request for
+        this guild, if any.
+
+        A join request stops being active once it is acknowledged with
+        :meth:`JoinRequest.ack`.
+
+        .. versionadded:: 2.2
+        """
+        return self._state._join_requests.get(self.id)
 
     def is_joined(self) -> bool:
         """Returns whether you are a full member of this guild.
@@ -5978,6 +5992,435 @@ class Guild(Hashable):
             reason=reason if reason is not MISSING else None,
         )
         return Onboarding(data=data, guild=self, state=self._state)
+
+    async def member_verification(self, *, with_guild: bool = False, invite: Optional[str] = None) -> MemberVerification:
+        """|coro|
+
+        Fetches the member verification gate for this guild.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        with_guild: :class:`bool`
+            Whether to include a partial :class:`Guild` in the response.
+            This requires that you are not a member of the guild and that the guild
+            is not full.
+        invite: Optional[:class:`str`]
+            The invite code the member verification is being fetched from.
+
+        Raises
+        -------
+        NotFound
+            The guild does not have member verification enabled.
+        Forbidden
+            You do not have permissions to fetch the member verification.
+        HTTPException
+            Fetching the member verification failed.
+
+        Returns
+        --------
+        :class:`MemberVerification`
+            The member verification that was fetched.
+        """
+        state = self._state
+        data = await state.http.get_member_verification(self.id, with_guild=with_guild, invite=invite)
+        return MemberVerification(data=data, state=state, guild=self)
+
+    async def edit_member_verification(
+        self,
+        *,
+        enabled: bool = MISSING,
+        form_fields: List[MemberVerificationFormField] = MISSING,
+        description: Optional[str] = MISSING,
+        bulk_action: JoinRequestStatus = MISSING,
+        reason: Optional[str] = None,
+    ) -> MemberVerification:
+        """|coro|
+
+        Edits the member verification gate for this guild.
+
+        You must have :attr:`~Permissions.manage_guild` to do this.
+
+        All parameters are optional.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        enabled: :class:`bool`
+            Whether the member verification gate is enabled.
+        form_fields: List[:class:`MemberVerificationFormField`]
+            The questions the user must answer. There can be up to 5 questions.
+
+            Using a field type other than :attr:`MemberVerificationFieldType.terms`
+            requires the guild to have the ``MEMBER_VERIFICATION_MANUAL_APPROVAL`` feature.
+        description: Optional[:class:`str`]
+            A description of what the guild is about. Can be up to 300 characters long.
+        bulk_action: :class:`JoinRequestStatus`
+            What to do with the pending join requests when disabling the gate.
+            Only :attr:`JoinRequestStatus.approved` and :attr:`JoinRequestStatus.rejected`
+            can be used. Defaults to approving.
+        reason: Optional[:class:`str`]
+            The reason for editing the member verification. Shows up on the audit log.
+
+        Raises
+        -------
+        ValueError
+            An invalid ``bulk_action`` was passed.
+        Forbidden
+            You do not have permissions to edit the member verification.
+        HTTPException
+            Editing the member verification failed.
+
+        Returns
+        --------
+        :class:`MemberVerification`
+            The newly updated member verification.
+        """
+        payload: Dict[str, Any] = {}
+        if enabled is not MISSING:
+            payload['enabled'] = enabled
+        if form_fields is not MISSING:
+            payload['form_fields'] = [field.to_dict() for field in form_fields]
+        if description is not MISSING:
+            payload['description'] = description
+        if bulk_action is not MISSING:
+            if bulk_action not in (JoinRequestStatus.approved, JoinRequestStatus.rejected):
+                raise ValueError('bulk_action must be either JoinRequestStatus.approved or JoinRequestStatus.rejected')
+            payload['bulk_action'] = bulk_action.value
+
+        state = self._state
+        data = await state.http.edit_member_verification(self.id, payload, reason=reason)
+        return MemberVerification(data=data, state=state, guild=self)
+
+    async def join_requests(
+        self,
+        *,
+        status: JoinRequestStatus = JoinRequestStatus.submitted,
+        limit: Optional[int] = 100,
+        before: Snowflake = MISSING,
+        after: Snowflake = MISSING,
+    ) -> AsyncIterator[JoinRequest]:
+        """Retrieves an :term:`asynchronous iterator` of the guild's :class:`JoinRequest`\\s.
+
+        You must have :attr:`~Permissions.kick_members` to do this.
+
+        .. versionadded:: 2.2
+
+        Examples
+        ---------
+
+        Usage ::
+
+            async for request in guild.join_requests():
+                print(request.user, request.status)
+
+        Flattening into a list ::
+
+            requests = [request async for request in guild.join_requests()]
+
+        Parameters
+        -----------
+        status: :class:`JoinRequestStatus`
+            The status of the join requests to retrieve.
+            Defaults to :attr:`JoinRequestStatus.submitted`.
+
+            :attr:`JoinRequestStatus.started` cannot be used.
+        limit: Optional[:class:`int`]
+            The number of join requests to retrieve. If ``None``, retrieves every
+            join request with the given status. Note that this is potentially slow.
+        before: :class:`abc.Snowflake`
+            Retrieve join requests before this join request.
+        after: :class:`abc.Snowflake`
+            Retrieve join requests after this join request.
+
+        Raises
+        -------
+        ValueError
+            :attr:`JoinRequestStatus.started` was passed as the ``status``, or both
+            ``before`` and ``after`` were provided.
+        Forbidden
+            You do not have permissions to fetch the join requests.
+        HTTPException
+            Fetching the join requests failed.
+
+        Yields
+        -------
+        :class:`JoinRequest`
+            The join request that was fetched.
+        """
+        if status is JoinRequestStatus.started:
+            raise ValueError('Join requests with a status of JoinRequestStatus.started cannot be queried')
+        if before is not MISSING and after is not MISSING:
+            raise ValueError('Pagination does not support both before and after')
+
+        state = self._state
+        endpoint = state.http.get_join_requests
+
+        async def _before_strategy(retrieve: int, before: Optional[Snowflake], limit: Optional[int]):
+            before_id = before.id if before else None
+            data = (await endpoint(self.id, status.value, limit=retrieve, before=before_id))['guild_join_requests']
+
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                before = Object(id=int(data[-1]['id']))
+
+            return data, before, limit
+
+        async def _after_strategy(retrieve: int, after: Optional[Snowflake], limit: Optional[int]):
+            after_id = after.id if after else None
+            data = (await endpoint(self.id, status.value, limit=retrieve, after=after_id))['guild_join_requests']
+
+            if data:
+                if limit is not None:
+                    limit -= len(data)
+
+                after = Object(id=int(data[0]['id']))
+
+            return data, after, limit
+
+        if after is not MISSING:
+            strategy, state_ = _after_strategy, after
+        else:
+            strategy, state_ = _before_strategy, before
+
+        while True:
+            retrieve = 100 if limit is None else min(limit, 100)
+            if retrieve < 1:
+                return
+
+            data, state_, limit = await strategy(retrieve, state_, limit)
+
+            # Terminate loop on next iteration; there's no data left after this
+            if len(data) < 100:
+                limit = 0
+
+            for raw_request in data:
+                yield JoinRequest(data=raw_request, state=state)
+
+    async def fetch_join_requests(self, user: Snowflake, /) -> List[JoinRequest]:
+        """|coro|
+
+        Retrieves every :class:`JoinRequest` the given user has submitted to this guild.
+
+        You must have :attr:`~Permissions.kick_members` to do this.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        user: :class:`abc.Snowflake`
+            The user to fetch the join requests of.
+
+        Raises
+        -------
+        Forbidden
+            You do not have permissions to fetch the join requests.
+        HTTPException
+            Fetching the join requests failed.
+
+        Returns
+        --------
+        List[:class:`JoinRequest`]
+            The join requests the user has submitted.
+        """
+        state = self._state
+        data = await state.http.get_user_join_requests(self.id, user.id)
+        return [JoinRequest(data=request, state=state) for request in data]
+
+    async def fetch_join_request(self) -> JoinRequest:
+        """|coro|
+
+        Retrieves the current user's active :class:`JoinRequest` for this guild.
+
+        .. note::
+
+            This method is an API call. For general usage, consider
+            :attr:`join_request` instead.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        NotFound
+            You do not have an active join request for this guild.
+        HTTPException
+            Fetching the join request failed.
+
+        Returns
+        --------
+        :class:`JoinRequest`
+            The join request that was fetched.
+        """
+        state = self._state
+        data = await state.http.get_own_join_request(self.id)
+        return JoinRequest(data=data, state=state)
+
+    async def join_request_cooldown(self) -> timedelta:
+        """|coro|
+
+        Retrieves how long the current user must wait before submitting another
+        join request for this guild.
+
+        This is zero if the user is not on cooldown.
+
+        .. versionadded:: 2.2
+
+        Examples
+        ---------
+
+        Waiting out the cooldown ::
+
+            cooldown = await guild.join_request_cooldown()
+            if cooldown:
+                await asyncio.sleep(cooldown.total_seconds())
+
+        Raises
+        -------
+        HTTPException
+            Fetching the cooldown failed.
+
+        Returns
+        --------
+        :class:`datetime.timedelta`
+            How long the user must wait.
+        """
+        data = await self._state.http.get_join_request_cooldown(self.id)
+        return timedelta(seconds=data.get('cooldown') or 0)
+
+    async def request_to_join(self, verification: MemberVerification, /) -> JoinRequest:
+        """|coro|
+
+        Submits a request to join this guild.
+
+        If the guild only asks the user to agree to its rules, the join request is
+        approved immediately. Otherwise, it must be approved by a moderator before
+        the user becomes a full member.
+
+        .. versionadded:: 2.2
+
+        Examples
+        ---------
+
+        Agreeing to a guild's rules ::
+
+            verification = await guild.member_verification()
+            for field in verification.form_fields:
+                if field.type == MemberVerificationFieldType.agreement:
+                    field.response = True
+
+            await guild.request_to_join(verification)
+
+        Parameters
+        -----------
+        verification: :class:`MemberVerification`
+            The guild's member verification, as returned by :meth:`member_verification`,
+            with a populated :attr:`~MemberVerificationFormField.response` for each
+            required :attr:`~MemberVerification.form_fields` entry.
+
+        Raises
+        -------
+        ValueError
+            A required question was left unanswered.
+        Forbidden
+            You are not allowed to join this guild.
+        HTTPException
+            Submitting the join request failed.
+
+        Returns
+        --------
+        :class:`JoinRequest`
+            The join request that was submitted.
+        """
+        unanswered = [repr(field.label) for field in verification.form_fields if field.required and field.response is None]
+        if unanswered:
+            raise ValueError(f'Missing a response for the required question(s): {", ".join(unanswered)}')
+
+        state = self._state
+        data = await state.http.create_join_request(
+            self.id,
+            [field.to_dict() for field in verification.form_fields],
+            verification.version.isoformat() if verification.version is not None else None,
+        )
+        return JoinRequest(data=data, state=state)
+
+    async def reset_join_request(self) -> JoinRequest:
+        """|coro|
+
+        Resets the current user's join request for this guild.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        HTTPException
+            Resetting the join request failed.
+
+        Returns
+        --------
+        :class:`JoinRequest`
+            The newly created join request.
+        """
+        state = self._state
+        data = await state.http.reset_join_request(self.id)
+        return JoinRequest(data=data, state=state)
+
+    async def delete_join_request(self) -> Optional[JoinRequest]:
+        """|coro|
+
+        Deletes the current user's join request for this guild.
+
+        If the guild has previewing enabled, this instead behaves like
+        :meth:`reset_join_request` and returns the new join request.
+
+        .. versionadded:: 2.2
+
+        Raises
+        -------
+        HTTPException
+            Deleting the join request failed.
+
+        Returns
+        --------
+        Optional[:class:`JoinRequest`]
+            The newly created join request, if the request was reset instead of deleted.
+        """
+        state = self._state
+        data = await state.http.delete_join_request(self.id)
+        return JoinRequest(data=data, state=state) if data else None
+
+    async def bulk_action_join_requests(self, action: JoinRequestStatus, /) -> None:
+        """|coro|
+
+        Approves or rejects every pending join request for this guild.
+
+        You must have :attr:`~Permissions.kick_members` to do this.
+
+        .. versionadded:: 2.2
+
+        Parameters
+        -----------
+        action: :class:`JoinRequestStatus`
+            What to do with the pending join requests. Only
+            :attr:`JoinRequestStatus.approved` and :attr:`JoinRequestStatus.rejected`
+            can be used.
+
+        Raises
+        -------
+        ValueError
+            An invalid ``action`` was passed.
+        Forbidden
+            You do not have permissions to action the join requests.
+        HTTPException
+            Actioning the join requests failed.
+        """
+        if action not in (JoinRequestStatus.approved, JoinRequestStatus.rejected):
+            raise ValueError('action must be either JoinRequestStatus.approved or JoinRequestStatus.rejected')
+
+        await self._state.http.bulk_action_join_requests(self.id, action.value)
 
     async def profile(self) -> GuildProfile:
         """|coro|
