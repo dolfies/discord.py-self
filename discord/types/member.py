@@ -26,7 +26,7 @@ from typing import Optional, TypedDict
 
 from .activity import BasePresenceUpdate
 from .snowflake import SnowflakeList
-from .user import AvatarDecorationData, PartialUser
+from .user import AvatarDecorationData, PartialUser, DisplayNameStyle, UserCollectibles
 
 
 class Nickname(TypedDict):
@@ -50,6 +50,8 @@ class Member(PartialMember, total=False):
     pending: bool
     communication_disabled_until: str
     avatar_decoration_data: AvatarDecorationData
+    display_name_style: DisplayNameStyle
+    collectibles: UserCollectibles
 
 
 class _OptionalMemberWithUser(PartialMember, total=False):
