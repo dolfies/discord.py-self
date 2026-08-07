@@ -5916,7 +5916,7 @@ RawPresenceUpdateEvent
     :members:
 
 RawJoinRequestDeleteEvent
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. attributetable:: RawJoinRequestDeleteEvent
 
