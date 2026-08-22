@@ -504,7 +504,7 @@ class HeadersContext:
     @staticmethod
     async def fetch_api_properties(
         session: ClientSession,
-        type: Literal['web', 'developer', 'reporting', 'windows', 'mac', 'linux'],
+        type: Literal['web', 'developers', 'marketing', 'windows', 'mac', 'linux'],
         release_channel: Literal['stable', 'ptb', 'canary', 'development'] = 'stable',
         browser: Optional[Literal['chrome', 'firefox', 'safari', 'edge']] = None,
         platform: Optional[Literal['windows', 'mac', 'linux']] = None,
@@ -569,9 +569,12 @@ class HeadersContext:
             if not resp.ok:
                 raise HTTPException(resp, 'Failed to fetch properties from info API')
             if resp.status == 202:
+                # While we do return a retry_after, it's not actively based on anything
+                # Better to just raise
                 raise HTTPException(resp, 'Info API is temporarily unavailable')
 
             return await resp.json()
+
     @staticmethod
     async def scrape_client_build_number(
         session: ClientSession, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
