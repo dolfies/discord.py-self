@@ -323,16 +323,24 @@ class HeadersContext:
         """
         try:
             data = await asyncio.wait_for(
-                cls.fetch_api_properties(session, 'web', proxy=proxy, proxy_auth=proxy_auth), timeout=3
+                cls.fetch_api_properties(
+                    session,
+                    'web',
+                    proxy=proxy,
+                    proxy_auth=proxy_auth,
+                ),
+                timeout=10,
             )
         except Exception:
             _log.info('Info API temporarily down. Falling back to manual retrieval...')
         else:
+            properties = data['properties']
+
             return cls(
-                platform='Windows',
-                browser_type='chrome',
-                browser_major_version=int(data['properties']['browser_version'].split('.')[0]),
-                super_properties=data['properties'],
+                platform=properties['os'],
+                browser_type=properties['browser'].lower(),
+                browser_major_version=int(properties['browser_version'].split('.')[0]),
+                super_properties=properties,
                 encoded_super_properties=data.get('encoded'),
                 extra_gateway_properties=data.get('extra_gateway_properties'),
             )
@@ -496,7 +504,7 @@ class HeadersContext:
     @staticmethod
     async def fetch_api_properties(
         session: ClientSession,
-        type: Literal['web', 'developers', 'marketing', 'windows', 'mac', 'linux'],
+        type: Literal['web', 'developer', 'reporting', 'windows', 'mac', 'linux'],
         release_channel: Literal['stable', 'ptb', 'canary', 'development'] = 'stable',
         browser: Optional[Literal['chrome', 'firefox', 'safari', 'edge']] = None,
         platform: Optional[Literal['windows', 'mac', 'linux']] = None,
@@ -553,6 +561,7 @@ class HeadersContext:
 
         async with session.post(
             f'https://cordapi.dolfi.es/api/v2/properties/{type.lower()}',
+            params=params,
             proxy=proxy,
             proxy_auth=_resolve_proxy_auth(proxy_auth),
             headers={'User-Agent': f'discord.py-self/{__version__} curl_cffi/{curl_cffi.__version__}'},  # type: ignore
@@ -560,12 +569,9 @@ class HeadersContext:
             if not resp.ok:
                 raise HTTPException(resp, 'Failed to fetch properties from info API')
             if resp.status == 202:
-                # While we do return a retry_after, it's not actively based on anything
-                # Better to just raise
                 raise HTTPException(resp, 'Info API is temporarily unavailable')
 
             return await resp.json()
-
     @staticmethod
     async def scrape_client_build_number(
         session: ClientSession, *, proxy: Optional[str] = None, proxy_auth: Optional[BasicAuth] = None
