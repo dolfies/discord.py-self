@@ -734,6 +734,7 @@ class DiscordWebSocket:
 
             if isinstance(e, asyncio.TimeoutError):
                 _log.debug('Timed out receiving Gateway packet. Attempting a reconnect.')
+                await self.close()
                 raise ReconnectWebSocket from None
 
             socket = self.socket
